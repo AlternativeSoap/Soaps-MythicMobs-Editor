@@ -1,6 +1,8 @@
-# 🎮 Soaps MythicMobs Editor v2
+# 🎮 Soaps MythicMobs Editor
 
-A comprehensive, browser-based editor for creating and managing MythicMobs configurations with a beautiful dark purple interface.
+A powerful, browser-based editor for creating and managing MythicMobs configurations. No installation required - just open and start creating!
+
+**🌐 [Try it now!](https://alternativesoap.github.io/Soaps-MythicMobs-Editor/)**
 
 ![Version](https://img.shields.io/badge/version-2.0.0-purple)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -43,124 +45,32 @@ A comprehensive, browser-based editor for creating and managing MythicMobs confi
 - **Pack Export**: Download packs as ZIP files (coming soon)
 - **Validation**: Automatic validation with warnings and errors
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
-### Installation
+1. **Open the editor** - [Click here to launch](https://alternativesoap.github.io/Soaps-MythicMobs-Editor/)
+2. **Create a Pack** - Click "New Pack" button
+3. **Create Mobs, Skills & Items** - Use the "+ New" buttons in each folder
+4. **Export** - Copy the YAML output to your MythicMobs folder
 
-1. **Download** or clone this repository
-2. **Open** `index.html` in a modern web browser
-3. **Start creating!** No server or installation required
+That's it! No installation, no setup, just start creating.
 
-### Supported Browsers
-- ✅ Chrome 90+
-- ✅ Firefox 88+
-- ✅ Edge 90+
-- ✅ Safari 14+
-
-### First Steps
-
-1. **Create a Pack**
-   - Click the "+" button next to "Packs" in the sidebar
-   - Enter a pack name (e.g., "MyCustomMobs")
-   - Your first pack is created!
-
-2. **Create Your First Mob**
-   - Click "New Mob" in the pack folder
-   - Fill in the mob details:
-     - **Internal Name**: lowercase_with_underscores (e.g., `fire_golem`)
-     - **Display Name**: Use `&` codes for colors (e.g., `&4&lFire Golem`)
-     - **Entity Type**: Choose the base Minecraft mob
-     - **Stats**: Configure health, damage, armor, etc.
-   - Click **Save** or press `Ctrl+S`
-
-3. **Create a Skill**
-   - Click "New Skill" in the pack folder
-   - Add mechanics with the "Add Mechanic" button
-   - Configure triggers (e.g., `~onAttack`, `~onTimer:20`)
-   - Save your skill
-
-4. **Export Your Work**
-   - Right-click a file in the tree and select "Export"
-   - Or use `Ctrl+E` to export the current file
-   - Copy the YAML and paste it into your MythicMobs plugin folder
+### 📱 Supported Browsers
+✅ Chrome • Firefox • Edge • Safari (latest versions)
 
 ## ⌨️ Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+K` | Open Command Palette |
-| `Ctrl+S` | Save Current File |
-| `Ctrl+N` | Create New Mob |
-| `Ctrl+Alt+N` | Create New Skill |
-| `Ctrl+Shift+N` | Create New Item |
-| `Ctrl+E` | Export Current File |
-| `Ctrl+Z` | Undo (coming soon) |
-| `Ctrl+Y` | Redo (coming soon) |
+`Ctrl+K` Command Palette • `Ctrl+S` Save • `Ctrl+N` New Mob • `Ctrl+E` Export
 
-## 📁 File Structure
+## 🎨 Color Codes
 
-```
-Soaps Mythicmobs Editor v2/
-├── index.html              # Main application entry
-├── README.md               # This file
-├── styles/
-│   ├── main.css           # Core theme and layout
-│   ├── components.css     # Reusable UI components
-│   └── editor.css         # Editor-specific styles
-├── app.js                 # Core application controller
-├── components/
-│   ├── storageManager.js  # localStorage wrapper
-│   ├── packManager.js     # Pack system management
-│   ├── fileManager.js     # File operations
-│   ├── mobEditor.js       # Mob configuration UI
-│   ├── skillEditor.js     # Skill configuration UI
-│   ├── itemEditor.js      # Item configuration UI
-│   ├── commandPalette.js  # Quick actions palette
-│   ├── displayNameBuilder.js # Display name utilities
-│   └── mechanicBrowser.js # Mechanic database browser
-├── utils/
-│   ├── yamlParser.js      # YAML parsing
-│   ├── yamlExporter.js    # YAML export formatting
-│   ├── validators.js      # Configuration validation
-│   ├── editorHistory.js   # Undo/redo system
-│   ├── collapsibleManager.js # UI collapse handler
-│   ├── helpers.js         # Utility functions
-│   ├── mechanics.js       # Mechanics database
-│   ├── conditions.js      # Conditions database
-│   ├── triggers.js        # Triggers database
-│   ├── targeters.js       # Targeters database
-│   ├── mobTypes.js        # Entity types
-│   └── materials.js       # Minecraft materials
-└── data/
-    ├── mobData.js         # Mob defaults and templates
-    └── templates.js       # Pre-built examples
-```
+Use `&` codes for colored names: `&4&lFire &6Golem` = **Fire Golem** (red + gold)
 
-## 🎨 Color Codes Reference
+**Colors**: `&0-9` and `&a-f` • **Formats**: `&l` Bold, `&o` Italic, `&n` Underline
 
-Use Minecraft color codes in display names and lore:
-
-| Code | Color | Code | Color |
-|------|-------|------|-------|
-| `&0` | Black | `&8` | Dark Gray |
-| `&1` | Dark Blue | `&9` | Blue |
-| `&2` | Dark Green | `&a` | Green |
-| `&3` | Dark Aqua | `&b` | Aqua |
-| `&4` | Dark Red | `&c` | Red |
-| `&5` | Dark Purple | `&d` | Light Purple |
-| `&6` | Gold | `&e` | Yellow |
-| `&7` | Gray | `&f` | White |
-| `&l` | **Bold** | `&n` | Underline |
-| `&o` | *Italic* | `&k` | Obfuscated |
-| `&m` | ~~Strikethrough~~ | `&r` | Reset |
-
-**Example**: `&4&lFire &6&lGolem` = **<span style="color:darkred">Fire</span> <span style="color:gold">Golem</span>**
-
-## 📚 MythicMobs Basics
-
-### Mob Configuration
+## 📚 Example Configuration
 
 ```yaml
+# Mob Example
 SkeletonKing:
   Type: SKELETON
   Display: '&6&lSkeleton King'
@@ -168,118 +78,51 @@ SkeletonKing:
   Damage: 15
   Armor: 10
   Skills:
-  - SummonMinions{amt=3} ~onCombat
-  Drops:
-  - gold_ingot 1-3 0.5
-```
+  - skill{s=SummonMinions} ~onCombat
+  - skill{s=Fireball} ~onTimer:60
 
-### Skill Configuration
+# Skill Example
+SummonMinions:
+  Cooldown: 10
+  Skills:
+  - summon{type=SKELETON;amount=3;radius=5} @self
+  - effect:particles{p=FLAME;a=20;hs=0.5;vs=0.5} @self
+  - sound{s=entity.evoker.prepare_summon} @self
 
-```yaml
-Fireball:
-  Cooldown: 5
-  Mechanics:
-  - projectile{onTick=FireballParticles;onHit=FireballDamage;v=2}
-```
-
-### Item Configuration
-
-```yaml
+# Item Example
 MagicSword:
   Id: DIAMOND_SWORD
   Display: '&b&lMagic Sword'
   Lore:
-  - '&7A blade infused with magic'
+  - '&7A blade forged with ancient magic'
+  - '&8Grants bonus damage'
   Enchantments:
-  - SHARPNESS:5
-  - UNBREAKING:3
+  - SHARPNESS 5
+  - UNBREAKING 3
 ```
 
-## 🔧 Advanced Features
+## 💡 Pro Tips
 
-### Display Name Builder
-Use the display name builder (coming soon) to create gradient text effects:
-- **Gradient**: Smooth color transitions
-- **Rainbow**: Multi-color effects
-- **Custom**: Combine colors and formats
+- **Drag packs** up/down to reorder them in the file tree
+- **Auto-save** keeps your work safe - look for toast notifications
+- **Export often** as backups (data is stored in browser only)
+- **Use validation** - check for warnings before exporting
+- **Test in-game** on a test server first
 
-### Mechanic Browser
-Search and browse all available MythicMobs mechanics (coming soon):
-- **Categories**: Damage, Effects, Movement, Projectile, etc.
-- **Examples**: See example configurations
-- **Documentation**: Built-in parameter reference
+## ⚠️ Important
 
-### Pack Export
-Export entire packs as ZIP files ready to upload to your server (coming soon).
+Your data is saved in browser storage. Clearing browser data will delete your packs! Export regularly as backups.
 
-## 💡 Tips & Tricks
+## 📞 Support & Resources
 
-1. **Use Beginner Mode** if you're new to MythicMobs - it simplifies the UI
-2. **Name Files Carefully** - Use lowercase and underscores (e.g., `fire_golem`)
-3. **Save Often** - Press `Ctrl+S` frequently (auto-save helps too!)
-4. **Check YAML Preview** - The right panel shows your output in real-time
-5. **Validate Before Export** - Look for validation warnings and fix them
-6. **Test in-game** - Always test your mobs on a test server first
-
-## 🐛 Troubleshooting
-
-### My changes aren't saving
-- Check if auto-save is enabled (should see toast notifications)
-- Manually save with `Ctrl+S`
-- Check browser console for errors (F12)
-
-### YAML export looks wrong
-- Ensure all required fields are filled
-- Check validation warnings (yellow) and errors (red)
-- Verify entity type and material names are correct
-
-### Application won't load
-- Make sure you're using a modern browser
-- Check browser console for errors
-- Try clearing browser cache and reloading
-
-### Lost my packs
-- Data is stored in browser localStorage
-- Don't clear browser data if you want to keep your work
-- Export your packs regularly as backups
-
-## 📦 Data Storage
-
-All your work is saved in your browser's localStorage:
-- **Persistent**: Data survives browser restarts
-- **Local**: Data stays on your computer
-- **Per-browser**: Each browser has separate storage
-
-**⚠️ Important**: Clearing browser data will delete your packs! Export regularly as backups.
-
-## 🤝 Contributing
-
-Want to improve the editor? Contributions are welcome!
-
-1. Fork the repository
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
+- 📖 [MythicMobs Wiki](https://git.mythiccraft.io/mythiccraft/MythicMobs/-/wikis/home) - Official documentation
+- 🐛 [Report Issues](https://github.com/AlternativeSoap/Soaps-MythicMobs-Editor/issues) - Bug reports & suggestions
+- 💬 Join the MythicMobs Discord community
 
 ## 📄 License
 
-MIT License - Feel free to use and modify for your projects.
-
-## 🙏 Credits
-
-- **MythicMobs**: Developed by Mythic Team
-- **Font Awesome**: Icon library
-- **JSZip**: ZIP file creation
-- **Google Fonts**: Inter and JetBrains Mono fonts
-
-## 📞 Support
-
-- **Discord**: Join the MythicMobs community
-- **Documentation**: [MythicMobs Wiki](https://git.mythiccraft.io/mythiccraft/MythicMobs/-/wikis/home)
-- **Issues**: Report bugs on the repository
+MIT License • Free to use and modify
 
 ---
 
-**Made with 💜 for the MythicMobs community**
-
-*Happy mob creating!*
+**Made with 💜 for the MythicMobs community** • *Happy mob creating!*
