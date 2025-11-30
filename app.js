@@ -1,10 +1,27 @@
 /**
  * Soaps MythicMobs Editor - Main Application
  * Core application class with state management
+ * 
+ * ═══════════════════════════════════════════════════════════════
+ * Created by: AlternativeSoap
+ * © 2025 AlternativeSoap - All Rights Reserved
+ * 
+ * This editor is provided to the MythicMobs community.
+ * Please respect the creator's work and give credit where due.
+ * ═══════════════════════════════════════════════════════════════
  */
 
 class MythicMobsEditor {
     constructor() {
+        // Display creator info in console
+        console.log('%c═══════════════════════════════════════════════════════════════', 'color: #9b59b6; font-weight: bold;');
+        console.log('%c  🎮 Soaps MythicMobs Editor', 'color: #9b59b6; font-size: 16px; font-weight: bold;');
+        console.log('%c  Created by: AlternativeSoap', 'color: #8e44ad; font-size: 14px;');
+        console.log('%c  © 2025 - Made with 💜 for the MythicMobs community', 'color: #8e44ad;');
+        console.log('%c═══════════════════════════════════════════════════════════════', 'color: #9b59b6; font-weight: bold;');
+        console.log('');
+        console.log('%cℹ️ Tip: Press Ctrl+K to open the Command Palette', 'color: #3498db;');
+        console.log('');
         // Core utilities
         this.storage = null;
         this.packManager = null;

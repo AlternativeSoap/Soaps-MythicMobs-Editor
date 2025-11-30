@@ -1262,10 +1262,16 @@ class PackManager {
                     
                     // Build YAML content with all entries in the file
                     let yamlContent = '';
-                    file.entries.forEach(entry => {
-                        const yaml = this.editor.yamlExporter.export(entry, type);
-                        yamlContent += yaml + '\n';
+                    file.entries.forEach((entry, index) => {
+                        const yaml = this.editor.yamlExporter.exportWithoutFooter(entry, type);
+                        yamlContent += yaml;
+                        if (index < file.entries.length - 1) {
+                            yamlContent += '\n';
+                        }
                     });
+                    
+                    // Add footer once at the end of the file
+                    yamlContent += '\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n# Made by AlternativeSoap\'s MythicMob Editor\n# Discord: https://discord.gg/eUFRvyzJua';
                     
                     folder.file(file.fileName, yamlContent);
                 });
@@ -1280,6 +1286,7 @@ class PackManager {
             
             // Export packinfo.yml
             const packinfo = pack.packinfo || this.createDefaultPackInfo(pack.name);
+            const footer = '\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n# Made by AlternativeSoap\'s MythicMob Editor\n# Discord: https://discord.gg/eUFRvyzJua';
             const packinfoYaml = `Name: ${packinfo.Name}
 Version: ${packinfo.Version}
 Author: ${packinfo.Author}
@@ -1288,11 +1295,11 @@ Icon:
   Model: ${packinfo.Icon.Model}
 URL: ${packinfo.URL}
 Description:
-${packinfo.Description.map(line => `- ${line}`).join('\n')}`;
+${packinfo.Description.map(line => `- ${line}`).join('\n')}` + footer;
             zip.file('packinfo.yml', packinfoYaml);
             
             // Export tooltips.yml
-            zip.file('tooltips.yml', '# Tooltips configuration\n');
+            zip.file('tooltips.yml', '# Tooltips configuration\n' + footer);
             
             // Generate and download
             const content = await zip.generateAsync({ type: 'blob' });

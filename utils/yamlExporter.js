@@ -1,23 +1,46 @@
 /**
  * YAML Exporter - Converts JavaScript objects to MythicMobs YAML
+ * Created by: AlternativeSoap
+ * https://github.com/AlternativeSoap/Soaps-MythicMobs-Editor
  */
 class YAMLExporter {
     export(data, type) {
+        const footer = `\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n# Made by AlternativeSoap's MythicMob Editor\n# Discord: https://discord.gg/eUFRvyzJua`;
         try {
+            const yaml = this.exportWithoutFooter(data, type);
+            return yaml + footer;
+        } catch (error) {
+            console.error('YAML export error:', error);
+            return '# Export error';
+        }
+    }
+    
+    /**
+     * Export without footer (used for pack exports)
+     */
+    exportWithoutFooter(data, type) {
+        try {
+            let yaml = '';
             switch (type) {
                 case 'mob':
-                    return this.exportMob(data);
+                    yaml = this.exportMob(data);
+                    break;
                 case 'skill':
-                    return this.exportSkill(data);
+                    yaml = this.exportSkill(data);
+                    break;
                 case 'item':
-                    return this.exportItem(data);
+                    yaml = this.exportItem(data);
+                    break;
                 case 'droptable':
-                    return this.exportDropTable(data);
+                    yaml = this.exportDropTable(data);
+                    break;
                 case 'randomspawn':
-                    return this.exportRandomSpawn(data);
+                    yaml = this.exportRandomSpawn(data);
+                    break;
                 default:
                     return '# Unknown type';
             }
+            return yaml;
         } catch (error) {
             console.error('YAML export error:', error);
             return '# Export error';
