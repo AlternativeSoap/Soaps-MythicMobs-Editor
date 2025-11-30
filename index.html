@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soaps MythicMobs Editor</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/editor.css">
+    <link rel="stylesheet" href="styles/conditionEditor.css">
+    <link rel="stylesheet" href="styles/triggerBrowser.css">
+    <link rel="stylesheet" href="styles/packImporter.css">
+</head>
+<body>
+    <!-- Main Container -->
+    <div id="app" class="app-container">
+        
+        <!-- Top Header Bar -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1 class="app-title">
+                    <i class="fas fa-dragon"></i>
+                    Soaps MythicMobs Editor
+                </h1>
+                <div class="mode-switcher">
+                    <button class="mode-btn active" data-mode="beginner">
+                        <i class="fas fa-user"></i> Beginner
+                    </button>
+                    <button class="mode-btn" data-mode="advanced">
+                        <i class="fas fa-user-cog"></i> Advanced
+                    </button>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="save-status saved" id="save-status" title="Click to view recent changes">
+                    <i class="fas fa-check-circle"></i>
+                    <span>All changes saved</span>
+                </div>
+                <div class="recent-changes-dropdown hidden" id="recent-changes-dropdown">
+                    <div class="dropdown-header">
+                        <h4>Recent Changes</h4>
+                    </div>
+                    <div class="dropdown-content" id="recent-changes-list">
+                        <div class="no-changes">No recent changes</div>
+                    </div>
+                    <div class="dropdown-footer">
+                        <button class="btn btn-sm btn-secondary" id="view-all-changes-btn">View All Changes</button>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="save-all-btn" title="Save all modified files">
+                    <i class="fas fa-save"></i> Save All
+                </button>
+                <button class="icon-btn" id="settings-btn" title="Settings">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <button class="icon-btn" id="help-btn" title="Help">
+                    <i class="fas fa-question-circle"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="app-content">
+            
+            <!-- Left Sidebar - File Tree -->
+            <aside class="sidebar sidebar-left" id="sidebar-left">
+                <div class="sidebar-header">
+                    <h3><i class="fas fa-folder-tree"></i> Packs</h3>
+                    <div class="header-actions">
+                        <button class="icon-btn" id="new-pack-btn" title="New Pack">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="icon-btn" id="toggle-left-sidebar" title="Hide File Tree">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="sidebar-content">
+                    <div id="pack-tree"></div>
+                </div>
+                <div class="sidebar-footer">
+                    <button class="btn btn-secondary btn-sm" id="import-pack-btn">
+                        <i class="fas fa-file-import"></i> Import Pack
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Left Sidebar Collapsed Strip -->
+            <div class="sidebar-collapsed-strip sidebar-collapsed-left hidden" id="sidebar-left-collapsed">
+                <button class="icon-btn" id="expand-left-sidebar" title="Show File Tree">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <!-- Resize Handle -->
+            <div class="resize-handle" id="resize-left" data-direction="horizontal"></div>
+
+            <!-- Center Panel - Editor -->
+            <main class="editor-panel">
+                <!-- Breadcrumb Navigation -->
+                <div class="breadcrumb" id="breadcrumb">
+                    <span class="breadcrumb-item">Dashboard</span>
+                </div>
+
+                <!-- Editor Content -->
+                <div class="editor-content" id="editor-content">
+                    <!-- Dashboard (Default View) -->
+                    <div id="dashboard-view" class="view-container active">
+                        <div class="dashboard-welcome">
+                            <i class="fas fa-dragon dashboard-icon"></i>
+                            <h2>Welcome to Soaps MythicMobs Editor</h2>
+                            <p>Create amazing custom mobs, skills, and items for your Minecraft server</p>
+                            
+                            <div class="quick-actions">
+                                <button class="action-card" id="quick-new-mob">
+                                    <i class="fas fa-skull"></i>
+                                    <h3>New Mob</h3>
+                                    <p>Create a custom mob</p>
+                                </button>
+                                <button class="action-card" id="quick-new-skill">
+                                    <i class="fas fa-magic"></i>
+                                    <h3>New Skill</h3>
+                                    <p>Design a skill</p>
+                                </button>
+                                <button class="action-card" id="quick-new-item">
+                                    <i class="fas fa-gem"></i>
+                                    <h3>New Item</h3>
+                                    <p>Create custom item</p>
+                                </button>
+                                <button class="action-card" id="quick-new-droptable">
+                                    <i class="fas fa-table"></i>
+                                    <h3>New DropTable</h3>
+                                    <p>Create loot table</p>
+                                </button>
+                                <button class="action-card" id="quick-new-randomspawn">
+                                    <i class="fas fa-map-marked-alt"></i>
+                                    <h3>New RandomSpawn</h3>
+                                    <p>Create spawn config</p>
+                                </button>
+                                <button class="action-card" id="quick-import">
+                                    <i class="fas fa-file-import"></i>
+                                    <h3>Import YAML</h3>
+                                    <p>Import existing config</p>
+                                </button>
+                            </div>
+
+                            <div class="info-cards">
+                                <div class="info-card">
+                                    <h4><i class="fas fa-keyboard"></i> Keyboard Shortcuts</h4>
+                                    <ul>
+                                        <li><kbd>Ctrl+S</kbd> Save</li>
+                                        <li><kbd>Ctrl+N</kbd> New Mob</li>
+                                        <li><kbd>Ctrl+K</kbd> Command Palette</li>
+                                        <li><kbd>Ctrl+E</kbd> Export</li>
+                                    </ul>
+                                </div>
+                                <div class="info-card">
+                                    <h4><i class="fas fa-lightbulb"></i> Getting Started</h4>
+                                    <ol>
+                                        <li>Create or select a pack</li>
+                                        <li>Add mobs and skills</li>
+                                        <li>Configure properties</li>
+                                        <li>Export your pack</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mob Editor View -->
+                    <div id="mob-editor-view" class="view-container"></div>
+
+                    <!-- Skill Editor View -->
+                    <div id="skill-editor-view" class="view-container"></div>
+
+                    <!-- Item Editor View -->
+                    <div id="item-editor-view" class="view-container"></div>
+
+                    <!-- DropTable Editor View -->
+                    <div id="droptable-editor-view" class="view-container"></div>
+
+                    <!-- RandomSpawn Editor View -->
+                    <div id="randomspawn-editor-view" class="view-container"></div>
+
+                    <!-- PackInfo Editor View -->
+                    <div id="packinfo-editor-view" class="view-container"></div>
+                </div>
+            </main>
+
+            <!-- Resize Handle -->
+            <div class="resize-handle" id="resize-right" data-direction="horizontal"></div>
+
+            <!-- Right Sidebar - YAML Preview -->
+            <aside class="sidebar sidebar-right" id="sidebar-right">
+                <div class="sidebar-header">
+                    <h3><i class="fas fa-code"></i> YAML Preview</h3>
+                    <div class="header-actions">
+                        <button class="icon-btn" id="edit-yaml-btn" title="Edit YAML">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="icon-btn" id="copy-yaml-btn" title="Copy YAML">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="icon-btn" id="toggle-right-sidebar" title="Toggle Sidebar">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="sidebar-content">
+                    <pre class="yaml-preview" id="yaml-preview-content"><code># Select an item to see YAML preview</code></pre>
+                    <textarea class="yaml-editor hidden" id="yaml-editor" spellcheck="false"></textarea>
+                </div>
+                <div class="sidebar-footer">
+                    <button class="btn btn-primary btn-sm" id="export-yaml-btn">
+                        <i class="fas fa-download"></i> Export YAML
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Right Sidebar Collapsed Strip -->
+            <div class="sidebar-collapsed-strip sidebar-collapsed-right hidden" id="sidebar-right-collapsed">
+                <button class="icon-btn" id="expand-right-sidebar" title="Show YAML Preview">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal-container"></div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+
+    <!-- Command Palette -->
+    <div id="command-palette" class="command-palette hidden">
+        <div class="command-palette-content">
+            <input type="text" id="command-input" placeholder="Type a command..." autocomplete="off">
+            <div id="command-results"></div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu" class="context-menu hidden"></div>
+
+    <!-- Change History Modal -->
+    <div id="change-history-modal" class="modal hidden">
+        <div class="modal-content change-history-modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-history"></i> Change History</h3>
+                <button class="icon-btn" id="close-history-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="history-filters">
+                    <input type="text" class="form-input" id="history-search" placeholder="Search changes...">
+                    <button class="btn btn-sm btn-secondary" id="clear-history-btn">
+                        <i class="fas fa-trash"></i> Clear History
+                    </button>
+                </div>
+                <div class="history-list" id="full-history-list">
+                    <div class="no-changes">No changes recorded</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content settings-modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> Settings</h3>
+                <button class="icon-btn" id="close-settings-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-tab="general">General</button>
+                    <button class="settings-tab" data-tab="editor">Editor</button>
+                    <button class="settings-tab" data-tab="files">Files</button>
+                    <button class="settings-tab" data-tab="history">History</button>
+                </div>
+                
+                <div class="settings-content">
+                    <!-- General Settings -->
+                    <div class="settings-panel active" id="settings-general">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Auto-save</label>
+                                <span class="setting-description">Automatically save files after changes</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="setting-autosave" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Auto-save Interval</label>
+                                <span class="setting-description">Delay before auto-saving (seconds)</span>
+                            </div>
+                            <div class="setting-control">
+                                <input type="range" id="setting-autosave-interval" min="1" max="10" value="2" step="1">
+                                <span class="range-value" id="autosave-interval-value">2s</span>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Animations</label>
+                                <span class="setting-description">Enable UI animations and transitions</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="setting-animations" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Editor Settings -->
+                    <div class="settings-panel" id="settings-editor">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Live YAML Preview</label>
+                                <span class="setting-description">Update YAML preview as you type</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="setting-live-preview" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Preview Update Delay</label>
+                                <span class="setting-description">Delay before updating preview (milliseconds)</span>
+                            </div>
+                            <div class="setting-control">
+                                <input type="range" id="setting-preview-delay" min="100" max="1000" value="300" step="50">
+                                <span class="range-value" id="preview-delay-value">300ms</span>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Default Mode</label>
+                                <span class="setting-description">Default editor mode on startup</span>
+                            </div>
+                            <select class="form-select" id="setting-default-mode">
+                                <option value="beginner">Beginner</option>
+                                <option value="advanced">Advanced</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Compact Mode</label>
+                                <span class="setting-description">Reduce spacing in editor UI</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="setting-compact-mode">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- File Settings -->
+                    <div class="settings-panel" id="settings-files">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Include Default Values</label>
+                                <span class="setting-description">Include default values in YAML export</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="setting-include-defaults">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Auto-format YAML</label>
+                                <span class="setting-description">Automatically format YAML on save</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="setting-auto-format" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Warn on Duplicate File Names</label>
+                                <span class="setting-description">Show warning when creating files with existing names</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="setting-warn-duplicate-files" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- History Settings -->
+                    <div class="settings-panel" id="settings-history">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Keep Change History</label>
+                                <span class="setting-description">Track file changes in history</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="setting-keep-history" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Max History Entries</label>
+                                <span class="setting-description">Maximum number of changes to remember</span>
+                            </div>
+                            <div class="setting-control">
+                                <input type="range" id="setting-max-history" min="50" max="500" value="100" step="50">
+                                <span class="range-value" id="max-history-value">100</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="reset-settings-btn">
+                    <i class="fas fa-undo"></i> Reset to Defaults
+                </button>
+                <button class="btn btn-primary" id="save-settings-btn">
+                    <i class="fas fa-check"></i> Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+
+    <!-- Data Files -->
+    <script src="data/mobData.js"></script>
+    <script src="data/templates.js"></script>
+    <script src="data/entityFieldMap.js"></script>
+    <script src="data/minecraftBlocks.js"></script>
+    <script src="data/minecraftItems.js"></script>
+    <script src="data/damageTypes.js"></script>
+    <script src="data/bossBarData.js"></script>
+    <script src="data/equipmentData.js"></script>
+    <script src="data/aiGoals.js"></script>
+    <script src="data/aiTargets.js"></script>
+    <script src="data/vanillaOverrides.js"></script>
+    <script src="data/powerSystem.js"></script>
+    <script src="data/dropTypes.js"></script>
+    <script src="data/fancyDrops.js"></script>
+    
+    <!-- Item Editor Data Files -->
+    <script src="data/itemOptions.js"></script>
+    <script src="data/enchantments.js"></script>
+    <script src="data/potionEffects.js"></script>
+    <script src="data/bannerPatterns.js"></script>
+    
+    <!-- Conditions System (Load Order Critical) -->
+    <script src="data/conditions/conditionActions.js"></script>
+    <script src="data/conditions/entityConditions.js"></script>
+    <script src="data/conditions/entityConditionsAdvanced.js"></script>
+    <script src="data/conditions/locationConditions.js"></script>
+    <script src="data/conditions/compareConditions.js"></script>
+    <script src="data/conditions/metaConditions.js"></script>
+    <script src="data/conditions/metaConditionsAdvanced.js"></script>
+    <script src="data/conditions/metaConditionsFinal.js"></script>
+    <script src="data/conditions/index.js"></script>
+
+    <!-- Skill System Data (Load Before Components) -->
+    <script src="data/targeters.js"></script>
+    <script src="data/mechanics.js"></script>
+    <script src="data/skillTemplates.js"></script>
+
+    <!-- Utility Files -->
+    <script src="utils/helpers.js"></script>
+    <script src="utils/yamlParser.js"></script>
+    <script src="utils/yamlExporter.js"></script>
+    <script src="utils/validators.js"></script>
+    <script src="utils/skillLineParser.js"></script>
+    <script src="utils/skillLineValidator.js"></script>
+    <script src="utils/mechanics.js"></script>
+    <script src="utils/triggers.js"></script>
+    <script src="utils/targeters.js"></script>
+    <script src="utils/mobTypes.js"></script>
+    <script src="utils/materials.js"></script>
+    <script src="utils/editorHistory.js"></script>
+    <script src="utils/collapsibleManager.js"></script>
+    <script src="utils/panelResizer.js"></script>
+
+    <!-- Trigger System -->
+    <script src="data/triggers.js"></script>
+
+    <!-- Component Files -->
+    <script src="components/storageManager.js"></script>
+    <script src="components/packManager.js"></script>
+    <script src="components/fileManager.js"></script>
+    <script src="components/mobEditor/EntityFieldManager.js"></script>
+    <script src="components/searchableDropdown.js"></script>
+    <script src="components/bossBarEditor.js"></script>
+    <script src="components/equipmentEditor.js"></script>
+    <script src="components/damageModifierEditor.js"></script>
+    <script src="components/aiEditor.js"></script>
+    <script src="components/vanillaOverridesEditor.js"></script>
+    <script src="components/powerSystemEditor.js"></script>
+    <script src="components/conditionEditor.js"></script>
+    <script src="components/triggerBrowser.js"></script>
+    <script src="components/targeterBrowser.js"></script>
+    <script src="components/mechanicBrowser.js"></script>
+    <script src="components/creationModeSelector.js"></script>
+    <script src="components/templateSelector.js"></script>
+    <script src="components/skillLineBuilder.js"></script>
+    <script src="components/mechanicReference.js"></script>
+    <script src="components/skillLineAutocomplete.js"></script>
+    <script src="components/skillLineGroupDetector.js"></script>
+    <script src="components/skillLineQuickEdit.js"></script>
+    <script src="components/skillLineTooltip.js"></script>
+    <script src="components/skillPatternAnalyzer.js"></script>
+    <script src="components/validationPanel.js"></script>
+    <script src="components/skillDependencyTracker.js"></script>
+    <script src="components/skillLineFormatter.js"></script>
+    <script src="components/skillLineDuplicateDetector.js"></script>
+    <script src="components/skillLineSyntaxHighlighter.js"></script>
+    <script src="components/keyboardShortcutManager.js"></script>
+    <script src="components/historyManager.js"></script>
+    <script src="components/onboardingTour.js"></script>
+    <script src="utils/performanceUtils.js"></script>
+    <script src="utils/lazyLoader.js"></script>
+    <script src="utils/workerPool.js"></script>
+    <script src="components/virtualScrollManager.js"></script>
+    <script src="components/skillBuilderEditor.js"></script>
+    <script src="components/mobDropsEditor.js"></script>
+    <script src="components/mobEditor.js"></script>
+    <script src="components/skillEditor.js"></script>
+    <script src="components/itemEditor.js"></script>
+    <script src="components/droptableEditor.js"></script>
+    <script src="components/randomspawnEditor.js"></script>
+    <script src="components/yamlEditor.js"></script>
+    <script src="components/displayNameBuilder.js"></script>
+    <script src="components/commandPalette.js"></script>
+
+    <!-- Pack Importer System -->
+    <script src="components/packImporter/PackFolderScanner.js"></script>
+    <script src="components/packImporter/YamlFileParser.js"></script>
+    <script src="components/packImporter/DataValidator.js"></script>
+    <script src="components/packImporter/DataValidatorHelpers.js"></script>
+    <script src="components/packImporter/ImportPreviewUI.js"></script>
+    <script src="components/packImporter/ImportPreviewUIHandlers.js"></script>
+    <script src="components/packImporter/ImportExecutor.js"></script>
+    <script src="components/packImporter/ImportReportGenerator.js"></script>
+    <script src="components/packImporter/PackImporterCore.js"></script>
+
+    <!-- Main Application -->
+    <script src="app.js"></script>
+
+    <!-- Initialize -->
+    <script>
+        // Initialize the application when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize global keyboard shortcut manager
+            window.keyboardShortcutManager = new KeyboardShortcutManager();
+            
+            // Initialize onboarding tour
+            window.onboardingTour = new OnboardingTour();
+            
+            window.editor = new MythicMobsEditor();
+            window.editor.init();
+            
+            // Auto-start tour for new users after a short delay
+            setTimeout(() => {
+                if (window.onboardingTour.shouldAutoStart()) {
+                    window.onboardingTour.start();
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

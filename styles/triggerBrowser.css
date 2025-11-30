@@ -1,0 +1,460 @@
+/* Trigger Browser Modal */
+.trigger-browser-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 10000;
+    animation: fadeIn 0.2s ease;
+}
+
+.trigger-browser-overlay.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.trigger-browser-modal {
+    background: var(--card-bg, #1e1e1e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 900px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Modal Header */
+.trigger-browser-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color, #333);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.trigger-browser-header h2 {
+    margin: 0;
+    color: var(--text-color, #fff);
+    font-size: 1.5em;
+}
+
+.trigger-browser-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #999);
+    font-size: 1.8em;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.trigger-browser-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-color, #fff);
+}
+
+/* Search Bar */
+.trigger-search-bar {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color, #333);
+}
+
+.trigger-search-bar input {
+    width: 100%;
+    padding: 10px 15px;
+    background: var(--input-bg, #2a2a2a);
+    border: 1px solid var(--border-color, #444);
+    border-radius: 6px;
+    color: var(--text-color, #fff);
+    font-size: 14px;
+}
+
+.trigger-search-bar input:focus {
+    outline: none;
+    border-color: var(--primary-color, #007bff);
+}
+
+/* Category Tabs */
+.trigger-categories {
+    display: flex;
+    gap: 5px;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color, #333);
+    overflow-x: auto;
+}
+
+.trigger-category-tab {
+    padding: 8px 16px;
+    background: var(--input-bg, #2a2a2a);
+    border: 1px solid var(--border-color, #444);
+    border-radius: 6px;
+    color: var(--text-muted, #999);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.trigger-category-tab:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.trigger-category-tab.active {
+    border-color: var(--tab-color);
+    background: var(--tab-color);
+    color: white;
+}
+
+.trigger-category-tab.combat { --tab-color: #ef4444; }
+.trigger-category-tab.lifecycle { --tab-color: #3b82f6; }
+.trigger-category-tab.player { --tab-color: #10b981; }
+.trigger-category-tab.timed { --tab-color: #a855f7; }
+.trigger-category-tab.projectile { --tab-color: #eab308; }
+.trigger-category-tab.special { --tab-color: #ec4899; }
+.trigger-category-tab.communication { --tab-color: #06b6d4; }
+
+/* Trigger List */
+.trigger-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.trigger-card {
+    background: var(--input-bg, #2a2a2a);
+    border: 1px solid var(--border-color, #444);
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.trigger-card:hover {
+    border-color: var(--trigger-color);
+    background: rgba(255, 255, 255, 0.02);
+    transform: translateX(2px);
+}
+
+.trigger-card.combat { --trigger-color: #ef4444; }
+.trigger-card.lifecycle { --trigger-color: #3b82f6; }
+.trigger-card.player { --trigger-color: #10b981; }
+.trigger-card.timed { --trigger-color: #a855f7; }
+.trigger-card.projectile { --trigger-color: #eab308; }
+.trigger-card.special { --trigger-color: #ec4899; }
+.trigger-card.communication { --trigger-color: #06b6d4; }
+
+.trigger-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.trigger-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--trigger-color);
+}
+
+.trigger-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.trigger-badge {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.trigger-badge.requires {
+    background: #dc2626;
+    color: white;
+}
+
+.trigger-badge.param {
+    background: #a855f7;
+    color: white;
+}
+
+.trigger-badge.mob-type {
+    background: #f59e0b;
+    color: white;
+}
+
+.trigger-description {
+    color: var(--text-muted, #999);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.trigger-aliases {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted, #666);
+}
+
+.trigger-aliases strong {
+    color: var(--text-muted, #888);
+}
+
+/* Empty State */
+.trigger-list-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted, #999);
+}
+
+.trigger-list-empty-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.3;
+}
+
+.trigger-list-empty-text {
+    font-size: 16px;
+}
+
+/* Parameter Input Modal */
+.trigger-param-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 10001;
+    animation: fadeIn 0.2s ease;
+}
+
+.trigger-param-overlay.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.trigger-param-modal {
+    background: var(--card-bg, #1e1e1e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 450px;
+    padding: 25px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease;
+}
+
+.trigger-param-modal h3 {
+    margin: 0 0 10px 0;
+    color: var(--text-color, #fff);
+}
+
+.trigger-param-modal p {
+    color: var(--text-muted, #999);
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.trigger-param-input {
+    width: 100%;
+    padding: 10px 15px;
+    background: var(--input-bg, #2a2a2a);
+    border: 1px solid var(--border-color, #444);
+    border-radius: 6px;
+    color: var(--text-color, #fff);
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.trigger-param-input:focus {
+    outline: none;
+    border-color: var(--primary-color, #007bff);
+}
+
+.trigger-param-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.trigger-param-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.trigger-param-btn.cancel {
+    background: var(--input-bg, #2a2a2a);
+    color: var(--text-muted, #999);
+}
+
+.trigger-param-btn.cancel:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.trigger-param-btn.confirm {
+    background: var(--primary-color, #007bff);
+    color: white;
+}
+
+.trigger-param-btn.confirm:hover {
+    background: var(--primary-hover, #0056b3);
+}
+
+.trigger-param-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Confirmation Modal */
+.trigger-confirm-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 10001;
+    animation: fadeIn 0.2s ease;
+}
+
+.trigger-confirm-overlay.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.trigger-confirm-modal {
+    background: var(--card-bg, #1e1e1e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 450px;
+    padding: 25px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease;
+}
+
+.trigger-confirm-modal h3 {
+    margin: 0 0 15px 0;
+    color: var(--text-color, #fff);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.trigger-confirm-icon {
+    font-size: 24px;
+}
+
+.trigger-confirm-modal p {
+    color: var(--text-muted, #ddd);
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.trigger-confirm-requirement {
+    background: rgba(220, 38, 38, 0.15);
+    border: 1px solid #dc2626;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 20px;
+}
+
+.trigger-confirm-requirement strong {
+    color: #ef4444;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.trigger-confirm-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.trigger-confirm-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.trigger-confirm-btn.cancel {
+    background: var(--input-bg, #2a2a2a);
+    color: var(--text-muted, #999);
+}
+
+.trigger-confirm-btn.cancel:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.trigger-confirm-btn.confirm {
+    background: #10b981;
+    color: white;
+}
+
+.trigger-confirm-btn.confirm:hover {
+    background: #059669;
+}
+
+/* Scrollbar styling */
+.trigger-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.trigger-list::-webkit-scrollbar-track {
+    background: var(--card-bg, #1e1e1e);
+}
+
+.trigger-list::-webkit-scrollbar-thumb {
+    background: var(--border-color, #444);
+    border-radius: 4px;
+}
+
+.trigger-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted, #666);
+}
