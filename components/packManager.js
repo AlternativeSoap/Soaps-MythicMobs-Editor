@@ -64,8 +64,11 @@ class PackManager {
             Version: '1.0.0',
             Author: '',
             Icon: {
-                Material: 'DIAMOND'
-            }
+                Material: 'DIAMOND',
+                Model: 0
+            },
+            URL: '',
+            Description: ['A MythicMobs pack created with Soap\'s Editor']
         };
     }
     
@@ -1287,15 +1290,15 @@ class PackManager {
             // Export packinfo.yml
             const packinfo = pack.packinfo || this.createDefaultPackInfo(pack.name);
             const footer = '\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n# Made by AlternativeSoap\'s MythicMob Editor\n# Discord: https://discord.gg/eUFRvyzJua';
-            const packinfoYaml = `Name: ${packinfo.Name}
-Version: ${packinfo.Version}
-Author: ${packinfo.Author}
+            const packinfoYaml = `Name: ${packinfo.Name || pack.name}
+Version: ${packinfo.Version || '1.0.0'}
+Author: ${packinfo.Author || ''}
 Icon:
-  Material: ${packinfo.Icon.Material}
-  Model: ${packinfo.Icon.Model}
-URL: ${packinfo.URL}
+  Material: ${packinfo.Icon?.Material || 'DIAMOND'}
+  Model: ${packinfo.Icon?.Model || 0}
+URL: ${packinfo.URL || ''}
 Description:
-${packinfo.Description.map(line => `- ${line}`).join('\n')}` + footer;
+${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join('\n')}` + footer;
             zip.file('packinfo.yml', packinfoYaml);
             
             // Export tooltips.yml

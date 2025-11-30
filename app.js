@@ -1306,7 +1306,8 @@ class MythicMobsEditor {
                 if (this.state.currentPack && this.state.currentFileType === 'mob') {
                     this.yamlExporter.setPackContext(this.state.currentPack);
                 }
-                yaml = this.yamlExporter.export(this.state.currentFile, this.state.currentFileType);
+                // Use exportWithoutFooter for preview (footer only in exported files)
+                yaml = this.yamlExporter.exportWithoutFooter(this.state.currentFile, this.state.currentFileType);
             }
             
             // Only update DOM if content actually changed
