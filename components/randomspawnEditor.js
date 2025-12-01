@@ -106,6 +106,15 @@ class RandomSpawnEditor {
         const editorPanel = document.getElementById('randomspawn-editor-view');
         if (!editorPanel) return;
         
+        // Store reference
+        this.currentSpawn = spawn;
+        
+        // Check if this is a file container
+        if (spawn._isFileContainer) {
+            this.renderFileContainer(spawn, editorPanel);
+            return;
+        }
+        
         // Determine if multi-type mode
         this.isMultiTypeMode = spawn.Types && Array.isArray(spawn.Types) && spawn.Types.length > 0;
         
@@ -1119,6 +1128,51 @@ class RandomSpawnEditor {
         if (this.editor.packManager) {
             this.editor.packManager.render();
         }
+    }
+    
+    renderFileContainer(fileContainer, container) {
+        container.innerHTML = `
+            <div class="file-container-view">
+                <div class="file-container-header">
+                    <i class="fas fa-file-code" style="font-size: 4rem; color: var(--accent-primary); margin-bottom: 1rem;"></i>
+                    <h2>${fileContainer._fileName}</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+                        This file contains ${fileContainer._file.entries.length} spawn(s)
+                    </p>
+                </div>
+                <div class="file-container-actions">
+                    <button class="btn btn-primary btn-large" id="add-spawn-to-file">
+                        <i class="fas fa-plus"></i> Add New RandomSpawn to this File
+                    </button>
+                </div>
+                <div class="file-container-info" style="margin-top: 2rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 0.5rem;">
+                    <p style="margin: 0; color: var(--text-secondary);">
+                        <i class="fas fa-info-circle"></i> 
+                        Click on a spawn in the file tree to edit it, or click the button above to add a new spawn to this file.
+                    </p>
+                </div>
+            </div>
+        `;
+        document.getElementById('add-spawn-to-file')?.addEventListener('click', () => {
+            this.addNewSection();
+        });
+    }
+    
+    findParentFile() {
+        const pack = this.editor.state.currentPack;
+        if (!pack || !pack.randomspawns) return null;
+        if (this.currentSpawn._isFileContainer) {
+            return this.currentSpawn._file;
+        }
+        if (this.currentSpawn._parentFile) {
+            return pack.randomspawns.find(f => f.id === this.currentSpawn._parentFile.id);
+        }
+        for (const file of pack.randomspawns) {
+            if (file.entries && file.entries.some(e => e.id === this.currentSpawn.id)) {
+                return file;
+            }
+        }
+        return null;
     }
 }
 

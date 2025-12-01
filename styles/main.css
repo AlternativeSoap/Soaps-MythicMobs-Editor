@@ -1123,6 +1123,17 @@ kbd {
     border-left-color: var(--accent-secondary);
 }
 
+.yaml-file-header.active {
+    background: var(--accent-primary-light);
+    color: var(--accent-primary);
+    border-left-color: var(--accent-primary);
+    font-weight: 600;
+}
+
+.yaml-file-header.active .yaml-file-icon {
+    color: var(--accent-primary);
+}
+
 .yaml-file-header.placeholder-file {
     border-left-color: var(--warning-color, #ffaa00);
     opacity: 0.8;

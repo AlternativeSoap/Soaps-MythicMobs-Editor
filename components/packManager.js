@@ -633,19 +633,72 @@ class PackManager {
      */
     toggleYamlFile(fileId) {
         const states = this.getFileStates();
+        const wasExpanded = states[fileId];
         states[fileId] = !states[fileId];
         this.saveFileState(fileId, states[fileId]);
+        
+        // If expanding the file, also set it as the active file context for adding new sections
+        if (!wasExpanded) {
+            this.setActiveFileContext(fileId);
+        }
+        
         this.renderPackTree();
     }
     
+    /**
+     * Set a YAML file as the active context for adding new sections
+     */
+    setActiveFileContext(fileId) {
+        // Find the file across all collections
+        const pack = this.activePack;
+        if (!pack) return;
+        
+        const collections = ['mobs', 'skills', 'items', 'droptables', 'randomspawns'];
+        
+        for (const collectionName of collections) {
+            const collection = pack[collectionName];
+            if (!collection) continue;
+            
+            const file = collection.find(f => f.id === fileId);
+            if (file) {
+                // Determine the type from collection name
+                const type = collectionName.slice(0, -1); // Remove 's' from end
+                
+                // Create a virtual "file container" entry to represent the selected file
+                const fileContainer = {
+                    id: `container_${fileId}`,
+                    _isFileContainer: true,
+                    _fileId: fileId,
+                    _fileName: file.fileName,
+                    _file: file,
+                    name: file.fileName,
+                    fileName: file.fileName
+                };
+                
+                // Open this as the current file
+                this.editor.openFile(fileContainer, type);
+                return;
+            }
+        }
+    }
+    
     updateActiveFileInTree() {
-        // Remove active class from all files and entries
-        document.querySelectorAll('.file-item, .entry-item').forEach(item => {
+        // Remove active class from all files, entries, and yaml file headers
+        document.querySelectorAll('.file-item, .entry-item, .yaml-file-header').forEach(item => {
             item.classList.remove('active');
         });
         
         // Add active class to current file/entry
         if (this.editor.state.currentFile && this.editor.state.currentFile.id) {
+            // Check if it's a file container
+            if (this.editor.state.currentFile._isFileContainer) {
+                const activeFileHeader = document.querySelector(`.yaml-file-header[data-file-id="${this.editor.state.currentFile._fileId}"]`);
+                if (activeFileHeader) {
+                    activeFileHeader.classList.add('active');
+                    return;
+                }
+            }
+            
             // Try to find in entry items first (file-based structure)
             const activeEntry = document.querySelector(`.entry-item[data-entry-id="${this.editor.state.currentFile.id}"]`);
             if (activeEntry) {
@@ -1014,6 +1067,47 @@ class PackManager {
         }
         
         return false;
+    }
+    
+    /**
+     * Create an empty file without any entries
+     */
+    createEmptyFile(type, fileName) {
+        if (!this.activePack) return false;
+        
+        const collection = this.activePack[type + 's'];
+        if (!collection) return false;
+        
+        // Ensure unique file name
+        const uniqueFileName = this.generateUniqueFileName(collection, fileName.replace('.yml', ''), type);
+        
+        // Check if file already exists
+        if (this.fileNameExists(collection, uniqueFileName)) {
+            this.editor.showToast(`File "${uniqueFileName}" already exists`, 'warning');
+            return false;
+        }
+        
+        // Create empty file
+        const newFile = {
+            id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            fileName: uniqueFileName,
+            relativePath: this.getRelativePath(type, uniqueFileName),
+            entries: [],
+            _importMeta: {
+                createdAt: new Date().toISOString()
+            }
+        };
+        
+        collection.push(newFile);
+        
+        // Expand folder to show the new file
+        const folderName = type + 's';
+        this.saveFolderState(folderName, true);
+        this.saveFileState(newFile.id, false); // Don't auto-expand the file itself
+        
+        this.savePacks();
+        this.renderPackTree();
+        return true;
     }
     
     /**

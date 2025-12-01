@@ -550,3 +550,34 @@
     font-weight: 500;
     color: var(--accent-secondary);
 }
+
+/* File Container View */
+.file-container-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    min-height: 400px;
+}
+
+.file-container-header h2 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.file-container-actions {
+    margin: 2rem 0;
+}
+
+.btn-large {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+}
+
+.file-container-info {
+    max-width: 600px;
+}
+

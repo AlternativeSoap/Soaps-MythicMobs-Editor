@@ -20,6 +20,12 @@ class SkillEditor {
         const container = document.getElementById('skill-editor-view');
         if (!container) return;
         
+        // Check if this is a file container
+        if (skill._isFileContainer) {
+            this.renderFileContainer(skill, container);
+            return;
+        }
+        
         const isAdvanced = this.editor.state.currentMode === 'advanced';
 
         container.innerHTML = `
@@ -577,6 +583,63 @@ class SkillEditor {
                 if (badge) badge.textContent = totalLines;
             });
         }
+    }
+    
+    /**
+     * Render file container view (when YML file is selected)
+     */
+    renderFileContainer(fileContainer, container) {
+        container.innerHTML = `
+            <div class="file-container-view">
+                <div class="file-container-header">
+                    <i class="fas fa-file-code" style="font-size: 4rem; color: var(--accent-primary); margin-bottom: 1rem;"></i>
+                    <h2>${fileContainer._fileName}</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+                        This file contains ${fileContainer._file.entries.length} skill(s)
+                    </p>
+                </div>
+                <div class="file-container-actions">
+                    <button class="btn btn-primary btn-large" id="add-skill-to-file">
+                        <i class="fas fa-plus"></i> Add New Skill to this File
+                    </button>
+                </div>
+                <div class="file-container-info" style="margin-top: 2rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 0.5rem;">
+                    <p style="margin: 0; color: var(--text-secondary);">
+                        <i class="fas fa-info-circle"></i> 
+                        Click on a skill in the file tree to edit it, or click the button above to add a new skill to this file.
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        // Attach event listeners
+        document.getElementById('add-skill-to-file')?.addEventListener('click', () => {
+            this.addNewSection();
+        });
+    }
+    
+    findParentFile() {
+        const pack = this.editor.state.currentPack;
+        if (!pack || !pack.skills) return null;
+        
+        // If current skill is a file container, return the file directly
+        if (this.currentSkill._isFileContainer) {
+            return this.currentSkill._file;
+        }
+        
+        // Check if _parentFile reference exists
+        if (this.currentSkill._parentFile) {
+            return pack.skills.find(f => f.id === this.currentSkill._parentFile.id);
+        }
+        
+        // Search all files for this skill
+        for (const file of pack.skills) {
+            if (file.entries && file.entries.some(e => e.id === this.currentSkill.id)) {
+                return file;
+            }
+        }
+        
+        return null;
     }
 }
 

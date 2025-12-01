@@ -154,6 +154,14 @@ class FileManager {
         return spawn;
     }
     
+    /**
+     * Create an empty file without any entries
+     * Used when user wants to add entries manually in the editor
+     */
+    createEmptyFile(type, fileName) {
+        this.editor.packManager.createEmptyFile(type, fileName);
+    }
+    
     saveFile(file, type) {
         // File is already in pack, just need to save packs
         this.editor.packManager.savePacks();

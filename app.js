@@ -692,11 +692,9 @@ class MythicMobsEditor {
         // Add .yml extension if not present
         const fullFileName = fileName.endsWith('.yml') ? fileName : fileName + '.yml';
         
-        // Auto-generate section name
-        const sectionName = 'skill_' + Date.now();
-        
-        const skill = this.fileManager.createSkill(sectionName, fullFileName);
-        this.openFile(skill, 'skill');
+        // Create empty file (no entries yet)
+        this.fileManager.createEmptyFile('skill', fullFileName);
+        this.showToast('Skill file created. Add skills using the + button in the editor.', 'success');
         this.markDirty();
     }
     
@@ -715,11 +713,9 @@ class MythicMobsEditor {
         // Add .yml extension if not present
         const fullFileName = fileName.endsWith('.yml') ? fileName : fileName + '.yml';
         
-        // Auto-generate section name
-        const sectionName = 'item_' + Date.now();
-        
-        const item = this.fileManager.createItem(sectionName, fullFileName);
-        this.openFile(item, 'item');
+        // Create empty file (no entries yet)
+        this.fileManager.createEmptyFile('item', fullFileName);
+        this.showToast('Item file created. Add items using the + button in the editor.', 'success');
         this.markDirty();
     }
     
@@ -738,11 +734,9 @@ class MythicMobsEditor {
         // Add .yml extension if not present
         const fullFileName = fileName.endsWith('.yml') ? fileName : fileName + '.yml';
         
-        // Auto-generate section name
-        const sectionName = 'droptable_' + Date.now();
-        
-        const droptable = this.fileManager.createDropTable(sectionName, fullFileName);
-        this.openFile(droptable, 'droptable');
+        // Create empty file (no entries yet)
+        this.fileManager.createEmptyFile('droptable', fullFileName);
+        this.showToast('DropTable file created. Add droptables using the + button in the editor.', 'success');
         this.markDirty();
     }
     
@@ -761,11 +755,9 @@ class MythicMobsEditor {
         // Add .yml extension if not present
         const fullFileName = fileName.endsWith('.yml') ? fileName : fileName + '.yml';
         
-        // Auto-generate section name
-        const sectionName = 'spawn_' + Date.now();
-        
-        const spawn = this.fileManager.createRandomSpawn(sectionName, fullFileName);
-        this.openFile(spawn, 'randomspawn');
+        // Create empty file (no entries yet)
+        this.fileManager.createEmptyFile('randomspawn', fullFileName);
+        this.showToast('RandomSpawn file created. Add spawns using the + button in the editor.', 'success');
         this.markDirty();
     }
     
