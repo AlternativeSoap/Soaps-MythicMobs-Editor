@@ -492,10 +492,18 @@ class PackManager {
             }
         });
         
+        // Prevent yaml-file-container clicks from bubbling to folder headers
+        document.querySelectorAll('.yaml-file-container').forEach(container => {
+            container.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        });
+        
         // YAML file header clicks (expand/collapse entries)
         document.querySelectorAll('.yaml-file-header').forEach(header => {
             header.addEventListener('click', (e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 const fileId = header.dataset.fileId;
                 this.toggleYamlFile(fileId);
             });
@@ -566,6 +574,15 @@ class PackManager {
         // Folder collapse/expand
         document.querySelectorAll('.folder-header.collapsible').forEach(header => {
             header.addEventListener('click', (e) => {
+                // Only toggle if click is directly on the folder-header or its direct children
+                // Don't toggle if click bubbled up from deeper elements
+                const clickedElement = e.target;
+                const isDirectChild = clickedElement === header || clickedElement.parentElement === header;
+                
+                if (!isDirectChild) {
+                    return;
+                }
+                
                 e.stopPropagation();
                 this.toggleFolder(header);
             });
@@ -634,15 +651,107 @@ class PackManager {
     toggleYamlFile(fileId) {
         const states = this.getFileStates();
         const wasExpanded = states[fileId];
-        states[fileId] = !states[fileId];
-        this.saveFileState(fileId, states[fileId]);
+        const isNowExpanded = !wasExpanded;
+        states[fileId] = isNowExpanded;
+        this.saveFileState(fileId, isNowExpanded);
         
-        // If expanding the file, also set it as the active file context for adding new sections
-        if (!wasExpanded) {
-            this.setActiveFileContext(fileId);
+        // Update just this file's UI instead of re-rendering entire tree
+        const fileContainer = document.querySelector(`.yaml-file-container[data-file-id="${fileId}"]`);
+        if (fileContainer) {
+            const fileHeader = fileContainer.querySelector('.yaml-file-header');
+            const fileEntries = fileContainer.querySelector('.yaml-file-entries');
+            const chevron = fileHeader?.querySelector('.file-chevron');
+            
+            if (fileEntries && chevron) {
+                if (isNowExpanded) {
+                    fileEntries.classList.remove('collapsed');
+                    fileEntries.classList.add('expanded');
+                    chevron.classList.remove('fa-chevron-right');
+                    chevron.classList.add('fa-chevron-down');
+                } else {
+                    fileEntries.classList.remove('expanded');
+                    fileEntries.classList.add('collapsed');
+                    chevron.classList.remove('fa-chevron-down');
+                    chevron.classList.add('fa-chevron-right');
+                }
+            }
         }
         
-        this.renderPackTree();
+        // If expanding the file, also set it as the active file context for adding new sections
+        if (isNowExpanded) {
+            this.setActiveFileContext(fileId);
+        }
+    }
+    
+    /**
+     * Update a single file container's entry list without re-rendering the entire tree
+     */
+    updateFileContainer(fileId, type) {
+        // Save the packs to ensure the data is persisted
+        this.savePacks();
+        
+        const fileContainer = document.querySelector(`.yaml-file-container[data-file-id="${fileId}"]`);
+        if (!fileContainer) {
+            // File container doesn't exist yet, need full render
+            this.renderPackTree();
+            return;
+        }
+        
+        // Ensure the file is expanded
+        const fileStates = this.getFileStates();
+        if (!fileStates[fileId]) {
+            fileStates[fileId] = true;
+            this.saveFileState(fileId, true);
+            
+            // Update the visual state
+            const fileHeader = fileContainer.querySelector('.yaml-file-header');
+            const fileEntries = fileContainer.querySelector('.yaml-file-entries');
+            const chevron = fileHeader?.querySelector('.file-chevron');
+            
+            if (fileEntries && chevron) {
+                fileEntries.classList.remove('collapsed');
+                fileEntries.classList.add('expanded');
+                chevron.classList.remove('fa-chevron-right');
+                chevron.classList.add('fa-chevron-down');
+            }
+        }
+        
+        // Find the file data
+        const collection = this.activePack[type + 's'];
+        const file = collection?.find(f => f.id === fileId);
+        if (!file) return;
+        
+        // Update entry count badge
+        const badge = fileContainer.querySelector('.badge.entry-count');
+        if (badge) {
+            badge.textContent = file.entries?.length || 0;
+        }
+        
+        // Update entries list
+        const entriesContainer = fileContainer.querySelector('.yaml-file-entries');
+        if (entriesContainer && file.entries) {
+            entriesContainer.innerHTML = file.entries.map(entry => 
+                this.renderEntryItem(entry, type, fileId)
+            ).join('');
+            
+            // Re-attach event listeners for new entries
+            entriesContainer.querySelectorAll('.entry-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const entryId = item.dataset.entryId;
+                    const fileType = item.dataset.fileType;
+                    const parentFileId = item.dataset.parentFileId;
+                    
+                    const entry = this.findEntryById(entryId, fileType, parentFileId);
+                    if (entry) {
+                        this.editor.openFile(entry, fileType);
+                    }
+                });
+            });
+            
+            // Update active highlighting
+            this.updateActiveFileInTree();
+        }
     }
     
     /**
@@ -703,6 +812,15 @@ class PackManager {
             const activeEntry = document.querySelector(`.entry-item[data-entry-id="${this.editor.state.currentFile.id}"]`);
             if (activeEntry) {
                 activeEntry.classList.add('active');
+                
+                // Also highlight the parent file header
+                const parentFileId = activeEntry.dataset.parentFileId;
+                if (parentFileId) {
+                    const parentFileHeader = document.querySelector(`.yaml-file-header[data-file-id="${parentFileId}"]`);
+                    if (parentFileHeader) {
+                        parentFileHeader.classList.add('active');
+                    }
+                }
                 return;
             }
             
@@ -999,6 +1117,8 @@ class PackManager {
         
         // Find or create the file
         let targetFile = collection.find(f => f.fileName === uniqueFileName);
+        const isNewFile = !targetFile;
+        
         if (!targetFile) {
             targetFile = {
                 id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -1022,7 +1142,14 @@ class PackManager {
         targetFile.entries.push(file);
         
         this.savePacks();
-        this.renderPackTree();
+        
+        // Only full re-render if we created a new file, otherwise just update the specific file container
+        if (isNewFile) {
+            this.renderPackTree();
+        } else {
+            this.updateFileContainer(targetFile.id, type);
+        }
+        
         return targetFile;
     }
     

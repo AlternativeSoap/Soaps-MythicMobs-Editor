@@ -150,9 +150,9 @@ class MobEditor {
         this.editor.showToast(`Created new mob "${newName}"`, 'success');
         this.editor.markDirty();
         
-        // Refresh the file tree
+        // Refresh just this file container
         if (this.editor.packManager) {
-            this.editor.packManager.renderPackTree();
+            this.editor.packManager.updateFileContainer(parentFile.id, 'mob');
         }
     }
     
@@ -191,9 +191,9 @@ class MobEditor {
         this.editor.showToast(`Duplicated mob as "${newName}"`, 'success');
         this.editor.markDirty();
         
-        // Refresh the file tree
+        // Refresh just this file container
         if (this.editor.packManager) {
-            this.editor.packManager.renderPackTree();
+            this.editor.packManager.updateFileContainer(parentFile.id, 'mob');
         }
     }
     

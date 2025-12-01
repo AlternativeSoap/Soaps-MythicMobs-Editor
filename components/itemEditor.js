@@ -1072,9 +1072,9 @@ class ItemEditor {
         this.editor.showToast(`Created new item "${newName}"`, 'success');
         this.editor.markDirty();
         
-        // Refresh the file tree
+        // Refresh just this file container
         if (this.editor.packManager) {
-            this.editor.packManager.renderPackTree();
+            this.editor.packManager.updateFileContainer(parentFile.id, 'item');
         }
     }
     
@@ -1113,9 +1113,9 @@ class ItemEditor {
         this.editor.showToast(`Duplicated item as "${newName}"`, 'success');
         this.editor.markDirty();
         
-        // Refresh the file tree
+        // Refresh just this file container
         if (this.editor.packManager) {
-            this.editor.packManager.renderPackTree();
+            this.editor.packManager.updateFileContainer(parentFile.id, 'item');
         }
     }
     

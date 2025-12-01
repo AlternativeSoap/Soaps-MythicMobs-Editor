@@ -453,9 +453,9 @@ class SkillEditor {
         this.editor.showToast(`Duplicated skill as "${newName}"`, 'success');
         this.editor.markDirty();
         
-        // Refresh the file tree
+        // Refresh just this file container
         if (this.editor.packManager) {
-            this.editor.packManager.renderPackTree();
+            this.editor.packManager.updateFileContainer(parentFile.id, 'skill');
         }
     }
     
