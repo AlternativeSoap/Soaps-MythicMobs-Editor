@@ -12,7 +12,7 @@ class SkillEditor {
         // Browser components
         this.targeterBrowser = null;
         this.mechanicBrowser = null;
-        this.conditionEditor = null;
+        // conditionEditor removed - using global conditionBrowserV2
     }
     
     render(skill) {
@@ -192,9 +192,12 @@ class SkillEditor {
                 </div>
                 <div class="card-body collapsible-card-body">
                     <p class="help-text">Conditions that evaluate the <strong>caster</strong> of the skill. All must pass for skill to execute.</p>
-                    <div id="skill-conditions-editor">
-                        <textarea class="form-input" id="skill-conditions" rows="4" placeholder="- condition1 true&#10;- condition2 false">${this.formatConditionsForDisplay(conditions)}</textarea>
+                    <div class="condition-list-container" id="conditions-list">
+                        ${this.renderConditionList(conditions, 'Conditions')}
                     </div>
+                    <button class="btn btn-primary btn-sm" id="btnBrowseConditions" style="margin-top: 10px;">
+                        <i class="fas fa-search"></i> Browse Conditions
+                    </button>
                 </div>
             </div>
             
@@ -208,9 +211,12 @@ class SkillEditor {
                 </div>
                 <div class="card-body collapsible-card-body">
                     <p class="help-text">Conditions that evaluate each <strong>inherited target</strong>. Filters targets before mechanics execute.</p>
-                    <div id="skill-targetconditions-editor">
-                        <textarea class="form-input" id="skill-targetconditions" rows="4" placeholder="- distance{d=<5} true&#10;- isPlayer true">${this.formatConditionsForDisplay(targetConditions)}</textarea>
+                    <div class="condition-list-container" id="targetconditions-list">
+                        ${this.renderConditionList(targetConditions, 'TargetConditions')}
                     </div>
+                    <button class="btn btn-primary btn-sm" id="btnBrowseTargetConditions" style="margin-top: 10px;">
+                        <i class="fas fa-search"></i> Browse Conditions
+                    </button>
                 </div>
             </div>
             
@@ -224,16 +230,96 @@ class SkillEditor {
                 </div>
                 <div class="card-body collapsible-card-body">
                     <p class="help-text">Conditions that evaluate the <strong>trigger entity</strong> (the one who started the skill tree). Use @Trigger to target them.</p>
-                    <div id="skill-triggerconditions-editor">
-                        <textarea class="form-input" id="skill-triggerconditions" rows="4" placeholder="- isPlayer true">${this.formatConditionsForDisplay(triggerConditions)}</textarea>
+                    <div class="condition-list-container" id="triggerconditions-list">
+                        ${this.renderConditionList(triggerConditions, 'TriggerConditions')}
                     </div>
+                    <button class="btn btn-primary btn-sm" id="btnBrowseTriggerConditions" style="margin-top: 10px;">
+                        <i class="fas fa-search"></i> Browse Conditions
+                    </button>
                 </div>
             </div>
         `;
     }
     
     /**
-     * Format conditions array for textarea display
+     * Render condition list as interactive cards
+     */
+    renderConditionList(conditions, sectionType) {
+        if (!conditions || !Array.isArray(conditions) || conditions.length === 0) {
+            return '<p class="empty-state" style="color: var(--text-secondary); font-style: italic; margin: 10px 0;">No conditions added yet. Click "Browse Conditions" to add.</p>';
+        }
+        
+        return conditions.map((cond, index) => {
+            const { conditionStr, action, actionParam } = this.parseCondition(cond);
+            const actionDisplay = actionParam ? `${action} ${actionParam}` : action;
+            
+            return `
+                <div class="condition-item" style="
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 8px 12px;
+                    background: var(--bg-tertiary);
+                    border: 1px solid var(--border-color);
+                    border-radius: 6px;
+                    margin-bottom: 8px;
+                ">
+                    <code style="flex: 1; font-size: 0.9em;">${this.escapeHtml(conditionStr)}</code>
+                    <span style="
+                        padding: 4px 8px;
+                        background: ${action === 'true' ? '#10b98144' : action === 'false' ? '#ef444444' : '#3b82f644'};
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        white-space: nowrap;
+                    ">${this.escapeHtml(actionDisplay)}</span>
+                    <button class="btn-icon" onclick="window.skillEditor.editCondition('${sectionType}', ${index})" title="Edit condition">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon" onclick="window.skillEditor.removeCondition('${sectionType}', ${index})" title="Remove condition">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    /**
+     * Parse condition string to extract condition and action
+     */
+    parseCondition(conditionStr) {
+        if (!conditionStr) return { conditionStr: '', action: 'true', actionParam: null };
+        
+        // Remove leading "- " if present
+        let str = conditionStr.trim();
+        if (str.startsWith('- ')) str = str.substring(2);
+        
+        // Match pattern: "conditionName{params} action param"
+        // Actions: true, false, power 2.0, cast SkillName, castinstead SkillName, orElseCast SkillName, cancel
+        const actionRegex = /\s+(true|false|power|cast|castinstead|orElseCast|cancel)(?:\s+([\w\.]+))?\s*$/;
+        const match = str.match(actionRegex);
+        
+        if (match) {
+            const conditionStr = str.substring(0, match.index);
+            const action = match[1];
+            const actionParam = match[2] || null;
+            return { conditionStr, action, actionParam };
+        }
+        
+        // Default to true if no action specified
+        return { conditionStr: str, action: 'true', actionParam: null };
+    }
+    
+    /**
+     * Escape HTML for safe display
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    /**
+     * Format conditions array for textarea display (legacy compatibility)
      */
     formatConditionsForDisplay(conditions) {
         if (!conditions || !Array.isArray(conditions)) return '';
@@ -241,7 +327,128 @@ class SkillEditor {
     }
     
     /**
-     * Parse conditions from textarea
+     * Open condition browser for a specific section
+     */
+    openConditionBrowserForSection(sectionType) {
+        // Initialize global condition browser if needed
+        if (!window.conditionBrowser) {
+            if (typeof ConditionBrowser === 'undefined') {
+                this.editor.showToast('Condition Browser not loaded', 'error');
+                return;
+            }
+            window.conditionBrowser = new ConditionBrowser();
+        }
+        
+        console.log(`🔍 Opening condition browser for ${sectionType}`);
+        
+        window.conditionBrowser.open({
+            usageMode: 'yaml',
+            context: sectionType,
+            onSelect: (result) => {
+                if (!result || !result.conditionString) {
+                    console.log('ℹ️ Condition selection cancelled');
+                    return;
+                }
+                
+                const action = result.action || 'true';
+                const actionParam = result.actionParam || '';
+                const conditionEntry = actionParam 
+                    ? `${result.conditionString} ${action} ${actionParam}`
+                    : `${result.conditionString} ${action}`;
+                
+                console.log(`✅ Adding condition to ${sectionType}:`, conditionEntry);
+                
+                // Initialize array if needed
+                if (!this.currentSkill[sectionType]) {
+                    this.currentSkill[sectionType] = [];
+                }
+                
+                // Add condition
+                this.currentSkill[sectionType].push(conditionEntry);
+                
+                // Re-render the condition list
+                this.refreshConditionList(sectionType);
+                
+                // Mark as dirty and sync
+                this.syncToFile();
+                this.editor.markDirty();
+                
+                this.editor.showToast(`Condition added to ${sectionType}`, 'success');
+            }
+        });
+    }
+    
+    /**
+     * Refresh condition list display for a section
+     */
+    refreshConditionList(sectionType) {
+        const containerId = sectionType.toLowerCase() + '-list';
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const conditions = this.currentSkill[sectionType] || [];
+        container.innerHTML = this.renderConditionList(conditions, sectionType);
+        
+        // Update count badge
+        const card = container.closest('.card');
+        if (card) {
+            const badge = card.querySelector('.count-badge');
+            if (conditions.length > 0) {
+                if (badge) {
+                    badge.textContent = conditions.length;
+                } else {
+                    const title = card.querySelector('.card-title');
+                    const newBadge = document.createElement('span');
+                    newBadge.className = 'count-badge';
+                    newBadge.textContent = conditions.length;
+                    title.insertBefore(newBadge, title.querySelector('.collapse-icon'));
+                }
+            } else if (badge) {
+                badge.remove();
+            }
+        }
+    }
+    
+    /**
+     * Remove condition from a section
+     */
+    removeCondition(sectionType, index) {
+        if (!confirm('Remove this condition?')) return;
+        
+        if (!this.currentSkill[sectionType]) return;
+        
+        this.currentSkill[sectionType].splice(index, 1);
+        this.refreshConditionList(sectionType);
+        this.syncToFile();
+        this.editor.markDirty();
+        
+        this.editor.showToast('Condition removed', 'success');
+    }
+    
+    /**
+     * Edit existing condition
+     */
+    editCondition(sectionType, index) {
+        if (!this.currentSkill[sectionType] || !this.currentSkill[sectionType][index]) return;
+        
+        const conditionStr = this.currentSkill[sectionType][index];
+        const { conditionStr: cond, action, actionParam } = this.parseCondition(conditionStr);
+        
+        // TODO: Parse condition string to prefill browser form
+        // For now, just remove and let user add again
+        if (confirm('Edit mode: This will remove the condition. Add it again with new settings.')) {
+            this.currentSkill[sectionType].splice(index, 1);
+            this.refreshConditionList(sectionType);
+            this.syncToFile();
+            this.editor.markDirty();
+            
+            // Open browser for re-adding
+            this.openConditionBrowserForSection(sectionType);
+        }
+    }
+    
+    /**
+     * Parse conditions from textarea (legacy compatibility)
      */
     parseConditionsFromText(text) {
         if (!text || !text.trim()) return [];
@@ -324,30 +531,21 @@ class SkillEditor {
             }
         });
         
-        // Conditions textareas
-        document.getElementById('skill-conditions')?.addEventListener('input', (e) => {
-            if (this.currentSkill) {
-                this.currentSkill.Conditions = this.parseConditionsFromText(e.target.value);
-                this.syncToFile();
-                this.editor.markDirty();
-            }
+        // Condition browser buttons
+        document.getElementById('btnBrowseConditions')?.addEventListener('click', () => {
+            this.openConditionBrowserForSection('Conditions');
         });
         
-        document.getElementById('skill-targetconditions')?.addEventListener('input', (e) => {
-            if (this.currentSkill) {
-                this.currentSkill.TargetConditions = this.parseConditionsFromText(e.target.value);
-                this.syncToFile();
-                this.editor.markDirty();
-            }
+        document.getElementById('btnBrowseTargetConditions')?.addEventListener('click', () => {
+            this.openConditionBrowserForSection('TargetConditions');
         });
         
-        document.getElementById('skill-triggerconditions')?.addEventListener('input', (e) => {
-            if (this.currentSkill) {
-                this.currentSkill.TriggerConditions = this.parseConditionsFromText(e.target.value);
-                this.syncToFile();
-                this.editor.markDirty();
-            }
+        document.getElementById('btnBrowseTriggerConditions')?.addEventListener('click', () => {
+            this.openConditionBrowserForSection('TriggerConditions');
         });
+        
+        // Store reference for onclick handlers
+        window.skillEditor = this;
     }
     
     syncToFile() {
@@ -412,9 +610,9 @@ class SkillEditor {
         this.editor.showToast(`Created new skill "${newName}"`, 'success');
         this.editor.markDirty();
         
-        // Refresh the file tree
-        if (this.editor.packManager) {
-            this.editor.packManager.renderPackTree();
+        // Update the file container in the tree (optimized)
+        if (this.editor.packManager && typeof this.editor.packManager.updateFileContainer === 'function') {
+            this.editor.packManager.updateFileContainer(parentFile.id, 'skill');
         }
     }
     
@@ -519,15 +717,13 @@ class SkillEditor {
             this.targeterBrowser = new TargeterBrowser();
         }
         
-        if (!this.conditionEditor) {
-            this.conditionEditor = new ConditionEditor('inline');
-        }
+        // No longer need to initialize condition editor - using global V2 browser
         
         if (!this.mechanicBrowser) {
             this.mechanicBrowser = new MechanicBrowser(
                 this.targeterBrowser,
                 null, // No trigger browser for skill files
-                this.conditionEditor
+                null  // Using global conditionBrowserV2 instead
             );
         }
         
@@ -554,7 +750,8 @@ class SkillEditor {
             this.skillBuilderEditor = new SkillBuilderEditor(
                 skillLinesContainer,
                 this.targeterBrowser,
-                this.mechanicBrowser
+                this.mechanicBrowser,
+                null  // No trigger browser for skill files
             );
             
             // Set context to 'skill' (hides triggers)

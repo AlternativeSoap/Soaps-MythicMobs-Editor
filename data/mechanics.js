@@ -36,7 +36,7 @@ const MECHANICS_DATA = {
                 { name: 'damagecause', alias: ['cause', 'type', 't'], type: 'string', default: 'ENTITY_ATTACK', description: 'The damage cause type' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- damage{a=10} @Target', '- damage{amount=20;ia=true} @Self', '- damage{a=5;pkb=true;pi=true} @PIR{r=10}']
+            examples: ['- damage{a=10} ', '- damage{amount=20;ia=true} ', '- damage{a=5;pkb=true;pi=true} ']
         },
         {
             id: 'basedamage',
@@ -48,7 +48,7 @@ const MECHANICS_DATA = {
                 { name: 'multiplier', alias: ['m'], type: 'number', default: 1, description: 'Damage multiplier' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- basedamage{m=1.5} @Target']
+            examples: ['- basedamage{m=1.5} ']
         },
         {
             id: 'percentdamage',
@@ -60,7 +60,7 @@ const MECHANICS_DATA = {
                 { name: 'percent', alias: ['p', 'amount', 'a'], type: 'number', default: 0.1, description: 'Percentage of max health (0.1 = 10%)' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- percentdamage{p=0.25} @Target', '- percentdamage{a=0.5} @Self']
+            examples: ['- percentdamage{p=0.25} ', '- percentdamage{a=0.5} ']
         },
         {
             id: 'hit',
@@ -74,7 +74,7 @@ const MECHANICS_DATA = {
                 { name: 'triggerskills', alias: ['ts'], type: 'boolean', default: true, description: 'Whether to trigger onAttack related triggers' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- hit{m=1.5;ia=true} @target ~onDamaged']
+            examples: ['- hit{m=1.5;ia=true}']
         },
         {
             id: 'explosion',
@@ -88,7 +88,7 @@ const MECHANICS_DATA = {
                 { name: 'fire', alias: ['f'], type: 'boolean', default: false, description: 'Whether to set blocks on fire' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- explosion{y=4} @Target', '- explosion{yield=2;bd=false;f=true} @Self']
+            examples: ['- explosion{y=4} ', '- explosion{yield=2;bd=false;f=true} ']
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -106,7 +106,7 @@ const MECHANICS_DATA = {
                 { name: 'maxoverheal', alias: ['maxabsorb', 'maxshield', 'mo', 'ma', 'ms'], type: 'number', default: 1, description: 'Maximum amount of overhealing' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- heal{amount=10} @Self', '- heal{a=5;oh=true;mo=20} @Target', '- heal{amount=20} @self ~onDamaged 0.2']
+            examples: ['- heal{amount=10} ', '- heal{a=5;oh=true;mo=20} ', '- heal{amount=20} 0.2']
         },
         {
             id: 'healpercent',
@@ -119,7 +119,7 @@ const MECHANICS_DATA = {
                 { name: 'overheal', alias: ['oh'], type: 'boolean', default: false, description: 'Whether to apply overhealing' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- healpercent{m=0.2} @self ~onAttack', '- healpercent{a=0.5;oh=true} @Target']
+            examples: ['- healpercent{m=0.2}', '- healpercent{a=0.5;oh=true} ']
         },
         {
             id: 'feed',
@@ -133,7 +133,7 @@ const MECHANICS_DATA = {
                 { name: 'overfeed', alias: ['o', 'of'], type: 'boolean', default: false, description: 'Whether to overfeed (excess converts to saturation)' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- feed{amount=10} @trigger ~onInteract', '- feed{a=5;s=2;o=true} @PIR{r=10}']
+            examples: ['- feed{amount=10}', '- feed{a=5;s=2;o=true} ']
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -152,7 +152,7 @@ const MECHANICS_DATA = {
                 { name: 'preserveyaw', alias: ['py'], type: 'boolean', default: true, description: 'Whether yaw value should be carried over' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- teleport{spreadh=5;spreadv=0} @target', '- tp @Location{c=100,65,100}']
+            examples: ['- teleport{spreadh=5;spreadv=0} ', '- tp ']
         },
         {
             id: 'leap',
@@ -165,7 +165,7 @@ const MECHANICS_DATA = {
                 { name: 'noise', alias: ['n'], type: 'number', default: 0, description: 'Added variance to landing location' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- leap{velocity=200} @target', '- leap{v=150;n=2} @NearestPlayer']
+            examples: ['- leap{velocity=200} ', '- leap{v=150;n=2} ']
         },
         {
             id: 'throw',
@@ -179,7 +179,7 @@ const MECHANICS_DATA = {
                 { name: 'fromorigin', alias: ['fo'], type: 'boolean', default: false, description: 'Whether to throw from origin' }
             ],
             defaultTargeter: '@PlayersInRadius{r=5}',
-            examples: ['- throw{velocity=15;velocityY=5} @PIR{r=5}', '- throw{v=10;vy=3;fo=true} @Target']
+            examples: ['- throw{velocity=15;velocityY=5} ', '- throw{v=10;vy=3;fo=true} ']
         },
         {
             id: 'velocity',
@@ -195,7 +195,7 @@ const MECHANICS_DATA = {
                 { name: 'relative', alias: ['r'], type: 'boolean', default: false, description: 'If velocity is relative to facing direction' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- velocity{m=set;x=0;y=0;z=0} @self ~onDamaged', '- velocity{m=add;y=2;r=true} @Target']
+            examples: ['- velocity{m=set;x=0;y=0;z=0}', '- velocity{m=add;y=2;r=true} ']
         },
         {
             id: 'jump',
@@ -207,7 +207,7 @@ const MECHANICS_DATA = {
                 { name: 'velocity', alias: ['v'], type: 'number', default: 1, description: 'Velocity of jump (0.75 ≈ 1 block)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- jump{velocity=20}', '- jump{v=0.75} @Self']
+            examples: ['- jump{velocity=20}', '- jump{v=0.75} ']
         },
         {
             id: 'lunge',
@@ -220,7 +220,7 @@ const MECHANICS_DATA = {
                 { name: 'velocityy', alias: ['vy', 'yv', 'yvelocity'], type: 'number', default: 1, description: 'Vertical velocity' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- lunge{velocity=15;velocityY=5} @Self']
+            examples: ['- lunge{velocity=15;velocityY=5} ']
         },
         {
             id: 'pull',
@@ -233,7 +233,7 @@ const MECHANICS_DATA = {
                 { name: 'toorigin', alias: ['to'], type: 'boolean', default: false, description: 'Pull towards skill origin' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- pull{velocity=10} @target', '- pull{v=6;to=true} @PIR{r=10}']
+            examples: ['- pull{velocity=10} ', '- pull{v=6;to=true} ']
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -251,7 +251,7 @@ const MECHANICS_DATA = {
                 { name: 'branch', alias: ['b', 'fork', 'f'], type: 'boolean', default: false, description: 'Branch off skilltree' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- skill{skill=AnotherSkill} @Target', '- skill{s=ice_bolt;sync=true} @Target ~onTimer:100']
+            examples: ['- skill{skill=AnotherSkill} ', '- skill{s=ice_bolt;sync=true}']
         },
         {
             id: 'delay',
@@ -275,7 +275,7 @@ const MECHANICS_DATA = {
                 { name: 'message', alias: ['msg', 'm'], type: 'string', default: '', required: true, description: 'The message to send' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- message{m="<caster.name> uses a skill!"} @PIR{r=30}', '- message{m="&aHealing!"} @Self']
+            examples: ['- message{m="<caster.name> uses a skill!"} ', '- message{m="&aHealing!"} ']
         },
         {
             id: 'command',
@@ -288,7 +288,7 @@ const MECHANICS_DATA = {
                 { name: 'ascaster', alias: ['ac'], type: 'boolean', default: false, description: 'Execute as caster instead of console' }
             ],
             defaultTargeter: '',
-            examples: ['- command{c="give <target.name> diamond 1"}', '- command{c="say Hello";ac=true} @Self']
+            examples: ['- command{c="give <target.name> diamond 1"}', '- command{c="say Hello";ac=true} ']
         },
         {
             id: 'summon',
@@ -303,7 +303,7 @@ const MECHANICS_DATA = {
                 { name: 'radius', alias: ['r', 'noise', 'n'], type: 'number', default: 0, description: 'Radius around target for spawning' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- summon{type=WITHER_SKELETON;amount=5;radius=4} @PIR{r=20}']
+            examples: ['- summon{type=WITHER_SKELETON;amount=5;radius=4} ']
         },
         {
             id: 'remove',
@@ -313,19 +313,19 @@ const MECHANICS_DATA = {
             description: 'Removes the targeted entity from existence. Does not work on players.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- remove{delay=200} @self ~onSpawn', '- remove @self ~onInteract']
+            examples: ['- remove{delay=200}', '- remove']
         },
         {
             id: 'signal',
             name: 'signal',
             aliases: ['sendsignal'],
             category: 'utility',
-            description: 'Sends a signal to the specified targeter. Used with ~onSignal trigger.',
+            description: 'Sends a signal to the specified targeter. Used with trigger.',
             attributes: [
                 { name: 'signal', alias: ['s'], type: 'string', default: 'ping', description: 'The signal string to send' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- signal{s=ATTACK} @MIR{r=10;t=Minion}']
+            examples: ['- signal{s=ATTACK} ']
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -346,7 +346,7 @@ const MECHANICS_DATA = {
                 { name: 'yoffset', alias: ['y'], type: 'number', default: 0, description: 'Y offset from target' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- effect:particles{p=flame;a=200;hs=1;vs=1;s=5} @self', '- particles{p=flame;a=10;y=0.3} @self']
+            examples: ['- effect:particles{p=flame;a=200;hs=1;vs=1;s=5} ', '- particles{p=flame;a=10;y=0.3} ']
         },
         {
             id: 'sound',
@@ -360,7 +360,7 @@ const MECHANICS_DATA = {
                 { name: 'pitch', alias: ['p'], type: 'number', default: 1.0, description: 'Pitch (0.01 to 2.0)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- sound{s=entity.enderman.scream} @self', '- sound{s=entity.generic.explode;v=2;p=0.5} @Self']
+            examples: ['- sound{s=entity.enderman.scream} ', '- sound{s=entity.generic.explode;v=2;p=0.5} ']
         },
         {
             id: 'potion',
@@ -375,7 +375,7 @@ const MECHANICS_DATA = {
                 { name: 'hasparticles', alias: ['particles', 'p'], type: 'boolean', default: true, description: 'Show effect particles' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- potion{type=SLOW;duration=200;level=4}', '- potion{t=SPEED;d=100;l=1;p=false} @Self']
+            examples: ['- potion{type=SLOW;duration=200;level=4}', '- potion{t=SPEED;d=100;l=1;p=false} ']
         },
         {
             id: 'lightning',
@@ -387,7 +387,7 @@ const MECHANICS_DATA = {
                 { name: 'damage', alias: ['d'], type: 'number', default: 0.01337, description: 'Damage dealt by strike' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- lightning @EIR{r=10} ~onTimer:100', '- lightning{d=6} @Target']
+            examples: ['- lightning', '- lightning{d=6} ']
         },
         {
             id: 'fakelightning',
@@ -397,7 +397,7 @@ const MECHANICS_DATA = {
             description: 'Strikes a fake lightning bolt (cosmetic only, no damage).',
             attributes: [],
             defaultTargeter: '@Target',
-            examples: ['- fakelightning @target', '- fakelightning @self']
+            examples: ['- fakelightning ', '- fakelightning ']
         },
         {
             id: 'ignite',
@@ -409,7 +409,7 @@ const MECHANICS_DATA = {
                 { name: 'ticks', alias: ['t', 'd', 'duration'], type: 'number', default: 60, description: 'How long target burns (ticks)' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- ignite{ticks=100} @trigger ~onAttack', '- ignite{t=200} @PIR{r=5}']
+            examples: ['- ignite{ticks=100}', '- ignite{t=200} ']
         },
         {
             id: 'extinguish',
@@ -419,7 +419,7 @@ const MECHANICS_DATA = {
             description: 'Removes any fire ticks from the target entity.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- extinguish{delay=2} @self ~onDamaged']
+            examples: ['- extinguish{delay=2}']
         },
         {
             id: 'sendtitle',
@@ -435,7 +435,7 @@ const MECHANICS_DATA = {
                 { name: 'fadeout', alias: ['fo'], type: 'number', default: 1, description: 'Fade-out time (ticks)' }
             ],
             defaultTargeter: '@PlayersInRadius{r=10}',
-            examples: ['- sendtitle{title="Beware!";subtitle="Danger ahead";d=20} @PIR{r=10}']
+            examples: ['- sendtitle{title="Beware!";subtitle="Danger ahead";d=20} ']
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -454,7 +454,7 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 60, description: 'Stun duration (ticks)' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- stun{d=60;f=false} @target']
+            examples: ['- stun{d=60;f=false} ']
         },
         {
             id: 'settarget',
@@ -464,7 +464,7 @@ const MECHANICS_DATA = {
             description: 'Sets the mob\'s target to the target entity.',
             attributes: [],
             defaultTargeter: '@Trigger',
-            examples: ['- setTarget @trigger ~onInteract']
+            examples: ['- setTarget']
         },
         {
             id: 'rally',
@@ -477,7 +477,7 @@ const MECHANICS_DATA = {
                 { name: 'radius', alias: ['r', 'hradius', 'hr'], type: 'number', default: 10, description: 'Radius to search for mobs' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- rally{types=Guard,Knight;radius=30;ot=false} @Trigger']
+            examples: ['- rally{types=Guard,Knight;radius=30;ot=false} ']
         },
         {
             id: 'taunt',
@@ -489,7 +489,7 @@ const MECHANICS_DATA = {
                 { name: 'mode', alias: ['m'], type: 'string', default: 'taunt', description: 'How threat is assigned' }
             ],
             defaultTargeter: '@EIR{r=20}',
-            examples: ['- taunt @EIR{r=20}']
+            examples: ['- taunt ']
         },
         {
             id: 'threat',
@@ -502,7 +502,7 @@ const MECHANICS_DATA = {
                 { name: 'mode', alias: ['m'], type: 'string', default: 'add', description: 'Mode: add, remove, multiply, divide, set, reset, forcetop' }
             ],
             defaultTargeter: '@NearestPlayer',
-            examples: ['- threat{amount=10000} @NearestPlayer ~onSpawn']
+            examples: ['- threat{amount=10000}']
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -524,7 +524,7 @@ const MECHANICS_DATA = {
                 { name: 'charges', alias: ['c'], type: 'number', default: 0, description: 'Charges before fade' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- aura{auraName=Retributing_Light;onTick=Damage;interval=10;duration=240} @self']
+            examples: ['- aura{auraName=Retributing_Light;onTick=Damage;interval=10;duration=240} ']
         },
         {
             id: 'ondamaged',
@@ -538,7 +538,7 @@ const MECHANICS_DATA = {
                 { name: 'damagemultiplier', alias: ['multiplier', 'm'], type: 'number', default: 1, description: 'Damage multiplier' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- onDamaged{auraName=damageResist;d=200;onTick=Effects;m=0.5} @self ~onInteract']
+            examples: ['- onDamaged{auraName=damageResist;d=200;onTick=Effects;m=0.5}']
         },
         {
             id: 'onattack',
@@ -617,7 +617,7 @@ const MECHANICS_DATA = {
                 { name: 'incendiary', alias: ['i'], type: 'boolean', default: false, description: 'Leaves fire behind' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- shootfireball{y=1;v=4} @target']
+            examples: ['- shootfireball{y=1;v=4} ']
         },
         {
             id: 'volley',
@@ -647,7 +647,7 @@ const MECHANICS_DATA = {
                 { name: 'skills', alias: ['s'], type: 'string', default: '', required: true, description: 'Comma-separated list of skills' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- randomskill{skills=Skill1,Skill2,Skill3} @Self']
+            examples: ['- randomskill{skills=Skill1,Skill2,Skill3} ']
         },
         {
             id: 'variableskill',
@@ -659,7 +659,7 @@ const MECHANICS_DATA = {
                 { name: 'var', alias: ['v', 'variable'], type: 'string', default: '', required: true, description: 'Variable containing skill name' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- variableSkill{var=caster.skilltouse} @Target']
+            examples: ['- variableSkill{var=caster.skilltouse} ']
         },
         {
             id: 'sudoskill',
@@ -671,17 +671,17 @@ const MECHANICS_DATA = {
                 { name: 'skill', alias: ['s'], type: 'string', default: '', required: true, description: 'Metaskill to execute' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- sudoskill{s=FireballSkill} @Target']
+            examples: ['- sudoskill{s=FireballSkill} ']
         },
         {
             id: 'cancelevent',
             name: 'cancelevent',
             aliases: [],
             category: 'utility',
-            description: 'Cancels the event that triggered the skill (e.g., block damage from ~onDamaged).',
+            description: 'Cancels the event that triggered the skill (e.g., block damage from).',
             attributes: [],
             defaultTargeter: '',
-            examples: ['- cancelEvent @self ~onDamaged']
+            examples: ['- cancelEvent']
         },
         {
             id: 'consume',
@@ -694,7 +694,7 @@ const MECHANICS_DATA = {
                 { name: 'charges', alias: ['c', 'charge'], type: 'number', default: 1, description: 'Number of charges to consume' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- consume{aura=MyShield;charges=1} @Self']
+            examples: ['- consume{aura=MyShield;charges=1} ']
         },
         {
             id: 'giveitem',
@@ -707,7 +707,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 1, description: 'Stack size' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- giveitem{i=diamond;a=5} @Trigger']
+            examples: ['- giveitem{i=diamond;a=5} ']
         },
         {
             id: 'takeitem',
@@ -720,7 +720,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 1, description: 'Amount to take' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- takeitem{i=diamond;a=5} @Trigger']
+            examples: ['- takeitem{i=diamond;a=5} ']
         },
         {
             id: 'dropitem',
@@ -733,7 +733,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 1, description: 'Amount to drop' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- dropitem{i=diamond} @self']
+            examples: ['- dropitem{i=diamond} ']
         },
         {
             id: 'equip',
@@ -746,7 +746,7 @@ const MECHANICS_DATA = {
                 { name: 'material', alias: ['m'], type: 'string', default: '', description: 'Material to equip' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- equip{slot=HEAD;material=DIAMOND_HELMET} @Self']
+            examples: ['- equip{slot=HEAD;material=DIAMOND_HELMET} ']
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -764,7 +764,7 @@ const MECHANICS_DATA = {
                 { name: 'fromorigin', alias: ['fo'], type: 'boolean', default: false, description: 'Draw from origin to target' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- particleLine{particle=flame;points=20;fromOrigin=true} @Target']
+            examples: ['- particleLine{particle=flame;points=20;fromOrigin=true} ']
         },
         {
             id: 'particlering',
@@ -778,7 +778,7 @@ const MECHANICS_DATA = {
                 { name: 'points', alias: ['pt'], type: 'number', default: 20, description: 'Number of particles' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- particleRing{particle=reddust;r=3;points=32} @Self']
+            examples: ['- particleRing{particle=reddust;r=3;points=32} ']
         },
         {
             id: 'particlesphere',
@@ -820,7 +820,7 @@ const MECHANICS_DATA = {
                 { name: 'yoffset', alias: ['y'], type: 'number', default: 0, description: 'Y offset from target' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- hologram{text="&cCritical Hit!";d=40;y=1.5} @Target']
+            examples: ['- hologram{text="&cCritical Hit!";d=40;y=1.5} ']
         },
         {
             id: 'glow',
@@ -833,7 +833,7 @@ const MECHANICS_DATA = {
                 { name: 'color', alias: ['c'], type: 'string', default: 'WHITE', description: 'Glow color' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- glow{duration=200;color=RED} @Target']
+            examples: ['- glow{duration=200;color=RED} ']
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -849,7 +849,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 20, description: 'Health to set' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setHealth{a=1} @Self']
+            examples: ['- setHealth{a=1} ']
         },
         {
             id: 'setmaxhealth',
@@ -861,7 +861,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 20, description: 'Max health to set' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setMaxHealth{a=100} @Self']
+            examples: ['- setMaxHealth{a=100} ']
         },
         {
             id: 'setname',
@@ -874,7 +874,7 @@ const MECHANICS_DATA = {
                 { name: 'visible', alias: ['v'], type: 'boolean', default: true, description: 'Whether name is visible' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setName{name="&6Boss"} @Self']
+            examples: ['- setName{name="&6Boss"} ']
         },
         {
             id: 'setlevel',
@@ -886,7 +886,7 @@ const MECHANICS_DATA = {
                 { name: 'level', alias: ['l'], type: 'number', default: 1, description: 'Level to set' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setLevel{l=10} @Self']
+            examples: ['- setLevel{l=10} ']
         },
         {
             id: 'setspeed',
@@ -898,7 +898,7 @@ const MECHANICS_DATA = {
                 { name: 'speed', alias: ['s'], type: 'number', default: 0.7, description: 'Movement speed multiplier' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setSpeed{s=2.0} @Self']
+            examples: ['- setSpeed{s=2.0} ']
         },
         {
             id: 'setgravity',
@@ -910,7 +910,7 @@ const MECHANICS_DATA = {
                 { name: 'gravity', alias: ['g'], type: 'boolean', default: true, description: 'Enable/disable gravity' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setGravity{g=false} @Self']
+            examples: ['- setGravity{g=false} ']
         },
         {
             id: 'setai',
@@ -922,7 +922,7 @@ const MECHANICS_DATA = {
                 { name: 'ai', alias: ['a'], type: 'boolean', default: true, description: 'Enable/disable AI' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setAI{ai=false} @Self']
+            examples: ['- setAI{ai=false} ']
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -939,7 +939,7 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 0, description: 'Revert after X ticks (0 = permanent)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setBlock{type=GOLD_BLOCK;d=100} @Target']
+            examples: ['- setBlock{type=GOLD_BLOCK;d=100} ']
         },
         {
             id: 'breakblock',
@@ -951,7 +951,7 @@ const MECHANICS_DATA = {
                 { name: 'drop', alias: ['d'], type: 'boolean', default: true, description: 'Whether to drop items' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- breakBlock{drop=false} @Target']
+            examples: ['- breakBlock{drop=false} ']
         },
         {
             id: 'fillchest',
@@ -963,7 +963,7 @@ const MECHANICS_DATA = {
                 { name: 'table', alias: ['t'], type: 'string', default: '', required: true, description: 'MythicMobs loot table' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- fillChest{table=TreasureChest} @Target']
+            examples: ['- fillChest{table=TreasureChest} ']
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -980,7 +980,7 @@ const MECHANICS_DATA = {
                 { name: 'player', alias: ['p'], type: 'string', default: '', description: 'Player name if disguising as player' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- disguise{type=CREEPER} @Self']
+            examples: ['- disguise{type=CREEPER} ']
         },
         {
             id: 'undisguise',
@@ -990,7 +990,7 @@ const MECHANICS_DATA = {
             description: 'Removes disguise from target (requires LibsDisguises).',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- undisguise @Self']
+            examples: ['- undisguise ']
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -1023,7 +1023,7 @@ const MECHANICS_DATA = {
                 { name: 'aura', alias: ['name', 'auraname'], type: 'string', default: '', required: true, description: 'Name of aura to remove' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- auraRemove{aura=MyBuff} @Self']
+            examples: ['- auraRemove{aura=MyBuff} ']
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -1041,7 +1041,7 @@ const MECHANICS_DATA = {
                 { name: 'radius', alias: ['r'], type: 'number', default: 5, description: 'Range to next target' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- chain{skill=LightningStrike;jumps=5;radius=8} @Target']
+            examples: ['- chain{skill=LightningStrike;jumps=5;radius=8} ']
         },
         {
             id: 'cast',
@@ -1056,7 +1056,7 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 200, description: 'Duration in ticks' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- cast{onTick=DamageEffect;d=200;interval=20} @Target']
+            examples: ['- cast{onTick=DamageEffect;d=200;interval=20} ']
         },
         {
             id: 'raytrace',
@@ -1091,7 +1091,7 @@ const MECHANICS_DATA = {
                 { name: 'value', alias: ['val'], type: 'string', default: '0,0,0', description: 'The transformation value (x,y,z)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- displaytransformation{action=set;transformation=translation;value=0,0,1} @self', '- displaytransformation{action=MULTIPLY;transformation=LEFT_ROTATION;val=0,0.707,0,0.707} @self']
+            examples: ['- displaytransformation{action=set;transformation=translation;value=0,0,1} ', '- displaytransformation{action=MULTIPLY;transformation=LEFT_ROTATION;val=0,0.707,0,0.707} ']
         },
         
         // Currency Mechanics
@@ -1105,7 +1105,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 0, description: 'Amount of money to give' }
             ],
             defaultTargeter: '@PIR{r=20}',
-            examples: ['- currencygive{amount=20} @pir{r=20}', '- currencygive{a=100} @trigger']
+            examples: ['- currencygive{amount=20} ', '- currencygive{a=100} ']
         },
         {
             id: 'currencytake',
@@ -1117,7 +1117,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 0, description: 'Amount of money to take' }
             ],
             defaultTargeter: '@PIR{r=20}',
-            examples: ['- currencytake{amount=20} @pir{r=20}', '- currencytake{a=50} @trigger']
+            examples: ['- currencytake{amount=20} ', '- currencytake{a=50} ']
         },
         
         // Animal/Mob Specific
@@ -1129,7 +1129,7 @@ const MECHANICS_DATA = {
             description: 'Causes the casting goat mob to ram the targeted entity. Paper only.',
             attributes: [],
             defaultTargeter: '@trigger',
-            examples: ['- goatram @trigger ~onInteract', '- goatram @NearestPlayer{r=10}']
+            examples: ['- goatram', '- goatram ']
         },
         
         // Control Mechanics
@@ -1145,7 +1145,7 @@ const MECHANICS_DATA = {
                 { name: 'breakable', alias: ['b'], type: 'boolean', default: false, description: 'Can blocks be broken' }
             ],
             defaultTargeter: '@target',
-            examples: ['- prison{material=IRON_BLOCK;duration=200;breakable=true} @target', '- prison{m=ICE;d=100} @trigger']
+            examples: ['- prison{material=IRON_BLOCK;duration=200;breakable=true} ', '- prison{m=ICE;d=100} ']
         },
         {
             id: 'swap',
@@ -1155,7 +1155,7 @@ const MECHANICS_DATA = {
             description: 'Swaps the location of the caster and target.',
             attributes: [],
             defaultTargeter: '@target',
-            examples: ['- swap @target', '- swap @NearestPlayer{r=10}']
+            examples: ['- swap ', '- swap ']
         },
         {
             id: 'goto',
@@ -1169,7 +1169,7 @@ const MECHANICS_DATA = {
                 { name: 'spreadV', alias: ['sv'], type: 'number', default: 0, description: 'Vertical spread' }
             ],
             defaultTargeter: '@target',
-            examples: ['- goto{speed=1;sh=5;sv=5} @owner', '- goto{s=2} @location{c=100,65,100}']
+            examples: ['- goto{speed=1;sh=5;sv=5} ', '- goto{s=2} ']
         },
         {
             id: 'mount',
@@ -1182,7 +1182,7 @@ const MECHANICS_DATA = {
                 { name: 'stack', alias: ['s'], type: 'boolean', default: false, description: 'Stack atop existing mounts' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- mount{type=UndeadMount} @self', '- mount{t=Horse;stack=true} @self']
+            examples: ['- mount{type=UndeadMount} ', '- mount{t=Horse;stack=true} ']
         },
         {
             id: 'mountme',
@@ -1192,7 +1192,7 @@ const MECHANICS_DATA = {
             description: 'Makes the target mount the caster mob.',
             attributes: [],
             defaultTargeter: '@trigger',
-            examples: ['- mountme @trigger ~onDamaged', '- mountme @NearestPlayer{r=5}']
+            examples: ['- mountme', '- mountme ']
         },
         {
             id: 'mounttarget',
@@ -1202,7 +1202,7 @@ const MECHANICS_DATA = {
             description: 'Causes the mob to mount the specified target.',
             attributes: [],
             defaultTargeter: '@trigger',
-            examples: ['- mounttarget @trigger ~onDamaged', '- mounttarget @Parent']
+            examples: ['- mounttarget', '- mounttarget ']
         },
         {
             id: 'dismount',
@@ -1212,7 +1212,7 @@ const MECHANICS_DATA = {
             description: 'Causes the mob to jump off its mount.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- dismount @self ~onDamaged', '- dismount @self']
+            examples: ['- dismount', '- dismount ']
         },
         {
             id: 'look',
@@ -1226,7 +1226,7 @@ const MECHANICS_DATA = {
                 { name: 'immediately', alias: ['immediate', 'i'], type: 'boolean', default: true, description: 'Turn immediately' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- look{headOnly=true;immediately=true} @Target', '- look{force=true} @NearestPlayer{r=10}']
+            examples: ['- look{headOnly=true;immediately=true} ', '- look{force=true} ']
         },
         {
             id: 'freeze',
@@ -1238,7 +1238,7 @@ const MECHANICS_DATA = {
                 { name: 'ticks', alias: ['t', 'duration', 'd'], type: 'number', default: 60, description: 'Ticks frozen' }
             ],
             defaultTargeter: '@trigger',
-            examples: ['- freeze{ticks=100} @trigger ~onAttack', '- freeze{t=200} @PIR{r=10}']
+            examples: ['- freeze{ticks=100}', '- freeze{t=200} ']
         },
         
         // Healing/Shield
@@ -1253,7 +1253,7 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 200, description: 'Duration in ticks' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- shield{amount=20;duration=200} @self', '- shield{a=10;d=100} @trigger']
+            examples: ['- shield{amount=20;duration=200} ', '- shield{a=10;d=100} ']
         },
         
         // World Mechanics
@@ -1267,7 +1267,7 @@ const MECHANICS_DATA = {
                 { name: 'time', alias: ['t'], type: 'number', default: 0, description: 'Time value (0-24000)' }
             ],
             defaultTargeter: '@World',
-            examples: ['- time{t=0} @world', '- time{t=18000} @world']
+            examples: ['- time{t=0} ', '- time{t=18000} ']
         },
         {
             id: 'weather',
@@ -1280,7 +1280,7 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 6000, description: 'Duration in ticks' }
             ],
             defaultTargeter: '@World',
-            examples: ['- weather{type=RAIN;duration=6000} @world', '- weather{t=THUNDER;d=3000} @world']
+            examples: ['- weather{type=RAIN;duration=6000} ', '- weather{t=THUNDER;d=3000} ']
         },
         
         // Items & Inventory
@@ -1294,7 +1294,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 1, description: 'Amount to remove' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- removehelditem{amount=1} @self', '- removehelditem{a=5} @self']
+            examples: ['- removehelditem{amount=1} ', '- removehelditem{a=5} ']
         },
         {
             id: 'consumeslot',
@@ -1307,7 +1307,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 1, description: 'Amount to remove' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- consumeslot{slot=0;amount=1} @self', '- consumeslot{slot=HAND;a=1} @trigger']
+            examples: ['- consumeslot{slot=0;amount=1} ', '- consumeslot{slot=HAND;a=1} ']
         },
         {
             id: 'decapitate',
@@ -1317,7 +1317,7 @@ const MECHANICS_DATA = {
             description: 'Drops a copy of the target player\'s head.',
             attributes: [],
             defaultTargeter: '@trigger',
-            examples: ['- decapitate @trigger ~onInteract', '- decapitate @target']
+            examples: ['- decapitate', '- decapitate ']
         },
         
         // Block Mechanics
@@ -1329,7 +1329,7 @@ const MECHANICS_DATA = {
             description: 'Turns blocks into falling blocks.',
             attributes: [],
             defaultTargeter: '@BNO{r=5}',
-            examples: ['- blockdestabilize @BNO{r=5}', '- blockdestabilize @targetlocation']
+            examples: ['- blockdestabilize ', '- blockdestabilize ']
         },
         {
             id: 'bonemeal',
@@ -1341,7 +1341,7 @@ const MECHANICS_DATA = {
                 { name: 'blockFace', alias: ['bf', 'face', 'f'], type: 'string', default: 'UP', description: 'Block face to apply to' }
             ],
             defaultTargeter: '@selflocation',
-            examples: ['- bonemeal @selflocation', '- bonemeal{bf=UP} @targetlocation']
+            examples: ['- bonemeal ', '- bonemeal{bf=UP} ']
         },
         {
             id: 'pushbutton',
@@ -1356,7 +1356,7 @@ const MECHANICS_DATA = {
                 { name: 'location', alias: ['loc', 'l'], type: 'string', default: '', description: 'Location (x,y,z)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- pushbutton{x=15;y=67;z=-213} @self', '- pushbutton{loc=100,64,100} @self']
+            examples: ['- pushbutton{x=15;y=67;z=-213} ', '- pushbutton{loc=100,64,100} ']
         },
         
         // Sounds & Effects
@@ -1368,7 +1368,7 @@ const MECHANICS_DATA = {
             description: 'Creates flames effect at the location.',
             attributes: [],
             defaultTargeter: '@self',
-            examples: ['- flames @self', '- flames @target']
+            examples: ['- flames ', '- flames ']
         },
         {
             id: 'ender',
@@ -1378,7 +1378,7 @@ const MECHANICS_DATA = {
             description: 'Plays the effect of an eye of ender breaking.',
             attributes: [],
             defaultTargeter: '@self',
-            examples: ['- ender @self ~onTimer:20', '- ender @targetlocation']
+            examples: ['- ender', '- ender ']
         },
         {
             id: 'smoke',
@@ -1388,7 +1388,7 @@ const MECHANICS_DATA = {
             description: 'Creates a smoke effect.',
             attributes: [],
             defaultTargeter: '@self',
-            examples: ['- smoke @self', '- smoke @targetlocation']
+            examples: ['- smoke ', '- smoke ']
         },
         {
             id: 'firework',
@@ -1404,7 +1404,7 @@ const MECHANICS_DATA = {
                 { name: 'colors', alias: ['color', 'c'], type: 'string', default: '#FFFFFF', description: 'Color (RGB or hex)' }
             ],
             defaultTargeter: '@self',
-            examples: ['- firework{t=BALL;d=1;f=true;tr=true} @self', '- firework{type=STAR;colors=#FF0000} @target']
+            examples: ['- firework{t=BALL;d=1;f=true;tr=true} ', '- firework{type=STAR;colors=#FF0000} ']
         },
         
         // Advanced Mechanics
@@ -1419,7 +1419,7 @@ const MECHANICS_DATA = {
                 { name: 'velocityy', alias: ['yvelocity', 'vy', 'yv'], type: 'number', default: 0.01337, description: 'Y velocity' }
             ],
             defaultTargeter: '@trigger',
-            examples: ['- disengage @trigger ~onDamaged', '- disengage{v=2;vy=0.5} @target']
+            examples: ['- disengage', '- disengage{v=2;vy=0.5} ']
         },
         {
             id: 'propel',
@@ -1431,7 +1431,7 @@ const MECHANICS_DATA = {
                 { name: 'velocity', alias: ['magnitude', 'v'], type: 'number', default: 1, description: 'Propel velocity' }
             ],
             defaultTargeter: '@target',
-            examples: ['- propel{v=1} @trigger ~onDamaged', '- propel{velocity=2} @target']
+            examples: ['- propel{v=1}', '- propel{velocity=2} ']
         },
         {
             id: 'forcepull',
@@ -1444,7 +1444,7 @@ const MECHANICS_DATA = {
                 { name: 'vspread', alias: ['spreadv', 'vs'], type: 'number', default: 0, description: 'Vertical spread' }
             ],
             defaultTargeter: '@EIR{r=30}',
-            examples: ['- forcepull{spread=5} @EntitiesInRadius{r=30}', '- forcepull{s=3;vs=1} @PIR{r=20}']
+            examples: ['- forcepull{spread=5} ', '- forcepull{s=3;vs=1} ']
         },
         {
             id: 'oxygen',
@@ -1456,7 +1456,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 1, description: 'Amount of oxygen' }
             ],
             defaultTargeter: '@trigger',
-            examples: ['- oxygen{amount=10} @trigger', '- oxygen{a=20} @PIR{r=10}']
+            examples: ['- oxygen{amount=10} ', '- oxygen{a=20} ']
         },
         
         // Mob AI & Behavior
@@ -1468,7 +1468,7 @@ const MECHANICS_DATA = {
             description: 'Forces the target to reset its current target.',
             attributes: [],
             defaultTargeter: '@self',
-            examples: ['- cleartarget @self ~onTimer:20', '- cleartarget @MIR{t=Zombie;r=20}']
+            examples: ['- cleartarget', '- cleartarget ']
         },
         {
             id: 'remount',
@@ -1478,7 +1478,7 @@ const MECHANICS_DATA = {
             description: 'Causes casting mob to remount the mob it spawned riding.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- remount @self ~onInteract', '- remount @self']
+            examples: ['- remount', '- remount ']
         },
         {
             id: 'ejectpassenger',
@@ -1488,7 +1488,7 @@ const MECHANICS_DATA = {
             description: 'Ejects any passengers riding the mob.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- ejectpassenger @self ~onDamaged', '- ejectpassenger @self']
+            examples: ['- ejectpassenger', '- ejectpassenger ']
         },
         {
             id: 'activatespawner',
@@ -1500,7 +1500,7 @@ const MECHANICS_DATA = {
                 { name: 'spawner', alias: ['s'], type: 'string', default: '', description: 'The name of the spawner' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- activateSpawner{spawner=MySpawner} @self']
+            examples: ['- activateSpawner{spawner=MySpawner} ']
         },
         {
             id: 'addtrade',
@@ -1512,7 +1512,7 @@ const MECHANICS_DATA = {
                 { name: 'trade', alias: ['t'], type: 'string', default: '', description: 'Trade configuration' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- addTrade{trade=MyTrade} @target']
+            examples: ['- addTrade{trade=MyTrade} ']
         },
         {
             id: 'animatearmorstand',
@@ -1527,7 +1527,7 @@ const MECHANICS_DATA = {
                 { name: 'rightarm', alias: ['ra'], type: 'string', default: '0,0,0', description: 'Right arm rotation' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- animatearmorstand{head=45,0,0;rightarm=90,0,0} @self']
+            examples: ['- animatearmorstand{head=45,0,0;rightarm=90,0,0} ']
         },
         {
             id: 'armanimation',
@@ -1539,7 +1539,7 @@ const MECHANICS_DATA = {
                 { name: 'offhand', alias: ['off', 'o'], type: 'boolean', default: false, description: 'Use offhand' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- armAnimation{offhand=false} @self']
+            examples: ['- armAnimation{offhand=false} ']
         },
         {
             id: 'arrowvolley',
@@ -1554,7 +1554,7 @@ const MECHANICS_DATA = {
                 { name: 'fireTicks', alias: ['ft'], type: 'number', default: 0, description: 'Fire duration' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- arrowvolley{amount=20;spread=25;velocity=10} @target']
+            examples: ['- arrowvolley{amount=20;spread=25;velocity=10} ']
         },
         {
             id: 'attribute',
@@ -1568,7 +1568,7 @@ const MECHANICS_DATA = {
                 { name: 'operation', alias: ['op'], type: 'string', default: 'ADD', description: 'ADD/MULTIPLY_BASE/MULTIPLY_TOTAL' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- attribute{attribute=GENERIC_MAX_HEALTH;amount=20;operation=ADD} @self']
+            examples: ['- attribute{attribute=GENERIC_MAX_HEALTH;amount=20;operation=ADD} ']
         },
         {
             id: 'attributemodifier',
@@ -1582,7 +1582,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 0, description: 'Modifier amount' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- attributemodifier{attribute=GENERIC_ATTACK_DAMAGE;name=strength_buff;amount=5} @self']
+            examples: ['- attributemodifier{attribute=GENERIC_ATTACK_DAMAGE;name=strength_buff;amount=5} ']
         },
         {
             id: 'auraremove',
@@ -1594,7 +1594,7 @@ const MECHANICS_DATA = {
                 { name: 'aura', alias: ['a', 'auraname'], type: 'string', default: '', description: 'Aura name to remove' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- auraremove{aura=poisonAura} @self']
+            examples: ['- auraremove{aura=poisonAura} ']
         },
         {
             id: 'barcreate',
@@ -1609,7 +1609,7 @@ const MECHANICS_DATA = {
                 { name: 'color', alias: ['c'], type: 'string', default: 'WHITE', description: 'Bar color' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- barcreate{id=healthbar;title="Boss Health";progress=1.0;color=RED} @trigger']
+            examples: ['- barcreate{id=healthbar;title="Boss Health";progress=1.0;color=RED} ']
         },
         {
             id: 'barremove',
@@ -1621,7 +1621,7 @@ const MECHANICS_DATA = {
                 { name: 'id', alias: ['i'], type: 'string', default: '', description: 'Bar ID to remove' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- barremove{id=healthbar} @trigger']
+            examples: ['- barremove{id=healthbar} ']
         },
         {
             id: 'barset',
@@ -1635,7 +1635,7 @@ const MECHANICS_DATA = {
                 { name: 'progress', alias: ['p'], type: 'number', default: 1.0, description: 'New progress value' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- barset{id=healthbar;progress=0.5;color=YELLOW} @trigger']
+            examples: ['- barset{id=healthbar;progress=0.5;color=YELLOW} ']
         },
         {
             id: 'blackscreen',
@@ -1649,7 +1649,7 @@ const MECHANICS_DATA = {
                 { name: 'fadeout', alias: ['fo'], type: 'number', default: 20, description: 'Fade out duration (ticks)' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- blackscreen{fadein=10;stay=40;fadeout=10} @trigger']
+            examples: ['- blackscreen{fadein=10;stay=40;fadeout=10} ']
         },
         {
             id: 'blockmask',
@@ -1663,7 +1663,7 @@ const MECHANICS_DATA = {
                 { name: 'radius', alias: ['r'], type: 'number', default: 5, description: 'Effect radius' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- blockmask{material=GOLD_BLOCK;duration=200;radius=3} @self']
+            examples: ['- blockmask{material=GOLD_BLOCK;duration=200;radius=3} ']
         },
         {
             id: 'blockunmask',
@@ -1675,7 +1675,7 @@ const MECHANICS_DATA = {
                 { name: 'radius', alias: ['r'], type: 'number', default: 5, description: 'Effect radius' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- blockunmask{radius=3} @self']
+            examples: ['- blockunmask{radius=3} ']
         },
         {
             id: 'blockphysics',
@@ -1688,7 +1688,7 @@ const MECHANICS_DATA = {
                 { name: 'radius', alias: ['r'], type: 'number', default: 5, description: 'Effect radius' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- blockphysics{enable=false;radius=10} @self']
+            examples: ['- blockphysics{enable=false;radius=10} ']
         },
         {
             id: 'blockwave',
@@ -1703,7 +1703,7 @@ const MECHANICS_DATA = {
                 { name: 'velocity', alias: ['v'], type: 'number', default: 1, description: 'Wave speed' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- blockwave{material=SAND;duration=40;radius=3;velocity=2} @self']
+            examples: ['- blockwave{material=SAND;duration=40;radius=3;velocity=2} ']
         },
         {
             id: 'bloodyscreen',
@@ -1716,7 +1716,7 @@ const MECHANICS_DATA = {
                 { name: 'intensity', alias: ['i'], type: 'number', default: 1, description: 'Effect intensity' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- bloodyscreen{duration=40;intensity=2} @trigger']
+            examples: ['- bloodyscreen{duration=40;intensity=2} ']
         },
         {
             id: 'bossborder',
@@ -1729,7 +1729,7 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 100, description: 'Duration in ticks' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- bossborder{radius=20;duration=200} @trigger']
+            examples: ['- bossborder{radius=20;duration=200} ']
         },
         {
             id: 'bouncy',
@@ -1742,7 +1742,7 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 100, description: 'Duration in ticks' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- bouncy{multiplier=2;duration=200} @self']
+            examples: ['- bouncy{multiplier=2;duration=200} ']
         },
         {
             id: 'breakblock',
@@ -1756,7 +1756,7 @@ const MECHANICS_DATA = {
                 { name: 'useTool', alias: ['tool'], type: 'boolean', default: false, description: 'Use caster\'s tool' }
             ],
             defaultTargeter: '@TargetLocation',
-            examples: ['- breakblock{doDrops=true;doEffect=true} @targetlocation']
+            examples: ['- breakblock{doDrops=true;doEffect=true} ']
         },
         {
             id: 'breakblockandgiveitem',
@@ -1768,7 +1768,7 @@ const MECHANICS_DATA = {
                 { name: 'doEffect', alias: ['effect'], type: 'boolean', default: true, description: 'Show break effect' }
             ],
             defaultTargeter: '@TargetLocation',
-            examples: ['- breakBlockAndGiveItem{doEffect=true} @targetlocation']
+            examples: ['- breakBlockAndGiveItem{doEffect=true} ']
         },
         {
             id: 'clearexperience',
@@ -1778,7 +1778,7 @@ const MECHANICS_DATA = {
             description: 'Clears all experience from target player.',
             attributes: [],
             defaultTargeter: '@Trigger',
-            examples: ['- clearexperience @trigger']
+            examples: ['- clearexperience ']
         },
         {
             id: 'clearexperiencelevels',
@@ -1788,7 +1788,7 @@ const MECHANICS_DATA = {
             description: 'Clears experience levels from target player.',
             attributes: [],
             defaultTargeter: '@Trigger',
-            examples: ['- clearexperiencelevels @trigger']
+            examples: ['- clearexperiencelevels ']
         },
         {
             id: 'giveexperiencelevels',
@@ -1800,7 +1800,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 1, description: 'Levels to give' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- giveexperiencelevels{amount=5} @trigger']
+            examples: ['- giveexperiencelevels{amount=5} ']
         },
         {
             id: 'takeexperiencelevels',
@@ -1812,7 +1812,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 1, description: 'Levels to take' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- takeexperiencelevels{amount=5} @trigger']
+            examples: ['- takeexperiencelevels{amount=5} ']
         },
         {
             id: 'closeinventory',
@@ -1822,7 +1822,7 @@ const MECHANICS_DATA = {
             description: 'Closes the inventory of target player.',
             attributes: [],
             defaultTargeter: '@Trigger',
-            examples: ['- closeinventory @trigger']
+            examples: ['- closeinventory ']
         },
         {
             id: 'directionalvelocity',
@@ -1836,7 +1836,7 @@ const MECHANICS_DATA = {
                 { name: 'velocityZ', alias: ['vz', 'z'], type: 'number', default: 0, description: 'Z velocity' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- directionalvelocity{vx=1;vy=2;vz=0} @self']
+            examples: ['- directionalvelocity{vx=1;vy=2;vz=0} ']
         },
         {
             id: 'disguisetarget',
@@ -1848,7 +1848,7 @@ const MECHANICS_DATA = {
                 { name: 'disguise', alias: ['d', 'type'], type: 'string', default: '', description: 'Disguise type' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- disguisetarget{disguise=ZOMBIE} @self']
+            examples: ['- disguisetarget{disguise=ZOMBIE} ']
         },
         {
             id: 'disguisemodify',
@@ -1861,7 +1861,7 @@ const MECHANICS_DATA = {
                 { name: 'value', alias: ['v'], type: 'string', default: '', description: 'New value' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- disguisemodify{property=baby;value=true} @self']
+            examples: ['- disguisemodify{property=baby;value=true} ']
         },
         {
             id: 'undisguise',
@@ -1871,7 +1871,7 @@ const MECHANICS_DATA = {
             description: 'Removes disguise from target.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- undisguise @self']
+            examples: ['- undisguise ']
         },
         {
             id: 'enderbeam',
@@ -1883,7 +1883,7 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 100, description: 'Duration in ticks' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- enderbeam{duration=200} @target']
+            examples: ['- enderbeam{duration=200} ']
         },
         {
             id: 'enderdragonresetcrystals',
@@ -1893,7 +1893,7 @@ const MECHANICS_DATA = {
             description: 'Resets ender dragon crystals.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- enderdragonresetcrystals @self']
+            examples: ['- enderdragonresetcrystals ']
         },
         {
             id: 'enderdragonsetphase',
@@ -1905,7 +1905,7 @@ const MECHANICS_DATA = {
                 { name: 'phase', alias: ['p'], type: 'number', default: 0, description: 'Phase number' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- enderdragonsetphase{phase=3} @self']
+            examples: ['- enderdragonsetphase{phase=3} ']
         },
         {
             id: 'enderdragonsetrespawnphase',
@@ -1917,7 +1917,7 @@ const MECHANICS_DATA = {
                 { name: 'phase', alias: ['p'], type: 'number', default: 0, description: 'Respawn phase' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- enderdragonsetrespawnphase{phase=2} @self']
+            examples: ['- enderdragonsetrespawnphase{phase=2} ']
         },
         {
             id: 'enderdragonspawnportal',
@@ -1927,7 +1927,7 @@ const MECHANICS_DATA = {
             description: 'Spawns the end portal.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- enderdragonspawnportal @self']
+            examples: ['- enderdragonspawnportal ']
         },
         {
             id: 'equipcopy',
@@ -1939,7 +1939,7 @@ const MECHANICS_DATA = {
                 { name: 'slot', alias: ['s'], type: 'string', default: 'ALL', description: 'Equipment slot' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- equipcopy{slot=HAND} @trigger']
+            examples: ['- equipcopy{slot=HAND} ']
         },
         {
             id: 'fakeexplosion',
@@ -1951,7 +1951,7 @@ const MECHANICS_DATA = {
                 { name: 'power', alias: ['p'], type: 'number', default: 1, description: 'Explosion power' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- fakeexplosion{power=3} @self']
+            examples: ['- fakeexplosion{power=3} ']
         },
         {
             id: 'fawepaste',
@@ -1964,7 +1964,7 @@ const MECHANICS_DATA = {
                 { name: 'id', alias: ['pasteID'], type: 'string', default: '', description: 'Paste identifier' }
             ],
             defaultTargeter: '@TargetLocation',
-            examples: ['- fawepaste{schematic=castle;id=mycastle} @targetlocation']
+            examples: ['- fawepaste{schematic=castle;id=mycastle} ']
         },
         {
             id: 'geyser',
@@ -1977,7 +1977,7 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 100, description: 'Duration in ticks' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- geyser{height=10;duration=200} @self']
+            examples: ['- geyser{height=10;duration=200} ']
         },
         {
             id: 'giveitemfromslot',
@@ -1989,7 +1989,7 @@ const MECHANICS_DATA = {
                 { name: 'slot', alias: ['s'], type: 'number', default: 0, description: 'Slot number' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- giveitemfromslot{slot=5} @trigger']
+            examples: ['- giveitemfromslot{slot=5} ']
         },
         {
             id: 'giveitemfromtarget',
@@ -2001,7 +2001,7 @@ const MECHANICS_DATA = {
                 { name: 'slot', alias: ['s'], type: 'number', default: 0, description: 'Slot number' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- giveitemfromtarget{slot=0} @target']
+            examples: ['- giveitemfromtarget{slot=0} ']
         },
         {
             id: 'guardianbeam',
@@ -2013,7 +2013,7 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 100, description: 'Duration in ticks' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- guardianbeam{duration=200} @target']
+            examples: ['- guardianbeam{duration=200} ']
         },
         {
             id: 'hide',
@@ -2023,7 +2023,7 @@ const MECHANICS_DATA = {
             description: 'Hides entity from players.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- hide @self']
+            examples: ['- hide ']
         },
         {
             id: 'itemspray',
@@ -2037,7 +2037,7 @@ const MECHANICS_DATA = {
                 { name: 'velocity', alias: ['v'], type: 'number', default: 1, description: 'Spray velocity' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- itemspray{material=DIAMOND;amount=20;velocity=2} @self']
+            examples: ['- itemspray{material=DIAMOND;amount=20;velocity=2} ']
         },
         {
             id: 'jsonmessage',
@@ -2049,7 +2049,7 @@ const MECHANICS_DATA = {
                 { name: 'message', alias: ['m', 'msg'], type: 'string', default: '', description: 'JSON message text' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- jsonmessage{message="<json text>"} @trigger']
+            examples: ['- jsonmessage{message="<json text>"} ']
         },
         {
             id: 'log',
@@ -2061,7 +2061,7 @@ const MECHANICS_DATA = {
                 { name: 'message', alias: ['m', 'msg'], type: 'string', default: '', description: 'Message to log' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- log{message="Skill triggered"} @self']
+            examples: ['- log{message="Skill triggered"} ']
         },
         {
             id: 'matchrotation',
@@ -2071,7 +2071,7 @@ const MECHANICS_DATA = {
             description: 'Matches caster\'s rotation to target.',
             attributes: [],
             defaultTargeter: '@Target',
-            examples: ['- matchrotation @target']
+            examples: ['- matchrotation ']
         },
         {
             id: 'modifydamage',
@@ -2084,7 +2084,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 0, description: 'Flat damage modifier' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- modifydamage{multiplier=2} @self']
+            examples: ['- modifydamage{multiplier=2} ']
         },
         {
             id: 'modifyglobalscore',
@@ -2113,7 +2113,7 @@ const MECHANICS_DATA = {
                 { name: 'value', alias: ['v'], type: 'number', default: 0, description: 'Value to use' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- modifytargetscore{objective=deaths;operation=ADD;value=1} @target']
+            examples: ['- modifytargetscore{objective=deaths;operation=ADD;value=1} ']
         },
         {
             id: 'modifymobscore',
@@ -2127,7 +2127,7 @@ const MECHANICS_DATA = {
                 { name: 'value', alias: ['v'], type: 'number', default: 0, description: 'Value to use' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- modifymobscore{score=counter;operation=ADD;value=1} @self']
+            examples: ['- modifymobscore{score=counter;operation=ADD;value=1} ']
         },
         {
             id: 'modifyscore',
@@ -2141,7 +2141,7 @@ const MECHANICS_DATA = {
                 { name: 'value', alias: ['v'], type: 'number', default: 0, description: 'Value to use' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- modifyscore{objective=points;operation=SET;value=100} @trigger']
+            examples: ['- modifyscore{objective=points;operation=SET;value=100} ']
         },
         {
             id: 'movepin',
@@ -2153,7 +2153,7 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 20, description: 'Duration in ticks' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- movepin{duration=100} @self']
+            examples: ['- movepin{duration=100} ']
         },
         {
             id: 'opentrades',
@@ -2163,7 +2163,7 @@ const MECHANICS_DATA = {
             description: 'Opens trading interface with mob.',
             attributes: [],
             defaultTargeter: '@Trigger',
-            examples: ['- opentrades @trigger']
+            examples: ['- opentrades ']
         },
         {
             id: 'atom',
@@ -2177,7 +2177,7 @@ const MECHANICS_DATA = {
                 { name: 'radius', alias: ['rad'], type: 'number', default: 1, description: 'Orbit radius' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- atom{particle=FLAME;rings=3;radius=2} @self']
+            examples: ['- atom{particle=FLAME;rings=3;radius=2} ']
         },
         {
             id: 'pickupitem',
@@ -2187,7 +2187,7 @@ const MECHANICS_DATA = {
             description: 'Makes mob pick up item entity.',
             attributes: [],
             defaultTargeter: '@EIR{r=10}',
-            examples: ['- pickupitem @EIR{r=10}']
+            examples: ['- pickupitem ']
         },
         {
             id: 'playanimation',
@@ -2199,7 +2199,7 @@ const MECHANICS_DATA = {
                 { name: 'animation', alias: ['a'], type: 'string', default: '', description: 'Animation name' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- playanimation{animation=SWING_MAIN_ARM} @self']
+            examples: ['- playanimation{animation=SWING_MAIN_ARM} ']
         },
         {
             id: 'playblockbreaksound',
@@ -2211,7 +2211,7 @@ const MECHANICS_DATA = {
                 { name: 'material', alias: ['m'], type: 'material', default: 'STONE', description: 'Block type' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- playblockbreaksound{material=DIAMOND_BLOCK} @self']
+            examples: ['- playblockbreaksound{material=DIAMOND_BLOCK} ']
         },
         {
             id: 'posearmorstand',
@@ -2226,7 +2226,7 @@ const MECHANICS_DATA = {
                 { name: 'rightArm', alias: ['ra'], type: 'string', default: '0,0,0', description: 'Right arm rotation' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- posearmorstand{head=45,0,0;rightArm=90,0,0} @self']
+            examples: ['- posearmorstand{head=45,0,0;rightArm=90,0,0} ']
         },
         {
             id: 'potionclear',
@@ -2236,7 +2236,7 @@ const MECHANICS_DATA = {
             description: 'Removes all potion effects.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- potionclear @self']
+            examples: ['- potionclear ']
         },
         {
             id: 'printtree',
@@ -2246,7 +2246,7 @@ const MECHANICS_DATA = {
             description: 'Prints skill tree to console (debug).',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- printtree @self']
+            examples: ['- printtree ']
         },
         {
             id: 'pushblock',
@@ -2258,7 +2258,7 @@ const MECHANICS_DATA = {
                 { name: 'direction', alias: ['d'], type: 'string', default: 'UP', description: 'Push direction' }
             ],
             defaultTargeter: '@TargetLocation',
-            examples: ['- pushblock{direction=UP} @targetlocation']
+            examples: ['- pushblock{direction=UP} ']
         },
         {
             id: 'raytraceto',
@@ -2270,7 +2270,7 @@ const MECHANICS_DATA = {
                 { name: 'accuracy', alias: ['a'], type: 'number', default: 1, description: 'Raytrace accuracy' }
             ],
             defaultTargeter: '@Forward{f=10}',
-            examples: ['- raytraceto{accuracy=0.5} @forward{f=20}']
+            examples: ['- raytraceto{accuracy=0.5} ']
         },
         {
             id: 'randommessage',
@@ -2282,7 +2282,7 @@ const MECHANICS_DATA = {
                 { name: 'messages', alias: ['m'], type: 'string', default: '', description: 'Pipe-separated messages' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- randommessage{messages="Hello!|Hi there!|Greetings!"} @trigger']
+            examples: ['- randommessage{messages="Hello!|Hi there!|Greetings!"} ']
         },
         {
             id: 'recoil',
@@ -2294,7 +2294,7 @@ const MECHANICS_DATA = {
                 { name: 'velocity', alias: ['v'], type: 'number', default: 1, description: 'Recoil strength' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- recoil{velocity=2} @self']
+            examples: ['- recoil{velocity=2} ']
         },
         {
             id: 'removeowner',
@@ -2304,7 +2304,7 @@ const MECHANICS_DATA = {
             description: 'Removes mob\'s owner.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- removeowner @self']
+            examples: ['- removeowner ']
         },
         {
             id: 'resetai',
@@ -2314,7 +2314,7 @@ const MECHANICS_DATA = {
             description: 'Resets entity\'s AI.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- resetai @self']
+            examples: ['- resetai ']
         },
         {
             id: 'rotatetowards',
@@ -2326,7 +2326,7 @@ const MECHANICS_DATA = {
                 { name: 'speed', alias: ['s'], type: 'number', default: 1, description: 'Rotation speed' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- rotatetowards{speed=0.5} @target']
+            examples: ['- rotatetowards{speed=0.5} ']
         },
         {
             id: 'runaigoalselector',
@@ -2338,7 +2338,7 @@ const MECHANICS_DATA = {
                 { name: 'goal', alias: ['g'], type: 'string', default: '', description: 'Goal selector name' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- runaigoalselector{goal=MeleeAttack} @self']
+            examples: ['- runaigoalselector{goal=MeleeAttack} ']
         },
         {
             id: 'runaitargetselector',
@@ -2350,7 +2350,7 @@ const MECHANICS_DATA = {
                 { name: 'selector', alias: ['s'], type: 'string', default: '', description: 'Target selector name' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- runaitargetselector{selector=NearestPlayer} @self']
+            examples: ['- runaitargetselector{selector=NearestPlayer} ']
         },
         {
             id: 'saddle',
@@ -2360,7 +2360,7 @@ const MECHANICS_DATA = {
             description: 'Puts saddle on mob.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- saddle @self']
+            examples: ['- saddle ']
         },
         {
             id: 'sendactionmessage',
@@ -2372,7 +2372,7 @@ const MECHANICS_DATA = {
                 { name: 'message', alias: ['m', 'msg'], type: 'string', default: '', description: 'Message text' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- sendactionmessage{message="Boss Phase 2!"} @trigger']
+            examples: ['- sendactionmessage{message="Boss Phase 2!"} ']
         },
         {
             id: 'sendresourcepack',
@@ -2384,7 +2384,7 @@ const MECHANICS_DATA = {
                 { name: 'url', alias: ['u'], type: 'string', default: '', description: 'Resource pack URL' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- sendresourcepack{url="http://example.com/pack.zip"} @trigger']
+            examples: ['- sendresourcepack{url="http://example.com/pack.zip"} ']
         },
         {
             id: 'sendtitle',
@@ -2400,7 +2400,7 @@ const MECHANICS_DATA = {
                 { name: 'fadeOut', alias: ['fo'], type: 'number', default: 20, description: 'Fade out time' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- sendtitle{title="<red>BOSS FIGHT";subtitle="Prepare yourself";stay=100} @trigger']
+            examples: ['- sendtitle{title="<red>BOSS FIGHT";subtitle="Prepare yourself";stay=100} ']
         },
         {
             id: 'sendtoast',
@@ -2413,7 +2413,7 @@ const MECHANICS_DATA = {
                 { name: 'icon', alias: ['i'], type: 'material', default: 'DIAMOND', description: 'Toast icon' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- sendtoast{message="Achievement!";icon=DIAMOND} @trigger']
+            examples: ['- sendtoast{message="Achievement!";icon=DIAMOND} ']
         },
         {
             id: 'setblockopen',
@@ -2425,7 +2425,7 @@ const MECHANICS_DATA = {
                 { name: 'open', alias: ['o'], type: 'boolean', default: true, description: 'Open state' }
             ],
             defaultTargeter: '@TargetLocation',
-            examples: ['- setblockopen{open=true} @targetlocation']
+            examples: ['- setblockopen{open=true} ']
         },
         {
             id: 'setblocktype',
@@ -2437,7 +2437,7 @@ const MECHANICS_DATA = {
                 { name: 'material', alias: ['m', 'type'], type: 'material', default: 'STONE', description: 'Block material' }
             ],
             defaultTargeter: '@TargetLocation',
-            examples: ['- setblocktype{material=DIAMOND_BLOCK} @targetlocation']
+            examples: ['- setblocktype{material=DIAMOND_BLOCK} ']
         },
         {
             id: 'setchunkforceloaded',
@@ -2449,7 +2449,7 @@ const MECHANICS_DATA = {
                 { name: 'loaded', alias: ['l'], type: 'boolean', default: true, description: 'Load state' }
             ],
             defaultTargeter: '@TargetLocation',
-            examples: ['- setchunkforceloaded{loaded=true} @targetlocation']
+            examples: ['- setchunkforceloaded{loaded=true} ']
         },
         {
             id: 'setcollidable',
@@ -2461,7 +2461,7 @@ const MECHANICS_DATA = {
                 { name: 'collidable', alias: ['c'], type: 'boolean', default: true, description: 'Collidable state' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setcollidable{collidable=false} @self']
+            examples: ['- setcollidable{collidable=false} ']
         },
         {
             id: 'setdragonpodium',
@@ -2471,7 +2471,7 @@ const MECHANICS_DATA = {
             description: 'Sets dragon podium location.',
             attributes: [],
             defaultTargeter: '@TargetLocation',
-            examples: ['- setdragonpodium @targetlocation']
+            examples: ['- setdragonpodium ']
         },
         {
             id: 'setgamemode',
@@ -2483,7 +2483,7 @@ const MECHANICS_DATA = {
                 { name: 'mode', alias: ['m'], type: 'string', default: 'SURVIVAL', description: 'Game mode: SURVIVAL, CREATIVE, ADVENTURE, SPECTATOR' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- setgamemode{mode=CREATIVE} @trigger']
+            examples: ['- setgamemode{mode=CREATIVE} ']
         },
         {
             id: 'setgliding',
@@ -2495,7 +2495,7 @@ const MECHANICS_DATA = {
                 { name: 'gliding', alias: ['g'], type: 'boolean', default: true, description: 'Gliding state' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setgliding{gliding=true} @self']
+            examples: ['- setgliding{gliding=true} ']
         },
         {
             id: 'setglobalscore',
@@ -2522,7 +2522,7 @@ const MECHANICS_DATA = {
                 { name: 'height', alias: ['h'], type: 'number', default: 1, description: 'Height' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setinteractionsize{width=2;height=3} @self']
+            examples: ['- setinteractionsize{width=2;height=3} ']
         },
         {
             id: 'setitemgroupcooldown',
@@ -2535,7 +2535,7 @@ const MECHANICS_DATA = {
                 { name: 'ticks', alias: ['t'], type: 'number', default: 20, description: 'Cooldown ticks' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- setitemgroupcooldown{group=weapons;ticks=100} @trigger']
+            examples: ['- setitemgroupcooldown{group=weapons;ticks=100} ']
         },
         {
             id: 'setdisplayentityitem',
@@ -2547,7 +2547,7 @@ const MECHANICS_DATA = {
                 { name: 'item', alias: ['i'], type: 'material', default: 'STONE', description: 'Item material' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setdisplayentityitem{item=DIAMOND_SWORD} @self']
+            examples: ['- setdisplayentityitem{item=DIAMOND_SWORD} ']
         },
         {
             id: 'setleashholder',
@@ -2557,7 +2557,7 @@ const MECHANICS_DATA = {
             description: 'Sets entity\'s leash holder.',
             attributes: [],
             defaultTargeter: '@Target',
-            examples: ['- setleashholder @trigger']
+            examples: ['- setleashholder ']
         },
         {
             id: 'setmaterialcooldown',
@@ -2570,7 +2570,7 @@ const MECHANICS_DATA = {
                 { name: 'ticks', alias: ['t'], type: 'number', default: 20, description: 'Cooldown ticks' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- setmaterialcooldown{material=ENDER_PEARL;ticks=100} @trigger']
+            examples: ['- setmaterialcooldown{material=ENDER_PEARL;ticks=100} ']
         },
         {
             id: 'setmobcolor',
@@ -2582,7 +2582,7 @@ const MECHANICS_DATA = {
                 { name: 'color', alias: ['c'], type: 'string', default: 'WHITE', description: 'Color name' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setmobcolor{color=RED} @self']
+            examples: ['- setmobcolor{color=RED} ']
         },
         {
             id: 'setmobscore',
@@ -2595,7 +2595,7 @@ const MECHANICS_DATA = {
                 { name: 'value', alias: ['v'], type: 'number', default: 0, description: 'Score value' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setmobscore{score=phase;value=2} @self']
+            examples: ['- setmobscore{score=phase;value=2} ']
         },
         {
             id: 'setraidercanjo inraid',
@@ -2607,7 +2607,7 @@ const MECHANICS_DATA = {
                 { name: 'canJoin', alias: ['c'], type: 'boolean', default: true, description: 'Can join state' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setraidercanjo inraid{canJoin=true} @self']
+            examples: ['- setraidercanjo inraid{canJoin=true} ']
         },
         {
             id: 'setraiderpatrolblock',
@@ -2617,7 +2617,7 @@ const MECHANICS_DATA = {
             description: 'Sets raider patrol block location.',
             attributes: [],
             defaultTargeter: '@TargetLocation',
-            examples: ['- setraiderpatrolblock @targetlocation']
+            examples: ['- setraiderpatrolblock ']
         },
         {
             id: 'setraiderpatrolleader',
@@ -2629,7 +2629,7 @@ const MECHANICS_DATA = {
                 { name: 'leader', alias: ['l'], type: 'boolean', default: true, description: 'Leader state' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setraiderpatrolleader{leader=true} @self']
+            examples: ['- setraiderpatrolleader{leader=true} ']
         },
         {
             id: 'setfaction',
@@ -2641,7 +2641,7 @@ const MECHANICS_DATA = {
                 { name: 'faction', alias: ['f'], type: 'string', default: '', description: 'Faction name' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setfaction{faction=hostile} @self']
+            examples: ['- setfaction{faction=hostile} ']
         },
         {
             id: 'setflying',
@@ -2653,7 +2653,7 @@ const MECHANICS_DATA = {
                 { name: 'flying', alias: ['f'], type: 'boolean', default: true, description: 'Flying state' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setflying{flying=true} @self']
+            examples: ['- setflying{flying=true} ']
         },
         {
             id: 'setnodamageticks',
@@ -2665,7 +2665,7 @@ const MECHANICS_DATA = {
                 { name: 'ticks', alias: ['t'], type: 'number', default: 0, description: 'Invulnerability duration' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setnodamageticks{ticks=20} @self']
+            examples: ['- setnodamageticks{ticks=20} ']
         },
         {
             id: 'setowner',
@@ -2675,7 +2675,7 @@ const MECHANICS_DATA = {
             description: 'Sets mob\'s owner.',
             attributes: [],
             defaultTargeter: '@Trigger',
-            examples: ['- setowner @trigger']
+            examples: ['- setowner ']
         },
         {
             id: 'setparent',
@@ -2685,7 +2685,7 @@ const MECHANICS_DATA = {
             description: 'Sets mob\'s parent entity.',
             attributes: [],
             defaultTargeter: '@Target',
-            examples: ['- setparent @target']
+            examples: ['- setparent ']
         },
         {
             id: 'setpathfindingmalus',
@@ -2698,7 +2698,7 @@ const MECHANICS_DATA = {
                 { name: 'malus', alias: ['m'], type: 'number', default: 0, description: 'Malus value' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setpathfindingmalus{type=WATER;malus=10} @self']
+            examples: ['- setpathfindingmalus{type=WATER;malus=10} ']
         },
         {
             id: 'setpitch',
@@ -2710,7 +2710,7 @@ const MECHANICS_DATA = {
                 { name: 'pitch', alias: ['p'], type: 'number', default: 0, description: 'Pitch angle' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setpitch{pitch=45} @self']
+            examples: ['- setpitch{pitch=45} ']
         },
         {
             id: 'setpose',
@@ -2722,7 +2722,7 @@ const MECHANICS_DATA = {
                 { name: 'pose', alias: ['p'], type: 'string', default: 'STANDING', description: 'Pose: STANDING, SLEEPING, etc' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setpose{pose=SLEEPING} @self']
+            examples: ['- setpose{pose=SLEEPING} ']
         },
         {
             id: 'setrotation',
@@ -2735,7 +2735,7 @@ const MECHANICS_DATA = {
                 { name: 'pitch', alias: ['p'], type: 'number', default: 0, description: 'Pitch angle' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setrotation{yaw=90;pitch=45} @self']
+            examples: ['- setrotation{yaw=90;pitch=45} ']
         },
         {
             id: 'settargetscore',
@@ -2748,7 +2748,7 @@ const MECHANICS_DATA = {
                 { name: 'value', alias: ['v'], type: 'number', default: 0, description: 'Score value' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- settargetscore{objective=health;value=100} @target']
+            examples: ['- settargetscore{objective=health;value=100} ']
         },
         {
             id: 'settextdisplay',
@@ -2760,7 +2760,7 @@ const MECHANICS_DATA = {
                 { name: 'text', alias: ['t'], type: 'string', default: '', description: 'Display text' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- settextdisplay{text="<gold>Boss"} @self']
+            examples: ['- settextdisplay{text="<gold>Boss"} ']
         },
         {
             id: 'settonguetarget',
@@ -2770,7 +2770,7 @@ const MECHANICS_DATA = {
             description: 'Sets frog tongue target.',
             attributes: [],
             defaultTargeter: '@Target',
-            examples: ['- settonguetarget @target']
+            examples: ['- settonguetarget ']
         },
         {
             id: 'setscore',
@@ -2783,7 +2783,7 @@ const MECHANICS_DATA = {
                 { name: 'value', alias: ['v'], type: 'number', default: 0, description: 'Score value' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- setscore{objective=points;value=100} @trigger']
+            examples: ['- setscore{objective=points;value=100} ']
         },
         {
             id: 'setstance',
@@ -2795,7 +2795,7 @@ const MECHANICS_DATA = {
                 { name: 'stance', alias: ['s'], type: 'string', default: '', description: 'Stance name' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setstance{stance=aggressive} @self']
+            examples: ['- setstance{stance=aggressive} ']
         },
         {
             id: 'shieldbreak',
@@ -2807,7 +2807,7 @@ const MECHANICS_DATA = {
                 { name: 'cooldown', alias: ['cd'], type: 'number', default: 100, description: 'Shield disable ticks' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- shieldbreak{cooldown=100} @target']
+            examples: ['- shieldbreak{cooldown=100} ']
         },
         {
             id: 'shootpotion',
@@ -2821,7 +2821,7 @@ const MECHANICS_DATA = {
                 { name: 'level', alias: ['l'], type: 'number', default: 1, description: 'Effect level' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- shootpotion{type=POISON;duration=200;level=2} @target']
+            examples: ['- shootpotion{type=POISON;duration=200;level=2} ']
         },
         {
             id: 'shootskull',
@@ -2834,7 +2834,7 @@ const MECHANICS_DATA = {
                 { name: 'yield', alias: ['y'], type: 'number', default: 1, description: 'Explosion yield' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- shootskull{charged=true;yield=3} @target']
+            examples: ['- shootskull{charged=true;yield=3} ']
         },
         {
             id: 'shootshulkerbullet',
@@ -2844,7 +2844,7 @@ const MECHANICS_DATA = {
             description: 'Shoots shulker bullet projectile.',
             attributes: [],
             defaultTargeter: '@Target',
-            examples: ['- shootshulkerbullet @target']
+            examples: ['- shootshulkerbullet ']
         },
         {
             id: 'showentity',
@@ -2854,7 +2854,7 @@ const MECHANICS_DATA = {
             description: 'Makes hidden entity visible.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- showentity @self']
+            examples: ['- showentity ']
         },
         {
             id: 'skybox',
@@ -2866,7 +2866,7 @@ const MECHANICS_DATA = {
                 { name: 'type', alias: ['t'], type: 'string', default: '', description: 'Skybox type' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- skybox{type=nether} @trigger']
+            examples: ['- skybox{type=nether} ']
         },
         {
             id: 'smokeswirl',
@@ -2878,7 +2878,7 @@ const MECHANICS_DATA = {
                 { name: 'radius', alias: ['r'], type: 'number', default: 1, description: 'Swirl radius' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- smokeswirl{radius=2} @self']
+            examples: ['- smokeswirl{radius=2} ']
         },
         {
             id: 'stealitem',
@@ -2890,7 +2890,7 @@ const MECHANICS_DATA = {
                 { name: 'slot', alias: ['s'], type: 'number', default: -1, description: 'Inventory slot (-1 for any)' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- stealitem{slot=-1} @target']
+            examples: ['- stealitem{slot=-1} ']
         },
         {
             id: 'stopsound',
@@ -2902,7 +2902,7 @@ const MECHANICS_DATA = {
                 { name: 'sound', alias: ['s'], type: 'string', default: '', description: 'Sound name to stop' }
             ],
             defaultTargeter: '@Trigger',
-            examples: ['- stopsound{sound=entity.wither.ambient} @trigger']
+            examples: ['- stopsound{sound=entity.wither.ambient} ']
         },
         {
             id: 'speak',
@@ -2915,7 +2915,7 @@ const MECHANICS_DATA = {
                 { name: 'radius', alias: ['r'], type: 'number', default: 12, description: 'Hearing radius' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- speak{message="Face my wrath!";radius=20} @self']
+            examples: ['- speak{message="Face my wrath!";radius=20} ']
         },
         {
             id: 'spin',
@@ -2928,7 +2928,7 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 20, description: 'Duration in ticks' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- spin{speed=20;duration=100} @self']
+            examples: ['- spin{speed=20;duration=100} ']
         },
         {
             id: 'spring',
@@ -2940,7 +2940,7 @@ const MECHANICS_DATA = {
                 { name: 'velocity', alias: ['v'], type: 'number', default: 1, description: 'Spring velocity' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- spring{velocity=2} @self']
+            examples: ['- spring{velocity=2} ']
         },
         {
             id: 'stopusingitem',
@@ -2950,7 +2950,7 @@ const MECHANICS_DATA = {
             description: 'Stops entity from using item.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- stopusingitem @self']
+            examples: ['- stopusingitem ']
         },
         {
             id: 'suicide',
@@ -2960,7 +2960,7 @@ const MECHANICS_DATA = {
             description: 'Kills the caster mob.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- suicide @self']
+            examples: ['- suicide ']
         },
         {
             id: 'summonareaeffectcloud',
@@ -2973,7 +2973,7 @@ const MECHANICS_DATA = {
                 { name: 'radius', alias: ['r'], type: 'number', default: 3, description: 'Effect radius' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- summonareaeffectcloud{duration=300;radius=5} @self']
+            examples: ['- summonareaeffectcloud{duration=300;radius=5} ']
         },
         {
             id: 'swingoffhand',
@@ -2983,7 +2983,7 @@ const MECHANICS_DATA = {
             description: 'Swings offhand arm.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- swingoffhand @self']
+            examples: ['- swingoffhand ']
         },
         {
             id: 'addtag',
@@ -2995,7 +2995,7 @@ const MECHANICS_DATA = {
                 { name: 'tag', alias: ['t'], type: 'string', default: '', description: 'Tag name' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- addtag{tag=marked} @self']
+            examples: ['- addtag{tag=marked} ']
         },
         {
             id: 'removetag',
@@ -3007,7 +3007,7 @@ const MECHANICS_DATA = {
                 { name: 'tag', alias: ['t'], type: 'string', default: '', description: 'Tag name' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- removetag{tag=marked} @self']
+            examples: ['- removetag{tag=marked} ']
         },
         {
             id: 'togglelever',
@@ -3017,7 +3017,7 @@ const MECHANICS_DATA = {
             description: 'Toggles lever block.',
             attributes: [],
             defaultTargeter: '@TargetLocation',
-            examples: ['- togglelever @targetlocation']
+            examples: ['- togglelever ']
         },
         {
             id: 'togglepiston',
@@ -3027,7 +3027,7 @@ const MECHANICS_DATA = {
             description: 'Toggles piston block.',
             attributes: [],
             defaultTargeter: '@TargetLocation',
-            examples: ['- togglepiston @targetlocation']
+            examples: ['- togglepiston ']
         },
         {
             id: 'togglesitting',
@@ -3037,7 +3037,7 @@ const MECHANICS_DATA = {
             description: 'Toggles sitting state.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- togglesitting @self']
+            examples: ['- togglesitting ']
         },
         {
             id: 'totemofundying',
@@ -3047,7 +3047,7 @@ const MECHANICS_DATA = {
             description: 'Applies totem of undying effect.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- totemofundying @self']
+            examples: ['- totemofundying ']
         },
         {
             id: 'tracklocation',
@@ -3059,7 +3059,7 @@ const MECHANICS_DATA = {
                 { name: 'name', alias: ['n'], type: 'string', default: '', description: 'Location identifier' }
             ],
             defaultTargeter: '@TargetLocation',
-            examples: ['- tracklocation{name=spawn} @targetlocation']
+            examples: ['- tracklocation{name=spawn} ']
         },
         {
             id: 'undopaste',
@@ -3071,7 +3071,7 @@ const MECHANICS_DATA = {
                 { name: 'id', alias: ['pasteID'], type: 'string', default: '', description: 'Paste identifier' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- undopaste{id=mycastle} @self']
+            examples: ['- undopaste{id=mycastle} ']
         },
         {
             id: 'variableadd',
@@ -3084,7 +3084,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 1, description: 'Amount to add' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- variableadd{var=counter;amount=1} @self']
+            examples: ['- variableadd{var=counter;amount=1} ']
         },
         {
             id: 'variablesubtract',
@@ -3097,7 +3097,7 @@ const MECHANICS_DATA = {
                 { name: 'amount', alias: ['a'], type: 'number', default: 1, description: 'Amount to subtract' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- variablesubtract{var=counter;amount=1} @self']
+            examples: ['- variablesubtract{var=counter;amount=1} ']
         },
         {
             id: 'variablemath',
@@ -3110,7 +3110,7 @@ const MECHANICS_DATA = {
                 { name: 'equation', alias: ['eq'], type: 'string', default: '', description: 'Math equation' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- variablemath{var=health;equation="<caster.var.health> * 2"} @self']
+            examples: ['- variablemath{var=health;equation="<caster.var.health> * 2"} ']
         },
         {
             id: 'setvariable',
@@ -3123,7 +3123,7 @@ const MECHANICS_DATA = {
                 { name: 'value', alias: ['val'], type: 'string', default: '', description: 'Value to set' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setvariable{var=phase;value=2} @self']
+            examples: ['- setvariable{var=phase;value=2} ']
         },
         {
             id: 'setvariablelocation',
@@ -3135,7 +3135,7 @@ const MECHANICS_DATA = {
                 { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' }
             ],
             defaultTargeter: '@TargetLocation',
-            examples: ['- setvariablelocation{var=spawnpoint} @targetlocation']
+            examples: ['- setvariablelocation{var=spawnpoint} ']
         },
         {
             id: 'variableunset',
@@ -3147,7 +3147,7 @@ const MECHANICS_DATA = {
                 { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- variableunset{var=tempdata} @self']
+            examples: ['- variableunset{var=tempdata} ']
         },
         // Additional mechanics from user packs
         {
@@ -3160,7 +3160,7 @@ const MECHANICS_DATA = {
                 { name: 'power', alias: ['p'], type: 'number', default: 4, description: 'Explosion power (visual size)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- fakeexplode{power=4} @selflocation']
+            examples: ['- fakeexplode{power=4} ']
         },
         {
             id: 'setstance',
@@ -3172,7 +3172,7 @@ const MECHANICS_DATA = {
                 { name: 'stance', alias: ['s'], type: 'string', default: '', description: 'The stance name to set' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setstance{stance=aggressive} @self']
+            examples: ['- setstance{stance=aggressive} ']
         },
         {
             id: 'settargetscore',
@@ -3185,7 +3185,7 @@ const MECHANICS_DATA = {
                 { name: 'value', alias: ['v'], type: 'number', default: 0, description: 'Score value' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- settargetscore{obj=kills;value=1} @target']
+            examples: ['- settargetscore{obj=kills;value=1} ']
         },
         {
             id: 'damagepercent',
@@ -3197,7 +3197,7 @@ const MECHANICS_DATA = {
                 { name: 'percent', alias: ['p'], type: 'number', default: 10, description: 'Percentage of max health to damage' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- damagepercent{percent=25} @target']
+            examples: ['- damagepercent{percent=25} ']
         },
         {
             id: 'suicide',
@@ -3207,7 +3207,7 @@ const MECHANICS_DATA = {
             description: 'Causes the caster to kill itself.',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- suicide @self']
+            examples: ['- suicide ']
         },
         {
             id: 'shieldbreak',
@@ -3217,7 +3217,7 @@ const MECHANICS_DATA = {
             description: 'Breaks the target\'s shield and puts it on cooldown.',
             attributes: [],
             defaultTargeter: '@Target',
-            examples: ['- shieldbreak @target']
+            examples: ['- shieldbreak ']
         },
         {
             id: 'modifyprojectile',
@@ -3230,7 +3230,7 @@ const MECHANICS_DATA = {
                 { name: 'direction', alias: ['d'], type: 'string', default: '', description: 'Direction modification' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- modifyprojectile{velocity=2} @self']
+            examples: ['- modifyprojectile{velocity=2} ']
         },
         {
             id: 'setcolor',
@@ -3242,7 +3242,7 @@ const MECHANICS_DATA = {
                 { name: 'color', alias: ['c'], type: 'string', default: 'WHITE', description: 'Color name (e.g., RED, BLUE, GREEN)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setcolor{color=RED} @self']
+            examples: ['- setcolor{color=RED} ']
         },
         {
             id: 'spin',
@@ -3255,7 +3255,7 @@ const MECHANICS_DATA = {
                 { name: 'speed', alias: ['s'], type: 'number', default: 1, description: 'Rotation speed' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- spin{duration=40;speed=2} @self']
+            examples: ['- spin{duration=40;speed=2} ']
         },
         {
             id: 'teleportto',
@@ -3267,7 +3267,7 @@ const MECHANICS_DATA = {
                 { name: 'spread', alias: ['s'], type: 'number', default: 0, description: 'Random spread around target' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- teleportto @target', '- teleportto{spread=2} @targetlocation']
+            examples: ['- teleportto ', '- teleportto{spread=2} ']
         },
         {
             id: 'title',
@@ -3283,7 +3283,7 @@ const MECHANICS_DATA = {
                 { name: 'fadeOut', alias: ['fo'], type: 'number', default: 20, description: 'Fade out time in ticks' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- title{title="Warning!";subtitle="Boss incoming";fadeIn=10;stay=40;fadeOut=10} @trigger']
+            examples: ['- title{title="Warning!";subtitle="Boss incoming";fadeIn=10;stay=40;fadeOut=10} ']
         }
 
         // ═══════════════════════════════════════════════════════════

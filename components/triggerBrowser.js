@@ -9,8 +9,9 @@ class TriggerBrowser {
         this.currentCategory = 'all';
         this.searchQuery = '';
         this.onSelectCallback = null;
+        this.currentTrigger = null;
         this.currentMobType = null;
-        this.currentModules = null;
+        this.searchCache = new LRUCache(10);
         
         this.createModal();
         this.attachEventListeners();
@@ -107,10 +108,14 @@ class TriggerBrowser {
             }
         });
 
-        // Search input
-        document.getElementById('triggerSearchInput').addEventListener('input', (e) => {
-            this.searchQuery = e.target.value;
+        // Search input with debouncing (150ms)
+        const debouncedSearch = debounce((query) => {
+            this.searchQuery = query;
             this.renderTriggers();
+        }, 150);
+        
+        document.getElementById('triggerSearchInput').addEventListener('input', (e) => {
+            debouncedSearch(e.target.value);
         });
 
         // Category tabs
@@ -147,12 +152,14 @@ class TriggerBrowser {
             this.confirmAutoEnable();
         });
 
-        // Close modals on escape key
+        // Enhanced keyboard navigation
         document.addEventListener('keydown', (e) => {
+            const paramOverlay = document.getElementById('triggerParamOverlay');
+            const confirmOverlay = document.getElementById('triggerConfirmOverlay');
+            const browserOverlay = document.getElementById('triggerBrowserOverlay');
+            
+            // Escape key handling
             if (e.key === 'Escape') {
-                const paramOverlay = document.getElementById('triggerParamOverlay');
-                const confirmOverlay = document.getElementById('triggerConfirmOverlay');
-                const browserOverlay = document.getElementById('triggerBrowserOverlay');
                 if (paramOverlay && paramOverlay.classList.contains('active')) {
                     this.closeParamModal();
                 } else if (confirmOverlay && confirmOverlay.classList.contains('active')) {
@@ -160,6 +167,38 @@ class TriggerBrowser {
                 } else if (browserOverlay && browserOverlay.style.display === 'flex') {
                     this.close();
                 }
+                return;
+            }
+            
+            // Only handle navigation in browser overlay
+            if (!browserOverlay || browserOverlay.style.display !== 'flex') return;
+            
+            // Ctrl+F to focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                document.getElementById('triggerSearchInput')?.focus();
+                return;
+            }
+            
+            // Arrow key navigation
+            const cards = Array.from(document.querySelectorAll('#triggerList .condition-card'));
+            if (cards.length === 0) return;
+            
+            const focusedCard = document.activeElement.closest('.condition-card');
+            let currentIndex = focusedCard ? cards.indexOf(focusedCard) : -1;
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                currentIndex = currentIndex < cards.length - 1 ? currentIndex + 1 : 0;
+                cards[currentIndex].querySelector('.btn-select-trigger')?.focus();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                currentIndex = currentIndex > 0 ? currentIndex - 1 : cards.length - 1;
+                cards[currentIndex].querySelector('.btn-select-trigger')?.focus();
+            } else if (e.key === 'Enter' && focusedCard) {
+                e.preventDefault();
+                const triggerName = focusedCard.dataset.trigger;
+                this.handleTriggerSelection(triggerName);
             }
         });
     }
@@ -200,6 +239,12 @@ class TriggerBrowser {
         if (overlay) {
             overlay.style.display = 'none';
         }
+        
+        // Notify parent that browser was closed without selection
+        if (this.onSelectCallback) {
+            this.onSelectCallback(null);
+        }
+        
         this.onSelectCallback = null;
     }
 
@@ -236,6 +281,13 @@ class TriggerBrowser {
     renderTriggers() {
         const listContainer = document.getElementById('triggerList');
         
+        // Add CSS optimization for smooth scrolling
+        if (listContainer && !listContainer.style.willChange) {
+            listContainer.style.willChange = 'scroll-position';
+            listContainer.style.transform = 'translateZ(0)';
+            listContainer.style.contain = 'layout style paint';
+        }
+        
         // Get filtered triggers
         let triggers = TRIGGERS_DATA.triggers;
 
@@ -266,7 +318,14 @@ class TriggerBrowser {
             return;
         }
 
-        listContainer.innerHTML = triggers.map(trigger => {
+        // Use document fragment for better performance
+        const fragment = document.createDocumentFragment();
+        
+        triggers.forEach(trigger => {
+            const card = document.createElement('div');
+            card.className = 'condition-card';
+            card.dataset.trigger = trigger.name;
+            
             const aliasesHTML = trigger.aliases && trigger.aliases.length > 0
                 ? `<div class="condition-aliases"><strong>Aliases:</strong> ${trigger.aliases.join(', ')}</div>`
                 : '';
@@ -274,33 +333,64 @@ class TriggerBrowser {
             const requirementsHTML = trigger.requirements && trigger.requirements.length > 0
                 ? `<div class="condition-example"><strong>Requires:</strong> ${trigger.requirements.join(', ')}</div>`
                 : '';
+                
+            const examplesHTML = trigger.examples && trigger.examples.length > 0
+                ? `<div class="condition-example" style="display: flex; align-items: center; gap: 8px;">
+                    <code>${trigger.examples[0]}</code>
+                    <button class="btn-copy-example" data-example="${trigger.examples[0]}" title="Copy to clipboard" style="padding: 4px 8px; font-size: 11px; background: #2a2a2a; border: 1px solid #444; border-radius: 3px; cursor: pointer;">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>`
+                : '';
 
-            return `
-                <div class="condition-card" data-trigger="${trigger.name}">
-                    <div class="condition-card-header">
-                        <h4>~${trigger.name}</h4>
-                        <span class="condition-category-badge">${trigger.category}</span>
-                    </div>
-                    <div class="condition-card-body">
-                        <p class="condition-card-description">${trigger.description}</p>
-                        ${aliasesHTML}
-                        ${requirementsHTML}
-                    </div>
-                    <div class="condition-card-footer">
-                        <button class="btn btn-primary btn-select-trigger">Select</button>
-                    </div>
+            card.innerHTML = `
+                <div class="condition-card-header">
+                    <h4>~${trigger.name}</h4>
+                    <span class="condition-category-badge">${trigger.category}</span>
+                </div>
+                <div class="condition-card-body">
+                    <p class="condition-card-description">${trigger.description}</p>
+                    ${aliasesHTML}
+                    ${requirementsHTML}
+                    ${examplesHTML}
+                </div>
+                <div class="condition-card-footer">
+                    <button class="btn btn-primary btn-select-trigger">Select</button>
                 </div>
             `;
-        }).join('');
+            
+            fragment.appendChild(card);
+        });
+        
+        listContainer.innerHTML = '';
+        listContainer.appendChild(fragment);
 
-        // Attach click handlers to select buttons
-        listContainer.querySelectorAll('.btn-select-trigger').forEach(btn => {
-            btn.addEventListener('click', () => {
+        // Use event delegation on container instead of attaching to each button
+        listContainer.onclick = (e) => {
+            const btn = e.target.closest('.btn-select-trigger');
+            if (btn) {
+                e.stopPropagation();
                 const card = btn.closest('.condition-card');
                 const triggerName = card.dataset.trigger;
                 this.handleTriggerSelection(triggerName);
-            });
-        });
+                return;
+            }
+            
+            const copyBtn = e.target.closest('.btn-copy-example');
+            if (copyBtn) {
+                e.stopPropagation();
+                const example = copyBtn.dataset.example;
+                navigator.clipboard.writeText(example).then(() => {
+                    const icon = copyBtn.querySelector('i');
+                    icon.className = 'fas fa-check';
+                    copyBtn.style.background = '#4caf50';
+                    setTimeout(() => {
+                        icon.className = 'fas fa-copy';
+                        copyBtn.style.background = '#2a2a2a';
+                    }, 1500);
+                });
+            }
+        };
     }
 
     /**
@@ -441,10 +531,21 @@ class TriggerBrowser {
      * Select trigger and notify callback
      */
     selectTrigger(trigger, parameter = null, autoEnableRequirements = null) {
-        this.close();
+        // Store callback before closing (close() sets it to null)
+        const callback = this.onSelectCallback;
+        
+        // Close the overlay
+        const overlay = document.getElementById('triggerBrowserOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+        
+        // Clear callback reference
+        this.onSelectCallback = null;
 
-        if (this.onSelectCallback) {
-            this.onSelectCallback({
+        // Call the stored callback with the result
+        if (callback) {
+            callback({
                 trigger: trigger,
                 parameter: parameter,
                 autoEnableRequirements: autoEnableRequirements

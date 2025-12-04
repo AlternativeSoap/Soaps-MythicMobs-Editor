@@ -400,7 +400,7 @@ class SkillLineQuickEdit {
         });
         
         // Build mechanic with args
-        let mechanicStr = `- ${mechanic}`;
+        let mechanicStr = mechanic;
         if (Object.keys(args).length > 0) {
             const argStr = Object.entries(args)
                 .map(([k, v]) => `${k}=${v}`)

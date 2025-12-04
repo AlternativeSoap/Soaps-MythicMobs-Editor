@@ -6,7 +6,7 @@
  */
 
 class SkillBuilderEditor {
-    constructor(container, targeterBrowser = null, mechanicBrowser = null) {
+    constructor(container, targeterBrowser = null, mechanicBrowser = null, triggerBrowser = null, conditionEditor = null) {
         // Handle both element and string ID
         this.container = typeof container === 'string' ? document.getElementById(container) : container;
         // NEW MODEL: Object of named skills instead of flat array
@@ -19,6 +19,8 @@ class SkillBuilderEditor {
         // Browser components
         this.targeterBrowser = targeterBrowser;
         this.mechanicBrowser = mechanicBrowser;
+        this.triggerBrowser = triggerBrowser;
+        // conditionEditor parameter deprecated - keeping for backwards compatibility but unused
         
         // Creation Mode Selector & Template Selector & Skill Line Builder
         this.creationModeSelector = new CreationModeSelector();
@@ -471,9 +473,11 @@ class SkillBuilderEditor {
                     <div class="skill-lines-list">
                         ${this.renderSkillLinesList()}
                     </div>
-                    <button class="btn btn-primary add-skill-line-btn" id="add-skill-line-btn">
-                        <i class="fas fa-plus"></i> Add Skill Line
-                    </button>
+                    <div class="skill-builder-footer" style="position: sticky; bottom: 0; background: var(--bg-primary); padding: 12px 0; border-top: 1px solid var(--border-primary); z-index: 10;">
+                        <button class="btn btn-primary add-skill-line-btn" id="add-skill-line-btn" style="width: 100%;">
+                            <i class="fas fa-plus"></i> Add Skill Line
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -879,13 +883,10 @@ class SkillBuilderEditor {
                     <code class="skill-line-preview">${this.syntaxHighlighter.highlight(line)}</code>
                 </div>
                 <div class="skill-line-actions">
-                    <button class="btn-icon quick-edit-skill-line-btn" data-index="${index}" title="Quick Edit">
-                        <i class="fas fa-bolt"></i>
-                    </button>
                     <button class="btn-icon format-skill-line-btn" data-index="${index}" title="Format Line">
                         <i class="fas fa-magic"></i>
                     </button>
-                    <button class="btn-icon edit-skill-line-btn" data-index="${index}" title="Edit">
+                    <button class="btn-icon edit-skill-line-btn" data-index="${index}" title="Edit in Builder">
                         <i class="fas fa-edit"></i>
                     </button>
                     <button class="btn-icon duplicate-skill-line-btn" data-index="${index}" title="Duplicate">
@@ -1211,14 +1212,6 @@ class SkillBuilderEditor {
             addBtn.addEventListener('click', () => this.addSkillLine());
         }
         
-        // Quick edit skill line buttons
-        this.container.querySelectorAll('.quick-edit-skill-line-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const index = parseInt(e.target.closest('button').dataset.index);
-                this.quickEditSkillLine(index, e.target.closest('button'));
-            });
-        });
-        
         // Format skill line buttons
         this.container.querySelectorAll('.format-skill-line-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -1432,6 +1425,11 @@ class SkillBuilderEditor {
         
         this.skillLineBuilder.open({
             context: this.context,
+            mechanicBrowser: this.mechanicBrowser,
+            targeterBrowser: this.targeterBrowser,
+            triggerBrowser: this.triggerBrowser || null,
+            // conditionEditor removed - using global conditionBrowserV2
+            templateSelector: this.templateSelector,
             onAdd: (skillLine) => {
                 // Single line callback
                 this.handleMultipleSkillLines([skillLine]);
@@ -1549,12 +1547,15 @@ class SkillBuilderEditor {
         }
         
         console.log('📥 Adding skill lines:', skillLines);
+        console.log('📥 Type check - Is array?', Array.isArray(skillLines));
+        console.log('📥 Each item:', skillLines.map((line, i) => `[${i}]: ${typeof line} = ${JSON.stringify(line)}`));
         
         if (this.context === 'mob') {
             // Mob context: add to flat array
             const beforeCount = this.skillLines.length;
             this.skillLines.push(...skillLines);
             console.log(`📊 Before: ${beforeCount}, After: ${this.skillLines.length}`);
+            console.log('📊 skillLines array after push:', this.skillLines);
         } else {
             // Skill context: add to current skill
             if (!this.skills[this.currentSkill]) {
@@ -1919,11 +1920,16 @@ class SkillBuilderEditor {
         
         if (this.changeCallback) {
             if (this.context === 'mob') {
+                console.log('💾 Triggering change callback (mob context), lines:', this.skillLines.length);
                 this.changeCallback(this.skillLines);
             } else {
                 // For skill context, return lines from current skill
-                this.changeCallback(this.getSkillLines());
+                const lines = this.getSkillLines();
+                console.log('💾 Triggering change callback (skill context), skill:', this.currentSkill, 'lines:', lines.length);
+                this.changeCallback(lines);
             }
+        } else {
+            console.warn('⚠️ No changeCallback registered!');
         }
     }
     

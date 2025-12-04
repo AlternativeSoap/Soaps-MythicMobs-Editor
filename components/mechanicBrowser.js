@@ -23,14 +23,11 @@ class MechanicBrowser {
         this.conditionEditor = conditionEditor;
         this.context = 'mob';
         this.onSelectCallback = null;
+        this.searchCache = new LRUCache(10);
+        this.virtualScroller = null;
         
         // Current configuration state
         this.currentMechanic = null;
-        this.currentTargeter = '@Self';
-        this.currentTrigger = null;
-        this.currentConditions = [];
-        this.currentChance = '';
-        this.currentHealthModifier = '';
         
         // UI state
         this.currentCategory = 'all';
@@ -40,7 +37,7 @@ class MechanicBrowser {
         
         // Smart features
         this.recentMechanics = this.loadRecentMechanics();
-        this.favoriteMechanics = this.loadFavoriteMechanics();
+        this.favoritesManager = new FavoritesManager('mechanicBrowser_favorites');
         
         this.createModal();
         this.attachEventListeners();
@@ -83,35 +80,17 @@ class MechanicBrowser {
     }
     
     /**
-     * Load favorite mechanics from localStorage
+     * Toggle favorite mechanic (O(1))
      */
-    loadFavoriteMechanics() {
-        try {
-            const stored = localStorage.getItem('mechanicBrowser_favorites');
-            return stored ? JSON.parse(stored) : [];
-        } catch (e) {
-            return [];
-        }
+    toggleFavorite(mechanicId) {
+        return this.favoritesManager.toggle(mechanicId);
     }
     
     /**
-     * Toggle favorite mechanic
+     * Check if mechanic is favorited (O(1))
      */
-    toggleFavorite(mechanicId) {
-        try {
-            let favorites = this.loadFavoriteMechanics();
-            if (favorites.includes(mechanicId)) {
-                favorites = favorites.filter(id => id !== mechanicId);
-            } else {
-                favorites.push(mechanicId);
-            }
-            localStorage.setItem('mechanicBrowser_favorites', JSON.stringify(favorites));
-            this.favoriteMechanics = favorites;
-            return favorites.includes(mechanicId);
-        } catch (e) {
-            console.error('Failed to toggle favorite:', e);
-            return false;
-        }
+    isFavorite(mechanicId) {
+        return this.favoritesManager.has(mechanicId);
     }
 
     /**
@@ -196,60 +175,13 @@ class MechanicBrowser {
                                 </div>
                             </div>
                             
-                            <!-- Targeter Selection -->
-                            <div class="config-section">
-                                <h4>Targeter <span class="optional">(optional, defaults to @Self)</span></h4>
-                                <button class="btn btn-secondary btn-select-component" id="selectTargeterBtn">
-                                    <i class="fas fa-crosshairs"></i> <span id="targeterDisplay">@Self</span>
-                                </button>
-                            </div>
-                            
-                            <!-- Trigger Selection (Only in mob context) -->
-                            <div class="config-section" id="triggerSection">
-                                <h4>Trigger <span class="trigger-hint" id="triggerRequired">required for mob skills</span></h4>
-                                <button class="btn btn-secondary btn-select-component" id="selectTriggerBtn">
-                                    <i class="fas fa-bolt"></i> <span id="triggerDisplay">Select Trigger</span>
-                                </button>
-                                <small class="config-hint">Not needed when adding skills to Skill files</small>
-                            </div>
-                            
-                            <!-- Condition Selection -->
-                            <div class="config-section">
-                                <h4>Conditions <span class="optional">(optional)</span></h4>
-                                <button class="btn btn-secondary btn-select-component" id="selectConditionBtn">
-                                    <i class="fas fa-filter"></i> <span id="conditionDisplay">Add Condition</span>
-                                </button>
-                                <div id="conditionsListPreview"></div>
-                            </div>
-                            
-                            <!-- Chance -->
-                            <div class="config-section">
-                                <h4>Chance <span class="optional">(optional)</span></h4>
-                                <input type="text" 
-                                       id="chanceInput" 
-                                       class="form-input" 
-                                       placeholder="0.5 or 50%"
-                                       title="Enter a decimal (0-1) or percentage">
-                                <small>Enter a decimal (0-1) or percentage (e.g., 0.5 or 50%)</small>
-                            </div>
-                            
-                            <!-- Health Modifier -->
-                            <div class="config-section">
-                                <h4>Health Modifier <span class="optional">(optional)</span></h4>
-                                <input type="text" 
-                                       id="healthModifierInput" 
-                                       class="form-input" 
-                                       placeholder="<50% or >=75%"
-                                       title="Examples: <50%, >=75%, =30%-50%, <2000, >500">
-                                <small>Examples: &lt;50%, &gt;=75%, =30%-50%, &lt;2000, &gt;500</small>
-                            </div>
-                            
                             <!-- Live Preview -->
                             <div class="config-section preview-section">
                                 <h4>Preview</h4>
                                 <div class="skill-line-preview">
-                                    <code id="skillLinePreview">- mechanic{} @Self</code>
+                                    <code id="skillLinePreview">- mechanic{}</code>
                                 </div>
+                                <small class="config-hint">Targeters, triggers, conditions, and other modifiers can be added in the Skill Line Builder</small>
                             </div>
                         </div>
                         
@@ -283,10 +215,14 @@ class MechanicBrowser {
             }
         });
 
-        // Search input
-        document.getElementById('mechanicSearchInput').addEventListener('input', (e) => {
-            this.searchQuery = e.target.value;
+        // Search input with debouncing (150ms)
+        const debouncedSearch = debounce((query) => {
+            this.searchQuery = query;
             this.renderMechanics();
+        }, 150);
+        
+        document.getElementById('mechanicSearchInput').addEventListener('input', (e) => {
+            debouncedSearch(e.target.value);
         });
 
         // Category tabs - using event delegation
@@ -316,8 +252,7 @@ class MechanicBrowser {
         const clearFavBtn = document.getElementById('clearFavoritesBtn');
         if (clearFavBtn) {
             clearFavBtn.addEventListener('click', () => {
-                localStorage.removeItem('mechanicBrowser_favorites');
-                this.favoriteMechanics = [];
+                this.favoritesManager.clear();
                 this.renderMechanics();
                 this.renderQuickAccess();
             });
@@ -338,27 +273,7 @@ class MechanicBrowser {
             this.showMechanicSelection();
         });
 
-        // Component selection buttons
-        document.getElementById('selectTargeterBtn').addEventListener('click', () => {
-            this.openTargeterBrowser();
-        });
-
-        document.getElementById('selectTriggerBtn').addEventListener('click', () => {
-            this.openTriggerBrowser();
-        });
-
-        document.getElementById('selectConditionBtn').addEventListener('click', () => {
-            this.openConditionEditor();
-        });
-
-        // Input listeners for live preview
-        document.getElementById('chanceInput').addEventListener('input', () => {
-            this.updateSkillLinePreview();
-        });
-
-        document.getElementById('healthModifierInput').addEventListener('input', () => {
-            this.updateSkillLinePreview();
-        });
+        // (Component selection buttons removed - handled in Skill Line Builder)
 
         // Effect prefix toggle - using event delegation since checkbox is created dynamically
         document.addEventListener('change', (e) => {
@@ -372,7 +287,7 @@ class MechanicBrowser {
 
         // Config buttons
         document.getElementById('cancelMechanicConfig').addEventListener('click', () => {
-            this.close();
+            this.close(true); // Pass true to indicate cancelled
         });
 
         document.getElementById('confirmMechanicConfig').addEventListener('click', () => {
@@ -383,7 +298,7 @@ class MechanicBrowser {
         document.addEventListener('keydown', (e) => {
             const overlay = document.getElementById('mechanicBrowserOverlay');
             if (e.key === 'Escape' && overlay && overlay.style.display === 'flex') {
-                this.close();
+                this.close(true); // Pass true to indicate cancelled
             }
         });
     }
@@ -399,22 +314,9 @@ class MechanicBrowser {
 
         // Reset state
         this.currentMechanic = null;
-        this.currentTargeter = '@Self';
-        this.currentTrigger = null;
-        this.currentConditions = [];
-        this.currentChance = '';
-        this.currentHealthModifier = '';
         
         this.currentCategory = 'all';
         this.searchQuery = '';
-        
-        // Show/hide trigger section based on context
-        const triggerSection = document.getElementById('triggerSection');
-        if (this.context === 'skill') {
-            triggerSection.style.display = 'none';
-        } else {
-            triggerSection.style.display = 'block';
-        }
 
         // Parse currentValue if editing
         if (this.currentValue) {
@@ -446,6 +348,18 @@ class MechanicBrowser {
         if (overlay) {
             overlay.style.display = 'none';
         }
+        
+        // Notify parent that browser was closed without selection
+        if (this.onSelectCallback) {
+            this.onSelectCallback(null);
+        }
+        
+        // Reset to selection step for next time
+        this.showMechanicSelection();
+        
+        // Clear state
+        this.currentMechanic = null;
+        
         this.onSelectCallback = null;
     }
 
@@ -503,35 +417,55 @@ class MechanicBrowser {
         this.renderMechanicAttributes();
         
         // Update UI
-        this.updateTargeterDisplay();
-        this.updateTriggerDisplay();
-        this.updateConditionDisplay();
         this.updateSkillLinePreview();
     }
 
     /**
-     * Render mechanics list
+     * Render mechanics list (using DataOptimizer)
      */
     renderMechanics() {
         const listContainer = document.getElementById('mechanicList');
         
-        let mechanics = MECHANICS_DATA.mechanics || [];
-
-        // Filter by category
-        if (this.currentCategory === 'Favorites') {
-            mechanics = mechanics.filter(m => this.favoriteMechanics.includes(m.id));
-        } else if (this.currentCategory && this.currentCategory !== 'All') {
-            mechanics = mechanics.filter(m => m.category === this.currentCategory);
+        // Add CSS optimizations on first render
+        if (listContainer && !listContainer.dataset.optimized) {
+            listContainer.style.willChange = 'scroll-position';
+            listContainer.style.transform = 'translateZ(0)';
+            listContainer.style.contain = 'layout style paint';
+            listContainer.dataset.optimized = 'true';
         }
-
-        // Filter by search
-        if (this.searchQuery) {
-            mechanics = MECHANICS_DATA.searchMechanics(this.searchQuery);
-            if (this.currentCategory === 'favorites') {
-                mechanics = mechanics.filter(m => this.favoriteMechanics.includes(m.id));
-            } else if (this.currentCategory !== 'all') {
-                mechanics = mechanics.filter(m => m.category === this.currentCategory);
+        
+        const dataOptimizer = window.DataOptimizer;
+        if (!dataOptimizer) {
+            console.warn('DataOptimizer not available');
+            return;
+        }
+        
+        // Check cache first
+        const cacheKey = `${this.currentCategory}:${this.searchQuery}`;
+        let mechanics = this.searchCache.get(cacheKey);
+        
+        if (!mechanics) {
+            // Use DataOptimizer for filtering
+            if (this.currentCategory === 'Favorites') {
+                const allMechanics = dataOptimizer.getAllItems('mechanics');
+                mechanics = this.favoritesManager.filterFavorites(allMechanics, 'id');
+            } else if (this.searchQuery) {
+                // Use DataOptimizer's search with category filter
+                const category = this.currentCategory === 'All' ? 'all' : this.currentCategory;
+                mechanics = dataOptimizer.searchItems('mechanics', this.searchQuery, category);
+                
+                // Filter favorites if needed
+                if (this.currentCategory === 'Favorites') {
+                    mechanics = this.favoritesManager.filterFavorites(mechanics, 'id');
+                }
+            } else {
+                // Get items by category (O(1) for category lookup)
+                const category = this.currentCategory === 'All' ? 'all' : this.currentCategory;
+                mechanics = dataOptimizer.getItemsByCategory('mechanics', category);
             }
+            
+            // Cache the result
+            this.searchCache.set(cacheKey, mechanics);
         }
         
         // Update category counts
@@ -542,24 +476,37 @@ class MechanicBrowser {
             return;
         }
 
-        listContainer.innerHTML = mechanics.map(mechanic => {
-            const badges = [];
-            const isFavorite = this.favoriteMechanics.includes(mechanic.id);
-            
-            if (mechanic.attributes && mechanic.attributes.length > 0) {
-                badges.push(`<span class="mechanic-badge attributes">${mechanic.attributes.length} attributes</span>`);
-            }
+        // Note: Virtual scrolling disabled for grid layouts to preserve multi-column CSS grid
+        // The grid layout is more important for UX than virtual scrolling performance
 
-            const aliasesHTML = mechanic.aliases && mechanic.aliases.length > 0
-                ? `<div class="mechanic-aliases"><strong>Aliases:</strong> ${mechanic.aliases.join(', ')}</div>`
-                : '';
+        listContainer.innerHTML = mechanics.map(mechanic => 
+            this.renderMechanicCard(mechanic)
+        ).join('');
 
-            const examplesHTML = mechanic.examples && mechanic.examples.length > 0
-                ? `<div class="mechanic-examples"><code>${mechanic.examples[0]}</code></div>`
-                : '';
+        this.setupMechanicEventDelegation(listContainer);
+    }
 
-            return `
-                <div class="condition-card" data-mechanic="${mechanic.id}">
+    /**
+     * Render a single mechanic card
+     */
+    renderMechanicCard(mechanic) {
+        const badges = [];
+        const isFavorite = this.isFavorite(mechanic.id);
+        
+        if (mechanic.attributes && mechanic.attributes.length > 0) {
+            badges.push(`<span class="mechanic-badge attributes">${mechanic.attributes.length} attributes</span>`);
+        }
+
+        const aliasesHTML = mechanic.aliases && mechanic.aliases.length > 0
+            ? `<div class="mechanic-aliases"><strong>Aliases:</strong> ${mechanic.aliases.join(', ')}</div>`
+            : '';
+
+        const examplesHTML = mechanic.examples && mechanic.examples.length > 0
+            ? `<div class="mechanic-examples"><code>${mechanic.examples[0]}</code></div>`
+            : '';
+
+        return `
+            <div class="condition-card" data-mechanic="${mechanic.id}">
                     <div class="condition-card-header">
                         <h4>${mechanic.name}</h4>
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -575,39 +522,52 @@ class MechanicBrowser {
                             <div class="condition-aliases">
                                 <strong>Aliases:</strong> ${mechanic.aliases.join(', ')}
                             </div>
-                        ` : ''}
-                        ${mechanic.examples && mechanic.examples.length > 0 ? `
-                            <div class="condition-example">
-                                <code>${mechanic.examples[0]}</code>
-                            </div>
-                        ` : ''}
-                    </div>
-                    <div class="condition-card-footer">
-                        <button class="btn btn-primary btn-select-mechanic">Select</button>
-                    </div>
+                    ` : ''}
+                    ${mechanic.examples && mechanic.examples.length > 0 ? `
+                        <div class="condition-example">
+                            <code>${mechanic.examples[0]}</code>
+                        </div>
+                    ` : ''}
                 </div>
-            `;
-        }).join('');
+                <div class="condition-card-footer">
+                    <button class="btn btn-primary btn-select-mechanic">Select</button>
+                </div>
+            </div>
+        `;
+    }
 
-        // Attach click handlers using event delegation for Select buttons
-        listContainer.querySelectorAll('.btn-select-mechanic').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const card = btn.closest('.condition-card');
+    /**
+     * Setup event delegation for mechanic cards
+     */
+    setupMechanicEventDelegation(listContainer) {
+        // Event delegation - single listener for select buttons (favorites already delegated)
+        if (this.selectMechanicHandler) {
+            listContainer.removeEventListener('click', this.selectMechanicHandler);
+        }
+
+        this.selectMechanicHandler = (e) => {
+            const selectBtn = e.target.closest('.btn-select-mechanic');
+            if (selectBtn) {
+                const card = selectBtn.closest('.condition-card');
                 const mechanicId = card.dataset.mechanic;
                 const mechanic = MECHANICS_DATA.getMechanic(mechanicId);
                 if (mechanic) {
                     this.saveRecentMechanic(mechanicId);
                     this.showMechanicConfiguration(mechanic);
                 }
-            });
-        });
+            }
+        };
+
+        listContainer.addEventListener('click', this.selectMechanicHandler);
     }
 
     /**
-     * Update category tab counts
+     * Update category tab counts (using pre-computed counts - O(1))
      */
     updateCategoryCounts() {
-        const mechanics = MECHANICS_DATA.mechanics || [];
+        const dataOptimizer = window.DataOptimizer;
+        if (!dataOptimizer) return;
+        
         const categoryTabs = document.querySelectorAll('.category-tab');
         
         categoryTabs.forEach(tab => {
@@ -615,11 +575,11 @@ class MechanicBrowser {
             let count;
             
             if (category === 'All') {
-                count = mechanics.length;
+                count = dataOptimizer.getCategoryCount('mechanics', 'all');
             } else if (category === 'Favorites') {
-                count = this.favoriteMechanics.length;
+                count = this.favoritesManager.getCount();
             } else {
-                count = mechanics.filter(m => m.category === category).length;
+                count = dataOptimizer.getCategoryCount('mechanics', category);
             }
             
             // Extract the label text (icon + name)
@@ -642,13 +602,15 @@ class MechanicBrowser {
         const favoritesList = document.getElementById('favoritesList');
         const recentList = document.getElementById('recentList');
 
-        // Get mechanics
-        const favoriteMechanics = this.favoriteMechanics
-            .map(id => MECHANICS_DATA.getMechanic(id))
+        // Get mechanics using DataOptimizer for O(1) lookup
+        const dataOptimizer = window.DataOptimizer;
+        const favoriteIds = this.favoritesManager.getAll();
+        const favoriteMechanics = favoriteIds
+            .map(id => dataOptimizer ? dataOptimizer.getItem('mechanics', id) : MECHANICS_DATA.getMechanic(id))
             .filter(m => m);
         
         const recentMechanics = this.recentMechanics
-            .map(item => MECHANICS_DATA.getMechanic(item.id))
+            .map(item => dataOptimizer ? dataOptimizer.getItem('mechanics', item.id) : MECHANICS_DATA.getMechanic(item.id))
             .filter(m => m)
             .slice(0, 5); // Show last 5
 
@@ -746,36 +708,39 @@ class MechanicBrowser {
             
             let inputHTML = '';
             if (attr.type === 'boolean') {
-                // Checkbox for boolean
-                const checkedValue = attr.default === true || attr.default === 'true';
+                // Checkbox for boolean with dynamic true/false label
+                const defaultChecked = attr.default === true || attr.default === 'true';
                 inputHTML = `
                     <label class="checkbox-container">
                         <input type="checkbox" 
                                class="mechanic-attribute-input mechanic-attribute-checkbox" 
                                data-attr="${attr.name}"
-                               ${checkedValue ? 'checked' : ''}>
-                        <span class="checkbox-label">Enable</span>
+                               data-modified="false"
+                               ${defaultChecked ? 'checked' : ''}>
+                        <span class="checkbox-value">${defaultChecked ? 'true' : 'false'}</span>
                     </label>
                 `;
             } else if (attr.type === 'number') {
-                // Number input with step detection
+                // Number input with step detection (don't pre-fill, only placeholder)
                 const step = attr.default && attr.default.toString().includes('.') ? '0.01' : '1';
                 inputHTML = `
                     <input type="number" 
                            class="mechanic-attribute-input" 
                            data-attr="${attr.name}"
+                           data-default="${attr.default !== undefined ? attr.default : ''}"
+                           data-modified="false"
                            step="${step}"
-                           placeholder="${attr.default !== undefined ? attr.default : ''}"
-                           value="${attr.default !== undefined ? attr.default : ''}">
+                           placeholder="${attr.default !== undefined ? attr.default : ''}">
                 `;
             } else {
-                // Text input (could be string, list, etc.)
+                // Text input (could be string, list, etc.) - don't pre-fill, only placeholder
                 inputHTML = `
                     <input type="text" 
                            class="mechanic-attribute-input" 
                            data-attr="${attr.name}"
-                           placeholder="${attr.default || ''}"
-                           value="${attr.default || ''}">
+                           data-default="${attr.default || ''}"
+                           data-modified="false"
+                           placeholder="${attr.default || ''}">
                 `;
             }
 
@@ -793,248 +758,100 @@ class MechanicBrowser {
 
         // Attach input listeners
         formContainer.querySelectorAll('.mechanic-attribute-input').forEach(input => {
-            input.addEventListener('input', () => this.updateSkillLinePreview());
-            input.addEventListener('change', () => this.updateSkillLinePreview());
-        });
-    }
-
-    /**
-     * Open targeter browser
-     */
-    openTargeterBrowser() {
-        if (!this.targeterBrowser) return;
-        
-        this.targeterBrowser.open({
-            currentValue: this.currentTargeter,
-            onSelect: (result) => {
-                this.currentTargeter = result.targeterString;
-                this.updateTargeterDisplay();
-                this.updateSkillLinePreview();
+            if (input.type === 'checkbox') {
+                // For checkboxes: update label and mark as modified
+                input.addEventListener('change', (e) => {
+                    const label = e.target.nextElementSibling;
+                    if (label && label.classList.contains('checkbox-value')) {
+                        label.textContent = e.target.checked ? 'true' : 'false';
+                    }
+                    e.target.dataset.modified = 'true';
+                    this.updateSkillLinePreview();
+                });
+            } else {
+                // For text/number inputs: mark as modified and update preview
+                input.addEventListener('input', (e) => {
+                    e.target.dataset.modified = 'true';
+                    this.updateSkillLinePreview();
+                });
             }
         });
     }
 
-    /**
-     * Open trigger browser
-     */
-    openTriggerBrowser() {
-        if (!this.triggerBrowser || this.context !== 'mob') return;
-        
-        this.triggerBrowser.open({
-            mobType: null,
-            modules: null,
-            onSelect: (result) => {
-                const { trigger, parameter } = result;
-                this.currentTrigger = parameter ? `~${trigger.name}:${parameter}` : `~${trigger.name}`;
-                this.updateTriggerDisplay();
-                this.updateSkillLinePreview();
-            }
-        });
-    }
-
-    /**
-     * Open condition editor
-     */
-    openConditionEditor() {
-        if (!this.conditionEditor) {
-            console.warn('⚠️ ConditionEditor not initialized');
-            alert('Condition editor not available. Please initialize ConditionEditor component.');
-            return;
-        }
-
-        // Create temporary container for condition editor modal
-        const modalContainer = document.createElement('div');
-        modalContainer.id = 'mechanicConditionEditorModal';
-        modalContainer.className = 'condition-editor-modal-overlay';
-        modalContainer.innerHTML = `
-            <div class="condition-editor-modal-content">
-                <div class="condition-editor-modal-header">
-                    <h3>Add Conditions</h3>
-                    <button class="btn-close-condition-modal">&times;</button>
-                </div>
-                <div id="mechanicConditionEditorContainer"></div>
-                <div class="condition-editor-modal-footer">
-                    <button class="btn btn-secondary" id="cancelConditionEdit">Cancel</button>
-                    <button class="btn btn-primary" id="confirmConditionEdit">Confirm</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modalContainer);
-
-        // Initialize condition editor in the container
-        const tempEditor = new ConditionEditor('mechanicConditionEditorContainer', {
-            mode: 'Conditions',
-            conditions: this.currentConditions || [],
-            onChange: (conditions) => {
-                console.log('📝 Conditions changed:', conditions);
-            }
-        });
-
-        // Close modal handler
-        const closeModal = () => {
-            modalContainer.remove();
-        };
-
-        // Cancel button
-        document.getElementById('cancelConditionEdit').addEventListener('click', closeModal);
-        
-        // Close button
-        modalContainer.querySelector('.btn-close-condition-modal').addEventListener('click', closeModal);
-        
-        // Confirm button
-        document.getElementById('confirmConditionEdit').addEventListener('click', () => {
-            // Get conditions from editor
-            const conditions = tempEditor.options.conditions || [];
-            this.currentConditions = conditions;
-            this.updateConditionDisplay();
-            this.updateSkillLinePreview();
-            closeModal();
-        });
-
-        // Close on overlay click
-        modalContainer.addEventListener('click', (e) => {
-            if (e.target === modalContainer) {
-                closeModal();
-            }
-        });
-    }
+    // (Browser methods for targeter/trigger/condition removed - handled in Skill Line Builder)
 
     /**
      * Update targeter display
      */
-    updateTargeterDisplay() {
-        document.getElementById('targeterDisplay').textContent = this.currentTargeter || '@Self';
-    }
-
-    /**
-     * Update trigger display
-     */
-    updateTriggerDisplay() {
-        const display = document.getElementById('triggerDisplay');
-        if (this.currentTrigger) {
-            display.textContent = this.currentTrigger;
-            display.parentElement.classList.add('has-value');
-        } else {
-            display.textContent = 'Select Trigger';
-            display.parentElement.classList.remove('has-value');
-        }
-    }
-
-    /**
-     * Update condition display
-     */
-    updateConditionDisplay() {
-        const display = document.getElementById('conditionDisplay');
-        const previewContainer = document.getElementById('conditionsListPreview');
-        
-        if (this.currentConditions.length > 0) {
-            display.textContent = `${this.currentConditions.length} condition(s)`;
-            display.parentElement.classList.add('has-value');
-            previewContainer.innerHTML = this.currentConditions.map(c => `<code>?${c}</code>`).join(' ');
-        } else {
-            display.textContent = 'Add Condition';
-            display.parentElement.classList.remove('has-value');
-            previewContainer.innerHTML = '';
-        }
-    }
-
     /**
      * Update skill line preview with validation
      */
     updateSkillLinePreview() {
         const skillLine = this.buildSkillLine();
         const previewElement = document.getElementById('skillLinePreview');
-        previewElement.textContent = skillLine;
-        
-        // Parse and validate
-        const parsed = SkillLineParser.parse(skillLine);
-        const validation = SkillLineValidator.validate(parsed, this.context);
-        
-        // Update preview styling based on validation
-        const previewSection = previewElement.closest('.preview-section');
-        previewSection.classList.remove('valid', 'warning', 'error');
-        
-        if (validation.valid) {
-            previewSection.classList.add('valid');
-        } else if (validation.errors.length > 0) {
-            previewSection.classList.add('error');
-        } else if (validation.warnings.length > 0) {
-            previewSection.classList.add('warning');
+        if (previewElement) {
+            previewElement.textContent = skillLine;
         }
-        
-        // Add validation message
-        let validationMsg = previewSection.querySelector('.validation-msg');
-        if (!validationMsg) {
-            validationMsg = document.createElement('div');
-            validationMsg.className = 'validation-msg';
-            previewSection.appendChild(validationMsg);
-        }
-        
-        validationMsg.textContent = SkillLineValidator.getDisplayMessage(validation);
     }
 
     /**
      * Build skill line string from current configuration
      */
     buildSkillLine() {
-        if (!this.currentMechanic) return '- mechanic{} @Self';
+        if (!this.currentMechanic) return '- mechanic{}';
 
-        // Build components object
+        // Build mechanic name
         let mechanicName = this.currentMechanic.name;
         if (MechanicBrowser.hasEffectPrefix(this.currentMechanic) && this.useEffectPrefix) {
             mechanicName = `effect:${mechanicName}`;
         }
-        const components = {
-            mechanic: mechanicName,
-            mechanicArgs: {},
-            targeter: (this.currentTargeter || '@Self').replace('@', ''),
-            trigger: this.currentTrigger ? this.currentTrigger.replace('~', '') : null,
-            conditions: [],
-            chance: null,
-            healthModifier: null
-        };
 
-        // Add mechanic attributes
+        // Collect mechanic attributes (only include modified values)
+        const mechanicArgs = {};
         const formContainer = document.getElementById('mechanicAttributesForm');
         if (formContainer) {
             const inputs = formContainer.querySelectorAll('.mechanic-attribute-input');
             
             inputs.forEach(input => {
                 const attrName = input.dataset.attr;
-                const value = input.value.trim();
+                const isModified = input.dataset.modified === 'true';
+                let value;
+                
+                if (input.type === 'checkbox') {
+                    // For checkboxes: only include if checked (user wants true)
+                    if (input.checked) {
+                        value = 'true';
+                    }
+                } else {
+                    // For text/number: only include if modified and not empty
+                    value = input.value.trim();
+                    if (!isModified || !value) {
+                        return; // Skip unmodified or empty values
+                    }
+                }
                 
                 if (value) {
                     const attrDef = this.currentMechanic.attributes.find(a => a.name === attrName);
                     const key = (attrDef?.alias && Array.isArray(attrDef.alias) && attrDef.alias.length > 0) 
                         ? attrDef.alias[0] 
                         : (attrDef?.alias || attrName);
-                    components.mechanicArgs[key] = value;
+                    mechanicArgs[key] = value;
                 }
             });
         }
 
-        // Add conditions
-        if (this.currentConditions.length > 0) {
-            components.conditions = this.currentConditions.map(c => {
-                const match = c.match(/(\w+)(?:\{([^}]+)\})?/);
-                return match ? { type: match[1], args: match[2] || null } : { type: c };
-            });
+        // Build simple mechanic string with attributes only
+        let skillLine = mechanicName;
+        
+        const argsStr = Object.entries(mechanicArgs)
+            .map(([key, value]) => `${key}=${value}`)
+            .join(';');
+        
+        if (argsStr) {
+            skillLine += `{${argsStr}}`;
         }
 
-        // Add chance
-        const chance = document.getElementById('chanceInput')?.value.trim();
-        if (chance) {
-            components.chance = chance;
-        }
-
-        // Add health modifier
-        const healthModifier = document.getElementById('healthModifierInput')?.value.trim();
-        if (healthModifier) {
-            components.healthModifier = healthModifier;
-        }
-
-        // Use SkillLineParser to build the line
-        return SkillLineParser.build(components);
+        return skillLine;
     }
 
     /**
@@ -1046,31 +863,76 @@ class MechanicBrowser {
             return;
         }
 
-        // Build and validate skill line
+        // Build the mechanic string (just the mechanic part, not complete skill line)
         const skillLine = this.buildSkillLine();
         const parsed = SkillLineParser.parse(skillLine);
-        const validation = SkillLineValidator.validate(parsed, this.context);
+        
+        // Only validate the mechanic itself, not the complete skill line
+        // The Skill Line Builder will validate the complete line (including trigger requirements)
+        const result = {
+            valid: true,
+            errors: [],
+            warnings: []
+        };
+
+        // Check if mechanic exists
+        if (!parsed.mechanic) {
+            result.errors.push('Mechanic is required');
+            result.valid = false;
+        }
+
+        // Validate mechanic arguments (if MECHANICS_DATA is available)
+        if (typeof MECHANICS_DATA !== 'undefined' && parsed.mechanic) {
+            const mechanicDef = MECHANICS_DATA.getMechanic(parsed.mechanic);
+            if (!mechanicDef) {
+                result.warnings.push(`Unknown mechanic: ${parsed.mechanic}`);
+            } else {
+                // Check for required attributes
+                const requiredAttrs = mechanicDef.attributes.filter(attr => attr.required);
+                for (const attr of requiredAttrs) {
+                    const aliases = [attr.name, ...(attr.aliases || [])];
+                    const hasAttr = aliases.some(alias => parsed.mechanicArgs.hasOwnProperty(alias));
+                    if (!hasAttr) {
+                        result.warnings.push(`Mechanic '${parsed.mechanic}' missing required attribute: ${attr.name}`);
+                    }
+                }
+            }
+        }
         
         // Check for errors
-        if (validation.errors.length > 0) {
-            alert('Validation Error:\n\n' + validation.errors.join('\n'));
+        if (result.errors.length > 0) {
+            alert('Validation Error:\n\n' + result.errors.join('\n'));
             return;
         }
         
         // Warn about warnings but allow to continue
-        if (validation.warnings.length > 0) {
+        if (result.warnings.length > 0) {
             const proceed = confirm(
                 'Validation Warnings:\n\n' + 
-                validation.warnings.join('\n') + 
+                result.warnings.join('\n') + 
                 '\n\nDo you want to continue anyway?'
             );
             if (!proceed) return;
         }
         
-        this.close();
-
-        if (this.onSelectCallback) {
-            this.onSelectCallback(skillLine);
+        // Hide overlay and reset state manually (don't call close which would trigger null callback)
+        const overlay = document.getElementById('mechanicBrowserOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+        
+        // Reset to selection step for next time
+        this.showMechanicSelection();
+        
+        // Clear state
+        this.currentMechanic = null;
+        
+        // Call callback with the successful skill line
+        const callback = this.onSelectCallback;
+        this.onSelectCallback = null;
+        
+        if (callback) {
+            callback(skillLine);
         }
     }
 

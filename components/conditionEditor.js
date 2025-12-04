@@ -1,7 +1,14 @@
 /**
- * ConditionEditor Component
+ * LEGACY: ConditionEditor Component
  * Universal condition editor with search, filtering, and dynamic attribute configuration
  * Supports all 157 MythicMobs conditions across 4 categories
+ * 
+ * ⚠️ DEPRECATED: This is the old condition editor kept for backwards compatibility
+ * with droptableEditor, randomspawnEditor, and inline condition editing.
+ * 
+ * NEW CODE SHOULD USE: window.conditionBrowserV2 (ConditionBrowserV2)
+ * 
+ * @deprecated Use ConditionBrowserV2 for new implementations
  */
 
 class ConditionEditor {
@@ -197,8 +204,11 @@ class ConditionEditor {
                         </div>
                     ` : ''}
                     ${condition.examples && condition.examples.length > 0 ? `
-                        <div class="condition-example">
-                            <strong>Example:</strong> <code>${condition.examples[0]}</code>
+                        <div class="condition-example" style="display: flex; align-items: center; gap: 8px;">
+                            <code>${condition.examples[0]}</code>
+                            <button class="btn-copy-example" data-example="${condition.examples[0]}" title="Copy to clipboard" style="padding: 4px 8px; font-size: 11px; background: #2a2a2a; border: 1px solid #444; border-radius: 3px; cursor: pointer;">
+                                <i class="fas fa-copy"></i>
+                            </button>
                         </div>
                     ` : ''}
                 </div>
@@ -267,12 +277,16 @@ class ConditionEditor {
             });
         });
         
-        // Search input
+        // Search input with RAF throttling for 60fps
         const searchInput = this.container.querySelector('#conditionSearch');
         if (searchInput) {
+            let conditionSearchRAF = null;
             searchInput.addEventListener('input', (e) => {
-                this.searchQuery = e.target.value;
-                this.updateConditionGrid();
+                if (conditionSearchRAF) cancelAnimationFrame(conditionSearchRAF);
+                conditionSearchRAF = requestAnimationFrame(() => {
+                    this.searchQuery = e.target.value;
+                    this.updateConditionGrid();
+                });
             });
         }
         
@@ -296,6 +310,22 @@ class ConditionEditor {
                     e.stopPropagation();
                     const conditionId = favoriteBtn.dataset.conditionId;
                     this.toggleFavorite(conditionId);
+                    return;
+                }
+                
+                // Handle copy example button
+                const copyBtn = e.target.closest('.btn-copy-example');
+                if (copyBtn) {
+                    const example = copyBtn.dataset.example;
+                    navigator.clipboard.writeText(example).then(() => {
+                        const icon = copyBtn.querySelector('i');
+                        icon.className = 'fas fa-check';
+                        copyBtn.style.background = '#4caf50';
+                        setTimeout(() => {
+                            icon.className = 'fas fa-copy';
+                            copyBtn.style.background = '#2a2a2a';
+                        }, 1500);
+                    });
                     return;
                 }
                 
@@ -333,11 +363,46 @@ class ConditionEditor {
                 };
             }
             
-            // Add ESC key handler
+            // Add enhanced keyboard navigation
             this.escapeHandler = (e) => {
                 if (e.key === 'Escape') {
                     modal.style.display = 'none';
                     document.removeEventListener('keydown', this.escapeHandler);
+                    return;
+                }
+                
+                // Only handle if modal is visible
+                if (modal.style.display !== 'flex') return;
+                
+                // Ctrl+F to focus search
+                if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                    e.preventDefault();
+                    this.container.querySelector('#conditionSearch')?.focus();
+                    return;
+                }
+                
+                // Arrow key navigation
+                const cards = Array.from(this.container.querySelectorAll('#conditionGrid .condition-card'));
+                if (cards.length === 0) return;
+                
+                const focusedCard = document.activeElement.closest('.condition-card');
+                let currentIndex = focusedCard ? cards.indexOf(focusedCard) : -1;
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    currentIndex = currentIndex < cards.length - 1 ? currentIndex + 1 : 0;
+                    cards[currentIndex].querySelector('.btn-select-condition')?.focus();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    currentIndex = currentIndex > 0 ? currentIndex - 1 : cards.length - 1;
+                    cards[currentIndex].querySelector('.btn-select-condition')?.focus();
+                } else if (e.key === 'Enter' && focusedCard) {
+                    e.preventDefault();
+                    const conditionId = focusedCard.dataset.conditionId;
+                    const condition = window.ConditionHelpers.findCondition(conditionId);
+                    if (condition) {
+                        this.selectCondition(condition);
+                    }
                 }
             };
             document.addEventListener('keydown', this.escapeHandler);
@@ -371,6 +436,10 @@ class ConditionEditor {
         // Get existing values if editing
         const existingValues = editIndex !== null ? this.options.conditions[editIndex] : {};
         
+        // Determine default usage mode (backward compatibility)
+        const defaultUsageMode = existingValues.usageMode || 'inline';
+        const defaultSectionType = existingValues.sectionType || 'Conditions';
+        
         body.innerHTML = `
             <div class="condition-editor-form">
                 <div class="form-group">
@@ -382,30 +451,100 @@ class ConditionEditor {
                     <p class="condition-description">${condition.description}</p>
                 </div>
                 
+                <div class="form-group">
+                    <label class="form-label">Condition Usage</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="usageMode" value="inline" ${defaultUsageMode === 'inline' ? 'checked' : ''}>
+                            <div>
+                                <strong>Inline Condition</strong>
+                                <small style="display: block; color: #888;">Used in skill line with ? prefix</small>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="usageMode" value="regular" ${defaultUsageMode === 'regular' ? 'checked' : ''}>
+                            <div>
+                                <strong>Regular Condition</strong>
+                                <small style="display: block; color: #888;">Used in Conditions/TargetConditions/TriggerConditions section</small>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="usageMode" value="targeter" ${defaultUsageMode === 'targeter' ? 'checked' : ''}>
+                            <div>
+                                <strong>Inline Targeter Condition</strong>
+                                <small style="display: block; color: #888;">Used in targeter conditions array (Premium)</small>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Inline Condition Options -->
+                <div id="inlineOptions" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Inline Condition Type</label>
+                        <select id="conditionPrefix" class="form-select">
+                            <option value="?" ${existingValues.prefix === '?' || !existingValues.prefix ? 'selected' : ''}>? - Standard (check caster)</option>
+                            <option value="?!" ${existingValues.prefix === '?!' ? 'selected' : ''}>?! - Negated (false condition)</option>
+                            <option value="?~" ${existingValues.prefix === '?~' ? 'selected' : ''}>?~ - Trigger (check trigger entity)</option>
+                            <option value="?~!" ${existingValues.prefix === '?~!' ? 'selected' : ''}>?~! - Negated Trigger (false trigger condition)</option>
+                        </select>
+                        <small class="form-text">MythicMobs inline condition prefix type</small>
+                    </div>
+                </div>
+                
+                <!-- Regular Condition Options -->
+                <div id="regularOptions" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Section Type</label>
+                        <select id="sectionType" class="form-select">
+                            <option value="Conditions" ${defaultSectionType === 'Conditions' ? 'selected' : ''}>Conditions (checks caster)</option>
+                            <option value="TargetConditions" ${defaultSectionType === 'TargetConditions' ? 'selected' : ''}>TargetConditions (checks target)</option>
+                            <option value="TriggerConditions" ${defaultSectionType === 'TriggerConditions' ? 'selected' : ''}>TriggerConditions (checks trigger)</option>
+                        </select>
+                        <small class="form-text">Which section this condition belongs to</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Condition Action</label>
+                        <select id="conditionAction" class="form-select">
+                            <option value="true" ${existingValues.action === 'true' || !existingValues.action ? 'selected' : ''}>true - Run if condition met</option>
+                            <option value="false" ${existingValues.action === 'false' ? 'selected' : ''}>false - Run if condition NOT met</option>
+                            <option value="power" ${existingValues.action?.startsWith('power') ? 'selected' : ''}>power - Multiply skill power</option>
+                            <option value="cast" ${existingValues.action?.startsWith('cast ') ? 'selected' : ''}>cast - Cast additional skill</option>
+                            <option value="castinstead" ${existingValues.action?.startsWith('castinstead') ? 'selected' : ''}>castinstead - Cast different skill</option>
+                            <option value="orelsecast" ${existingValues.action?.startsWith('orElseCast') ? 'selected' : ''}>orElseCast - Cast if condition fails</option>
+                            <option value="cancel" ${existingValues.action === 'cancel' ? 'selected' : ''}>cancel - Cancel skill tree</option>
+                        </select>
+                    </div>
+                    
+                    <div id="actionParameterField" style="display: none;" class="form-group">
+                        <label id="actionParameterLabel" class="form-label">Parameter</label>
+                        <input type="text" id="actionParameter" class="form-input" placeholder="Enter value">
+                    </div>
+                </div>
+                
+                <!-- Targeter Condition Options -->
+                <div id="targeterOptions" style="display: none;">
+                    <div class="form-group" style="background: #fff3cd; padding: 12px; border-radius: 4px; border-left: 4px solid #ffc107;">
+                        <strong>⚠️ Premium Feature</strong>
+                        <p style="margin: 4px 0 0 0; font-size: 13px;">Inline targeter conditions require MythicMobs Premium</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Targeter Condition Action</label>
+                        <select id="targeterAction" class="form-select">
+                            <option value="true" ${existingValues.action === 'true' || !existingValues.action ? 'selected' : ''}>true - Include if met</option>
+                            <option value="false" ${existingValues.action === 'false' ? 'selected' : ''}>false - Include if NOT met</option>
+                        </select>
+                    </div>
+                </div>
+                
                 ${condition.attributes && condition.attributes.length > 0 ? `
                     <div class="form-section">
                         <h4>Attributes</h4>
                         ${condition.attributes.map(attr => this.renderAttributeField(attr, existingValues.attributes)).join('')}
                     </div>
                 ` : ''}
-                
-                <div class="form-group">
-                    <label class="form-label">Action</label>
-                    <select id="conditionAction" class="form-select">
-                        <option value="true" ${existingValues.action === 'true' || !existingValues.action ? 'selected' : ''}>true - Run if condition met</option>
-                        <option value="false" ${existingValues.action === 'false' ? 'selected' : ''}>false - Run if condition NOT met</option>
-                        <option value="power" ${existingValues.action?.startsWith('power') ? 'selected' : ''}>power - Multiply skill power</option>
-                        <option value="cast" ${existingValues.action?.startsWith('cast ') ? 'selected' : ''}>cast - Cast additional skill</option>
-                        <option value="castinstead" ${existingValues.action?.startsWith('castinstead') ? 'selected' : ''}>castinstead - Cast different skill</option>
-                        <option value="orelsecast" ${existingValues.action?.startsWith('orElseCast') ? 'selected' : ''}>orElseCast - Cast if condition fails</option>
-                        <option value="cancel" ${existingValues.action === 'cancel' ? 'selected' : ''}>cancel - Cancel skill tree</option>
-                    </select>
-                </div>
-                
-                <div id="actionParameterField" style="display: none;" class="form-group">
-                    <label id="actionParameterLabel" class="form-label">Parameter</label>
-                    <input type="text" id="actionParameter" class="form-input" placeholder="Enter value">
-                </div>
                 
                 <div class="form-group">
                     <label>Preview</label>
@@ -425,6 +564,9 @@ class ConditionEditor {
         
         // Attach editor event listeners
         this.attachEditorEventListeners();
+        
+        // Add usage mode toggle logic
+        this.attachUsageModeToggle();
         
         // Update preview initially
         this.updateSyntaxPreview();
@@ -531,6 +673,24 @@ class ConditionEditor {
             paramInput.addEventListener('input', () => this.updateSyntaxPreview());
         }
         
+        // Prefix selector (for inline conditions)
+        const prefixSelect = modal.querySelector('#conditionPrefix');
+        if (prefixSelect) {
+            prefixSelect.addEventListener('change', () => this.updateSyntaxPreview());
+        }
+        
+        // Section type selector (for regular conditions)
+        const sectionType = modal.querySelector('#sectionType');
+        if (sectionType) {
+            sectionType.addEventListener('change', () => this.updateSyntaxPreview());
+        }
+        
+        // Targeter action selector
+        const targeterAction = modal.querySelector('#targeterAction');
+        if (targeterAction) {
+            targeterAction.addEventListener('change', () => this.updateSyntaxPreview());
+        }
+        
         // Save button
         modal.querySelector('.btn-save-condition')?.addEventListener('click', () => {
             this.saveCondition();
@@ -542,24 +702,68 @@ class ConditionEditor {
         });
     }
     
+    attachUsageModeToggle() {
+        const modal = this.container.querySelector('#conditionEditModal');
+        if (!modal) return;
+        
+        const usageModeRadios = modal.querySelectorAll('input[name="usageMode"]');
+        const inlineOptions = modal.querySelector('#inlineOptions');
+        const regularOptions = modal.querySelector('#regularOptions');
+        const targeterOptions = modal.querySelector('#targeterOptions');
+        
+        const toggleOptions = () => {
+            const selectedMode = modal.querySelector('input[name="usageMode"]:checked')?.value;
+            
+            // Hide all option sections first
+            if (inlineOptions) inlineOptions.style.display = 'none';
+            if (regularOptions) regularOptions.style.display = 'none';
+            if (targeterOptions) targeterOptions.style.display = 'none';
+            
+            // Show only the relevant section
+            if (selectedMode === 'inline' && inlineOptions) {
+                inlineOptions.style.display = 'block';
+            } else if (selectedMode === 'regular' && regularOptions) {
+                regularOptions.style.display = 'block';
+            } else if (selectedMode === 'targeter' && targeterOptions) {
+                targeterOptions.style.display = 'block';
+            }
+            
+            // Update preview
+            this.updateSyntaxPreview();
+        };
+        
+        // Attach listeners to radio buttons
+        usageModeRadios.forEach(radio => {
+            radio.addEventListener('change', toggleOptions);
+        });
+        
+        // Set initial state
+        toggleOptions();
+    }
+    
     updateSyntaxPreview() {
         const preview = this.container.querySelector('#syntaxPreview');
         if (!preview || !this.currentCondition) return;
         
-        const syntax = this.generateCurrentSyntax();
-        preview.textContent = `- ${syntax}`;
+        const modal = this.container.querySelector('#conditionEditModal');
+        if (!modal) return;
+        
+        const usageMode = modal.querySelector('input[name="usageMode"]:checked')?.value || 'inline';
+        const syntax = this.generateCurrentSyntax(usageMode);
+        
+        preview.textContent = syntax;
         
         // Update overall validation status
         this.updateValidationSummary();
     }
     
-    generateCurrentSyntax() {
+    generateCurrentSyntax(usageMode = 'inline') {
         if (!this.currentCondition) return '';
         
         const modal = this.container.querySelector('#conditionEditModal');
         if (!modal) return '';
         
-        let syntax = this.currentCondition.id;
+        let baseSyntax = this.currentCondition.id;
         
         // Collect attribute values
         const attributes = [];
@@ -576,29 +780,43 @@ class ConditionEditor {
         });
         
         if (attributes.length > 0) {
-            syntax += `{${attributes.join(';')}}`;
+            baseSyntax += `{${attributes.join(';')}}`;
         }
         
-        // Add action
-        const actionSelect = modal.querySelector('#conditionAction');
-        const actionParam = modal.querySelector('#actionParameter');
-        
-        if (actionSelect) {
-            const action = actionSelect.value;
+        // Format based on usage mode
+        if (usageMode === 'inline') {
+            // Inline condition: ?burning or ?~holding{m=STICK}
+            const prefix = modal.querySelector('#conditionPrefix')?.value || '?';
+            return `${prefix}${baseSyntax}`;
+        } else if (usageMode === 'regular') {
+            // Regular condition: - burning true
+            const actionSelect = modal.querySelector('#conditionAction');
+            const actionParam = modal.querySelector('#actionParameter');
+            let fullSyntax = baseSyntax;
             
-            if (action === 'power' || action === 'cast' || action === 'castinstead' || action === 'orelsecast') {
-                const param = actionParam?.value.trim() || '';
-                if (param) {
-                    syntax += ` ${action} ${param}`;
+            if (actionSelect) {
+                const action = actionSelect.value;
+                
+                if (action === 'power' || action === 'cast' || action === 'castinstead' || action === 'orelsecast') {
+                    const param = actionParam?.value.trim() || '';
+                    if (param) {
+                        fullSyntax += ` ${action} ${param}`;
+                    } else {
+                        fullSyntax += ` ${action}`;
+                    }
                 } else {
-                    syntax += ` ${action}`;
+                    fullSyntax += ` ${action}`;
                 }
-            } else {
-                syntax += ` ${action}`;
             }
+            
+            return fullSyntax;
+        } else if (usageMode === 'targeter') {
+            // Targeter condition: hasaura{aura=Plagued} true
+            const targeterAction = modal.querySelector('#targeterAction')?.value || 'true';
+            return `${baseSyntax} ${targeterAction}`;
         }
         
-        return syntax;
+        return baseSyntax;
     }
     
     saveCondition() {
@@ -607,11 +825,14 @@ class ConditionEditor {
         const modal = this.container.querySelector('#conditionEditModal');
         if (!modal) return;
         
-        // Collect all data
+        // Get usage mode
+        const usageMode = modal.querySelector('input[name="usageMode"]:checked')?.value || 'inline';
+        
+        // Build base condition data
         const conditionData = {
             condition: this.currentCondition,
             attributes: {},
-            syntax: this.generateCurrentSyntax()
+            usageMode: usageMode
         };
         
         // Collect attribute values
@@ -623,19 +844,47 @@ class ConditionEditor {
             }
         });
         
-        // Get action
-        const actionSelect = modal.querySelector('#conditionAction');
-        const actionParam = modal.querySelector('#actionParameter');
-        
-        if (actionSelect) {
-            const action = actionSelect.value;
-            
-            if (action === 'power' || action === 'cast' || action === 'castinstead' || action === 'orelsecast') {
-                const param = actionParam?.value.trim() || '';
-                conditionData.action = param ? `${action} ${param}` : action;
-            } else {
-                conditionData.action = action;
+        // Build base syntax (without prefix or action)
+        let baseSyntax = this.currentCondition.id;
+        const attributes = [];
+        modal.querySelectorAll('.attr-input').forEach(input => {
+            const attrName = input.dataset.attr;
+            const value = input.value.trim();
+            if (value) {
+                const attrDef = this.currentCondition.attributes?.find(a => a.name === attrName);
+                const key = (attrDef?.aliases && attrDef.aliases.length > 0) ? attrDef.aliases[0] : attrName;
+                attributes.push(`${key}=${value}`);
             }
+        });
+        if (attributes.length > 0) {
+            baseSyntax += `{${attributes.join(';')}}`;
+        }
+        conditionData.syntax = baseSyntax;
+        
+        // Add mode-specific data
+        if (usageMode === 'inline') {
+            const prefixSelect = modal.querySelector('#conditionPrefix');
+            conditionData.prefix = prefixSelect ? prefixSelect.value : '?';
+        } else if (usageMode === 'regular') {
+            const sectionType = modal.querySelector('#sectionType')?.value || 'Conditions';
+            const actionSelect = modal.querySelector('#conditionAction');
+            const actionParam = modal.querySelector('#actionParameter');
+            
+            conditionData.sectionType = sectionType;
+            
+            if (actionSelect) {
+                const action = actionSelect.value;
+                
+                if (action === 'power' || action === 'cast' || action === 'castinstead' || action === 'orelsecast') {
+                    const param = actionParam?.value.trim() || '';
+                    conditionData.action = param ? `${action} ${param}` : action;
+                } else {
+                    conditionData.action = action;
+                }
+            }
+        } else if (usageMode === 'targeter') {
+            const targeterAction = modal.querySelector('#targeterAction')?.value || 'true';
+            conditionData.action = targeterAction;
         }
         
         // Validate required attributes

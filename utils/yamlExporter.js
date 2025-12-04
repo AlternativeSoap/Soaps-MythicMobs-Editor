@@ -596,7 +596,9 @@ class YAMLExporter {
             mob.skills.forEach(skill => {
                 if (typeof skill === 'string') {
                     // Skill is already a formatted string like "skill{} @targeter ~trigger"
-                    yaml += `  - ${skill}\n`;
+                    // Add dash prefix if not present
+                    const formattedSkill = skill.startsWith('- ') ? skill : `- ${skill}`;
+                    yaml += `  ${formattedSkill}\n`;
                 } else if (typeof skill === 'object' && skill !== null) {
                     // Object format with name, trigger, cooldown
                     yaml += `  - ${skill.name || 'unknown'} ${skill.trigger || '~onAttack'}`;
@@ -1091,7 +1093,9 @@ class YAMLExporter {
         let yaml = `  Skills:\n`;
         skills.forEach(skill => {
             if (typeof skill === 'string') {
-                yaml += `  - ${skill}\n`;
+                // Add dash prefix if not present
+                const formattedSkill = skill.startsWith('- ') ? skill : `- ${skill}`;
+                yaml += `  ${formattedSkill}\n`;
             } else if (typeof skill === 'object' && skill !== null) {
                 yaml += `  - ${skill.name || 'unknown'} ${skill.trigger || '~onAttack'}`;
                 if (skill.cooldown && skill.cooldown > 0) {
@@ -1166,7 +1170,9 @@ class YAMLExporter {
                 if (skillData.lines && skillData.lines.length > 0) {
                     yaml += `  Skills:\n`;
                     skillData.lines.forEach(line => {
-                        yaml += `  ${line}\n`;
+                        // Add dash prefix if not present (lines are stored without dash)
+                        const formattedLine = line.startsWith('- ') ? line : `- ${line}`;
+                        yaml += `  ${formattedLine}\n`;
                     });
                 }
                 
@@ -1427,7 +1433,9 @@ class YAMLExporter {
         if (item.Skills && item.Skills.length > 0) {
             yaml += `  Skills:\n`;
             item.Skills.forEach(skill => {
-                yaml += `  - ${skill}\n`;
+                // Add dash prefix if not present
+                const formattedSkill = skill.startsWith('- ') ? skill : `- ${skill}`;
+                yaml += `  ${formattedSkill}\n`;
             });
         }
         

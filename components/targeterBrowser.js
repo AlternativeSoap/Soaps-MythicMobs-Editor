@@ -10,6 +10,8 @@ class TargeterBrowser {
         this.searchQuery = '';
         this.onSelectCallback = null;
         this.currentTargeter = null;
+        this.searchCache = new LRUCache(10);
+        this.callbackInvoked = false; // Prevent double callback
         
         this.createModal();
         this.attachEventListeners();
@@ -98,10 +100,14 @@ class TargeterBrowser {
             }
         });
 
-        // Search input
-        document.getElementById('targeterSearchInput').addEventListener('input', (e) => {
-            this.searchQuery = e.target.value;
+        // Search input with debouncing (150ms)
+        const debouncedSearch = debounce((query) => {
+            this.searchQuery = query;
             this.renderTargeters();
+        }, 150);
+        
+        document.getElementById('targeterSearchInput').addEventListener('input', (e) => {
+            debouncedSearch(e.target.value);
         });
 
         // Category tabs
@@ -123,16 +129,50 @@ class TargeterBrowser {
             this.confirmAttributeConfiguration();
         });
 
-        // Close modals on escape key
+        // Enhanced keyboard navigation
         document.addEventListener('keydown', (e) => {
+            const attrOverlay = document.getElementById('targeterAttributeOverlay');
+            const browserOverlay = document.getElementById('targeterBrowserOverlay');
+            
+            // Escape key handling
             if (e.key === 'Escape') {
-                const attrOverlay = document.getElementById('targeterAttributeOverlay');
-                const browserOverlay = document.getElementById('targeterBrowserOverlay');
                 if (attrOverlay && attrOverlay.classList.contains('active')) {
                     this.closeAttributeModal();
                 } else if (browserOverlay && browserOverlay.style.display === 'flex') {
                     this.close();
                 }
+                return;
+            }
+            
+            // Only handle navigation in browser overlay
+            if (!browserOverlay || browserOverlay.style.display !== 'flex') return;
+            
+            // Ctrl+F to focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                document.getElementById('targeterSearchInput')?.focus();
+                return;
+            }
+            
+            // Arrow key navigation
+            const cards = Array.from(document.querySelectorAll('#targeterList .condition-card'));
+            if (cards.length === 0) return;
+            
+            const focusedCard = document.activeElement.closest('.condition-card');
+            let currentIndex = focusedCard ? cards.indexOf(focusedCard) : -1;
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                currentIndex = currentIndex < cards.length - 1 ? currentIndex + 1 : 0;
+                cards[currentIndex].querySelector('.btn-select-targeter')?.focus();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                currentIndex = currentIndex > 0 ? currentIndex - 1 : cards.length - 1;
+                cards[currentIndex].querySelector('.btn-select-targeter')?.focus();
+            } else if (e.key === 'Enter' && focusedCard) {
+                e.preventDefault();
+                const targeterId = focusedCard.dataset.targeter;
+                this.handleTargeterSelection(targeterId);
             }
         });
     }
@@ -172,7 +212,17 @@ class TargeterBrowser {
         if (overlay) {
             overlay.style.display = 'none';
         }
+        
+        // Only notify parent if callback wasn't already called
+        if (this.onSelectCallback && !this.callbackInvoked) {
+            console.log('🚪 Targeter browser closed without selection, sending null');
+            this.onSelectCallback(null);
+        } else if (this.callbackInvoked) {
+            console.log('🚪 Targeter browser closed after successful selection, skipping null callback');
+        }
+        
         this.onSelectCallback = null;
+        this.callbackInvoked = false; // Reset flag
     }
 
     /**
@@ -208,6 +258,13 @@ class TargeterBrowser {
     renderTargeters() {
         const listContainer = document.getElementById('targeterList');
         
+        // Add CSS optimization for smooth scrolling
+        if (listContainer && !listContainer.style.willChange) {
+            listContainer.style.willChange = 'scroll-position';
+            listContainer.style.transform = 'translateZ(0)';
+            listContainer.style.contain = 'layout style paint';
+        }
+        
         // Get filtered targeters
         let targeters = TARGETERS_DATA.targeters;
 
@@ -230,57 +287,98 @@ class TargeterBrowser {
             return;
         }
 
-        listContainer.innerHTML = targeters.map(targeter => {
+        // Use document fragment for better performance
+        const fragment = document.createDocumentFragment();
+        
+        targeters.forEach(targeter => {
+            const card = document.createElement('div');
+            card.className = 'condition-card';
+            card.dataset.targeter = targeter.id;
+            
             const aliasesHTML = targeter.aliases && targeter.aliases.length > 0
                 ? `<div class="condition-aliases"><strong>Aliases:</strong> ${targeter.aliases.map(a => '@' + a).join(', ')}</div>`
                 : '';
 
             const examplesHTML = targeter.examples && targeter.examples.length > 0
-                ? `<div class="condition-example"><strong>Example:</strong> <code>${targeter.examples[0]}</code></div>`
+                ? `<div class="condition-example" style="display: flex; align-items: center; gap: 8px;">
+                    <code>${targeter.examples[0]}</code>
+                    <button class="btn-copy-example" data-example="${targeter.examples[0]}" title="Copy to clipboard" style="padding: 4px 8px; font-size: 11px; background: #2a2a2a; border: 1px solid #444; border-radius: 3px; cursor: pointer;">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>`
                 : '';
 
-            return `
-                <div class="condition-card" data-targeter="${targeter.id}">
-                    <div class="condition-card-header">
-                        <h4>@${targeter.name}</h4>
-                        <span class="condition-category-badge">${targeter.category.replace('_', ' ')}</span>
-                    </div>
-                    <div class="condition-card-body">
-                        <p class="condition-card-description">${targeter.description}</p>
-                        ${aliasesHTML}
-                        ${examplesHTML}
-                    </div>
-                    <div class="condition-card-footer">
-                        <button class="btn btn-primary btn-select-targeter">Select</button>
-                    </div>
+            card.innerHTML = `
+                <div class="condition-card-header">
+                    <h4>@${targeter.name}</h4>
+                    <span class="condition-category-badge">${targeter.category.replace('_', ' ')}</span>
+                </div>
+                <div class="condition-card-body">
+                    <p class="condition-card-description">${targeter.description}</p>
+                    ${aliasesHTML}
+                    ${examplesHTML}
+                </div>
+                <div class="condition-card-footer">
+                    <button class="btn btn-primary btn-select-targeter">Select</button>
                 </div>
             `;
-        }).join('');
+            
+            fragment.appendChild(card);
+        });
+        
+        listContainer.innerHTML = '';
+        listContainer.appendChild(fragment);
 
-        // Attach click handlers to select buttons
-        listContainer.querySelectorAll('.btn-select-targeter').forEach(btn => {
-            btn.addEventListener('click', () => {
+        // Use event delegation on container instead of attaching to each button
+        listContainer.onclick = (e) => {
+            const copyBtn = e.target.closest('.btn-copy-example');
+            if (copyBtn) {
+                e.stopPropagation();
+                const example = copyBtn.dataset.example;
+                navigator.clipboard.writeText(example).then(() => {
+                    const icon = copyBtn.querySelector('i');
+                    icon.className = 'fas fa-check';
+                    copyBtn.style.background = '#4caf50';
+                    setTimeout(() => {
+                        icon.className = 'fas fa-copy';
+                        copyBtn.style.background = '#2a2a2a';
+                    }, 1500);
+                });
+                return;
+            }
+            
+            const btn = e.target.closest('.btn-select-targeter');
+            if (btn) {
+                e.stopPropagation();
                 const card = btn.closest('.condition-card');
                 const targeterId = card.dataset.targeter;
                 this.handleTargeterSelection(targeterId);
-            });
-        });
+            }
+        };
     }
 
     /**
      * Handle targeter selection
      */
     handleTargeterSelection(targeterId) {
+        console.log('🎯 handleTargeterSelection called with:', targeterId);
         const targeter = TARGETERS_DATA.getTargeter(targeterId);
-        if (!targeter) return;
+        console.log('📦 Targeter data:', targeter);
+        if (!targeter) {
+            console.error('❌ Targeter not found:', targeterId);
+            return;
+        }
 
         // Check if targeter has attributes
+        console.log('🔍 Checking attributes:', targeter.attributes);
         if (targeter.attributes && targeter.attributes.length > 0) {
+            console.log('✅ Targeter has attributes, showing configuration modal');
             this.showAttributeConfiguration(targeter);
             return;
         }
 
         // No attributes, directly select
+        console.log('✅ Targeter has no attributes, selecting directly');
         this.selectTargeter(targeter);
     }
 
@@ -424,15 +522,25 @@ class TargeterBrowser {
             targeterString += `{${attributes.join(';')}}`;
         }
 
-        this.closeAttributeModal();
-        this.close();
+        console.log('✅ Targeter configured with attributes:', targeterString);
 
-        if (this.onSelectCallback) {
-            this.onSelectCallback({
+        this.closeAttributeModal();
+        
+        // Store callback before closing (close() sets it to null)
+        const callback = this.onSelectCallback;
+        
+        // Set flag BEFORE calling callback to prevent double callback
+        this.callbackInvoked = true;
+
+        if (callback) {
+            console.log('📞 Calling onSelect callback with:', { targeter: this.currentTargeter, targeterString });
+            callback({
                 targeter: this.currentTargeter,
                 targeterString: targeterString
             });
         }
+        
+        this.close();
     }
 
     /**
@@ -441,14 +549,23 @@ class TargeterBrowser {
     selectTargeter(targeter) {
         const targeterString = `@${targeter.name}`;
         
-        this.close();
-
-        if (this.onSelectCallback) {
-            this.onSelectCallback({
+        console.log('✅ Targeter selected (no attributes):', targeterString);
+        
+        // Store callback before closing (close() sets it to null)
+        const callback = this.onSelectCallback;
+        
+        // Set flag BEFORE calling callback to prevent double callback
+        this.callbackInvoked = true;
+        
+        if (callback) {
+            console.log('📞 Calling onSelect callback with:', { targeter, targeterString });
+            callback({
                 targeter: targeter,
                 targeterString: targeterString
             });
         }
+        
+        this.close();
     }
 }
 

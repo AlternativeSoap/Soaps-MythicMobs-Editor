@@ -24,12 +24,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Styles -->
-    <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/components.css">
-    <link rel="stylesheet" href="styles/editor.css">
-    <link rel="stylesheet" href="styles/conditionEditor.css">
-    <link rel="stylesheet" href="styles/triggerBrowser.css">
-    <link rel="stylesheet" href="styles/packImporter.css">
+    <link rel="stylesheet" href="styles/main.css?v=3.5">
+    <link rel="stylesheet" href="styles/components.css?v=3.5">
+    <link rel="stylesheet" href="styles/editor.css?v=3.5">
+    <link rel="stylesheet" href="styles/conditionEditor.css?v=3.5">
+    <link rel="stylesheet" href="styles/conditionBrowser.css?v=3.5">
+    <link rel="stylesheet" href="styles/triggerBrowser.css?v=3.5">
+    <link rel="stylesheet" href="styles/packImporter.css?v=3.5">
+    <link rel="stylesheet" href="styles/skillLineBuilder.css?v=3.7">
+    <link rel="stylesheet" href="styles/mechanicBrowser.css?v=3.5">
 </head>
 <body>
     <!-- Main Container -->
@@ -498,6 +501,9 @@
     <script src="data/skillTemplates.js"></script>
 
     <!-- Utility Files -->
+    <script src="utils/browserPerformance.js"></script>
+    <script src="utils/dataStructureOptimizer.js"></script>
+    <script src="utils/favoritesManager.js"></script>
     <script src="utils/helpers.js"></script>
     <script src="utils/yamlParser.js"></script>
     <script src="utils/yamlExporter.js"></script>
@@ -528,13 +534,15 @@
     <script src="components/aiEditor.js"></script>
     <script src="components/vanillaOverridesEditor.js"></script>
     <script src="components/powerSystemEditor.js"></script>
-    <script src="components/conditionEditor.js"></script>
+    <script src="components/conditionEditor.js"></script> <!-- LEGACY: Kept for droptable/randomspawn/inline editing -->
+    <script src="components/conditionBrowser.js?v=3.7"></script>
+    <script src="components/inlineConditionBuilder.js"></script>
     <script src="components/triggerBrowser.js"></script>
-    <script src="components/targeterBrowser.js"></script>
+    <script src="components/targeterBrowser.js?v=3.8"></script>
     <script src="components/mechanicBrowser.js"></script>
     <script src="components/creationModeSelector.js"></script>
     <script src="components/templateSelector.js"></script>
-    <script src="components/skillLineBuilder.js"></script>
+    <script src="components/skillLineBuilder.js?v=3.9"></script>
     <script src="components/mechanicReference.js"></script>
     <script src="components/skillLineAutocomplete.js"></script>
     <script src="components/skillLineGroupDetector.js"></script>

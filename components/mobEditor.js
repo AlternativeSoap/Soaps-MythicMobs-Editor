@@ -10,7 +10,7 @@ class MobEditor {
         this.triggerBrowser = null;
         this.targeterBrowser = null;
         this.mechanicBrowser = null;
-        this.conditionEditor = null;
+        // conditionEditor removed - using global conditionBrowserV2
     }
     
     render(mob) {
@@ -2972,17 +2972,14 @@ class MobEditor {
             this.targeterBrowser = new TargeterBrowser();
         }
         
-        // Initialize Condition Editor
-        if (!this.conditionEditor) {
-            this.conditionEditor = new ConditionEditor('inline');
-        }
+        // No longer need to initialize condition editor - using global V2 browser
         
         // Initialize Mechanic Browser
         if (!this.mechanicBrowser) {
             this.mechanicBrowser = new MechanicBrowser(
                 this.targeterBrowser,
                 this.triggerBrowser,
-                this.conditionEditor
+                null  // Using global conditionBrowserV2 instead
             );
         }
         
@@ -2993,7 +2990,9 @@ class MobEditor {
             this.skillsEditor = new SkillBuilderEditor(
                 skillsContainer,
                 this.targeterBrowser,
-                this.mechanicBrowser
+                this.mechanicBrowser,
+                this.triggerBrowser,
+                null  // Using global conditionBrowserV2 instead
             );
             this.skillsEditor.setContext('mob');
             this.skillsEditor.setValue(mob.skills || []);

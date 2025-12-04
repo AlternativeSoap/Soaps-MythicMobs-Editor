@@ -82,12 +82,15 @@ const SkillLineParser = {
                         line = line.substring(triggerMatch[0].length).trim();
                     }
                 }
-                // Parse condition ?conditionName{args} or ?!conditionName{args}
+                // Parse inline conditions:
+                // ?conditionName{args} or ?!conditionName{args} (standard - checks caster)
+                // ?~conditionName{args} or ?~!conditionName{args} (trigger - checks trigger entity)
                 else if (line.startsWith('?')) {
-                    const conditionMatch = line.match(/^\?(!?)([a-zA-Z_][a-zA-Z0-9_]*)/);
+                    const conditionMatch = line.match(/^\?(!?)(~?)(!?)([a-zA-Z_][a-zA-Z0-9_]*)/);
                     if (conditionMatch) {
-                        const negated = conditionMatch[1] === '!';
-                        const conditionName = conditionMatch[2];
+                        const isTriggerCondition = conditionMatch[2] === '~';
+                        const negated = conditionMatch[1] === '!' || conditionMatch[3] === '!';
+                        const conditionName = conditionMatch[4];
                         line = line.substring(conditionMatch[0].length).trim();
                         
                         let conditionArgs = {};
@@ -102,6 +105,7 @@ const SkillLineParser = {
                         result.conditions.push({
                             name: conditionName,
                             negated: negated,
+                            type: isTriggerCondition ? 'trigger' : 'standard',
                             args: conditionArgs
                         });
                     }
@@ -262,11 +266,29 @@ const SkillLineParser = {
             line += ' ' + components.trigger;
         }
         
-        // Add conditions
+        // Add inline conditions with proper prefix support
         if (components.conditions && components.conditions.length > 0) {
             for (const condition of components.conditions) {
-                const negation = condition.negated ? '!' : '';
-                line += ` ?${negation}${condition.name}`;
+                let prefix = '?';
+                
+                // Handle inline condition types
+                if (condition.type === 'trigger') {
+                    // Trigger condition: ?~ or ?~!
+                    prefix = condition.negated ? '?~!' : '?~';
+                } else if (condition.type === 'target') {
+                    // Target conditions are embedded in targeter args, skip here
+                    continue;
+                } else {
+                    // Standard condition: ? or ?!
+                    prefix = condition.negated ? '?!' : '?';
+                }
+                
+                // Use custom prefix if provided (for backwards compatibility)
+                if (condition.prefix) {
+                    prefix = condition.prefix;
+                }
+                
+                line += ` ${prefix}${condition.name}`;
                 
                 if (condition.args && Object.keys(condition.args).length > 0) {
                     const args = Object.entries(condition.args)

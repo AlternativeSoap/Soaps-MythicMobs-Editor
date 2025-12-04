@@ -2309,7 +2309,11 @@ kbd {
 }
 
 .skill-builder-editor .add-skill-line-btn {
-    align-self: flex-start;
+    align-self: stretch;
+    margin-top: 1rem;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .skill-builder-editor .empty-state {
@@ -2320,6 +2324,14 @@ kbd {
     border: 1px dashed var(--border-primary);
     border-radius: var(--radius-md);
     font-style: italic;
+}
+
+.skill-builder-footer,
+.mobdrops-footer {
+    display: block !important;
+    visibility: visible !important;
+    position: relative;
+    z-index: 10;
 }
 
 .skills-list {
@@ -2533,7 +2545,11 @@ kbd {
 }
 
 .mobdrops-editor .add-drop-btn {
-    align-self: flex-start;
+    align-self: stretch;
+    margin-top: 1rem;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .mobdrops-editor .empty-state {
@@ -3269,6 +3285,30 @@ kbd {
     display: flex;
 }
 
+/* Performance optimizations for smooth scrolling */
+#mechanicList,
+.mechanic-config-body,
+.condition-list-container {
+    /* Enable GPU acceleration */
+    transform: translateZ(0);
+    will-change: scroll-position;
+    /* Smooth scrolling with momentum */
+    -webkit-overflow-scrolling: touch;
+    /* Prevent layout shifts during scroll */
+    contain: layout style paint;
+}
+
+/* Reduce repaints on hover */
+.condition-card {
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+.mechanic-attribute-field {
+    /* Prevent reflow on input changes */
+    contain: layout style;
+}
+
 .mechanic-search-bar {
     margin-bottom: 1rem;
 }
@@ -3488,16 +3528,18 @@ kbd {
 }
 
 .preview-section .skill-line-preview {
-    background: var(--bg-primary, #1a1a1a);
-    padding: 1rem;
+    background: rgba(124, 58, 237, 0.1);
+    padding: 0.875rem 1rem;
     border-radius: 6px;
-    border: 1px solid var(--border-color, #333);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    overflow: hidden !important;
 }
 
 .preview-section code {
-    color: var(--success, #10b981);
-    font-family: monospace;
+    color: #a78bfa;
+    font-family: 'Fira Code', 'Consolas', monospace;
     font-size: 0.9375rem;
+    line-height: 1.6;
 }
 
 .mechanic-config-footer {
@@ -3589,11 +3631,12 @@ kbd {
 }
 
 .skill-line-preview {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    padding: 1rem;
-    margin-top: 1rem;
+    background: rgba(124, 58, 237, 0.1);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 8px;
+    padding: 0.875rem 1rem;
+    margin-top: 0.75rem;
+    overflow: hidden !important;
 }
 
 .skill-line-preview-label {
@@ -3604,12 +3647,12 @@ kbd {
 }
 
 .skill-line-preview-code {
-    font-family: var(--font-mono);
+    font-family: 'Fira Code', 'Consolas', monospace;
     font-size: 0.9375rem;
-    color: var(--success);
-    background: var(--bg-secondary);
-    padding: 0.75rem;
-    border-radius: var(--radius-sm);
+    color: #a78bfa;
+    background: transparent;
+    padding: 0;
+    border-radius: 6px;
     word-break: break-all;
     line-height: 1.6;
 }
@@ -4386,19 +4429,51 @@ kbd {
     background: rgba(239, 68, 68, 0.1);
 }
 
-/* Mechanic Browser Attribute Forms */
+/* Mechanic Browser Attribute Forms - Enhanced Card Design */
 .mechanic-attribute-field {
-    margin-bottom: 1rem;
+    margin-bottom: 0;
+}
+
+.mechanic-attribute-field .attribute-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.mechanic-attribute-field .attribute-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(139, 92, 246, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.1);
+}
+
+.mechanic-attribute-field.attribute-required .attribute-card {
+    border-left: 3px solid rgba(239, 68, 68, 0.6);
+}
+
+.mechanic-attribute-field.attribute-optional .attribute-card {
+    border-left: 3px solid rgba(139, 92, 246, 0.4);
 }
 
 .mechanic-attribute-field .attribute-label {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.5rem;
-    margin-bottom: 0.375rem;
-    font-weight: 500;
+    margin-bottom: 0;
+    font-weight: 600;
     color: var(--text-primary, #fff);
     font-size: 0.875rem;
+}
+
+.mechanic-attribute-field .attribute-name {
+    flex: 1;
 }
 
 .mechanic-attribute-field .required-mark {
@@ -4414,19 +4489,25 @@ kbd {
 
 .mechanic-attribute-field .info-icon {
     cursor: help;
-    opacity: 0.6;
-    transition: opacity 0.2s;
+    opacity: 0.5;
+    transition: all 0.2s;
+    font-size: 0.9rem;
 }
 
 .mechanic-attribute-field .info-icon:hover {
     opacity: 1;
+    transform: scale(1.1);
+}
+
+.mechanic-attribute-field .attribute-input-wrapper {
+    flex: 1;
 }
 
 .mechanic-attribute-input {
     width: 100%;
-    padding: 0.625rem 1rem;
+    padding: 0.625rem 0.875rem;
     background: var(--bg-secondary, #2a2a2a);
-    border: 1px solid var(--border-color, #333);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
     color: var(--text-primary, #fff);
     font-size: 0.9375rem;
@@ -4437,6 +4518,7 @@ kbd {
     outline: none;
     border-color: var(--accent-primary, #8b5cf6);
     background: var(--bg-hover, #333);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
 .mechanic-attribute-input::placeholder {
@@ -4445,9 +4527,10 @@ kbd {
 
 .mechanic-attribute-field .attribute-description {
     display: block;
-    margin-top: 0.375rem;
-    color: var(--text-tertiary, #666);
-    font-size: 0.8125rem;
+    margin-top: 0;
+    color: var(--text-tertiary, #999);
+    font-size: 0.75rem;
+    line-height: 1.4;
 }
 
 /* Checkbox styling for mechanic attributes */
@@ -4473,6 +4556,95 @@ kbd {
     border-radius: 6px;
     padding: 0.75rem 1rem;
     margin-bottom: 1rem;
+}
+
+/* Condition Editor Modal Overlay (for mechanic browser) */
+.condition-editor-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 15000;
+    backdrop-filter: blur(4px);
+}
+
+.condition-editor-modal-content {
+    background: var(--bg-primary, #1a1a1a);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 900px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.condition-editor-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-color, #333);
+}
+
+.condition-editor-modal-header h3 {
+    margin: 0;
+    color: var(--text-primary, #fff);
+    font-size: 1.25rem;
+}
+
+.btn-close-condition-modal {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #999);
+    font-size: 1.75rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn-close-condition-modal:hover {
+    background: var(--bg-secondary, #2a2a2a);
+    color: var(--text-primary, #fff);
+}
+
+#mechanicConditionEditorContainer {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+}
+
+.condition-editor-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid var(--border-color, #333);
+}
+
+/* Load More Button */
+.load-more-container {
+    display: flex;
+    justify-content: center;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.load-more-container .btn {
+    min-width: 200px;
 }
 
 .effect-prefix-label {
@@ -4552,7 +4724,7 @@ kbd {
 .skill-line-preview {
     flex: 1;
     min-width: 0;
-    overflow-x: auto;
+    overflow: hidden !important;
 }
 
 /* ========================================

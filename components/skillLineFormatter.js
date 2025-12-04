@@ -99,7 +99,7 @@ class SkillLineFormatter {
         const formattedAttributes = this.formatAttributes(attributes);
         
         // Rebuild line
-        let result = `- ${mechanicName}`;
+        let result = mechanicName;
         
         if (formattedAttributes) {
             result += `{${formattedAttributes}}`;

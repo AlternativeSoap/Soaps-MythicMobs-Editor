@@ -21,9 +21,11 @@ class MobDropsEditor {
                 <div class="drops-list">
                     ${this.renderDropsList()}
                 </div>
-                <button class="btn btn-primary add-drop-btn" id="add-mobdrop-btn">
-                    <i class="fas fa-plus"></i> Add Drop
-                </button>
+                <div class="mobdrops-footer" style="position: sticky; bottom: 0; background: var(--bg-primary); padding: 12px 0; border-top: 1px solid var(--border-primary); z-index: 10;">
+                    <button class="btn btn-primary add-drop-btn" id="add-mobdrop-btn" style="width: 100%;">
+                        <i class="fas fa-plus"></i> Add Drop
+                    </button>
+                </div>
             </div>
         `;
     }

@@ -1,132 +1,303 @@
 /**
- * Skill Line Builder
- * Modern unified editor for creating skill lines with multiple modes:
- * - Quick Build: Visual builder with browser integration
- * - Templates: Pre-made skill line templates
- * - Manual: Multi-line text editor with validation
- * - Bulk: Import multiple lines at once
+ * ===================================
+ * SKILL LINE BUILDER - COMPLETE OVERHAUL V2.0
+ * ===================================
+ * 
+ * Modern, performant, context-aware skill line builder
+ * 
+ * Architecture:
+ * - Immutable state management with history
+ * - Event delegation for performance
+ * - DOM caching
+ * - Context-aware (mob vs skill - NO triggers in skills!)
+ * - Proper browser integration
+ * - Virtual scrolling for large queues
+ * - Debounced inputs & throttled renders
+ * 
+ * @version 2.0.0
+ * @date December 2, 2025
  */
 
 class SkillLineBuilder {
     constructor() {
-        this.context = 'mob';
-        this.currentTab = 'quick-build';
-        this.onAddCallback = null;
-        this.onAddMultipleCallback = null;
-        this.onBackCallback = null;
+        console.log('🚀 Initializing SkillLineBuilder v2.0');
         
-        // Multi-line queue for adding multiple skill lines at once
-        this.skillLineQueue = [];
-        
-        // Current skill line being built in Quick Build tab
-        this.currentLine = {
-            mechanic: null,
-            targeter: null,
-            trigger: null,
-            conditions: [],
-            chance: null,
-            health: null
+        // ========================================
+        // STATE MANAGEMENT
+        // ========================================
+        this.state = {
+            context: 'mob',
+            currentTab: 'quick-build',
+            isOpen: false,
+            isLoading: false,
+            isMinimized: false,  // Track minimize state
+            activeBrowser: null, // Track which browser is currently open
+            
+            currentLine: {
+                mechanic: null,
+                targeter: '@Self',
+                trigger: null,
+                conditions: [],
+                chance: null,
+                health: null
+            },
+            
+            queue: [],
+            validationErrors: [],
+            lastRenderTime: 0
         };
         
-        // Browser instances
-        this.mechanicBrowser = null;
-        this.targeterBrowser = null;
-        this.triggerBrowser = null;
-        this.conditionBrowser = null;
-        this.templateSelector = null;
+        this.stateObservers = [];
+        this.stateHistory = [];
+        this.historyIndex = -1;
         
-        // Autocomplete for manual editor
-        this.autocomplete = null;
+        // Store bound event handlers for cleanup
+        this.boundHandlers = {
+            click: null,
+            keydown: null
+        };
+        this.maxHistory = 50;
         
-        // DOM elements (cached after creation)
-        this.overlay = null;
-        this.modal = null;
-        this.tabButtons = null;
-        this.tabContents = null;
+        // ========================================
+        // BROWSER & CALLBACK REFERENCES
+        // ========================================
+        this.browsers = {
+            mechanic: null,
+            targeter: null,
+            condition: null,
+            trigger: null
+        };
         
+        this.browserState = {
+            mechanicFilter: '',
+            targeterFilter: '',
+            triggerFilter: '',
+            conditionFilter: ''
+        };
+        
+        this.callbacks = {
+            onAdd: null,
+            onAddMultiple: null,
+            onBack: null,
+            onClose: null
+        };
+        
+        // ========================================
+        // DOM CACHE
+        // ========================================
+        this.dom = {};
+        
+        // ========================================
+        // PERFORMANCE OPTIMIZATION
+        // ========================================
+        this.timers = {
+            debounce: {},
+            throttle: {}
+        };
+        this.raf = null;
+        
+        // ========================================
+        // INITIALIZATION
+        // ========================================
         this.createModal();
+        this.cacheDOMElements();
         this.attachEventListeners();
+        this.saveState();
+        
+        console.log('✅ SkillLineBuilder v2.0 ready');
     }
-
-    /**
-     * Create the modal HTML structure
-     */
+    
+    // ========================================
+    // STATE MANAGEMENT METHODS
+    // ========================================
+    
+    setState(update) {
+        const oldState = this.state;
+        const newState = typeof update === 'function' 
+            ? update(this.state)
+            : { ...this.state, ...update };
+        
+        if (JSON.stringify(oldState) === JSON.stringify(newState)) return;
+        
+        this.state = newState;
+        
+        console.log('🔄 setState called:', {
+            mechanic: this.state.currentLine?.mechanic,
+            trigger: this.state.currentLine?.trigger,
+            targeter: this.state.currentLine?.targeter,
+            conditions: this.state.currentLine?.conditions?.length || 0
+        });
+        
+        this.debouncedSaveState();
+        this.notifyStateChange(oldState, newState);
+        this.scheduleRender();
+    }
+    
+    observeState(callback) {
+        this.stateObservers.push(callback);
+    }
+    
+    notifyStateChange(oldState, newState) {
+        this.stateObservers.forEach(observer => {
+            try {
+                observer(oldState, newState);
+            } catch (err) {
+                console.error('State observer error:', err);
+            }
+        });
+    }
+    
+    saveState() {
+        const stateSnapshot = JSON.parse(JSON.stringify(this.state));
+        
+        if (this.historyIndex < this.stateHistory.length - 1) {
+            this.stateHistory = this.stateHistory.slice(0, this.historyIndex + 1);
+        }
+        
+        this.stateHistory.push(stateSnapshot);
+        
+        if (this.stateHistory.length > this.maxHistory) {
+            this.stateHistory.shift();
+        } else {
+            this.historyIndex++;
+        }
+    }
+    
+    debouncedSaveState() {
+        this.debounce('saveState', () => this.saveState(), 300);
+    }
+    
+    undo() {
+        if (this.historyIndex > 0) {
+            this.historyIndex--;
+            this.restoreState(this.stateHistory[this.historyIndex]);
+        }
+    }
+    
+    redo() {
+        if (this.historyIndex < this.stateHistory.length - 1) {
+            this.historyIndex++;
+            this.restoreState(this.stateHistory[this.historyIndex]);
+        }
+    }
+    
+    restoreState(stateSnapshot) {
+        this.state = JSON.parse(JSON.stringify(stateSnapshot));
+        this.notifyStateChange({}, this.state);
+        this.render();
+    }
+    
+    // ========================================
+    // PERFORMANCE UTILITIES
+    // ========================================
+    
+    debounce(key, fn, delay) {
+        if (this.timers.debounce[key]) {
+            clearTimeout(this.timers.debounce[key]);
+        }
+        
+        this.timers.debounce[key] = setTimeout(() => {
+            fn();
+            delete this.timers.debounce[key];
+        }, delay);
+    }
+    
+    throttle(key, fn, delay) {
+        if (this.timers.throttle[key]) return;
+        
+        this.timers.throttle[key] = setTimeout(() => {
+            fn();
+            delete this.timers.throttle[key];
+        }, delay);
+    }
+    
+    scheduleRender() {
+        if (this.raf) cancelAnimationFrame(this.raf);
+        
+        this.raf = requestAnimationFrame(() => {
+            const startTime = performance.now();
+            this.render();
+            const renderTime = performance.now() - startTime;
+            
+            this.setState({ lastRenderTime: renderTime });
+            
+            if (renderTime > 16.67) {
+                console.warn(`⚠️ Slow render: ${renderTime.toFixed(2)}ms`);
+            }
+            
+            this.raf = null;
+        });
+    }
+    
+    // ========================================
+    // DOM CREATION
+    // ========================================
+    
     createModal() {
         const modalHTML = `
-            <div id="skillLineBuilderOverlay" class="condition-modal" style="display: none;">
-                <div class="modal-content skill-line-builder-content condition-browser">
+            <div id="skillLineBuilderOverlay" class="skill-builder-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="skillBuilderTitle">
+                <div class="skill-builder-modal" role="document">
                     <!-- Header -->
-                    <div class="modal-header">
-                        <button class="btn btn-secondary btn-back" id="skillBuilderBack" title="Back to options" style="display: none;">
-                            <i class="fas fa-arrow-left"></i> Back
+                    <div class="skill-builder-header">
+                        <button class="skill-builder-btn-back" id="skillBuilderBack" style="display: none;" aria-label="Go back" title="Go back">
+                            <i class="fas fa-arrow-left" aria-hidden="true"></i>
                         </button>
-                        <h2>
-                            <i class="fas fa-hammer"></i>
-                            Skill Line Builder
-                        </h2>
-                        <button class="btn-close" id="skillBuilderClose">&times;</button>
+                        <div class="skill-builder-title">
+                            <i class="fas fa-hammer" aria-hidden="true"></i>
+                            <h2 id="skillBuilderTitle">Skill Line Builder</h2>
+                            <span class="skill-builder-context-badge" id="contextBadge" role="status" aria-live="polite">Mob Context</span>
+                        </div>
+                        <button class="skill-builder-btn-close" id="skillBuilderClose" aria-label="Close modal" title="Close (Esc)">
+                            <i class="fas fa-times" aria-hidden="true"></i>
+                        </button>
+                        <button class="skill-builder-btn-help" id="skillBuilderHelp" aria-label="Show keyboard shortcuts" title="Keyboard shortcuts (F1)">
+                            <i class="fas fa-keyboard" aria-hidden="true"></i>
+                        </button>
                     </div>
                     
                     <!-- Tabs -->
-                    <div class="category-tabs" id="skillBuilderTabs">
-                        <button class="category-tab active" data-tab="quick-build">
+                    <div class="skill-builder-tabs">
+                        <button class="skill-builder-tab active" data-tab="quick-build">
                             <i class="fas fa-magic"></i>
-                            Quick Build
+                            <span>Quick Build</span>
                         </button>
-                        <button class="category-tab" data-tab="templates">
-                            <i class="fas fa-layer-group"></i>
-                            Templates
-                        </button>
-                        <button class="category-tab" data-tab="bulk">
+                        <button class="skill-builder-tab" data-tab="bulk">
                             <i class="fas fa-file-import"></i>
-                            Bulk Import
+                            <span>Bulk Import</span>
                         </button>
                     </div>
                     
-                    <!-- Tab Content Container -->
-                    <div class="condition-browser-body">
-                    <!-- Quick Build Tab -->
-                    <div class="skill-builder-tab-content active" data-tab-content="quick-build">
+                    <!-- Body -->
+                    <div class="skill-builder-body">
                         ${this.createQuickBuildTab()}
-                    </div>
-                    
-                    <!-- Templates Tab -->
-                    <div class="skill-builder-tab-content" data-tab-content="templates">
-                        ${this.createTemplatesTab()}
-                    </div>
-                    
-                    <!-- Bulk Import Tab -->
-                    <div class="skill-builder-tab-content" data-tab-content="bulk">
                         ${this.createBulkTab()}
                     </div>
-                </div>
-                
-                <!-- Multi-Line Queue Panel (shown when queue has items) -->
-                <div class="skill-line-queue-panel" id="skillLineQueue" style="display: none;">
-                    <div class="queue-header">
-                        <h3>
-                            <i class="fas fa-list"></i>
-                            Queue (<span id="queueCount">0</span>)
-                        </h3>
-                        <button class="btn btn-sm btn-danger" id="clearQueue" title="Clear All">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                    <div class="queue-list" id="queueList">
-                        <!-- Queue items will be rendered here -->
-                    </div>
-                </div>
-                
-                    <!-- Footer -->
-                    <div class="modal-footer">
-                        <div class="footer-info">
-                            <span id="skillBuilderInfo">Select components to build your skill line</span>
+                    
+                    <!-- Queue Panel -->
+                    <div class="skill-builder-queue-panel" id="queuePanel" style="display: none;">
+                        <div class="queue-header">
+                            <h3><i class="fas fa-list"></i> Queue (<span id="queueCount">0</span>)</h3>
+                            <div class="queue-header-actions">
+                                <button class="btn-icon" id="toggleQueue" title="Minimize/Expand queue"><i class="fas fa-chevron-right"></i></button>
+                                <button class="btn-icon" id="clearQueue" title="Clear entire queue"><i class="fas fa-trash"></i></button>
+                            </div>
                         </div>
-                        <button class="btn btn-secondary" id="skillBuilderCancel">Close</button>
-                        <button class="btn btn-primary" id="skillBuilderAdd" disabled>
-                            <i class="fas fa-plus"></i>
-                            <span id="addButtonText">Add Skill Line</span>
-                        </button>
+                        <div class="queue-list" id="queueList"></div>
+                    </div>
+                    
+                    <!-- Footer -->
+                    <div class="skill-builder-footer">
+                        <div class="footer-info">
+                            <span id="footerInfo">Select components to build your skill line</span>
+                            <span class="footer-perf" id="footerPerf"></span>
+                        </div>
+                        <div class="footer-actions" style="display: flex; gap: 12px; align-items: center;">
+                            <button class="btn btn-secondary" id="btnCancel" style="min-width: 100px; padding: 10px 20px;">Cancel</button>
+                            <button class="btn btn-primary" id="btnAdd" disabled style="min-width: 140px; padding: 10px 24px; font-size: 14px;">
+                                <i class="fas fa-plus" style="margin-right: 6px;"></i>
+                                <span id="btnAddText">Add Skill Line</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -135,1046 +306,2236 @@ class SkillLineBuilder {
         const temp = document.createElement('div');
         temp.innerHTML = modalHTML;
         document.body.appendChild(temp.firstElementChild);
-        
-        // Cache DOM elements
-        this.overlay = document.getElementById('skillLineBuilderOverlay');
-        this.modal = this.overlay.querySelector('.modal-content');
-        this.tabButtons = this.overlay.querySelectorAll('.category-tab');
-        this.tabContents = this.overlay.querySelectorAll('.skill-builder-tab-content');
     }
-
-    /**
-     * Create Quick Build tab HTML
-     */
+    
     createQuickBuildTab() {
         return `
-            <div class="quick-build-container">
-                <!-- Component Selection Section -->
-                <div class="quick-build-section">
-                    <div class="section-header">
-                        <h3><i class="fas fa-puzzle-piece"></i> Components</h3>
-                        <span class="section-hint">Click buttons to add components to your skill line</span>
-                    </div>
-                    
-                    <div class="component-grid">
-                        <!-- Mechanic (Required) -->
-                        <div class="component-card" data-component="mechanic">
-                            <div class="component-card-header">
-                                <div class="component-icon">⚙️</div>
-                                <div class="component-info">
-                                    <h4>Mechanic</h4>
-                                    <span class="component-status" id="mechanicStatus">Required</span>
-                                </div>
-                            </div>
-                            <div class="component-value" id="mechanicValue">
-                                <span class="placeholder">Click to select...</span>
-                            </div>
-                            <div class="component-actions">
-                                <button class="btn btn-sm btn-primary" id="selectMechanic">
-                                    <i class="fas fa-search"></i>
-                                    Browse Mechanics
-                                </button>
-                                <button class="btn btn-sm btn-secondary" id="clearMechanic" style="display: none;">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
+            <div class="skill-builder-tab-content active" data-tab-content="quick-build">
+                <div class="quick-build-container">
+                    <div class="components-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-puzzle-piece"></i> Components</h3>
+                            <p>Build your skill line step by step</p>
                         </div>
                         
-                        <!-- Targeter (Optional) -->
-                        <div class="component-card" data-component="targeter">
-                            <div class="component-card-header">
-                                <div class="component-icon">🎯</div>
-                                <div class="component-info">
-                                    <h4>Targeter</h4>
-                                    <span class="component-status">Optional</span>
-                                </div>
-                            </div>
-                            <div class="component-value" id="targeterValue">
-                                <span class="placeholder">None</span>
-                            </div>
-                            <div class="component-actions">
-                                <button class="btn btn-sm btn-primary" id="selectTargeter">
-                                    <i class="fas fa-search"></i>
-                                    Browse Targeters
-                                </button>
-                                <button class="btn btn-sm btn-secondary" id="clearTargeter" style="display: none;">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- Trigger (Context-Dependent) -->
-                        <div class="component-card" data-component="trigger">
-                            <div class="component-card-header">
-                                <div class="component-icon">⚡</div>
-                                <div class="component-info">
-                                    <h4>Trigger</h4>
-                                    <span class="component-status" id="triggerStatus">Optional</span>
-                                </div>
-                            </div>
-                            <div class="component-value" id="triggerValue">
-                                <span class="placeholder">None</span>
-                            </div>
-                            <div class="component-actions">
-                                <button class="btn btn-sm btn-primary" id="selectTrigger">
-                                    <i class="fas fa-search"></i>
-                                    Browse Triggers
-                                </button>
-                                <button class="btn btn-sm btn-secondary" id="clearTrigger" style="display: none;">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- Conditions (Optional, Multiple) -->
-                        <div class="component-card" data-component="conditions">
-                            <div class="component-card-header">
-                                <div class="component-icon">❓</div>
-                                <div class="component-info">
-                                    <h4>Conditions</h4>
-                                    <span class="component-status">Optional</span>
-                                </div>
-                            </div>
-                            <div class="component-value" id="conditionsValue">
-                                <span class="placeholder">None</span>
-                            </div>
-                            <div class="component-actions">
-                                <button class="btn btn-sm btn-primary" id="selectCondition">
-                                    <i class="fas fa-search"></i>
-                                    Add Condition
-                                </button>
-                                <button class="btn btn-sm btn-secondary" id="clearConditions" style="display: none;">
-                                    <i class="fas fa-times"></i>
-                                    Clear All
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- Chance (Optional) -->
-                        <div class="component-card compact" data-component="chance">
-                            <div class="component-card-header">
-                                <div class="component-icon">🎲</div>
-                                <div class="component-info">
-                                    <h4>Chance</h4>
-                                    <span class="component-status">Optional</span>
-                                </div>
-                            </div>
-                            <input type="number" 
-                                   id="chanceInput" 
-                                   class="form-input" 
-                                   placeholder="0.0 - 1.0" 
-                                   min="0" 
-                                   max="1" 
-                                   step="0.1">
-                        </div>
-                        
-                        <!-- Health Modifier (Optional) -->
-                        <div class="component-card compact" data-component="health">
-                            <div class="component-card-header">
-                                <div class="component-icon">❤️</div>
-                                <div class="component-info">
-                                    <h4>Health</h4>
-                                    <span class="component-status">Optional</span>
-                                </div>
-                            </div>
-                            <input type="text" 
-                                   id="healthInput" 
-                                   class="form-input" 
-                                   placeholder="e.g., 50, >75%, <25">
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Preview Section -->
-                <div class="quick-build-section preview-section">
-                    <div class="section-header">
-                        <h3><i class="fas fa-eye"></i> Preview</h3>
-                        <button class="btn btn-sm btn-secondary" id="copyPreview" disabled>
-                            <i class="fas fa-copy"></i>
-                            Copy
-                        </button>
-                    </div>
-                    
-                    <div class="preview-display">
-                        <div class="preview-code" id="quickBuildPreview">
-                            <span class="preview-placeholder">Build your skill line to see preview...</span>
+                        <div class="components-list">
+                            ${this.createMechanicCard()}
+                            ${this.createTargeterCard()}
+                            ${this.createTriggerCard()}
+                            ${this.createConditionCard()}
+                            ${this.createModifiers()}
                         </div>
                     </div>
                     
-                    <div class="preview-actions">
-                        <button class="btn btn-secondary" id="resetQuickBuild">
-                            <i class="fas fa-undo"></i>
-                            Reset
-                        </button>
-                        <button class="btn btn-primary" id="addToQueue">
-                            <i class="fas fa-plus"></i>
-                            Add to Queue
-                        </button>
+                    <div class="preview-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-eye"></i> Preview</h3>
+                            <button class="btn btn-sm btn-icon" id="btnCopyPreview" disabled title="Copy skill line to clipboard">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="preview-container">
+                            <div class="preview-code" id="previewCode">
+                                <span class="preview-placeholder">
+                                    <i class="fas fa-hammer"></i>
+                                    <p>Your skill line will appear here</p>
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="preview-validation" id="previewValidation"></div>
+                        
+                        <div class="preview-actions">
+                            <button class="btn btn-secondary" id="btnReset" title="Reset current line">
+                                <i class="fas fa-undo"></i> Reset
+                            </button>
+                            <button class="btn btn-primary" id="btnAddToQueue" disabled title="Add to queue (Ctrl+Enter)">
+                                <i class="fas fa-plus"></i> Add to Queue <span class="kbd-hint">Ctrl+⏎</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
     }
-
-    /**
-     * Create Templates tab HTML
-     */
-    createTemplatesTab() {
+    
+    createMechanicCard() {
         return `
-            <div class="templates-container">
-                <div class="templates-info">
-                    <i class="fas fa-layer-group" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
-                    <h3>Browse Skill Templates</h3>
-                    <p>Click the button below to open the template browser and select from pre-made skill line templates.</p>
-                    <button class="btn btn-primary btn-lg" id="openTemplateBrowser">
-                        <i class="fas fa-layer-group"></i>
-                        Open Template Browser
+            <div class="component-card required" id="mechanicCard">
+                <div class="component-header">
+                    <div class="component-icon">⚙️</div>
+                    <div class="component-info">
+                        <h4>Mechanic</h4>
+                        <span class="component-badge required">Required</span>
+                    </div>
+                    <div class="component-status" id="mechanicStatus">
+                        <i class="fas fa-circle"></i>
+                    </div>
+                </div>
+                <div class="component-actions">
+                    <button class="btn btn-sm btn-primary" id="btnSelectMechanic" title="Open mechanic browser (Alt+M)">
+                        <i class="fas fa-search"></i> Mechanics
+                    </button>
+                    <button class="btn btn-sm btn-icon" id="btnClearMechanic" style="display: none;" title="Clear selected mechanic">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
         `;
     }
-
-    /**
-     * Create Manual tab HTML
-     */
-    createManualTab() {
+    
+    createTargeterCard() {
         return `
-            <div class="manual-editor-container">
-                <div class="manual-editor-header">
-                    <div class="editor-info">
-                        <h3><i class="fas fa-code"></i> Manual Editor</h3>
-                        <p>Write skill lines directly. Each line will be validated. Press Ctrl+Enter to add.</p>
+            <div class="component-card" id="targeterCard">
+                <div class="component-header">
+                    <div class="component-icon">🎯</div>
+                    <div class="component-info">
+                        <h4>Targeter</h4>
+                        <span class="component-badge optional">Optional</span>
                     </div>
-                    <div class="editor-format">
-                        <strong>Format:</strong>
-                        <code>- mechanic{args} @targeter ~trigger ?condition chance health</code>
-                    </div>
-                </div>
-                
-                <div class="manual-editor-workspace">
-                    <div class="editor-sidebar">
-                        <div class="line-numbers" id="manualLineNumbers">1</div>
-                    </div>
-                    <div class="editor-main">
-                        <textarea 
-                            id="manualEditor" 
-                            class="manual-editor-input" 
-                            placeholder="- damage{a=20} @Target ~onAttack ?health{h<50%} 0.5&#10;- heal{a=10} @Self&#10;- message{m=&quot;Hello!&quot;} @PIR{r=10}"
-                            spellcheck="false"
-                        ></textarea>
-                    </div>
-                </div>
-                
-                <div class="manual-editor-validation" id="manualValidation">
-                    <div class="validation-header">
+                    <div class="component-status filled" id="targeterStatus">
                         <i class="fas fa-check-circle"></i>
-                        <span>No issues found</span>
                     </div>
                 </div>
-                
-                <div class="manual-editor-actions">
-                    <button class="btn btn-secondary" id="clearManualEditor">
-                        <i class="fas fa-trash"></i>
-                        Clear
+                <div class="component-actions">
+                    <button class="btn btn-sm btn-primary" id="btnSelectTargeter" title="Open targeter browser (Alt+T)">
+                        <i class="fas fa-search"></i> Targeters
                     </button>
-                    <button class="btn btn-secondary" id="formatManualEditor">
-                        <i class="fas fa-magic"></i>
-                        Auto-Format
-                    </button>
-                    <button class="btn btn-primary" id="addManualLines">
-                        <i class="fas fa-plus"></i>
-                        Add Lines to Queue
+                    <button class="btn btn-sm btn-icon" id="btnClearTargeter" style="display: none;" title="Reset to @Self">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
         `;
     }
-
-    /**
-     * Create Bulk Import tab HTML
-     */
+    
+    createTriggerCard() {
+        return `
+            <div class="component-card" id="triggerCard" style="display: none;">
+                <div class="component-header">
+                    <div class="component-icon">⚡</div>
+                    <div class="component-info">
+                        <h4>Trigger</h4>
+                        <span class="component-badge optional">Mob Only</span>
+                    </div>
+                    <div class="component-status" id="triggerStatus">
+                        <i class="fas fa-circle"></i>
+                    </div>
+                </div>
+                <div class="component-actions">
+                    <button class="btn btn-sm btn-primary" id="btnSelectTrigger" title="Open trigger browser (Mob context only)">
+                        <i class="fas fa-bolt"></i> Triggers
+                    </button>
+                    <button class="btn btn-sm btn-icon" id="btnClearTrigger" style="display: none;" title="Remove trigger">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    createConditionCard() {
+        return `
+            <div class="component-card" id="conditionCard">
+                <div class="component-header">
+                    <div class="component-icon">❓</div>
+                    <div class="component-info">
+                        <h4>Inline Conditions</h4>
+                        <span class="component-badge optional">Optional</span>
+                        <p style="color: #888; font-size: 10px; margin: 4px 0 0 0; font-style: italic;">Prefix: <code style="background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 3px; font-size: 9px;">?</code> <code style="background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 3px; font-size: 9px;">?!</code> <code style="background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 3px; font-size: 9px;">?~</code> <code style="background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 3px; font-size: 9px;">?~!</code></p>
+                    </div>
+                    <div class="component-status" id="conditionStatus">
+                        <i class="fas fa-circle"></i>
+                    </div>
+                </div>
+                <div class="component-actions">
+                    <button class="btn btn-sm btn-primary" id="btnAddCondition" title="Add inline condition to skill line (Alt+C)">
+                        <i class="fas fa-plus"></i> Add Condition
+                    </button>
+                </div>
+                <div class="conditions-list" id="conditionsList" style="display: none;"></div>
+            </div>
+        `;
+    }
+    
+    createModifiers() {
+        return `
+            <div class="modifiers-container">
+                <div class="modifier-field">
+                    <label for="chanceInput">
+                        <i class="fas fa-dice"></i> Chance (0-1)
+                    </label>
+                    <input type="number" id="chanceInput" min="0" max="1" step="0.01" placeholder="e.g. 0.5">
+                </div>
+                <div class="modifier-field">
+                    <label for="healthInput">
+                        <i class="fas fa-heart"></i> Health Modifier
+                    </label>
+                    <input type="text" id="healthInput" placeholder="e.g. >50% or <0.5">
+                </div>
+            </div>
+        `;
+    }
+    
     createBulkTab() {
         return `
-            <div class="bulk-import-container">
-                <div class="bulk-import-header">
-                    <div class="bulk-info">
-                        <h3><i class="fas fa-file-import"></i> Bulk Import</h3>
-                        <p>Paste multiple skill lines from YAML or other sources. Lines will be validated and formatted.</p>
-                    </div>
-                    <div class="bulk-stats" id="bulkStats">
-                        <div class="stat-item">
-                            <strong>Lines:</strong> <span id="bulkLineCount">0</span>
+            <div class="skill-builder-tab-content" data-tab-content="bulk">
+                <div class="bulk-container">
+                    <div class="bulk-header">
+                        <div class="bulk-info">
+                            <h3><i class="fas fa-file-import"></i> Bulk Import</h3>
+                            <p>Paste multiple skill lines</p>
                         </div>
-                        <div class="stat-item">
-                            <strong>Valid:</strong> <span id="bulkValidCount" class="text-success">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <strong>Invalid:</strong> <span id="bulkInvalidCount" class="text-danger">0</span>
+                        <div class="bulk-stats" id="bulkStats">
+                            <div class="stat"><span class="stat-label">Lines:</span> <span id="bulkTotal">0</span></div>
+                            <div class="stat success"><span class="stat-label">Valid:</span> <span id="bulkValid">0</span></div>
+                            <div class="stat error"><span class="stat-label">Invalid:</span> <span id="bulkInvalid">0</span></div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="bulk-import-workspace">
-                    <textarea 
-                        id="bulkImportInput" 
-                        class="bulk-import-input" 
-                        placeholder="Paste your skill lines here...&#10;&#10;Example:&#10;  Skills:&#10;  - damage{a=20} @Target ~onAttack&#10;  - heal{a=10} @Self&#10;  - message{m=&quot;Hello!&quot;} @PIR{r=10}"
-                        spellcheck="false"
-                    ></textarea>
-                </div>
-                
-                <div class="bulk-import-validation" id="bulkValidation">
-                    <!-- Validation results will appear here -->
-                </div>
-                
-                <div class="bulk-import-actions">
-                    <button class="btn btn-secondary" id="clearBulkImport">
-                        <i class="fas fa-trash"></i>
-                        Clear
-                    </button>
-                    <button class="btn btn-secondary" id="parseBulkImport">
-                        <i class="fas fa-check"></i>
-                        Validate
-                    </button>
-                    <button class="btn btn-primary" id="addBulkLines" disabled>
-                        <i class="fas fa-plus"></i>
-                        Add Valid Lines to Queue
-                    </button>
+                    
+                    <div class="bulk-editor">
+                        <textarea id="bulkInput" class="bulk-textarea" placeholder="Paste skill lines here..." spellcheck="false"></textarea>
+                    </div>
+                    
+                    <div class="bulk-validation" id="bulkValidation"></div>
+                    
+                    <div class="bulk-actions">
+                        <button class="btn btn-secondary" id="btnClearBulk" title="Clear all bulk input">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                        <button class="btn btn-secondary" id="btnValidateBulk" title="Validate YAML syntax and check for errors">
+                            <i class="fas fa-check"></i> Validate
+                        </button>
+                        <button class="btn btn-primary" id="btnImportBulk" disabled title="Import validated lines to queue">
+                            <i class="fas fa-file-import"></i> Import Valid Lines
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
     }
-
-    /**
-     * Attach event listeners
-     */
+    
+    // ========================================
+    // DOM CACHING
+    // ========================================
+    
+    cacheDOMElements() {
+        const get = id => document.getElementById(id);
+        const qs = sel => document.querySelector(sel);
+        const qsa = sel => document.querySelectorAll(sel);
+        
+        this.dom = {
+            overlay: get('skillLineBuilderOverlay'),
+            modal: qs('.skill-builder-modal'),
+            contextBadge: get('contextBadge'),
+            
+            // Tabs
+            tabButtons: qsa('.skill-builder-tab'),
+            tabContents: qsa('.skill-builder-tab-content'),
+            
+            // Component Cards & Values
+            mechanicCard: get('mechanicCard'),
+            mechanicStatus: get('mechanicStatus'),
+            
+            targeterCard: get('targeterCard'),
+            targeterStatus: get('targeterStatus'),
+            
+            triggerCard: get('triggerCard'),
+            triggerStatus: get('triggerStatus'),
+            
+            conditionCard: get('conditionCard'),
+            conditionsList: get('conditionsList'),
+            conditionStatus: get('conditionStatus'),
+            
+            // Inputs
+            chanceInput: get('chanceInput'),
+            healthInput: get('healthInput'),
+            
+            // Preview
+            preview: get('previewCode'),
+            previewValidation: get('previewValidation'),
+            
+            // Queue
+            queuePanel: get('queuePanel'),
+            queueList: get('queueList'),
+            queueCount: get('queueCount'),
+            toggleQueueBtn: get('toggleQueue'),
+            
+            // Footer
+            footerInfo: get('footerInfo'),
+            footerPerf: get('footerPerf'),
+            
+            // Buttons
+            btnAdd: get('btnAdd'),
+            btnAddText: get('btnAddText'),
+            btnClose: get('skillBuilderClose'),
+            btnBack: get('skillBuilderBack'),
+            btnCopyPreview: get('btnCopyPreview'),
+            btnAddToQueue: get('btnAddToQueue'),
+            btnReset: get('btnReset'),
+            
+            // Bulk
+            bulkInput: get('bulkInput'),
+            bulkValidation: get('bulkValidation'),
+            bulkTotal: get('bulkTotal'),
+            bulkValid: get('bulkValid'),
+            bulkInvalid: get('bulkInvalid')
+        };
+        
+        console.log('✅ DOM elements cached');
+        console.log('🔍 Critical button references:', {
+            btnAdd: this.dom.btnAdd,
+            btnAddToQueue: this.dom.btnAddToQueue,
+            btnAddId: this.dom.btnAdd?.id,
+            btnAddToQueueId: this.dom.btnAddToQueue?.id
+        });
+    }
+    
+    // ========================================
+    // EVENT LISTENERS
+    // ========================================
+    
     attachEventListeners() {
-        // Close buttons
-        this.overlay.querySelector('#skillBuilderClose').addEventListener('click', () => this.close());
-        this.overlay.querySelector('#skillBuilderCancel').addEventListener('click', () => this.close());
+        // Store bound handlers for cleanup
+        this.boundHandlers.click = this.handleClick.bind(this);
+        this.boundHandlers.keydown = this.handleKeydown.bind(this);
         
-        // Back button
-        this.overlay.querySelector('#skillBuilderBack')?.addEventListener('click', () => {
-            this.close();
-            if (this.onBackCallback) {
-                this.onBackCallback();
-            }
-        });
+        // Event delegation on overlay
+        this.dom.overlay.addEventListener('click', this.boundHandlers.click);
         
-        // Click outside to close
-        this.overlay.addEventListener('click', (e) => {
-            if (e.target === this.overlay) {
-                this.close();
-            }
-        });
-        
-        // Tab switching
-        this.tabButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tab = btn.dataset.tab;
-                this.switchTab(tab);
+        // Input events (debounced)
+        if (this.dom.chanceInput) {
+            this.dom.chanceInput.addEventListener('input', () => {
+                this.debounce('chanceInput', () => {
+                    this.updateChance(this.dom.chanceInput.value);
+                }, 150);
             });
+        }
+        
+        if (this.dom.healthInput) {
+            this.dom.healthInput.addEventListener('input', () => {
+                this.debounce('healthInput', () => {
+                    this.updateHealth(this.dom.healthInput.value);
+                }, 150);
+            });
+        }
+        
+        if (this.dom.bulkInput) {
+            this.dom.bulkInput.addEventListener('input', () => {
+                this.debounce('bulkInput', () => {
+                    this.updateBulkStats();
+                }, 300);
+            });
+        }
+        
+        // Close on overlay click
+        this.dom.overlay.addEventListener('click', (e) => {
+            if (e.target === this.dom.overlay) this.close();
         });
         
-        // Add button (processes queue)
-        this.overlay.querySelector('#skillBuilderAdd').addEventListener('click', () => {
-            this.processQueue();
-        });
+        // Keyboard shortcuts (attached to document but checks if builder is open)
+        document.addEventListener('keydown', this.boundHandlers.keydown);
         
-        // Attach tab-specific listeners
-        this.attachQuickBuildListeners();
-        this.attachTemplatesListeners();
-        // Note: Manual tab removed - now a separate option in creation mode selector
-        // this.attachManualListeners();
-        this.attachBulkListeners();
-        this.attachQueueListeners();
+        console.log('✅ Event listeners attached');
     }
-
-    /**
-     * Attach Quick Build tab listeners
-     */
-    attachQuickBuildListeners() {
-        // Mechanic selection
-        this.overlay.querySelector('#selectMechanic').addEventListener('click', () => {
+    
+    handleClick(e) {
+        const target = e.target.closest('button');
+        if (!target) {
+            console.log('🖱️ Click event but no button found. Target:', e.target.tagName, e.target.className);
+            return;
+        }
+        
+        const id = target.id;
+        console.log('🖱️ Button clicked:', id, '| Element:', target);
+        
+        const actions = {
+            // Header
+            'skillBuilderClose': () => this.close(),
+            'btnCancel': () => this.close(),
+            'skillBuilderBack': () => this.handleBack(),
+            'skillBuilderHelp': () => this.showKeyboardShortcuts(),
+            
+            // Component Selection
+            'btnSelectMechanic': () => this.openMechanicBrowser(),
+            'btnClearMechanic': () => this.clearMechanic(),
+            'btnSelectTargeter': () => this.openTargeterBrowser(),
+            'btnClearTargeter': () => this.clearTargeter(),
+            'btnSelectTrigger': () => this.openTriggerBrowser(),
+            'btnClearTrigger': () => this.clearTrigger(),
+            'btnAddCondition': () => this.openConditionEditor(),
+            
+            // Preview
+            'btnCopyPreview': () => this.copyPreview(),
+            'btnReset': () => this.resetCurrentLine(),
+            'btnAddToQueue': () => this.addCurrentLineToQueue(),
+            
+            // Queue
+            'toggleQueue': () => this.toggleQueuePanel(),
+            'clearQueue': () => this.clearQueue(),
+            
+            // Footer
+            'btnAdd': () => this.processQueue(),
+            
+            // Bulk
+            'btnClearBulk': () => this.clearBulk(),
+            'btnValidateBulk': () => this.validateBulk(),
+            'btnImportBulk': () => this.importBulk()
+        };
+        
+        if (actions[id]) {
+            actions[id]();
+        }
+        
+        // Handle dynamic elements
+        if (target.classList.contains('condition-chip-remove')) {
+            this.removeCondition(parseInt(target.dataset.index));
+        }
+        
+        if (target.classList.contains('queue-item-remove')) {
+            this.removeFromQueue(parseInt(target.dataset.index));
+        }
+        
+        if (target.classList.contains('skill-builder-tab')) {
+            this.switchTab(target.dataset.tab);
+        }
+    }
+    
+    handleKeydown(e) {
+        // Only handle if builder is open AND not minimized
+        if (!this.state.isOpen) return;
+        if (this.dom.overlay && this.dom.overlay.classList.contains('minimized')) return;
+        if (this.dom.overlay && this.dom.overlay.style.display === 'none') return;
+        
+        // Close on Escape
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            this.close();
+            return;
+        }
+        
+        // Undo/Redo
+        if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            this.undo();
+            return;
+        }
+        if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z')) {
+            e.preventDefault();
+            this.redo();
+            return;
+        }
+        
+        // Quick Add to Queue (Ctrl+Enter)
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            if (!this.dom.btnAddToQueue.disabled) this.addCurrentLineToQueue();
+            return;
+        }
+        
+        // Tab Navigation (Ctrl+Tab / Ctrl+Shift+Tab)
+        if (e.ctrlKey && e.key === 'Tab') {
+            e.preventDefault();
+            const tabs = ['quick-build', 'bulk-import'];
+            const currentIdx = tabs.indexOf(this.state.activeTab);
+            const nextIdx = e.shiftKey 
+                ? (currentIdx - 1 + tabs.length) % tabs.length
+                : (currentIdx + 1) % tabs.length;
+            this.switchTab(tabs[nextIdx]);
+            return;
+        }
+        
+        // Quick Browser Access
+        if (e.altKey && e.key === 'm') {
+            e.preventDefault();
             this.openMechanicBrowser();
-        });
-        
-        this.overlay.querySelector('#clearMechanic').addEventListener('click', () => {
-            this.clearComponent('mechanic');
-        });
-        
-        // Targeter selection
-        this.overlay.querySelector('#selectTargeter').addEventListener('click', () => {
+            return;
+        }
+        if (e.altKey && e.key === 't') {
+            e.preventDefault();
             this.openTargeterBrowser();
-        });
-        
-        this.overlay.querySelector('#clearTargeter').addEventListener('click', () => {
-            this.clearComponent('targeter');
-        });
-        
-        // Trigger selection
-        this.overlay.querySelector('#selectTrigger').addEventListener('click', () => {
-            if (this.context !== 'skill') {
-                this.openTriggerBrowser();
-            }
-        });
-        
-        this.overlay.querySelector('#clearTrigger').addEventListener('click', () => {
-            this.clearComponent('trigger');
-        });
-        
-        // Condition selection
-        this.overlay.querySelector('#selectCondition').addEventListener('click', () => {
-            this.openConditionBrowser();
-        });
-        
-        this.overlay.querySelector('#clearConditions').addEventListener('click', () => {
-            this.clearComponent('conditions');
-        });
-        
-        // Chance input
-        this.overlay.querySelector('#chanceInput').addEventListener('input', (e) => {
-            this.currentLine.chance = e.target.value || null;
-            this.updateQuickBuildPreview();
-        });
-        
-        // Health input
-        this.overlay.querySelector('#healthInput').addEventListener('input', (e) => {
-            this.currentLine.health = e.target.value || null;
-            this.updateQuickBuildPreview();
-        });
-        
-        // Copy preview
-        this.overlay.querySelector('#copyPreview').addEventListener('click', () => {
-            this.copyPreviewToClipboard();
-        });
-        
-        // Reset
-        this.overlay.querySelector('#resetQuickBuild').addEventListener('click', () => {
-            this.resetQuickBuild();
-        });
-        
-        // Add to queue
-        this.overlay.querySelector('#addToQueue').addEventListener('click', () => {
-            this.addCurrentLineToQueue();
-        });
-    }
-
-    /**
-     * Attach Templates tab listeners
-     */
-    attachTemplatesListeners() {
-        this.overlay.querySelector('#openTemplateBrowser').addEventListener('click', () => {
-            this.openTemplateSelector();
-        });
-    }
-
-    /**
-     * Attach Manual tab listeners
-     */
-    attachManualListeners() {
-        const manualEditor = this.overlay.querySelector('#manualEditor');
-        const lineNumbers = this.overlay.querySelector('#manualLineNumbers');
-        
-        // Update line numbers on input
-        manualEditor.addEventListener('input', () => {
-            this.updateManualLineNumbers();
-            this.validateManualEditor();
-        });
-        
-        // Sync scroll
-        manualEditor.addEventListener('scroll', () => {
-            lineNumbers.scrollTop = manualEditor.scrollTop;
-        });
-        
-        // Ctrl+Enter to add
-        manualEditor.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
-                e.preventDefault();
-                this.addManualLinesToQueue();
-            }
-        });
-        
-        // Clear button
-        this.overlay.querySelector('#clearManualEditor').addEventListener('click', () => {
-            manualEditor.value = '';
-            this.updateManualLineNumbers();
-            this.validateManualEditor();
-        });
-        
-        // Format button
-        this.overlay.querySelector('#formatManualEditor').addEventListener('click', () => {
-            this.formatManualEditor();
-        });
-        
-        // Add to queue button
-        this.overlay.querySelector('#addManualLines').addEventListener('click', () => {
-            this.addManualLinesToQueue();
-        });
-    }
-
-    /**
-     * Attach Bulk Import tab listeners
-     */
-    attachBulkListeners() {
-        const bulkInput = this.overlay.querySelector('#bulkImportInput');
-        
-        // Auto-update stats on input
-        bulkInput.addEventListener('input', () => {
-            this.updateBulkStats();
-        });
-        
-        // Clear button
-        this.overlay.querySelector('#clearBulkImport').addEventListener('click', () => {
-            bulkInput.value = '';
-            this.updateBulkStats();
-            this.overlay.querySelector('#bulkValidation').innerHTML = '';
-            this.overlay.querySelector('#addBulkLines').disabled = true;
-        });
-        
-        // Parse/Validate button
-        this.overlay.querySelector('#parseBulkImport').addEventListener('click', () => {
-            this.parseBulkImport();
-        });
-        
-        // Add to queue button
-        this.overlay.querySelector('#addBulkLines').addEventListener('click', () => {
-            this.addBulkLinesToQueue();
-        });
-    }
-
-    /**
-     * Attach Queue panel listeners
-     */
-    attachQueueListeners() {
-        // Clear queue button
-        this.overlay.querySelector('#clearQueue').addEventListener('click', () => {
-            this.clearQueue();
-        });
-    }
-
-    /**
-     * Open the skill line builder
-     */
-    open({ context = 'mob', onAdd = null, onAddMultiple = null, onBack = null }) {
-        console.log('🔨 Opening Skill Line Builder');
-        this.context = context;
-        this.onAddCallback = onAdd;
-        this.onAddMultipleCallback = onAddMultiple;
-        this.onBackCallback = onBack;
-        
-        // Show/hide back button based on callback presence
-        const backBtn = this.overlay.querySelector('#skillBuilderBack');
-        if (backBtn) {
-            backBtn.style.display = this.onBackCallback ? 'inline-flex' : 'none';
+            return;
+        }
+        if (e.altKey && e.key === 'c') {
+            e.preventDefault();
+            this.openConditionEditor();
+            return;
         }
         
-        // Reset state
-        this.resetQuickBuild();
-        this.clearQueue();
-        this.switchTab('quick-build');
+        // Toggle Queue Panel (Ctrl+Q)
+        if (e.ctrlKey && e.key === 'q') {
+            e.preventDefault();
+            this.toggleQueuePanel();
+            return;
+        }
         
-        // Update trigger availability based on context
-        this.updateTriggerAvailability();
-        
-        // Show modal
-        this.overlay.style.display = 'flex';
+        // Show Keyboard Shortcuts (F1)
+        if (e.key === 'F1') {
+            e.preventDefault();
+            this.showKeyboardShortcuts();
+            return;
+        }
     }
-
+    
     /**
-     * Close the skill line builder
+     * Show keyboard shortcuts help
      */
+    showKeyboardShortcuts() {
+        const shortcuts = [
+            { keys: 'Esc', description: 'Close modal' },
+            { keys: 'Ctrl+Z', description: 'Undo' },
+            { keys: 'Ctrl+Y / Ctrl+Shift+Z', description: 'Redo' },
+            { keys: 'Ctrl+Enter', description: 'Add line to queue' },
+            { keys: 'Ctrl+Tab', description: 'Next tab' },
+            { keys: 'Ctrl+Shift+Tab', description: 'Previous tab' },
+            { keys: 'Alt+M', description: 'Open mechanic browser' },
+            { keys: 'Alt+T', description: 'Open targeter browser' },
+            { keys: 'Alt+C', description: 'Open condition editor' },
+            { keys: 'Ctrl+Q', description: 'Toggle queue panel' },
+            { keys: 'F1', description: 'Show this help' }
+        ];
+        
+        const shortcutsHTML = shortcuts.map(s => `
+            <tr>
+                <td><kbd>${s.keys}</kbd></td>
+                <td>${s.description}</td>
+            </tr>
+        `).join('');
+        
+        const helpModal = document.createElement('div');
+        helpModal.className = 'keyboard-shortcuts-modal';
+        helpModal.innerHTML = `
+            <div class="shortcuts-overlay"></div>
+            <div class="shortcuts-panel">
+                <div class="shortcuts-header">
+                    <h3><i class="fas fa-keyboard"></i> Keyboard Shortcuts</h3>
+                    <button class="btn-close-shortcuts" aria-label="Close shortcuts">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="shortcuts-body">
+                    <table class="shortcuts-table">
+                        <thead>
+                            <tr>
+                                <th>Keys</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${shortcutsHTML}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(helpModal);
+        
+        const closeHelp = () => {
+            helpModal.classList.add('closing');
+            setTimeout(() => helpModal.remove(), 300);
+        };
+        
+        helpModal.querySelector('.btn-close-shortcuts').addEventListener('click', closeHelp);
+        helpModal.querySelector('.shortcuts-overlay').addEventListener('click', closeHelp);
+        
+        setTimeout(() => helpModal.classList.add('show'), 10);
+    }
+    
+    /**
+     * Toggle queue panel collapsed state (slides to the side)
+     */
+    toggleQueuePanel() {
+        if (!this.dom.queuePanel) {
+            console.warn('⚠️ Queue panel not found!');
+            return;
+        }
+        
+        const isCollapsed = this.dom.queuePanel.classList.toggle('collapsed');
+        console.log('🔄 Queue panel toggled. Collapsed:', isCollapsed);
+        
+        // Update toggle button icon
+        if (this.dom.toggleQueueBtn) {
+            const icon = this.dom.toggleQueueBtn.querySelector('i');
+            if (icon) {
+                icon.className = isCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
+                console.log('✅ Toggle icon updated to:', icon.className);
+            }
+        } else {
+            console.warn('⚠️ Toggle button not found!');
+        }
+    }
+    
+    /**
+     * Trap focus within modal for accessibility
+     */
+    trapFocus() {
+        if (!this.dom.modal) return;
+        
+        const focusableElements = this.dom.modal.querySelectorAll(
+            'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        
+        if (focusableElements.length === 0) return;
+        
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        
+        this.dom.modal.addEventListener('keydown', (e) => {
+            if (e.key !== 'Tab') return;
+            
+            if (e.shiftKey) {
+                if (document.activeElement === firstElement) {
+                    e.preventDefault();
+                    lastElement.focus();
+                }
+            } else {
+                if (document.activeElement === lastElement) {
+                    e.preventDefault();
+                    firstElement.focus();
+                }
+            }
+        });
+    }
+    
+    // ========================================
+    // PUBLIC API
+    // ========================================
+    
+    open(options = {}) {
+        console.log('📖 Opening Skill Line Builder', options);
+        
+        // Re-cache DOM elements to ensure fresh references (fixes re-open bug)
+        this.cacheDOMElements();
+        
+        if (!this.dom.overlay) {
+            console.error('❌ Overlay element not found! Cannot open Skill Line Builder.');
+            return;
+        }
+        
+        // Reset state completely when opening (fresh start)
+        this.setState({
+            context: options.context || 'skill',
+            isOpen: true,
+            isMinimized: false,
+            activeBrowser: null,
+            currentLine: {
+                mechanic: null,
+                targeter: '@Self',
+                trigger: null,
+                conditions: [],
+                chance: null,
+                health: null
+            },
+            queue: [],
+            validationErrors: []
+        });
+        
+        console.log('✅ State reset on open - Fresh state:', {
+            context: this.state.context,
+            queueLength: this.state.queue.length,
+            mechanic: this.state.currentLine.mechanic
+        });
+        
+        this.callbacks = {
+            onAdd: options.onAdd || null,
+            onAddMultiple: options.onAddMultiple || null,
+            onBack: options.onBack || null,
+            onClose: options.onClose || null
+        };
+        
+        // Accept browser instances from parent editor
+        if (options.mechanicBrowser) this.browsers.mechanic = options.mechanicBrowser;
+        if (options.targeterBrowser) this.browsers.targeter = options.targeterBrowser;
+        if (options.triggerBrowser) this.browsers.trigger = options.triggerBrowser;
+        // conditionEditor removed - using global conditionBrowserV2
+        if (options.templateSelector) this.templateSelector = options.templateSelector;
+        
+        // Ensure overlay is not minimized
+        this.dom.overlay.classList.remove('minimized');
+        this.dom.overlay.style.display = 'flex';
+        this.dom.overlay.style.opacity = '1';
+        this.dom.overlay.style.pointerEvents = 'auto';
+        
+        this.updateContextUI();
+        this.render();
+        
+        // Setup focus trap
+        this.trapFocus();
+        
+        setTimeout(() => {
+            const firstBtn = this.dom.overlay.querySelector('.btn-primary');
+            if (firstBtn) firstBtn.focus();
+        }, 100);
+    }
+    
     close() {
-        this.overlay.style.display = 'none';
+        console.log('📕 Closing Skill Line Builder');
         
-        // Clean up
-        this.onAddCallback = null;
-        this.onAddMultipleCallback = null;
+        this.setState({ isOpen: false });
+        this.dom.overlay.style.display = 'none';
+        
+        if (this.callbacks.onClose) this.callbacks.onClose();
+        this.cleanup();
     }
-
-    /**
-     * Switch between tabs
-     */
-    switchTab(tabName) {
-        this.currentTab = tabName;
+    
+    minimize() {
+        console.log('📉 Minimizing Skill Line Builder');
+        this.setState({ isMinimized: true });
+        this.dom.overlay.classList.add('minimized');
         
-        // Update tab buttons
-        this.tabButtons.forEach(btn => {
-            if (btn.dataset.tab === tabName) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-        
-        // Update tab contents
-        this.tabContents.forEach(content => {
-            if (content.dataset.tabContent === tabName) {
-                content.classList.add('active');
-            } else {
-                content.classList.remove('active');
-            }
-        });
-        
-        // Update footer info based on tab
-        this.updateFooterInfo();
-    }
-
-    /**
-     * Update footer info text based on current tab
-     */
-    updateFooterInfo() {
-        const infoElement = this.overlay.querySelector('#skillBuilderInfo');
-        const addButton = this.overlay.querySelector('#skillBuilderAdd');
-        const addButtonText = this.overlay.querySelector('#addButtonText');
-        
-        switch (this.currentTab) {
-            case 'quick-build':
-                infoElement.textContent = 'Select components to build your skill line';
-                addButtonText.textContent = this.skillLineQueue.length > 0 
-                    ? `Add ${this.skillLineQueue.length} Skill Line${this.skillLineQueue.length !== 1 ? 's' : ''}`
-                    : 'Add Skill Line';
-                break;
-            case 'templates':
-                infoElement.textContent = 'Browse and select from pre-made templates';
-                addButtonText.textContent = this.skillLineQueue.length > 0 
-                    ? `Add ${this.skillLineQueue.length} Skill Line${this.skillLineQueue.length !== 1 ? 's' : ''}`
-                    : 'Select Template';
-                break;
-            case 'manual':
-                infoElement.textContent = 'Write skill lines manually with validation';
-                addButtonText.textContent = this.skillLineQueue.length > 0 
-                    ? `Add ${this.skillLineQueue.length} Skill Line${this.skillLineQueue.length !== 1 ? 's' : ''}`
-                    : 'Add Skill Line';
-                break;
-            case 'bulk':
-                infoElement.textContent = 'Import multiple skill lines at once';
-                addButtonText.textContent = this.skillLineQueue.length > 0 
-                    ? `Add ${this.skillLineQueue.length} Skill Line${this.skillLineQueue.length !== 1 ? 's' : ''}`
-                    : 'Import Lines';
-                break;
-        }
-        
-        // Enable/disable add button based on queue
-        addButton.disabled = this.skillLineQueue.length === 0;
-    }
-
-    /**
-     * Update trigger availability based on context
-     */
-    updateTriggerAvailability() {
-        const triggerCard = this.overlay.querySelector('[data-component="trigger"]');
-        const triggerBtn = this.overlay.querySelector('#selectTrigger');
-        const triggerStatus = this.overlay.querySelector('#triggerStatus');
-        
-        if (this.context === 'skill') {
-            triggerCard.classList.add('disabled');
-            triggerBtn.disabled = true;
-            triggerStatus.textContent = 'Not Allowed';
-            triggerStatus.style.color = 'var(--danger, #ef4444)';
-        } else {
-            triggerCard.classList.remove('disabled');
-            triggerBtn.disabled = false;
-            triggerStatus.textContent = 'Optional';
-            triggerStatus.style.color = 'var(--text-secondary, #999)';
+        // Add visual feedback that we're waiting
+        if (this.dom.overlay) {
+            this.dom.overlay.style.opacity = '0.3';
+            this.dom.overlay.style.pointerEvents = 'none';
         }
     }
-
+    
+    restore() {
+        console.log('📈 Restoring Skill Line Builder');
+        this.setState({ isMinimized: false, activeBrowser: null });
+        this.dom.overlay.classList.remove('minimized');
+        
+        // Restore full visibility, interaction, and z-index
+        if (this.dom.overlay) {
+            this.dom.overlay.style.opacity = '1';
+            this.dom.overlay.style.pointerEvents = 'auto';
+            this.dom.overlay.style.zIndex = '10000'; // Restore original z-index
+        }
+        
+        // Focus back on builder
+        setTimeout(() => {
+            if (this.dom.overlay && this.dom.overlay.style.display !== 'none') {
+                const firstInput = this.dom.overlay.querySelector('input, button');
+                if (firstInput) firstInput.focus();
+            }
+        }, 100);
+    }
+    
+    setContext(context) {
+        if (context !== 'mob' && context !== 'skill') {
+            console.error('Invalid context:', context);
+            return;
+        }
+        
+        this.setState({ context });
+        this.updateContextUI();
+    }
+    
+    updateContextUI() {
+        const isMob = this.state.context === 'mob';
+        
+        if (this.dom.contextBadge) {
+            this.dom.contextBadge.textContent = isMob ? 'Mob Context' : 'Skill Context';
+            this.dom.contextBadge.className = `skill-builder-context-badge ${isMob ? 'context-mob' : 'context-skill'}`;
+        }
+        
+        if (this.dom.triggerCard) {
+            this.dom.triggerCard.style.display = isMob ? 'block' : 'none';
+        }
+        
+        console.log(`✅ Context: ${this.state.context}`);
+    }
+    
+    destroy() {
+        console.log('💥 Destroying Skill Line Builder');
+        this.cleanup();
+        if (this.dom.overlay) this.dom.overlay.remove();
+        this.dom = {};
+        this.browsers = {};
+        this.callbacks = {};
+    }
+    
+    cleanup() {
+        // Clear timers
+        Object.values(this.timers.debounce).forEach(t => clearTimeout(t));
+        Object.values(this.timers.throttle).forEach(t => clearTimeout(t));
+        this.timers = { debounce: {}, throttle: {} };
+        
+        // Cancel animation frame
+        if (this.raf) {
+            cancelAnimationFrame(this.raf);
+            this.raf = null;
+        }
+        
+        // Clean up virtual scroll listener
+        if (this.virtualScrollListener && this.dom.queueList) {
+            this.dom.queueList.removeEventListener('scroll', this.virtualScrollListener);
+            this.virtualScrollListener = null;
+        }
+        
+        // DO NOT remove main event listeners - they should persist across open/close cycles
+        // Removing them causes buttons to become unresponsive after reopening
+        console.log('🧹 Cleanup complete (event listeners preserved)');
+    }
+    
     // ========================================
-    // QUICK BUILD TAB METHODS
+    // RENDERING
     // ========================================
-
-    /**
-     * Open mechanic browser
-     */
-    openMechanicBrowser() {
-        if (!this.mechanicBrowser) {
-            this.mechanicBrowser = new MechanicBrowser();
-        }
-        
-        this.mechanicBrowser.open({
-            parentZIndex: 1000,
-            onSelect: (mechanic) => {
-                this.currentLine.mechanic = mechanic;
-                this.updateComponentDisplay('mechanic', mechanic);
-                this.updateQuickBuildPreview();
-            }
-        });
+    
+    render() {
+        console.log('🎨 render() called - updating all displays');
+        this.updateComponentsDisplay();
+        this.updatePreview();
+        this.updateQueueDisplay();
+        this.updateFooter();
+        console.log('✅ render() complete');
     }
-
-    /**
-     * Open targeter browser
-     */
-    openTargeterBrowser() {
-        if (!this.targeterBrowser) {
-            this.targeterBrowser = new TargeterBrowser();
-        }
+    
+    updateComponentsDisplay() {
+        const { currentLine } = this.state;
+        const hasMechanic = currentLine.mechanic !== null;
         
-        this.targeterBrowser.open({
-            parentZIndex: 1000,
-            onSelect: (targeter) => {
-                this.currentLine.targeter = targeter;
-                this.updateComponentDisplay('targeter', targeter);
-                this.updateQuickBuildPreview();
-            }
-        });
-    }
-
-    /**
-     * Open trigger browser
-     */
-    openTriggerBrowser() {
-        if (!this.triggerBrowser) {
-            this.triggerBrowser = new TriggerBrowser();
-        }
-        
-        this.triggerBrowser.open({
-            parentZIndex: 1000,
-            onSelect: (trigger) => {
-                this.currentLine.trigger = trigger;
-                this.updateComponentDisplay('trigger', trigger);
-                this.updateQuickBuildPreview();
-            }
-        });
-    }
-
-    /**
-     * Open condition browser (using ConditionEditor component)
-     */
-    openConditionBrowser() {
-        // ConditionEditor is available but needs to be initialized differently
-        // For now, show alert - full integration would require modal version
-        alert('Condition browser integration coming soon. Use manual editor tab for now.');
-        return;
-        
-        // TODO: Implement modal condition browser similar to mechanic/targeter browsers
-    }
-
-    /**
-     * Clear a component
-     */
-    clearComponent(component) {
-        switch (component) {
-            case 'mechanic':
-                this.currentLine.mechanic = null;
-                break;
-            case 'targeter':
-                this.currentLine.targeter = null;
-                break;
-            case 'trigger':
-                this.currentLine.trigger = null;
-                break;
-            case 'conditions':
-                this.currentLine.conditions = [];
-                break;
-        }
-        
-        this.updateComponentDisplay(component, null);
-        this.updateQuickBuildPreview();
-    }
-
-    /**
-     * Update component display
-     */
-    updateComponentDisplay(component, value) {
-        const valueElement = this.overlay.querySelector(`#${component}Value`);
-        const clearButton = this.overlay.querySelector(`#clear${component.charAt(0).toUpperCase() + component.slice(1)}`);
-        
-        if (!value || (Array.isArray(value) && value.length === 0)) {
-            valueElement.innerHTML = '<span class="placeholder">None</span>';
-            if (clearButton) clearButton.style.display = 'none';
+        // Mechanic
+        if (currentLine.mechanic) {
+            this.dom.mechanicStatus.classList.add('filled');
+            this.dom.mechanicCard.classList.add('filled');
+            const btnClear = document.getElementById('btnClearMechanic');
+            if (btnClear) btnClear.style.display = 'block';
         } else {
-            if (component === 'conditions') {
-                // Display multiple conditions
-                valueElement.innerHTML = value.map(c => 
-                    `<div class="condition-chip">${c}</div>`
-                ).join('');
+            this.dom.mechanicStatus.classList.remove('filled');
+            this.dom.mechanicCard.classList.remove('filled');
+            const btnClear = document.getElementById('btnClearMechanic');
+            if (btnClear) btnClear.style.display = 'none';
+        }
+        
+        // Enable/disable components based on mechanic selection
+        const btnTargeter = document.getElementById('btnSelectTargeter');
+        const btnCondition = document.getElementById('btnAddCondition');
+        const btnTrigger = document.getElementById('btnSelectTrigger');
+        
+        if (btnTargeter) {
+            btnTargeter.disabled = !hasMechanic;
+        }
+        if (btnCondition) {
+            btnCondition.disabled = !hasMechanic;
+        }
+        if (this.dom.chanceInput) this.dom.chanceInput.disabled = !hasMechanic;
+        if (this.dom.healthInput) this.dom.healthInput.disabled = !hasMechanic;
+        
+        // Trigger button (mob context only)
+        if (this.state.context === 'mob' && btnTrigger) {
+            btnTrigger.disabled = !hasMechanic;
+        }
+        
+        // Visual feedback: Add/remove disabled class on cards
+        if (this.dom.targeterCard) {
+            this.dom.targeterCard.classList.toggle('component-disabled', !hasMechanic);
+            this.dom.targeterCard.style.opacity = hasMechanic ? '1' : '0.5';
+            this.dom.targeterCard.style.pointerEvents = hasMechanic ? 'auto' : 'none';
+        }
+        if (this.dom.conditionCard) {
+            this.dom.conditionCard.classList.toggle('component-disabled', !hasMechanic);
+            this.dom.conditionCard.style.opacity = hasMechanic ? '1' : '0.5';
+            this.dom.conditionCard.style.pointerEvents = hasMechanic ? 'auto' : 'none';
+        }
+        if (this.state.context === 'mob' && this.dom.triggerCard) {
+            this.dom.triggerCard.classList.toggle('component-disabled', !hasMechanic);
+            this.dom.triggerCard.style.opacity = hasMechanic ? '1' : '0.5';
+            this.dom.triggerCard.style.pointerEvents = hasMechanic ? 'auto' : 'none';
+        }
+        
+        // Targeter
+        if (currentLine.targeter && currentLine.targeter !== '@Self') {
+            this.dom.targeterCard.classList.add('filled');
+            document.getElementById('btnClearTargeter').style.display = 'block';
+        } else {
+            this.dom.targeterCard.classList.remove('filled');
+            document.getElementById('btnClearTargeter').style.display = 'none';
+        }
+        
+        // Trigger
+        if (currentLine.trigger) {
+            this.dom.triggerStatus.classList.add('filled');
+            this.dom.triggerCard.classList.add('filled');
+            document.getElementById('btnClearTrigger').style.display = 'block';
+        } else {
+            this.dom.triggerStatus.classList.remove('filled');
+            this.dom.triggerCard.classList.remove('filled');
+            document.getElementById('btnClearTrigger').style.display = 'none';
+        }
+        
+        // Conditions - separate inline and regular
+        if (currentLine.conditions && currentLine.conditions.length > 0) {
+            console.log('🔍 updateComponentsDisplay - all conditions:', currentLine.conditions);
+            const inlineConditions = currentLine.conditions.filter(c => c.usageMode === 'inline' || !c.usageMode);
+            const regularConditions = currentLine.conditions.filter(c => c.usageMode === 'regular');
+            const targeterConditions = currentLine.conditions.filter(c => c.usageMode === 'targeter');
+            console.log('🔍 Inline conditions:', inlineConditions);
+            console.log('🔍 Regular conditions:', regularConditions);
+            console.log('🔍 Targeter conditions:', targeterConditions);
+            
+            const parts = [];
+            if (inlineConditions.length > 0) parts.push(`${inlineConditions.length} inline`);
+            if (regularConditions.length > 0) parts.push(`${regularConditions.length} regular`);
+            if (targeterConditions.length > 0) parts.push(`${targeterConditions.length} targeter`);
+            
+            this.dom.conditionStatus.classList.add('filled');
+            this.dom.conditionCard.classList.add('filled');
+            
+            this.dom.conditionsList.style.display = 'block';
+            console.log('🔍 conditionsList display:', this.dom.conditionsList.style.display, 'element:', this.dom.conditionsList);
+            let listHTML = '';
+            
+            // Show inline conditions
+            if (inlineConditions.length > 0) {
+                listHTML += inlineConditions.map((c, i) => {
+                    const actualIndex = currentLine.conditions.indexOf(c);
+                    const displayText = c.fullString || c.name || String(c);
+                    const prefix = c.prefix || '?';
+                    const isTrigger = prefix.includes('~');
+                    const badgeColor = isTrigger ? '#9C27B0' : '#2196F3';
+                    const badgeLabel = isTrigger ? 'trigger' : 'caster';
+                    
+                    return `
+                        <div class="condition-chip" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); padding: 6px 12px; border-radius: 6px; margin: 4px 4px 4px 0; border: 1px solid rgba(255,255,255,0.1);">
+                            <span style="background: ${badgeColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; font-family: monospace;">${this.escapeHtml(prefix)}</span>
+                            <span style="font-family: 'Fira Code', monospace; font-size: 12px;">${this.escapeHtml(displayText.replace(prefix, ''))}</span>
+                            <button class="condition-chip-remove" data-index="${actualIndex}" style="background: none; border: none; color: #e74c3c; cursor: pointer; padding: 2px 4px; margin-left: 4px; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
+                                <i class="fas fa-times" style="font-size: 11px;"></i>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // Show regular conditions grouped by section
+            if (regularConditions.length > 0) {
+                const sections = {
+                    'Conditions': regularConditions.filter(c => c.sectionType === 'Conditions'),
+                    'TargetConditions': regularConditions.filter(c => c.sectionType === 'TargetConditions'),
+                    'TriggerConditions': regularConditions.filter(c => c.sectionType === 'TriggerConditions')
+                };
+                
+                for (const [sectionName, conditions] of Object.entries(sections)) {
+                    if (conditions.length > 0) {
+                        listHTML += `<div style="margin-top: 8px; margin-bottom: 4px;"><strong style="font-size: 11px; color: #888;">${sectionName}:</strong></div>`;
+                        listHTML += conditions.map(c => {
+                            const actualIndex = currentLine.conditions.indexOf(c);
+                            return `
+                                <div class="condition-chip" style="background: #e8f5e9;">
+                                    <span style="font-size: 11px;">- ${this.escapeHtml((c.fullString || c.name) + ' ' + c.action)}</span>
+                                    <button class="condition-chip-remove" data-index="${actualIndex}">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+            }
+            
+            // Show targeter conditions
+            if (targeterConditions.length > 0) {
+                listHTML += '<div style="margin-top: 8px; margin-bottom: 4px;"><strong style="font-size: 11px; color: #888;">Targeter:</strong></div>';
+                listHTML += targeterConditions.map(c => {
+                    const actualIndex = currentLine.conditions.indexOf(c);
+                    return `
+                        <div class="condition-chip" style="background: #fff3cd;">
+                            <span style="font-size: 11px;">- ${this.escapeHtml((c.fullString || c.name) + ' ' + c.action)}</span>
+                            <button class="condition-chip-remove" data-index="${actualIndex}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            console.log('🔍 Setting conditionsList HTML (length:', listHTML.length, '):', listHTML.substring(0, 200));
+            this.dom.conditionsList.innerHTML = listHTML;
+            console.log('🔍 conditionsList after setting innerHTML:', this.dom.conditionsList.innerHTML.substring(0, 200));
+        } else {
+            console.log('🔍 No conditions found, hiding conditionsList');
+            this.dom.conditionStatus.classList.remove('filled');
+            this.dom.conditionCard.classList.remove('filled');
+            this.dom.conditionsList.style.display = 'none';
+        }
+    }
+    updatePreview() {
+        // RAF throttling for smooth 60fps performance
+        if (this.raf) cancelAnimationFrame(this.raf);
+        this.raf = requestAnimationFrame(() => {
+            const line = this.generateSkillLine();
+            
+            if (line) {
+                // Show skill line with "- " prefix for visual accuracy (matches YAML output)
+                this.dom.preview.innerHTML = `<code>- ${this.escapeHtml(line)}</code>`;
+                
+                // Context-aware button state validation
+                const hasMechanic = this.state.currentLine.mechanic !== null;
+                const hasTrigger = this.state.currentLine.trigger !== null;
+                const canAddToQueue = this.state.context === 'skill' 
+                    ? hasMechanic 
+                    : (hasMechanic && hasTrigger);
+                
+                this.dom.btnAddToQueue.disabled = !canAddToQueue;
+                this.dom.btnCopyPreview.disabled = false;
+                
+                // Add highlight animation for new content
+                this.dom.preview.parentElement.classList.add('new-content');
+                setTimeout(() => {
+                    this.dom.preview.parentElement.classList.remove('new-content');
+                }, 600);
+                
+                // Auto-scroll to show new content (smooth)
+                const previewContainer = this.dom.preview.closest('.preview-container');
+                if (previewContainer && previewContainer.scrollHeight > previewContainer.clientHeight) {
+                    previewContainer.scrollTo({
+                        top: previewContainer.scrollHeight,
+                        behavior: 'smooth'
+                    });
+                }
             } else {
-                valueElement.innerHTML = `<code>${this.escapeHtml(value)}</code>`;
+                this.dom.preview.innerHTML = `
+                    <span class="preview-placeholder">
+                        <i class="fas fa-hammer"></i>
+                        <p>Your skill line will appear here</p>
+                    </span>
+                `;
+                this.dom.btnAddToQueue.disabled = true;
+                this.dom.btnCopyPreview.disabled = true;
             }
-            if (clearButton) clearButton.style.display = 'block';
+        });
+    }
+    
+    showLoadingState() {
+        if (!this.dom.overlay) return;
+        
+        // Add loading indicator
+        let loadingEl = this.dom.overlay.querySelector('.skill-builder-loading');
+        if (!loadingEl) {
+            loadingEl = document.createElement('div');
+            loadingEl.className = 'skill-builder-loading';
+            loadingEl.innerHTML = `
+                <div class="skill-builder-spinner"></div>
+                <div class="skill-builder-loading-text">Loading browser...</div>
+            `;
+            this.dom.overlay.appendChild(loadingEl);
+        }
+        loadingEl.style.display = 'block';
+        
+        // Auto-hide after browser opens (timeout fallback)
+        setTimeout(() => this.hideLoadingState(), 500);
+    }
+    
+    hideLoadingState() {
+        if (!this.dom.overlay) return;
+        
+        const loadingEl = this.dom.overlay.querySelector('.skill-builder-loading');
+        if (loadingEl) {
+            loadingEl.style.display = 'none';
+            loadingEl.style.opacity = '0';
         }
     }
-
+    
+    updateQueueDisplay() {
+        const count = this.state?.queue?.length || 0;
+        
+        this.dom.queueCount.textContent = count;
+        this.dom.queuePanel.style.display = count > 0 ? 'block' : 'none';
+        
+        // Set max height to prevent overlap (max 5 visible items)
+        if (this.dom.queueList) {
+            this.dom.queueList.style.maxHeight = '300px';
+            this.dom.queueList.style.overflowY = 'auto';
+        }
+        
+        if (count > 0) {
+            // Use virtual scrolling for large queues (20+ items)
+            if (count > 20) {
+                this.renderVirtualQueue();
+            } else {
+                // Standard rendering for smaller queues
+                this.dom.queueList.innerHTML = this.state.queue.map((line, i) => `
+                    <div class="queue-item" data-index="${i}">
+                        <div class="queue-item-number">${i + 1}</div>
+                        <div class="queue-item-content"><code>${this.escapeHtml(line)}</code></div>
+                        <button class="queue-item-remove btn-icon" data-index="${i}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        // Update button text based on queue count
+        this.dom.btnAddText.textContent = count > 1 ? `Add ${count} Lines` : 'Add Skill Line';
+        
+        // Enable/disable based on current line validity (checked in updateFooter)
+        // Don't disable here based on queue count
+    }
+    
     /**
-     * Update Quick Build preview
+     * Virtual scrolling for large queues
      */
-    updateQuickBuildPreview() {
-        const previewElement = this.overlay.querySelector('#quickBuildPreview');
-        const copyButton = this.overlay.querySelector('#copyPreview');
+    renderVirtualQueue() {
+        const ITEM_HEIGHT = 60; // Approximate height of each queue item
+        const BUFFER_SIZE = 10; // Render extra items above/below viewport
+        const CONTAINER_HEIGHT = this.dom.queueList.clientHeight || 400;
         
-        const skillLine = this.buildSkillLineFromComponents();
+        const totalItems = this.state.queue.length;
+        const totalHeight = totalItems * ITEM_HEIGHT;
         
-        if (skillLine) {
-            previewElement.innerHTML = `<code>${this.escapeHtml(skillLine)}</code>`;
-            copyButton.disabled = false;
+        // Calculate visible range
+        const scrollTop = this.dom.queueList.scrollTop || 0;
+        const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE);
+        const visibleItems = Math.ceil(CONTAINER_HEIGHT / ITEM_HEIGHT) + (BUFFER_SIZE * 2);
+        const endIndex = Math.min(totalItems, startIndex + visibleItems);
+        
+        // Create spacer divs to maintain scroll height
+        const topSpacer = startIndex * ITEM_HEIGHT;
+        const bottomSpacer = (totalItems - endIndex) * ITEM_HEIGHT;
+        
+        // Render only visible items
+        const visibleHTML = this.state.queue.slice(startIndex, endIndex).map((line, idx) => {
+            const actualIndex = startIndex + idx;
+            return `
+                <div class="queue-item" data-index="${actualIndex}">
+                    <div class="queue-item-number">${actualIndex + 1}</div>
+                    <div class="queue-item-content"><code>${this.escapeHtml(line)}</code></div>
+                    <button class="queue-item-remove btn-icon" data-index="${actualIndex}">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+        
+        this.dom.queueList.innerHTML = `
+            <div style="height: ${topSpacer}px;"></div>
+            ${visibleHTML}
+            <div style="height: ${bottomSpacer}px;"></div>
+        `;
+        
+        // Setup scroll listener for continuous virtual scrolling
+        if (!this.virtualScrollListener) {
+            this.virtualScrollListener = this.throttle(() => {
+                if (this.state.queue.length > 50) {
+                    this.renderVirtualQueue();
+                }
+            }, 100);
+            
+            this.dom.queueList.addEventListener('scroll', this.virtualScrollListener);
+        }
+    }
+    
+    updateFooter() {
+        const hasMechanic = this.state.currentLine.mechanic !== null;
+        const hasTrigger = this.state.currentLine.trigger !== null;
+        const hasTargeter = this.state.currentLine.targeter !== null;
+        const hasConditions = this.state.currentLine.conditions && this.state.currentLine.conditions.length > 0;
+        
+        console.log('🎯 updateFooter - Full State:', {
+            context: this.state.context,
+            mechanic: this.state.currentLine.mechanic,
+            trigger: this.state.currentLine.trigger,
+            targeter: this.state.currentLine.targeter,
+            conditions: this.state.currentLine.conditions
+        });
+        
+        console.log('🎯 updateFooter - Validation:', {
+            hasMechanic,
+            hasTrigger,
+            hasTargeter,
+            hasConditions
+        });
+        
+        // Validate requirements for buttons
+        // Defense: If context is undefined, default to 'skill' behavior (mechanic only)
+        const context = this.state.context || 'skill';
+        const canAddToQueue = context === 'skill' 
+            ? hasMechanic 
+            : (hasMechanic && hasTrigger);
+        
+        console.log('✅ Button validation result:', { 
+            context,  // Show the context (with fallback)
+            contextRaw: this.state.context,  // Show raw context to detect undefined
+            canAddToQueue,
+            reason: !canAddToQueue ? (
+                context === 'skill' 
+                    ? 'Missing: mechanic' 
+                    : (!hasMechanic ? 'Missing: mechanic' : 'Missing: trigger')
+            ) : 'Valid'
+        });
+        
+        // Debug: Check button elements exist
+        console.log('🔘 Button elements:', {
+            btnAddToQueue: this.dom.btnAddToQueue,
+            btnAdd: this.dom.btnAdd,
+            btnAddToQueueExists: !!this.dom.btnAddToQueue,
+            btnAddExists: !!this.dom.btnAdd
+        });
+        
+        // Update button states with defensive checks
+        if (this.dom.btnAddToQueue) {
+            const oldState = this.dom.btnAddToQueue.disabled;
+            this.dom.btnAddToQueue.disabled = !canAddToQueue;
+            console.log('🔘 btnAddToQueue.disabled:', oldState, '→', this.dom.btnAddToQueue.disabled);
         } else {
-            previewElement.innerHTML = '<span class="preview-placeholder">Build your skill line to see preview...</span>';
-            copyButton.disabled = true;
+            console.warn('⚠️ btnAddToQueue element not found!');
+        }
+        
+        // btnAdd (Add Skill Line) should always be enabled if there's a valid line to add
+        const queueCount = this.state?.queue?.length || 0;
+        const canAddDirectly = canAddToQueue; // Can add current line directly
+        
+        if (this.dom.btnAdd) {
+            const oldState = this.dom.btnAdd.disabled;
+            this.dom.btnAdd.disabled = !(queueCount > 0 || canAddDirectly);
+            console.log('🔘 btnAdd.disabled:', oldState, '→', this.dom.btnAdd.disabled, '(queue:', queueCount, ', canAdd:', canAddDirectly, ')');
+        } else {
+            console.warn('⚠️ btnAdd element not found!');
+        }
+        
+        // Context-aware validation messages
+        if (!hasMechanic) {
+            this.dom.footerInfo.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #FF9800;"></i> Select a mechanic to get started';
+        } else if (this.state.context === 'mob' && !hasTrigger) {
+            this.dom.footerInfo.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #FF9800;"></i> Add a trigger (required for mob context)';
+        } else {
+            this.dom.footerInfo.innerHTML = '<i class="fas fa-check-circle" style="color: #4CAF50;"></i> Looking good! Add to queue or continue building';
+        }
+        
+        if (this.state.lastRenderTime > 0) {
+            this.dom.footerPerf.textContent = `${this.state.lastRenderTime.toFixed(1)}ms`;
         }
     }
-
-    /**
-     * Build skill line string from current components
-     */
-    buildSkillLineFromComponents() {
-        if (!this.currentLine.mechanic) return null;
+    
+    switchTab(tab) {
+        this.setState({ currentTab: tab });
         
-        let line = `- ${this.currentLine.mechanic}`;
+        this.dom.tabButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
         
-        if (this.currentLine.targeter) {
-            line += ` @${this.currentLine.targeter}`;
+        this.dom.tabContents.forEach(content => {
+            content.classList.toggle('active', content.dataset.tabContent === tab);
+        });
+    }
+    
+    // ========================================
+    // SKILL LINE GENERATION
+    // ========================================
+    
+    generateSkillLine() {
+        const { currentLine } = this.state;
+        
+        if (!currentLine.mechanic) return null;
+        
+        // Don't include the "- " prefix - the YAML renderer will add it
+        let line = `${currentLine.mechanic.fullString || currentLine.mechanic.name}`;
+        
+        if (currentLine.targeter && currentLine.targeter !== '@Self') {
+            line += ` ${currentLine.targeter}`;
         }
         
-        if (this.currentLine.trigger) {
-            line += ` ~${this.currentLine.trigger}`;
+        if (currentLine.trigger && this.state.context === 'mob') {
+            line += ` ~${currentLine.trigger}`;
         }
         
-        if (this.currentLine.conditions.length > 0) {
-            line += ' ' + this.currentLine.conditions.map(c => `?${c}`).join(' ');
+        // Inline conditions only (handle both string and object formats)
+        // Format: ?cond1 ?cond2 ?~cond3 (space-separated)
+        if (currentLine.conditions && currentLine.conditions.length > 0) {
+            console.log('🔍 Generating inline condition string from:', currentLine.conditions);
+            const condStr = currentLine.conditions
+                .map(c => {
+                    // Handle both string and object formats
+                    if (typeof c === 'string') {
+                        // Already formatted inline condition
+                        return c;
+                    }
+                    // Object format - fullString already includes prefix
+                    return c.fullString || c.name || String(c);
+                })
+                .join(' '); // SPACE separator for inline conditions!
+            console.log('✅ Generated inline condition string:', condStr);
+            line += ` ${condStr}`;
         }
         
-        if (this.currentLine.chance) {
-            line += ` ${this.currentLine.chance}`;
+        // Health modifier comes before chance
+        if (currentLine.health) {
+            line += ` ${currentLine.health}`;
         }
         
-        if (this.currentLine.health) {
-            line += ` ${this.currentLine.health}`;
+        if (currentLine.chance) {
+            line += ` ${currentLine.chance}`;
         }
         
         return line;
     }
-
+    
     /**
-     * Copy preview to clipboard
+     * Generate regular condition sections for YAML export
+     * Skill Line Builder only uses inline conditions
+     * Regular condition sections are handled by parent editors
      */
-    copyPreviewToClipboard() {
-        const skillLine = this.buildSkillLineFromComponents();
-        if (skillLine) {
-            navigator.clipboard.writeText(skillLine).then(() => {
-                console.log('✅ Copied to clipboard:', skillLine);
-                // Show temporary feedback
-                const btn = this.overlay.querySelector('#copyPreview');
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                }, 1500);
-            });
-        }
+    generateConditionSections() {
+        return null;
     }
-
-    /**
-     * Reset Quick Build
-     */
-    resetQuickBuild() {
-        this.currentLine = {
-            mechanic: null,
-            targeter: null,
-            trigger: null,
-            conditions: [],
-            chance: null,
-            health: null
-        };
-        
-        // Reset all displays
-        this.updateComponentDisplay('mechanic', null);
-        this.updateComponentDisplay('targeter', null);
-        this.updateComponentDisplay('trigger', null);
-        this.updateComponentDisplay('conditions', null);
-        
-        // Reset inputs
-        this.overlay.querySelector('#chanceInput').value = '';
-        this.overlay.querySelector('#healthInput').value = '';
-        
-        this.updateQuickBuildPreview();
-    }
-
-    /**
-     * Add current line to queue
-     */
-    addCurrentLineToQueue() {
-        const skillLine = this.buildSkillLineFromComponents();
-        if (skillLine) {
-            this.addToQueue(skillLine);
-            this.resetQuickBuild();
-        }
-    }
-
+    
     // ========================================
-    // TEMPLATES TAB METHODS
+    // BROWSER INTEGRATION
     // ========================================
-
+    
     /**
-     * Open template selector
+     * Initialize browser instances (check availability)
      */
-    openTemplateSelector() {
-        if (!this.templateSelector) {
-            this.templateSelector = new TemplateSelector();
+    initializeBrowsers() {
+        // Browsers should be passed via open() options
+        // This method just validates they're available
+        if (!this.browsers.mechanic) {
+            console.warn('⚠️ MechanicBrowser not provided to SkillLineBuilder');
+        }
+        if (!this.browsers.targeter) {
+            console.warn('⚠️ TargeterBrowser not provided to SkillLineBuilder');
+        }
+        // ConditionBrowser is now used instead of ConditionEditor
+        // Trigger browser is optional (only for mob context)
+        if (this.state.context === 'mob' && !this.browsers.trigger) {
+            console.warn('⚠️ TriggerBrowser not provided (mob context)');
+        }
+    }
+    
+    /**
+     * Open Mechanic Browser
+     */
+    openMechanicBrowser() {
+        console.log('🔧 Opening Mechanic Browser');
+        
+        // Prevent opening multiple browsers at once
+        if (this.state.activeBrowser) {
+            console.warn('⚠️ Browser already open:', this.state.activeBrowser);
+            return;
         }
         
-        this.templateSelector.open({
-            context: this.context,
-            onSelect: (skillLines) => {
-                // Handle both single line and array of lines
-                const lines = Array.isArray(skillLines) ? skillLines : [skillLines];
+        this.initializeBrowsers();
+        
+        if (!this.browsers.mechanic) {
+            console.error('MechanicBrowser not available');
+            return;
+        }
+        
+        // Minimize builder and track active browser
+        this.minimize();
+        this.setState({ isLoading: true, activeBrowser: 'mechanic' });
+        this.showLoadingState();
+        
+        const builderContext = this.state.context || 'skill';
+        console.log('🔗 Registering mechanic browser callback with context:', builderContext);
+        
+        // Open browser with callback and proper context
+        this.browsers.mechanic.open({
+            context: builderContext, // Pass context in options
+            parentZIndex: 10000,
+            onSelect: (skillLine) => {
+                console.log('✅ Mechanic browser callback invoked:', skillLine);
                 
-                lines.forEach(line => {
-                    this.addToQueue(line);
+                // Hide loading
+                this.hideLoadingState();
+                
+                // Restore builder with full state reset
+                this.setState({ 
+                    isMinimized: false, 
+                    activeBrowser: null,
+                    isLoading: false 
                 });
                 
-                // Switch to show queue
-                this.updateQueueDisplay();
-            }
-        });
-    }
-
-    // ========================================
-    // MANUAL TAB METHODS
-    // ========================================
-
-    /**
-     * Update manual editor line numbers
-     */
-    updateManualLineNumbers() {
-        const editor = this.overlay.querySelector('#manualEditor');
-        const lineNumbers = this.overlay.querySelector('#manualLineNumbers');
-        
-        const lines = editor.value.split('\n').length;
-        lineNumbers.innerHTML = Array.from({length: lines}, (_, i) => i + 1).join('\n');
-    }
-
-    /**
-     * Validate manual editor content
-     */
-    validateManualEditor() {
-        const editor = this.overlay.querySelector('#manualEditor');
-        const validation = this.overlay.querySelector('#manualValidation');
-        
-        const lines = editor.value.split('\n').filter(l => l.trim());
-        
-        if (lines.length === 0) {
-            validation.innerHTML = `
-                <div class="validation-header">
-                    <i class="fas fa-info-circle"></i>
-                    <span>No content to validate</span>
-                </div>
-            `;
-            return;
-        }
-        
-        let validCount = 0;
-        let invalidCount = 0;
-        const issues = [];
-        
-        lines.forEach((line, index) => {
-            const trimmed = line.trim();
-            if (trimmed.startsWith('- ')) {
-                validCount++;
-            } else if (trimmed.length > 0) {
-                invalidCount++;
-                issues.push({line: index + 1, message: 'Line must start with "- "'});
-            }
-        });
-        
-        if (invalidCount === 0) {
-            validation.innerHTML = `
-                <div class="validation-header success">
-                    <i class="fas fa-check-circle"></i>
-                    <span>${validCount} valid line${validCount !== 1 ? 's' : ''}</span>
-                </div>
-            `;
-        } else {
-            validation.innerHTML = `
-                <div class="validation-header error">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span>${invalidCount} issue${invalidCount !== 1 ? 's' : ''} found</span>
-                </div>
-                <div class="validation-issues">
-                    ${issues.map(issue => `
-                        <div class="validation-issue">
-                            <strong>Line ${issue.line}:</strong> ${issue.message}
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-    }
-
-    /**
-     * Format manual editor content
-     */
-    formatManualEditor() {
-        const editor = this.overlay.querySelector('#manualEditor');
-        const lines = editor.value.split('\n');
-        
-        const formatted = lines
-            .map(line => line.trim())
-            .filter(line => line.length > 0)
-            .map(line => {
-                if (!line.startsWith('- ') && !line.startsWith('Skills:')) {
-                    return `- ${line}`;
+                // Restore DOM state
+                if (this.dom.overlay) {
+                    this.dom.overlay.classList.remove('minimized');
+                    this.dom.overlay.style.opacity = '1';
+                    this.dom.overlay.style.pointerEvents = 'auto';
+                    this.dom.overlay.style.zIndex = '10000';
                 }
-                return line;
-            })
-            .join('\n');
-        
-        editor.value = formatted;
-        this.updateManualLineNumbers();
-        this.validateManualEditor();
+                
+                // If cancelled (null), just return
+                if (skillLine === null) {
+                    console.log('ℹ️ Mechanic selection cancelled');
+                    return;
+                }
+                
+                // Parse the skill line to extract components
+                this.parseAndUpdateFromSkillLine(skillLine);
+            }
+        });
     }
-
+    
     /**
-     * Add manual lines to queue
+     * Parse skill line from Mechanic Browser and update state
      */
-    addManualLinesToQueue() {
-        const editor = this.overlay.querySelector('#manualEditor');
-        const lines = editor.value.split('\n')
-            .map(l => l.trim())
-            .filter(l => l.startsWith('- '));
+    parseAndUpdateFromSkillLine(skillLine) {
+        if (!skillLine) return;
         
-        if (lines.length === 0) {
-            console.warn('No valid skill lines to add');
+        console.log('📝 Parsing skill line:', skillLine);
+        
+        // Extract mechanic (everything before @, ~, or ?, with optional "- " prefix)
+        const mechanicMatch = skillLine.match(/^-?\s*([^@~?]+)/);
+        const mechanic = mechanicMatch ? mechanicMatch[1].trim() : null;
+        
+        // Extract targeter (after @, before ~, ?, chance, or health)
+        const targeterMatch = skillLine.match(/@([^\s~?]+)/);
+        const targeter = targeterMatch ? `@${targeterMatch[1]}` : '@Self';
+        
+        // Extract trigger (after ~, before ?)
+        const triggerMatch = skillLine.match(/~([^\s?]+)/);
+        const trigger = triggerMatch ? triggerMatch[1] : null;
+        
+        // Extract conditions (after ?)
+        const conditionsMatch = skillLine.match(/\?([^\s]+)/);
+        const conditionsStr = conditionsMatch ? conditionsMatch[1] : null;
+        const conditions = conditionsStr ? conditionsStr.split(',').map(c => ({
+            name: c,
+            fullString: c
+        })) : [];
+        
+        // Extract chance (standalone decimal between 0-1 at end of line, NOT inside {})
+        const chanceMatch = skillLine.match(/\s+(0?\.\d+|1\.0)\s*$/);
+        const chance = chanceMatch ? chanceMatch[1] : null;
+        
+        // Extract health modifier (< > = patterns NOT inside {})
+        const healthMatch = skillLine.match(/\s+([<>=]+\d+%?)(?!.*})/);
+        const health = healthMatch ? healthMatch[1] : null;
+        
+        // Update state
+        this.setState({
+            currentLine: {
+                mechanic: mechanic ? { name: mechanic, fullString: mechanic } : null,
+                targeter: targeter,
+                trigger: trigger,
+                conditions: conditions,
+                chance: chance,
+                health: health
+            }
+        });
+        
+        console.log('✅ Parsed and updated state');
+        
+        // Force full render to update all components (including button states)
+        this.render();
+    }
+    
+    /**
+     * Clear mechanic
+     */
+    clearMechanic() {
+        this.setState(s => ({
+            currentLine: { ...s.currentLine, mechanic: null }
+        }));
+    }
+    
+    /**
+     * Open Targeter Browser
+     */
+    openTargeterBrowser() {
+        console.log('🎯 Opening Targeter Browser');
+        
+        // Prevent opening multiple browsers at once
+        if (this.state.activeBrowser) {
+            console.warn('⚠️ Browser already open:', this.state.activeBrowser);
             return;
         }
         
-        lines.forEach(line => {
-            this.addToQueue(line);
+        this.initializeBrowsers();
+        
+        if (!this.browsers.targeter) {
+            console.error('TargeterBrowser not available');
+            return;
+        }
+        
+        // Minimize builder and track active browser
+        this.minimize();
+        this.setState({ isLoading: true, activeBrowser: 'targeter' });
+        this.showLoadingState();
+        
+        // Open browser with callback
+        this.browsers.targeter.open({
+            parentZIndex: 10000,
+            onSelect: (result) => {
+                console.log('✅ Targeter browser callback invoked:', result);
+                
+                // Hide loading
+                this.hideLoadingState();
+                
+                // Restore DOM state immediately
+                if (this.dom.overlay) {
+                    this.dom.overlay.classList.remove('minimized');
+                    this.dom.overlay.style.opacity = '1';
+                    this.dom.overlay.style.pointerEvents = 'auto';
+                    this.dom.overlay.style.zIndex = '10000';
+                }
+                
+                // If cancelled (null), just restore state and return
+                if (result === null) {
+                    console.log('ℹ️ Targeter selection cancelled');
+                    this.setState({ 
+                        isMinimized: false, 
+                        activeBrowser: null,
+                        isLoading: false 
+                    });
+                    return;
+                }
+                
+                // Extract targeter string from result object
+                // Priority: targeterString (from attribute config) > string result > extract from object
+                let targeterString = '';
+                if (result.targeterString) {
+                    // Browser configured targeter with attributes
+                    targeterString = result.targeterString;
+                    console.log('✅ Using targeterString from browser:', targeterString);
+                } else if (typeof result === 'string') {
+                    targeterString = result;
+                } else if (result.targeter) {
+                    targeterString = result.targeter.fullString || result.targeter.name || result.targeter;
+                } else {
+                    targeterString = result.fullString || result.name || String(result);
+                }
+                
+                // CRITICAL: Batch ALL state updates together to prevent intermediate renders
+                // MUST spread existing state to preserve context and other properties!
+                this.setState(s => ({
+                    ...s,  // Preserve ALL state including context
+                    isMinimized: false,
+                    activeBrowser: null,
+                    isLoading: false,
+                    currentLine: { ...s.currentLine, targeter: targeterString }
+                }));
+                
+                this.render();
+            }
+        });
+    }
+    
+    /**
+     * Clear targeter
+     */
+    clearTargeter() {
+        this.setState(s => ({
+            currentLine: { ...s.currentLine, targeter: '@Self' }
+        }));
+    }
+    
+    /**
+     * Open Trigger Browser (Context-Aware)
+     */
+    openTriggerBrowser() {
+        // Check context - triggers ONLY in mob context
+        if (this.state.context !== 'mob') {
+            console.warn('⚠️ Triggers only available in mob context');
+            this.showNotification('Triggers are only available for mob files', 'warning');
+            return;
+        }
+        
+        console.log('⚡ Opening Trigger Browser');
+        
+        // Prevent opening multiple browsers at once
+        if (this.state.activeBrowser) {
+            console.warn('⚠️ Browser already open:', this.state.activeBrowser);
+            return;
+        }
+        
+        this.initializeBrowsers();
+        
+        if (!this.browsers.trigger) {
+            console.error('TriggerBrowser not available');
+            return;
+        }
+        
+        // Minimize builder and track active browser
+        this.minimize();
+        this.setState({ isLoading: true, activeBrowser: 'trigger' });
+        this.showLoadingState();
+        
+        // Open browser with callback
+        this.browsers.trigger.open({
+            parentZIndex: 10000,
+            onSelect: (result) => {
+                console.log('✅ Trigger browser callback invoked:', result);
+                console.log('📊 Result type:', typeof result, 'Is null?', result === null);
+                
+                // Hide loading
+                this.hideLoadingState();
+                
+                // If cancelled (null), just return
+                if (result === null || result === undefined) {
+                    console.log('ℹ️ Trigger selection cancelled');
+                    
+                    // Restore builder
+                    this.setState({ 
+                        isMinimized: false, 
+                        activeBrowser: null,
+                        isLoading: false 
+                    });
+                    
+                    // Restore DOM state
+                    if (this.dom.overlay) {
+                        this.dom.overlay.classList.remove('minimized');
+                        this.dom.overlay.style.opacity = '1';
+                        this.dom.overlay.style.pointerEvents = 'auto';
+                        this.dom.overlay.style.zIndex = '10000';
+                    }
+                    return;
+                }
+                
+                // Extract trigger name (without ~)
+                // Result is an object: {trigger: {name: "onDamaged", ...}, parameter: null, autoEnableRequirements: null}
+                console.log('🔍 Full result object:', result);
+                
+                let triggerName;
+                if (typeof result === 'string') {
+                    // Result is already a string
+                    triggerName = result.replace(/^~/, '');
+                } else if (result && result.trigger) {
+                    // Result is an object with trigger property
+                    if (typeof result.trigger === 'string') {
+                        // Trigger is a string
+                        triggerName = result.trigger.replace(/^~/, '');
+                    } else if (result.trigger.name) {
+                        // Trigger is an object with name property
+                        triggerName = result.trigger.name;
+                    } else {
+                        console.error('❌ Invalid trigger format:', result.trigger);
+                        return;
+                    }
+                } else {
+                    console.error('❌ Invalid trigger result:', result);
+                    return;
+                }
+                
+                console.log('🔥 Setting trigger in state:', triggerName);
+                
+                // Update state with trigger
+                this.setState(s => ({
+                    ...s,
+                    isMinimized: false, 
+                    activeBrowser: null,
+                    isLoading: false,
+                    currentLine: { ...s.currentLine, trigger: triggerName }
+                }));
+                
+                console.log('✅ State updated. Trigger:', this.state.currentLine.trigger);
+                
+                // Restore DOM state
+                if (this.dom.overlay) {
+                    this.dom.overlay.classList.remove('minimized');
+                    this.dom.overlay.style.opacity = '1';
+                    this.dom.overlay.style.pointerEvents = 'auto';
+                    this.dom.overlay.style.zIndex = '10000';
+                }
+            }
+        });
+    }
+    
+    /**
+     * Clear trigger
+     */
+    clearTrigger() {
+        this.setState(s => ({
+            currentLine: { ...s.currentLine, trigger: null }
+        }));
+    }
+    
+    /**
+     * Open Condition Browser
+     */
+    openConditionEditor() {
+        console.log('🎯 Opening Condition Browser');
+        
+        // Prevent opening multiple browsers at once
+        if (this.state.activeBrowser) {
+            console.warn('⚠️ Browser already open:', this.state.activeBrowser);
+            return;
+        }
+        
+        // Check if ConditionBrowser class exists
+        if (typeof ConditionBrowser === 'undefined') {
+            console.error('❌ ConditionBrowser class not found!');
+            alert('Condition Browser component failed to load. Please refresh the page.');
+            return;
+        }
+        
+        // Initialize condition browser if needed (synchronous for reliability)
+        try {
+            if (!window.conditionBrowser) {
+                console.log('📦 Creating new ConditionBrowser instance');
+                window.conditionBrowser = new ConditionBrowser();
+            }
+        } catch (error) {
+            console.error('❌ Error creating ConditionBrowser:', error);
+            alert('Failed to initialize Condition Browser: ' + error.message);
+            return;
+        }
+        
+        // Minimize builder and track active browser (batch updates)
+        this.minimize();
+        this.setState({ activeBrowser: 'condition' });
+        
+        console.log('🔗 Registering condition browser callback');
+        
+        // Open condition browser with callback (add small delay to ensure minimize completes)
+        setTimeout(() => {
+            window.conditionBrowser.open({
+            usageMode: 'inline',  // KEY: Use inline mode for skill line builder
+            conditionType: 'caster',  // Default to caster conditions
+            parentZIndex: 10000,
+            onSelect: (result) => {
+                console.log('✅ Condition browser callback invoked:', result);
+                
+                // Restore DOM state immediately
+                if (this.dom.overlay) {
+                    this.dom.overlay.classList.remove('minimized');
+                    this.dom.overlay.style.opacity = '1';
+                    this.dom.overlay.style.pointerEvents = 'auto';
+                    this.dom.overlay.style.zIndex = '10000';
+                }
+                
+                // If cancelled (null), just restore state and return
+                if (result === null) {
+                    console.log('ℹ️ Condition selection cancelled');
+                    this.setState(s => ({ 
+                        ...s,  // Preserve ALL state including context
+                        isMinimized: false, 
+                        activeBrowser: null 
+                    }));
+                    return;
+                }
+                
+                if (result && result.conditionString) {
+                    console.log('✅✅ Condition browser returned valid result:', result);
+                    
+                    // Result already in full inline format: ?conditionName{attrs} or ?!condition or ?~condition
+                    const conditionObj = {
+                        name: result.conditionString,  // Full string with prefix
+                        fullString: result.conditionString,
+                        prefix: result.prefix || '?',
+                        conditionType: result.conditionType || 'caster',
+                        usageMode: 'inline'
+                    };
+                    
+                    console.log('📝 Adding inline condition:', conditionObj);
+                    console.log('📊 Current conditions before:', this.state.currentLine.conditions);
+                    
+                    // CRITICAL: Batch ALL state updates together to prevent intermediate renders
+                    // MUST spread existing state to preserve context and other properties!
+                    this.setState(s => {
+                        const newConditions = [...(s.currentLine.conditions || []), conditionObj];
+                        console.log('📊 New conditions array:', newConditions);
+                        return {
+                            ...s,  // Preserve ALL state including context
+                            isMinimized: false,
+                            activeBrowser: null,
+                            currentLine: { 
+                                ...s.currentLine, 
+                                conditions: newConditions
+                            }
+                        };
+                    });
+                    
+                    console.log('📊 Current conditions after setState:', this.state.currentLine.conditions);
+                    
+                    // Force immediate render to show condition in preview
+                    this.render();
+                    console.log('🎨 Render called after adding condition');
+                    
+                    console.log('✅ Inline condition added and rendered');
+                } else {
+                    console.warn('⚠️ No conditionString in result:', result);
+                }
+            }
+        });
+        }, 50); // Small delay to ensure UI transitions smoothly
+    }
+    
+    /**
+     * Remove condition by index
+     */
+    removeCondition(index) {
+        this.setState(s => ({
+            currentLine: {
+                ...s.currentLine,
+                conditions: s.currentLine.conditions.filter((_, i) => i !== index)
+            }
+        }));
+    }
+    
+    // ========================================
+    // INLINE CONDITIONS METHODS
+    // ========================================
+    
+    /**
+     * Toggle advanced inline conditions section
+     */
+    toggleAdvancedSection() {
+        const section = document.getElementById('inlineConditionsSection');
+        const body = section.querySelector('.advanced-body');
+        const toggleIcon = section.querySelector('.toggle-icon');
+        
+        if (section.classList.contains('collapsed')) {
+            section.classList.remove('collapsed');
+            body.style.display = 'block';
+            toggleIcon.style.transform = 'rotate(180deg)';
+        } else {
+            section.classList.add('collapsed');
+            body.style.display = 'none';
+            toggleIcon.style.transform = 'rotate(0deg)';
+        }
+    }
+    
+    /**
+     * Open inline condition builder
+     */
+    openInlineConditionBuilder() {
+        console.log('🔧 Opening Inline Condition Builder');
+        
+        // Prevent opening multiple browsers at once
+        if (this.state.activeBrowser) {
+            console.warn('⚠️ Browser already open:', this.state.activeBrowser);
+            return;
+        }
+        
+        // Initialize inline condition builder if not exists
+        if (!this.browsers.inlineCondition) {
+            this.browsers.inlineCondition = new InlineConditionBuilder();
+        }
+        
+        // Minimize builder and track active browser
+        this.minimize();
+        this.setState({ isLoading: true, activeBrowser: 'inlineCondition' });
+        this.showLoadingState();
+        
+        const context = {
+            hasTrigger: !!this.state.currentLine.trigger,
+            targeter: this.state.currentLine.targeter || '@Self'
+        };
+        
+        // Open builder with callback
+        this.browsers.inlineCondition.open({
+            context: context,
+            parentZIndex: 10000,
+            onSelect: (result) => {
+                console.log('✅ Inline condition builder callback invoked:', result);
+                
+                // Hide loading
+                this.hideLoadingState();
+                
+                // Restore builder with full state reset
+                this.setState({ 
+                    isMinimized: false, 
+                    activeBrowser: null,
+                    isLoading: false 
+                });
+                
+                // Restore DOM state
+                if (this.dom.overlay) {
+                    this.dom.overlay.classList.remove('minimized');
+                    this.dom.overlay.style.opacity = '1';
+                    this.dom.overlay.style.pointerEvents = 'auto';
+                    this.dom.overlay.style.zIndex = '10000';
+                }
+                
+                // If cancelled (null), just return
+                if (result === null) {
+                    console.log('ℹ️ Inline condition selection cancelled');
+                    return;
+                }
+                
+                // Add the inline condition
+                if (result && result.condition) {
+                    this.addInlineCondition(result.condition, result.conditionString);
+                }
+            }
+        });
+    }
+    
+    /**
+     * Add inline condition to current line
+     */
+    addInlineCondition(condition, conditionString) {
+        this.setState(s => ({
+            currentLine: {
+                ...s.currentLine,
+                inlineConditions: [...s.currentLine.inlineConditions, { condition, conditionString }]
+            }
+        }));
+        
+        this.updateInlineConditionsDisplay();
+        this.updatePreview();
+    }
+    
+    /**
+     * Remove inline condition by index
+     */
+    removeInlineCondition(index) {
+        this.setState(s => ({
+            currentLine: {
+                ...s.currentLine,
+                inlineConditions: s.currentLine.inlineConditions.filter((_, i) => i !== index)
+            }
+        }));
+        
+        this.updateInlineConditionsDisplay();
+        this.updatePreview();
+    }
+    
+    /**
+     * Update inline conditions display
+     */
+    updateInlineConditionsDisplay() {
+        const listContainer = document.getElementById('inlineConditionsList');
+        const { inlineConditions } = this.state.currentLine;
+        
+        if (inlineConditions && inlineConditions.length > 0) {
+            listContainer.style.display = 'block';
+            
+            let listHTML = inlineConditions.map((ic, index) => {
+                const { condition, conditionString } = ic;
+                const typeLabel = condition.type === 'trigger' ? '?~' : condition.type === 'target' ? 'Target' : '?';
+                const bgColor = condition.type === 'trigger' ? '#fff3cd' : condition.type === 'target' ? '#e3f2fd' : '#e8f5e9';
+                
+                return `
+                    <div class="condition-chip" style="background: ${bgColor};">
+                        <span style="font-size: 11px;">
+                            <strong>${typeLabel}</strong> ${this.escapeHtml(conditionString)}
+                        </span>
+                        <button class="inline-condition-chip-remove" data-index="${index}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+            
+            listContainer.innerHTML = listHTML;
+        } else {
+            listContainer.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Show notification (enhanced with icons)
+     */
+    showNotification(message, type = 'info') {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        
+        const icons = {
+            success: '<i class="fas fa-check-circle"></i>',
+            error: '<i class="fas fa-times-circle"></i>',
+            warning: '<i class="fas fa-exclamation-triangle"></i>',
+            info: '<i class="fas fa-info-circle"></i>'
+        };
+        
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            warning: '#f59e0b',
+            info: '#3b82f6'
+        };
+        
+        // Create notification
+        const notification = document.createElement('div');
+        notification.className = `skill-builder-notification ${type}`;
+        notification.innerHTML = `${icons[type] || icons.info} ${message}`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            background: ${colors[type] || colors.info};
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 10001;
+            animation: slideInRight 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'fadeOut 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+    
+    /**
+     * Show loading overlay
+     */
+    showLoading(message = 'Loading...') {
+        if (!this.dom.loadingOverlay) {
+            const overlay = document.createElement('div');
+            overlay.className = 'skill-builder-loading-overlay';
+            overlay.innerHTML = `
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <div class="loading-message">${message}</div>
+                </div>
+            `;
+            this.dom.modal.appendChild(overlay);
+            this.dom.loadingOverlay = overlay;
+        } else {
+            this.dom.loadingOverlay.querySelector('.loading-message').textContent = message;
+            this.dom.loadingOverlay.classList.add('show');
+        }
+    }
+    
+    /**
+     * Hide loading overlay
+     */
+    hideLoading() {
+        if (this.dom.loadingOverlay) {
+            this.dom.loadingOverlay.classList.remove('show');
+        }
+    }
+    
+    /**
+     * Set button loading state
+     */
+    setButtonLoading(buttonId, loading = true) {
+        const button = document.getElementById(buttonId);
+        if (!button) return;
+        
+        if (loading) {
+            button.disabled = true;
+            button.dataset.originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+        } else {
+            button.disabled = false;
+            if (button.dataset.originalText) {
+                button.innerHTML = button.dataset.originalText;
+                delete button.dataset.originalText;
+            }
+        }
+    }
+    
+    updateChance(value) {
+        this.setState(s => ({
+            currentLine: { ...s.currentLine, chance: value || null }
+        }));
+    }
+    
+    updateHealth(value) {
+        this.setState(s => ({
+            currentLine: { ...s.currentLine, health: value || null }
+        }));
+    }
+    
+    copyPreview() {
+        const line = this.generateSkillLine();
+        if (line && navigator.clipboard) {
+            navigator.clipboard.writeText(line);
+            console.log('✅ Copied to clipboard');
+            
+            // Visual feedback
+            const previewContainer = document.querySelector('.preview-container');
+            const copyBtn = document.getElementById('btnCopyPreview');
+            
+            if (previewContainer) {
+                previewContainer.classList.add('copy-success');
+                setTimeout(() => previewContainer.classList.remove('copy-success'), 500);
+            }
+            
+            if (copyBtn) {
+                const icon = copyBtn.querySelector('i');
+                const originalClass = icon.className;
+                icon.className = 'fas fa-check';
+                setTimeout(() => icon.className = originalClass, 1000);
+            }
+            
+            this.showNotification('Copied to clipboard!', 'success');
+        }
+    }
+    
+    resetCurrentLine() {
+        console.log('🔄 Resetting current line');
+        this.setState({
+            currentLine: {
+                mechanic: null,
+                targeter: '@Self',
+                trigger: null,
+                conditions: [],
+                chance: null,
+                health: null
+            }
         });
         
-        // Clear editor
-        editor.value = '';
-        this.updateManualLineNumbers();
-        this.validateManualEditor();
-    }
-
-    // ========================================
-    // BULK IMPORT TAB METHODS
-    // ========================================
-
-    /**
-     * Update bulk import stats
-     */
-    updateBulkStats() {
-        const input = this.overlay.querySelector('#bulkImportInput');
-        const lines = input.value.split('\n').filter(l => l.trim());
+        // Force immediate re-lock of components (don't wait for RAF)
+        const btnTargeter = document.getElementById('btnSelectTargeter');
+        const btnCondition = document.getElementById('btnAddCondition');
+        const btnTrigger = document.getElementById('btnSelectTrigger');
         
-        this.overlay.querySelector('#bulkLineCount').textContent = lines.length;
-        this.overlay.querySelector('#bulkValidCount').textContent = '0';
-        this.overlay.querySelector('#bulkInvalidCount').textContent = '0';
-    }
-
-    /**
-     * Parse and validate bulk import
-     */
-    parseBulkImport() {
-        const input = this.overlay.querySelector('#bulkImportInput');
-        const validation = this.overlay.querySelector('#bulkValidation');
-        const addButton = this.overlay.querySelector('#addBulkLines');
+        if (btnTargeter) btnTargeter.disabled = true;
+        if (btnCondition) btnCondition.disabled = true;
+        if (btnTrigger) btnTrigger.disabled = true;
+        if (this.dom.chanceInput) this.dom.chanceInput.disabled = true;
+        if (this.dom.healthInput) this.dom.healthInput.disabled = true;
         
-        const text = input.value;
-        const lines = text.split('\n');
+        // Force immediate visual feedback on cards
+        if (this.dom.targeterCard) {
+            this.dom.targeterCard.classList.add('component-disabled');
+            this.dom.targeterCard.style.opacity = '0.5';
+            this.dom.targeterCard.style.pointerEvents = 'none';
+        }
+        if (this.dom.conditionCard) {
+            this.dom.conditionCard.classList.add('component-disabled');
+            this.dom.conditionCard.style.opacity = '0.5';
+            this.dom.conditionCard.style.pointerEvents = 'none';
+        }
+        if (this.dom.triggerCard) {
+            this.dom.triggerCard.classList.add('component-disabled');
+            this.dom.triggerCard.style.opacity = '0.5';
+            this.dom.triggerCard.style.pointerEvents = 'none';
+        }
+        
+        if (this.dom.chanceInput) this.dom.chanceInput.value = '';
+        if (this.dom.healthInput) this.dom.healthInput.value = '';
+        
+        // Clear inline conditions display
+        const listContainer = document.getElementById('inlineConditionsList');
+        if (listContainer) {
+            listContainer.style.display = 'none';
+            listContainer.innerHTML = '';
+        }
+    }
+    
+    addCurrentLineToQueue() {
+        const line = this.generateSkillLine();
+        if (line) {
+            console.log('➕ Adding to queue and resetting:', line);
+            // Add to queue and reset currentLine in one setState call
+            // CRITICAL: Must preserve context and other state properties!
+            this.setState(s => ({
+                ...s,  // Preserve ALL state including context
+                queue: [...(s.queue || []), line],
+                currentLine: {
+                    mechanic: null,
+                    targeter: '@Self',
+                    trigger: null,
+                    conditions: [],
+                    chance: null,
+                    health: null
+                }
+            }));
+            
+            // Force immediate re-lock of components (don't wait for RAF)
+            const btnTargeter = document.getElementById('btnSelectTargeter');
+            const btnCondition = document.getElementById('btnAddCondition');
+            const btnTrigger = document.getElementById('btnSelectTrigger');
+            
+            if (btnTargeter) btnTargeter.disabled = true;
+            if (btnCondition) btnCondition.disabled = true;
+            if (btnTrigger) btnTrigger.disabled = true;
+            if (this.dom.chanceInput) this.dom.chanceInput.disabled = true;
+            if (this.dom.healthInput) this.dom.healthInput.disabled = true;
+            
+            // Force immediate visual feedback on cards
+            if (this.dom.targeterCard) {
+                this.dom.targeterCard.classList.add('component-disabled');
+                this.dom.targeterCard.style.opacity = '0.5';
+                this.dom.targeterCard.style.pointerEvents = 'none';
+            }
+            if (this.dom.conditionCard) {
+                this.dom.conditionCard.classList.add('component-disabled');
+                this.dom.conditionCard.style.opacity = '0.5';
+                this.dom.conditionCard.style.pointerEvents = 'none';
+            }
+            if (this.dom.triggerCard) {
+                this.dom.triggerCard.classList.add('component-disabled');
+                this.dom.triggerCard.style.opacity = '0.5';
+                this.dom.triggerCard.style.pointerEvents = 'none';
+            }
+            
+            // Clear input fields
+            if (this.dom.chanceInput) this.dom.chanceInput.value = '';
+            if (this.dom.healthInput) this.dom.healthInput.value = '';
+        }
+    }
+    
+    removeFromQueue(index) {
+        this.setState(s => ({
+            queue: s.queue.filter((_, i) => i !== index)
+        }));
+    }
+    
+    clearQueue() {
+        this.setState({ queue: [] });
+    }
+    
+    processQueue() {
+        const { queue } = this.state;
+        
+        // If queue is empty, try to add the current line directly
+        if (queue.length === 0) {
+            const currentLine = this.generateSkillLine();
+            if (currentLine) {
+                console.log('🚀 Processing current line directly (no queue):', currentLine);
+                
+                // Add current line using callback
+                if (this.callbacks.onAddMultiple) {
+                    this.callbacks.onAddMultiple([currentLine]);
+                } else if (this.callbacks.onAdd) {
+                    this.callbacks.onAdd(currentLine);
+                }
+                
+                this.close();
+                return;
+            }
+            
+            // No queue and no valid current line
+            console.warn('⚠️ Cannot process: queue is empty and no valid current line');
+            return;
+        }
+        
+        console.log('🚀 Processing queue with', queue.length, 'items');
+        
+        // Always use onAddMultiple for consistency to avoid double-wrapping
+        if (this.callbacks.onAddMultiple) {
+            this.callbacks.onAddMultiple(queue);
+        } else if (this.callbacks.onAdd) {
+            // Fallback: call onAdd for each line individually
+            queue.forEach(line => this.callbacks.onAdd(line));
+        }
+        
+        // Clear the queue after processing
+        this.setState({ queue: [] });
+        console.log('✅ Queue cleared after processing');
+        
+        this.close();
+    }
+    
+    handleBack() {
+        if (this.callbacks.onBack) this.callbacks.onBack();
+        this.close();
+    }
+    
+    // ========================================
+    // BULK IMPORT
+    // ========================================
+    
+    /**
+     * Clear bulk input
+     */
+    clearBulk() {
+        if (this.dom.bulkInput) {
+            this.dom.bulkInput.value = '';
+            this.updateBulkStats();
+            
+            // Clear validation display
+            if (this.dom.bulkValidation) {
+                this.dom.bulkValidation.innerHTML = '';
+            }
+        }
+    }
+    
+    /**
+     * Validate bulk input
+     */
+    validateBulk() {
+        if (!this.dom.bulkInput) return;
+        
+        console.log('🔍 Validating bulk input');
+        
+        const input = this.dom.bulkInput.value;
+        const lines = input.split('\n');
         
         const validLines = [];
         const invalidLines = [];
@@ -1183,204 +2544,138 @@ class SkillLineBuilder {
             const trimmed = line.trim();
             
             // Skip empty lines and YAML headers
-            if (!trimmed || trimmed === 'Skills:' || trimmed.endsWith(':')) {
+            if (!trimmed || trimmed.startsWith('#') || trimmed.match(/^[A-Za-z]+:/)) {
                 return;
             }
             
-            // Extract skill line (remove YAML list markers)
-            let skillLine = trimmed;
-            if (trimmed.startsWith('- ')) {
-                skillLine = trimmed;
-            } else if (trimmed.match(/^\s*-\s+/)) {
-                skillLine = '- ' + trimmed.replace(/^\s*-\s+/, '');
-            } else {
-                invalidLines.push({line: index + 1, text: trimmed, reason: 'Invalid format'});
-                return;
+            // Check if line starts with dash
+            if (trimmed.startsWith('-')) {
+                // Basic validation - check for mechanic
+                const mechanicMatch = trimmed.match(/^-\s*\w+/);
+                if (mechanicMatch) {
+                    validLines.push({ line: trimmed, lineNumber: index + 1 });
+                } else {
+                    invalidLines.push({ 
+                        line: trimmed, 
+                        lineNumber: index + 1,
+                        error: 'Invalid mechanic format'
+                    });
+                }
+            } else if (trimmed.length > 0) {
+                invalidLines.push({ 
+                    line: trimmed, 
+                    lineNumber: index + 1,
+                    error: 'Line must start with "-"'
+                });
             }
-            
-            validLines.push(skillLine);
         });
         
         // Update stats
-        this.overlay.querySelector('#bulkValidCount').textContent = validLines.length;
-        this.overlay.querySelector('#bulkInvalidCount').textContent = invalidLines.length;
+        this.dom.bulkTotal.textContent = validLines.length + invalidLines.length;
+        this.dom.bulkValid.textContent = validLines.length;
+        this.dom.bulkInvalid.textContent = invalidLines.length;
         
         // Show validation results
-        if (validLines.length === 0 && invalidLines.length === 0) {
-            validation.innerHTML = `
-                <div class="validation-empty">
-                    <i class="fas fa-info-circle"></i>
-                    <p>No content to validate</p>
-                </div>
-            `;
-            addButton.disabled = true;
-        } else if (invalidLines.length === 0) {
-            validation.innerHTML = `
-                <div class="validation-success">
-                    <i class="fas fa-check-circle"></i>
-                    <p>All ${validLines.length} line${validLines.length !== 1 ? 's are' : ' is'} valid and ready to import!</p>
-                </div>
-            `;
-            addButton.disabled = false;
-        } else {
-            validation.innerHTML = `
-                <div class="validation-mixed">
-                    <div class="validation-summary">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <p>${validLines.length} valid, ${invalidLines.length} invalid</p>
-                    </div>
-                    <div class="validation-issues">
-                        ${invalidLines.map(issue => `
-                            <div class="validation-issue">
-                                <strong>Line ${issue.line}:</strong> ${issue.reason}
-                                <code>${this.escapeHtml(issue.text)}</code>
+        if (this.dom.bulkValidation) {
+            if (invalidLines.length > 0) {
+                this.dom.bulkValidation.innerHTML = `
+                    <div class="bulk-validation-errors">
+                        <h4><i class="fas fa-exclamation-triangle"></i> Validation Errors</h4>
+                        ${invalidLines.map(item => `
+                            <div class="bulk-error-item">
+                                <span class="line-number">Line ${item.lineNumber}:</span>
+                                <span class="error-message">${item.error}</span>
+                                <code>${this.escapeHtml(item.line)}</code>
                             </div>
                         `).join('')}
                     </div>
-                </div>
-            `;
-            addButton.disabled = validLines.length === 0;
+                `;
+            } else if (validLines.length > 0) {
+                this.dom.bulkValidation.innerHTML = `
+                    <div class="bulk-validation-success">
+                        <i class="fas fa-check-circle"></i>
+                        All ${validLines.length} line(s) are valid!
+                    </div>
+                `;
+            } else {
+                this.dom.bulkValidation.innerHTML = '';
+            }
         }
         
-        // Store valid lines for adding
-        this.bulkValidLines = validLines;
+        // Enable/disable import button
+        const importBtn = document.getElementById('btnImportBulk');
+        if (importBtn) {
+            importBtn.disabled = validLines.length === 0;
+        }
+        
+        // Store valid lines for import
+        this.validBulkLines = validLines.map(item => item.line);
+        
+        console.log(`✅ Validation complete: ${validLines.length} valid, ${invalidLines.length} invalid`);
     }
-
+    
     /**
-     * Add bulk lines to queue
+     * Import bulk lines
      */
-    addBulkLinesToQueue() {
-        if (!this.bulkValidLines || this.bulkValidLines.length === 0) {
+    importBulk() {
+        if (!this.validBulkLines || this.validBulkLines.length === 0) {
+            console.warn('No valid lines to import');
             return;
         }
         
-        this.bulkValidLines.forEach(line => {
-            this.addToQueue(line);
+        console.log(`📥 Importing ${this.validBulkLines.length} lines`);
+        
+        // Add all valid lines to queue
+        this.setState(s => ({
+            queue: [...s.queue, ...this.validBulkLines]
+        }));
+        
+        // Clear bulk input
+        this.clearBulk();
+        
+        // Switch to quick build tab to show queue
+        this.switchTab('quick-build');
+        
+        // Show success notification
+        this.showNotification(`Imported ${this.validBulkLines.length} skill line(s)`, 'success');
+    }
+    
+    /**
+     * Update bulk stats (called on input)
+     */
+    updateBulkStats() {
+        if (!this.dom.bulkInput) return;
+        
+        const lines = this.dom.bulkInput.value.split('\n').filter(l => {
+            const trimmed = l.trim();
+            return trimmed && trimmed.startsWith('-');
         });
         
-        // Clear input
-        this.overlay.querySelector('#bulkImportInput').value = '';
-        this.overlay.querySelector('#bulkValidation').innerHTML = '';
-        this.updateBulkStats();
-        this.bulkValidLines = [];
-    }
-
-    // ========================================
-    // QUEUE MANAGEMENT METHODS
-    // ========================================
-
-    /**
-     * Add a skill line to the queue
-     */
-    addToQueue(skillLine) {
-        this.skillLineQueue.push(skillLine);
-        this.updateQueueDisplay();
-    }
-
-    /**
-     * Remove a skill line from the queue
-     */
-    removeFromQueue(index) {
-        this.skillLineQueue.splice(index, 1);
-        this.updateQueueDisplay();
-    }
-
-    /**
-     * Clear the entire queue
-     */
-    clearQueue() {
-        this.skillLineQueue = [];
-        this.updateQueueDisplay();
-    }
-
-    /**
-     * Update queue display
-     */
-    updateQueueDisplay() {
-        const queuePanel = this.overlay.querySelector('#skillLineQueue');
-        const queueList = this.overlay.querySelector('#queueList');
-        const queueCount = this.overlay.querySelector('#queueCount');
+        this.dom.bulkTotal.textContent = lines.length;
+        this.dom.bulkValid.textContent = '?';
+        this.dom.bulkInvalid.textContent = '?';
         
-        // Update count
-        queueCount.textContent = this.skillLineQueue.length;
+        // Reset valid lines cache
+        this.validBulkLines = [];
         
-        // Show/hide panel
-        if (this.skillLineQueue.length === 0) {
-            queuePanel.style.display = 'none';
-        } else {
-            queuePanel.style.display = 'block';
-            
-            // Render queue items
-            queueList.innerHTML = this.skillLineQueue.map((line, index) => `
-                <div class="queue-item" data-index="${index}">
-                    <div class="queue-item-number">${index + 1}</div>
-                    <div class="queue-item-content">
-                        <code>${this.escapeHtml(line)}</code>
-                    </div>
-                    <button class="queue-item-remove" data-index="${index}" title="Remove">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `).join('');
-            
-            // Attach remove handlers
-            queueList.querySelectorAll('.queue-item-remove').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const index = parseInt(e.currentTarget.dataset.index);
-                    this.removeFromQueue(index);
-                });
-            });
+        // Disable import button until validated
+        const importBtn = document.getElementById('btnImportBulk');
+        if (importBtn) {
+            importBtn.disabled = true;
         }
-        
-        // Update footer
-        this.updateFooterInfo();
     }
-
-    /**
-     * Process the queue (add all lines)
-     */
-    processQueue() {
-        if (this.skillLineQueue.length === 0) return;
-        
-        console.log('✅ Processing queue:', this.skillLineQueue.length, 'line(s)');
-        
-        if (this.skillLineQueue.length === 1) {
-            // Single line - use onAdd callback
-            if (this.onAddCallback) {
-                this.onAddCallback(this.skillLineQueue[0]);
-            }
-        } else {
-            // Multiple lines - use onAddMultiple callback
-            if (this.onAddMultipleCallback) {
-                this.onAddMultipleCallback(this.skillLineQueue);
-            } else if (this.onAddCallback) {
-                // Fallback: add one by one
-                this.skillLineQueue.forEach(line => {
-                    this.onAddCallback(line);
-                });
-            }
-        }
-        
-        this.close();
-    }
-
-    // ========================================
-    // UTILITY METHODS
-    // ========================================
-
-    /**
-     * Escape HTML for safe display
-     */
+    
     escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = String(text);
         return div.innerHTML;
     }
 }
 
-// Export for use in other modules
+// Export
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = SkillLineBuilder;
 }
 
-console.log('✅ SkillLineBuilder component loaded (Modern Unified Design)');
+console.log('✅ SkillLineBuilder v2.0 loaded');
