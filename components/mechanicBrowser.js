@@ -12,10 +12,6 @@
  */
 
 class MechanicBrowser {
-        static hasEffectPrefix(mechanic) {
-            // Helper to check if mechanic has effect: alias
-            return mechanic.aliases && mechanic.aliases.some(alias => alias.startsWith('effect:') || alias.startsWith('e:'));
-        }
     constructor(targeterBrowser, triggerBrowser, conditionEditor) {
         console.log('🏗️ Creating MechanicBrowser instance (Enhanced Version)');
         this.targeterBrowser = targeterBrowser;
@@ -989,6 +985,13 @@ class MechanicBrowser {
                 }
             }, 100);
         }
+    }
+    
+    /**
+     * Static helper to check if mechanic has effect: alias
+     */
+    static hasEffectPrefix(mechanic) {
+        return mechanic && mechanic.aliases && mechanic.aliases.some(alias => alias.startsWith('effect:') || alias.startsWith('e:'));
     }
 }
 

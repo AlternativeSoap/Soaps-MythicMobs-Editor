@@ -1151,19 +1151,22 @@ class YAMLExporter {
                     yaml += `  Skill: ${skillData.skill}\n`;
                 }
                 
-                // Conditions
-                if (skillData.conditions && skillData.conditions.length > 0) {
-                    yaml += this.exportConditions(skillData.conditions, 'Conditions', 2);
+                // Conditions (check both PascalCase and lowercase)
+                const conditions = skillData.Conditions || skillData.conditions;
+                if (conditions && conditions.length > 0) {
+                    yaml += this.exportConditions(conditions, 'Conditions', 2);
                 }
                 
                 // TargetConditions
-                if (skillData.targetConditions && skillData.targetConditions.length > 0) {
-                    yaml += this.exportConditions(skillData.targetConditions, 'TargetConditions', 2);
+                const targetConditions = skillData.TargetConditions || skillData.targetConditions;
+                if (targetConditions && targetConditions.length > 0) {
+                    yaml += this.exportConditions(targetConditions, 'TargetConditions', 2);
                 }
                 
                 // TriggerConditions
-                if (skillData.triggerConditions && skillData.triggerConditions.length > 0) {
-                    yaml += this.exportConditions(skillData.triggerConditions, 'TriggerConditions', 2);
+                const triggerConditions = skillData.TriggerConditions || skillData.triggerConditions;
+                if (triggerConditions && triggerConditions.length > 0) {
+                    yaml += this.exportConditions(triggerConditions, 'TriggerConditions', 2);
                 }
                 
                 // Skills lines (the actual mechanics)
@@ -1616,11 +1619,16 @@ class YAMLExporter {
         let yaml = `${indentStr}${sectionName}:\n`;
         
         conditions.forEach(conditionData => {
-            // Use pre-generated syntax if available
-            if (conditionData.syntax) {
+            // Handle string format (most common from skill editor)
+            if (typeof conditionData === 'string') {
+                yaml += `${indentStr}- ${conditionData}\n`;
+            }
+            // Handle object with syntax property
+            else if (conditionData.syntax) {
                 yaml += `${indentStr}- ${conditionData.syntax}\n`;
-            } else {
-                // Fallback: generate syntax from condition data
+            }
+            // Fallback: generate syntax from condition data object
+            else {
                 const syntax = this.generateConditionSyntax(conditionData);
                 yaml += `${indentStr}- ${syntax}\n`;
             }

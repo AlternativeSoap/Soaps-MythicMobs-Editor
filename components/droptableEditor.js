@@ -93,19 +93,23 @@ class DropTableEditor {
                     </div>
                 </div>
                 
-                <!-- Conditions (Advanced Only) -->
-                ${isAdvanced ? `
+                <!-- Conditions -->
                 <div class="card collapsible-card collapsed">
                     <div class="card-header collapsible-header">
                         <h3 class="card-title">
                             <i class="fas fa-filter"></i> Conditions
-                            ${droptable.conditions && droptable.conditions.length > 0 ? `<span class="card-badge">${droptable.conditions.length}</span>` : ''}
+                            ${droptable.conditions && droptable.conditions.length > 0 ? `<span class="count-badge">${droptable.conditions.length}</span>` : ''}
                             <i class="fas fa-chevron-down collapse-icon"></i>
                         </h3>
                     </div>
                     <div class="card-body collapsible-card-body">
                         <p class="help-text">Conditions that must be met by the mob for drops to generate</p>
-                        <div id="droptable-conditions-editor"></div>
+                        <div class="condition-list-container" id="conditions-list">
+                            ${this.renderConditionList(droptable.conditions || [], 'Conditions')}
+                        </div>
+                        <button class="btn btn-primary btn-sm" id="btnBrowseConditions" style="margin-top: 10px;">
+                            <i class="fas fa-search"></i> Browse Conditions
+                        </button>
                     </div>
                 </div>
                 
@@ -114,16 +118,20 @@ class DropTableEditor {
                     <div class="card-header collapsible-header">
                         <h3 class="card-title">
                             <i class="fas fa-bolt"></i> Trigger Conditions
-                            ${droptable.triggerConditions && droptable.triggerConditions.length > 0 ? `<span class="card-badge">${droptable.triggerConditions.length}</span>` : ''}
+                            ${droptable.triggerConditions && droptable.triggerConditions.length > 0 ? `<span class="count-badge">${droptable.triggerConditions.length}</span>` : ''}
                             <i class="fas fa-chevron-down collapse-icon"></i>
                         </h3>
                     </div>
                     <div class="card-body collapsible-card-body">
                         <p class="help-text">Conditions that must be met by the killer/trigger entity</p>
-                        <div id="droptable-trigger-conditions-editor"></div>
+                        <div class="condition-list-container" id="triggerconditions-list">
+                            ${this.renderConditionList(droptable.triggerConditions || [], 'TriggerConditions')}
+                        </div>
+                        <button class="btn btn-primary btn-sm" id="btnBrowseTriggerConditions" style="margin-top: 10px;">
+                            <i class="fas fa-search"></i> Browse Trigger Conditions
+                        </button>
                     </div>
                 </div>
-                ` : ''}
                 
                 <!-- Drops -->
                 <div class="card collapsible-card collapsed">
@@ -152,11 +160,6 @@ class DropTableEditor {
         
         this.attachEventHandlers(droptable);
         window.collapsibleManager.initializeCollapsible();
-        
-        // Initialize condition editors after DOM is ready
-        setTimeout(() => {
-            this.initializeConditionEditors();
-        }, 200);
     }
     
     renderConfiguration(droptable) {
@@ -212,6 +215,17 @@ class DropTableEditor {
 
     
     attachEventHandlers(droptable) {
+        window.droptableEditor = this;
+        
+        // Browse Conditions buttons
+        document.getElementById('btnBrowseConditions')?.addEventListener('click', () => {
+            this.openConditionBrowser('Conditions');
+        });
+        
+        document.getElementById('btnBrowseTriggerConditions')?.addEventListener('click', () => {
+            this.openConditionBrowser('TriggerConditions');
+        });
+        
         // Table type change
         document.getElementById('droptable-type')?.addEventListener('change', (e) => {
             droptable.tableType = e.target.value;
@@ -463,79 +477,183 @@ class DropTableEditor {
         };
     }
     
-    initializeConditionEditors() {
-        console.log('🔵 DropTable: initializeConditionEditors called');
-        console.log('🔵 window.ConditionEditor exists?', !!window.ConditionEditor);
-        console.log('🔵 this.currentDropTable exists?', !!this.currentDropTable);
-        
-        if (!window.ConditionEditor) {
-            console.warn('⚠️ ConditionEditor not loaded yet, retrying in 500ms...');
-            setTimeout(() => this.initializeConditionEditors(), 500);
-            return;
+    /**
+     * Render condition list as interactive cards
+     */
+    renderConditionList(conditions, sectionType) {
+        if (!conditions || !Array.isArray(conditions) || conditions.length === 0) {
+            return '<p class="empty-state" style="color: var(--text-secondary); font-style: italic; margin: 10px 0;">📋<br>No conditions added yet. Click "Browse Conditions" to add.</p>';
         }
         
-        if (!this.currentDropTable) {
-            console.error('❌ No currentDropTable reference!');
-            return;
+        return conditions.map((cond, index) => {
+            const { conditionStr, action, actionParam } = this.parseCondition(cond);
+            const actionDisplay = actionParam ? `${action} ${actionParam}` : action;
+            
+            return `
+                <div class="condition-item" style="
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 8px 12px;
+                    background: var(--bg-tertiary);
+                    border: 1px solid var(--border-color);
+                    border-radius: 6px;
+                    margin-bottom: 8px;
+                ">
+                    <code style="flex: 1; font-size: 0.9em;">${this.escapeHtml(conditionStr)}</code>
+                    <button class="btn-sm" onclick="window.droptableEditor.toggleConditionAction('${sectionType}', ${index})" title="Click to toggle true/false" style="
+                        padding: 4px 8px;
+                        background: ${action === 'true' ? '#10b98144' : action === 'false' ? '#ef444444' : '#3b82f644'};
+                        border: 1px solid ${action === 'true' ? '#10b981' : action === 'false' ? '#ef4444' : '#3b82f6'};
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        white-space: nowrap;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    ">${this.escapeHtml(actionDisplay)}</button>
+                    <button class="btn-icon" onclick="window.droptableEditor.removeCondition('${sectionType}', ${index})" title="Remove condition">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    /**
+     * Parse condition string to extract condition and action
+     */
+    parseCondition(conditionStr) {
+        if (!conditionStr) return { conditionStr: '', action: 'true', actionParam: null };
+        
+        let str = conditionStr.trim();
+        if (str.startsWith('- ')) str = str.substring(2);
+        
+        const actionMatch = str.match(/\s+(true|false|power|cast|castinstead|orElseCast|cancel)(?:\s+(.+))?$/);
+        
+        if (actionMatch) {
+            const conditionPart = str.substring(0, actionMatch.index);
+            const action = actionMatch[1];
+            const actionParam = actionMatch[2] || null;
+            return { conditionStr: conditionPart, action, actionParam };
         }
         
-        console.log('✅ ConditionEditor loaded, initializing...');
-        
-        // Conditions
-        const conditionsContainer = document.getElementById('droptable-conditions-editor');
-        console.log('🔵 Conditions container:', conditionsContainer);
-        if (conditionsContainer) {
-            if (!this.currentDropTable.conditions) {
-                this.currentDropTable.conditions = [];
+        return { conditionStr: str, action: 'true', actionParam: null };
+    }
+    
+    /**
+     * Escape HTML special characters
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    /**
+     * Open condition browser for a specific section
+     */
+    openConditionBrowser(sectionType) {
+        if (!window.conditionBrowser) {
+            if (typeof ConditionBrowser === 'undefined') {
+                this.editor.showToast('Condition Browser not loaded', 'error');
+                return;
             }
-            try {
-                this.conditionsEditor = new ConditionEditor('droptable-conditions-editor', {
-                    mode: 'Conditions',
-                    conditions: this.currentDropTable.conditions,
-                    onChange: (conditions) => {
-                        this.currentDropTable.conditions = conditions;
-                        this.updateConditionCount('.fas.fa-filter', conditions.length);
-                        this.editor.markDirty();
-                    }
-                });
-                console.log('✅ Conditions editor initialized');
-            } catch (error) {
-                console.error('❌ Error initializing Conditions editor:', error);
-            }
+            window.conditionBrowser = new ConditionBrowser();
         }
         
-        // Trigger Conditions
-        const triggerConditionsContainer = document.getElementById('droptable-trigger-conditions-editor');
-        console.log('🔵 TriggerConditions container:', triggerConditionsContainer);
-        if (triggerConditionsContainer) {
-            if (!this.currentDropTable.triggerConditions) {
-                this.currentDropTable.triggerConditions = [];
+        const droptable = this.currentDropTable;
+        if (!droptable) return;
+        
+        window.conditionBrowser.open({
+            usageMode: 'yaml',
+            context: sectionType,
+            onSelect: (result) => {
+                if (!result || !result.conditionString) {
+                    return;
+                }
+                
+                const action = result.action || 'true';
+                const actionParam = result.actionParam || '';
+                const conditionEntry = actionParam 
+                    ? `${result.conditionString} ${action} ${actionParam}`
+                    : `${result.conditionString} ${action}`;
+                
+                const key = sectionType === 'TriggerConditions' ? 'triggerConditions' : 'conditions';
+                if (!droptable[key]) {
+                    droptable[key] = [];
+                }
+                
+                droptable[key].push(conditionEntry);
+                this.refreshConditionList(sectionType);
+                this.editor.markDirty();
+                this.editor.showToast(`Condition added to ${sectionType}`, 'success');
             }
-            try {
-                this.triggerConditionsEditor = new ConditionEditor('droptable-trigger-conditions-editor', {
-                    mode: 'TriggerConditions',
-                    conditions: this.currentDropTable.triggerConditions,
-                    onChange: (conditions) => {
-                        this.currentDropTable.triggerConditions = conditions;
-                        this.updateConditionCount('.fas.fa-bolt', conditions.length);
-                        this.editor.markDirty();
-                    }
-                });
-                console.log('✅ TriggerConditions editor initialized');
-            } catch (error) {
-                console.error('❌ Error initializing TriggerConditions editor:', error);
+        });
+    }
+    
+    /**
+     * Refresh condition list display
+     */
+    refreshConditionList(sectionType) {
+        const droptable = this.currentDropTable;
+        if (!droptable) return;
+        
+        const key = sectionType === 'TriggerConditions' ? 'triggerConditions' : 'conditions';
+        const containerId = sectionType === 'TriggerConditions' ? 'triggerconditions-list' : 'conditions-list';
+        const container = document.getElementById(containerId);
+        
+        if (container) {
+            container.innerHTML = this.renderConditionList(droptable[key] || [], sectionType);
+        }
+        
+        // Update count badge
+        const icon = sectionType === 'TriggerConditions' ? '.fas.fa-bolt' : '.fas.fa-filter';
+        const iconElement = document.querySelector(icon);
+        if (iconElement) {
+            const badge = iconElement.parentElement.querySelector('.count-badge');
+            if (badge) {
+                const count = droptable[key]?.length || 0;
+                if (count > 0) {
+                    badge.textContent = count;
+                    badge.style.display = '';
+                } else {
+                    badge.style.display = 'none';
+                }
             }
         }
     }
     
-    updateConditionCount(iconSelector, count) {
-        const icon = document.querySelector(iconSelector);
-        if (icon) {
-            const badge = icon.parentElement.querySelector('.count-badge');
-            if (badge) {
-                badge.textContent = count;
-            }
-        }
+    /**
+     * Toggle condition action between true/false
+     */
+    toggleConditionAction(sectionType, index) {
+        const droptable = this.currentDropTable;
+        const key = sectionType === 'TriggerConditions' ? 'triggerConditions' : 'conditions';
+        if (!droptable || !droptable[key] || !droptable[key][index]) return;
+        
+        const { conditionStr, action, actionParam } = this.parseCondition(droptable[key][index]);
+        const newAction = action === 'true' ? 'false' : 'true';
+        const newCondition = actionParam 
+            ? `${conditionStr} ${newAction} ${actionParam}`
+            : `${conditionStr} ${newAction}`;
+        
+        droptable[key][index] = newCondition;
+        this.refreshConditionList(sectionType);
+        this.editor.markDirty();
+    }
+    
+    /**
+     * Remove a condition
+     */
+    removeCondition(sectionType, index) {
+        const droptable = this.currentDropTable;
+        const key = sectionType === 'TriggerConditions' ? 'triggerConditions' : 'conditions';
+        if (!droptable || !droptable[key]) return;
+        
+        droptable[key].splice(index, 1);
+        this.refreshConditionList(sectionType);
+        this.editor.markDirty();
+        this.editor.showToast('Condition removed', 'success');
     }
     
     renderFileContainer(fileContainer, container) {

@@ -42,7 +42,6 @@ class SkillBuilderEditor {
         // Pattern analyzer
         this.patternAnalyzer = new SkillPatternAnalyzer();
         this.analysisResults = null;
-        this.showAnalysis = false; // Toggle for showing analysis panel
         
         // Validation panel (persistent sidebar)
         this.validationPanel = null;
@@ -254,11 +253,6 @@ class SkillBuilderEditor {
                 break;
                 
             case 'toggle-analysis':
-            case 'toggle-insights':
-                this.showAnalysis = !this.showAnalysis;
-                this.render();
-                break;
-                
             case 'toggle-dependencies':
                 if (this.context === 'skill') {
                     this.showDependencies = !this.showDependencies;
@@ -431,17 +425,12 @@ class SkillBuilderEditor {
                         
                         <!-- Analysis Tools -->
                         <div class="toolbar-section toolbar-divider">
-                            <button class="btn btn-sm toggle-insights-btn ${this.showAnalysis ? 'active' : ''}" id="toggle-insights-btn" title="${this.showAnalysis ? 'Hide' : 'Show'} insights & tips">
-                                <i class="fas fa-lightbulb"></i>
-                                Insights
-                                ${allProblems.length > 0 ? `<span class="badge badge-error">${allProblems.length}</span>` : ''}
-                                ${this.analysisResults.tips?.length > 0 ? `<span class="badge badge-tip">${this.analysisResults.tips.length}</span>` : ''}
-                            </button>
                             ${this.context === 'skill' ? `
-                                <button class="btn btn-sm toggle-dependencies-btn ${this.showDependencies ? 'active' : ''}" id="toggle-dependencies-btn" title="${this.showDependencies ? 'Hide' : 'Show'} dependencies">
+                                <button class="btn btn-sm toggle-dependencies-btn ${this.showDependencies ? 'active' : ''}" id="toggle-dependencies-btn" title="${this.showDependencies ? 'Hide' : 'Show'} dependencies & insights">
                                     <i class="fas fa-project-diagram"></i>
-                                    Dependencies
-                                    ${depSummary.missingSkills + depSummary.circularDeps > 0 ? `<span class="badge badge-error">${depSummary.missingSkills + depSummary.circularDeps}</span>` : ''}
+                                    Dependencies & Insights
+                                    ${depSummary.missingSkills + depSummary.circularDeps + allProblems.length > 0 ? `<span class="badge badge-error">${depSummary.missingSkills + depSummary.circularDeps + allProblems.length}</span>` : ''}
+                                    ${this.analysisResults.tips?.length > 0 ? `<span class="badge badge-tip">${this.analysisResults.tips.length}</span>` : ''}
                                 </button>
                             ` : ''}
                             <button class="btn btn-sm toggle-duplicates-btn ${this.showDuplicates ? 'active' : ''}" id="toggle-duplicates-btn" title="${this.showDuplicates ? 'Hide' : 'Show'} duplicates">
@@ -466,7 +455,6 @@ class SkillBuilderEditor {
                         </div>
                     </div>
                     
-                    ${this.showAnalysis ? this.renderInsightsPanel() : ''}
                     ${this.showDependencies ? this.renderDependencyPanel() : ''}
                     ${this.showDuplicates ? this.renderDuplicatePanel() : ''}
                     
@@ -615,10 +603,14 @@ class SkillBuilderEditor {
         const { dependencies, usages, issues, summary } = this.dependencyResults;
         const graphData = this.dependencyTracker.generateGraphData();
         
+        // Get insights data
+        const { patterns, antiPatterns, tips } = this.analysisResults || {};
+        const allIssues = [...(antiPatterns || []), ...issues];
+        
         return `
             <div class="dependency-panel">
                 <div class="dependency-header">
-                    <h3><i class="fas fa-project-diagram"></i> Skill Dependencies</h3>
+                    <h3><i class="fas fa-project-diagram"></i> Dependencies & Insights</h3>
                     <div class="dependency-summary">
                         <span class="summary-item">
                             <i class="fas fa-file-code"></i> ${summary.totalSkills} skills
@@ -665,6 +657,47 @@ class SkillBuilderEditor {
                                             ${issue.cycle.join(' → ')}
                                         </div>
                                     ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${antiPatterns && antiPatterns.length > 0 ? `
+                        <div class="dependency-section insights-section">
+                            <h4><i class="fas fa-lightbulb"></i> Skill Insights</h4>
+                            ${antiPatterns.map((issue, idx) => `
+                                <div class="insights-item ${issue.severity}" data-issue-index="${idx}">
+                                    <div class="insights-item-header">
+                                        <span class="insights-icon">${issue.icon || '⚠️'}</span>
+                                        <span class="insights-name">${issue.name || issue.type}</span>
+                                        <span class="insights-severity ${issue.severity}">${issue.severity}</span>
+                                    </div>
+                                    <div class="insights-description">${issue.description || issue.message}</div>
+                                    ${issue.suggestion ? `
+                                        <div class="insights-suggestion">
+                                            <i class="fas fa-lightbulb"></i> ${issue.suggestion}
+                                        </div>
+                                    ` : ''}
+                                    ${issue.affectedLines && issue.affectedLines.length > 0 ? `
+                                        <div class="insights-affected">
+                                            <span>Lines: ${issue.affectedLines.join(', ')}</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${tips && tips.length > 0 ? `
+                        <div class="dependency-section tips-section">
+                            <h4><i class="fas fa-star"></i> Tips</h4>
+                            ${tips.map(tip => `
+                                <div class="tip-item">
+                                    <div class="tip-header">
+                                        <span class="tip-icon">💡</span>
+                                        <span class="tip-name">${tip.name}</span>
+                                    </div>
+                                    <div class="tip-description">${tip.description}</div>
                                 </div>
                             `).join('')}
                         </div>

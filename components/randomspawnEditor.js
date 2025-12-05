@@ -348,13 +348,18 @@ class RandomSpawnEditor {
                     <div class="card-header collapsible-header">
                         <h3 class="card-title">
                             <i class="fas fa-filter"></i> Conditions
-                            ${spawn.Conditions && spawn.Conditions.length ? `<span class="card-badge">${spawn.Conditions.length}</span>` : ''}
+                            ${spawn.Conditions && spawn.Conditions.length ? `<span class="count-badge">${spawn.Conditions.length}</span>` : ''}
                             <i class="fas fa-chevron-down collapse-icon"></i>
                         </h3>
                     </div>
                     <div class="card-body collapsible-card-body">
-                        <small class="form-hint">Conditions that determine when and where this mob can spawn</small>
-                        <div id="randomspawn-conditions-editor"></div>
+                        <p class="help-text">Conditions that determine when and where this mob can spawn</p>
+                        <div class="condition-list-container" id="conditions-list">
+                            ${this.renderConditionList(spawn.Conditions || [])}
+                        </div>
+                        <button class="btn btn-primary btn-sm" id="btnBrowseConditions" style="margin-top: 10px;">
+                            <i class="fas fa-search"></i> Browse Conditions
+                        </button>
                     </div>
                 </div>
                 ` : ''}
@@ -363,9 +368,6 @@ class RandomSpawnEditor {
         `;
         
         this.attachEventHandlers(spawn);
-        setTimeout(() => {
-            this.initializeConditionEditor(spawn);
-        }, 200);
         this.editor.updateYAMLPreview();
     }
     
@@ -532,7 +534,13 @@ class RandomSpawnEditor {
     }
     
     attachEventHandlers(spawn) {
+        window.randomspawnEditor = this;
         window.randomSpawnEditor = this;
+        
+        // Browse Conditions button
+        document.getElementById('btnBrowseConditions')?.addEventListener('click', () => {
+            this.openConditionBrowser();
+        });
         
         // New section button (add new spawn to current file)
         document.getElementById('new-randomspawn-btn')?.addEventListener('click', () => {
@@ -890,34 +898,190 @@ class RandomSpawnEditor {
         this.editor.markDirty();
     }
     
-    initializeConditionEditor(spawn) {
-        if (!window.ConditionEditor || !spawn) return;
+    /**
+     * Render condition list as interactive cards
+     */
+    renderConditionList(conditions) {
+        if (!conditions || !Array.isArray(conditions) || conditions.length === 0) {
+            return '<p class="empty-state" style="color: var(--text-secondary); font-style: italic; margin: 10px 0;">📋<br>No conditions added yet. Click "Browse Conditions" to add.</p>';
+        }
         
-        if (document.getElementById('randomspawn-conditions-editor')) {
-            if (!spawn.Conditions) {
-                spawn.Conditions = [];
+        return conditions.map((cond, index) => {
+            const { conditionStr, action, actionParam } = this.parseCondition(cond);
+            const actionDisplay = actionParam ? `${action} ${actionParam}` : action;
+            
+            return `
+                <div class="condition-item" style="
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 8px 12px;
+                    background: var(--bg-tertiary);
+                    border: 1px solid var(--border-color);
+                    border-radius: 6px;
+                    margin-bottom: 8px;
+                ">
+                    <code style="flex: 1; font-size: 0.9em;">${this.escapeHtml(conditionStr)}</code>
+                    <button class="btn-sm" onclick="window.randomspawnEditor.toggleConditionAction(${index})" title="Click to toggle true/false" style="
+                        padding: 4px 8px;
+                        background: ${action === 'true' ? '#10b98144' : action === 'false' ? '#ef444444' : '#3b82f644'};
+                        border: 1px solid ${action === 'true' ? '#10b981' : action === 'false' ? '#ef4444' : '#3b82f6'};
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        white-space: nowrap;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    ">${this.escapeHtml(actionDisplay)}</button>
+                    <button class="btn-icon" onclick="window.randomspawnEditor.editCondition(${index})" title="Edit condition">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon" onclick="window.randomspawnEditor.removeCondition(${index})" title="Remove condition">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    /**
+     * Parse condition string to extract condition and action
+     */
+    parseCondition(conditionStr) {
+        if (!conditionStr) return { conditionStr: '', action: 'true', actionParam: null };
+        
+        let str = conditionStr.trim();
+        if (str.startsWith('- ')) str = str.substring(2);
+        
+        const actionMatch = str.match(/\s+(true|false|power|cast|castinstead|orElseCast|cancel)(?:\s+(.+))?$/);
+        
+        if (actionMatch) {
+            const conditionPart = str.substring(0, actionMatch.index);
+            const action = actionMatch[1];
+            const actionParam = actionMatch[2] || null;
+            return { conditionStr: conditionPart, action, actionParam };
+        }
+        
+        return { conditionStr: str, action: 'true', actionParam: null };
+    }
+    
+    /**
+     * Escape HTML special characters
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    /**
+     * Open condition browser
+     */
+    openConditionBrowser() {
+        if (!window.conditionBrowser) {
+            if (typeof ConditionBrowser === 'undefined') {
+                this.editor.showToast('Condition Browser not loaded', 'error');
+                return;
             }
-            this.conditionsEditor = new ConditionEditor('randomspawn-conditions-editor', {
-                mode: 'Conditions',
-                conditions: spawn.Conditions,
-                onChange: (conditions) => {
-                    spawn.Conditions = conditions;
-                    this.updateConditionCount(conditions.length);
-                    this.updateFormDataToFile();
-                    this.editor.markDirty();
+            window.conditionBrowser = new ConditionBrowser();
+        }
+        
+        const spawn = this.editor.state.currentFile;
+        if (!spawn) return;
+        
+        window.conditionBrowser.open({
+            usageMode: 'yaml',
+            context: 'Conditions',
+            onSelect: (result) => {
+                if (!result || !result.conditionString) {
+                    return;
                 }
-            });
+                
+                const action = result.action || 'true';
+                const actionParam = result.actionParam || '';
+                const conditionEntry = actionParam 
+                    ? `${result.conditionString} ${action} ${actionParam}`
+                    : `${result.conditionString} ${action}`;
+                
+                if (!spawn.Conditions) {
+                    spawn.Conditions = [];
+                }
+                
+                spawn.Conditions.push(conditionEntry);
+                this.refreshConditionList();
+                this.updateFormDataToFile();
+                this.editor.markDirty();
+                this.editor.showToast('Condition added', 'success');
+            }
+        });
+    }
+    
+    /**
+     * Refresh condition list display
+     */
+    refreshConditionList() {
+        const spawn = this.editor.state.currentFile;
+        if (!spawn) return;
+        
+        const container = document.getElementById('conditions-list');
+        if (container) {
+            container.innerHTML = this.renderConditionList(spawn.Conditions || []);
+        }
+        
+        // Update count badge
+        const badge = document.querySelector('.card-title .count-badge');
+        if (badge) {
+            const count = spawn.Conditions?.length || 0;
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = '';
+            } else {
+                badge.style.display = 'none';
+            }
         }
     }
     
-    updateConditionCount(count) {
-        const icon = document.querySelector('.fas.fa-filter');
-        if (icon) {
-            const badge = icon.closest('.header-left').querySelector('.badge');
-            if (badge) {
-                badge.textContent = count;
-            }
-        }
+    /**
+     * Toggle condition action between true/false
+     */
+    toggleConditionAction(index) {
+        const spawn = this.editor.state.currentFile;
+        if (!spawn || !spawn.Conditions || !spawn.Conditions[index]) return;
+        
+        const { conditionStr, action, actionParam } = this.parseCondition(spawn.Conditions[index]);
+        const newAction = action === 'true' ? 'false' : 'true';
+        const newCondition = actionParam 
+            ? `${conditionStr} ${newAction} ${actionParam}`
+            : `${conditionStr} ${newAction}`;
+        
+        spawn.Conditions[index] = newCondition;
+        this.refreshConditionList();
+        this.updateFormDataToFile();
+        this.editor.markDirty();
+    }
+    
+    /**
+     * Edit a condition
+     */
+    editCondition(index) {
+        const spawn = this.editor.state.currentFile;
+        if (!spawn || !spawn.Conditions || !spawn.Conditions[index]) return;
+        
+        // TODO: Implement edit functionality if needed
+        this.editor.showToast('Edit via Browse Conditions for now', 'info');
+    }
+    
+    /**
+     * Remove a condition
+     */
+    removeCondition(index) {
+        const spawn = this.editor.state.currentFile;
+        if (!spawn || !spawn.Conditions) return;
+        
+        spawn.Conditions.splice(index, 1);
+        this.refreshConditionList();
+        this.updateFormDataToFile();
+        this.editor.markDirty();
+        this.editor.showToast('Condition removed', 'success');
     }
     
     updateFormDataToFile() {
@@ -1173,6 +1337,192 @@ class RandomSpawnEditor {
             }
         }
         return null;
+    }
+    
+    /**
+     * Render condition list as interactive cards
+     */
+    renderConditionList(conditions) {
+        if (!conditions || !Array.isArray(conditions) || conditions.length === 0) {
+            return '<p class="empty-state" style="color: var(--text-secondary); font-style: italic; margin: 10px 0;">📋<br>No conditions added yet. Click "Browse Conditions" to add.</p>';
+        }
+        
+        return conditions.map((cond, index) => {
+            const { conditionStr, action, actionParam } = this.parseCondition(cond);
+            const actionDisplay = actionParam ? `${action} ${actionParam}` : action;
+            
+            return `
+                <div class="condition-item" style="
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 8px 12px;
+                    background: var(--bg-tertiary);
+                    border: 1px solid var(--border-color);
+                    border-radius: 6px;
+                    margin-bottom: 8px;
+                ">
+                    <code style="flex: 1; font-size: 0.9em;">${this.escapeHtml(conditionStr)}</code>
+                    <button class="btn-sm" onclick="window.randomspawnEditor.toggleConditionAction(${index})" title="Click to toggle true/false" style="
+                        padding: 4px 8px;
+                        background: ${action === 'true' ? '#10b98144' : action === 'false' ? '#ef444444' : '#3b82f644'};
+                        border: 1px solid ${action === 'true' ? '#10b981' : action === 'false' ? '#ef4444' : '#3b82f6'};
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        white-space: nowrap;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    ">${this.escapeHtml(actionDisplay)}</button>
+                    <button class="btn-icon" onclick="window.randomspawnEditor.editCondition(${index})" title="Edit condition">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon" onclick="window.randomspawnEditor.removeCondition(${index})" title="Remove condition">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    /**
+     * Parse condition string to extract condition and action
+     */
+    parseCondition(conditionStr) {
+        if (!conditionStr) return { conditionStr: '', action: 'true', actionParam: null };
+        
+        let str = conditionStr.trim();
+        if (str.startsWith('- ')) str = str.substring(2);
+        
+        const actionMatch = str.match(/\s+(true|false|power|cast|castinstead|orElseCast|cancel)(?:\s+(.+))?$/);
+        
+        if (actionMatch) {
+            const conditionPart = str.substring(0, actionMatch.index);
+            const action = actionMatch[1];
+            const actionParam = actionMatch[2] || null;
+            return { conditionStr: conditionPart, action, actionParam };
+        }
+        
+        return { conditionStr: str, action: 'true', actionParam: null };
+    }
+    
+    /**
+     * Escape HTML special characters
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    /**
+     * Open condition browser
+     */
+    openConditionBrowser() {
+        if (!window.conditionBrowser) {
+            if (typeof ConditionBrowser === 'undefined') {
+                this.editor.showToast('Condition Browser not loaded', 'error');
+                return;
+            }
+            window.conditionBrowser = new ConditionBrowser();
+        }
+        
+        const spawn = this.editor.state.currentFile;
+        if (!spawn) return;
+        
+        window.conditionBrowser.open({
+            usageMode: 'yaml',
+            context: 'Conditions',
+            onSelect: (result) => {
+                if (!result || !result.conditionString) {
+                    return;
+                }
+                
+                const action = result.action || 'true';
+                const actionParam = result.actionParam || '';
+                const conditionEntry = actionParam 
+                    ? `${result.conditionString} ${action} ${actionParam}`
+                    : `${result.conditionString} ${action}`;
+                
+                if (!spawn.Conditions) {
+                    spawn.Conditions = [];
+                }
+                
+                spawn.Conditions.push(conditionEntry);
+                this.refreshConditionList();
+                this.updateFormDataToFile();
+                this.editor.markDirty();
+                this.editor.showToast('Condition added', 'success');
+            }
+        });
+    }
+    
+    /**
+     * Refresh condition list display
+     */
+    refreshConditionList() {
+        const spawn = this.editor.state.currentFile;
+        if (!spawn) return;
+        
+        const container = document.getElementById('conditions-list');
+        if (container) {
+            container.innerHTML = this.renderConditionList(spawn.Conditions || []);
+        }
+        
+        // Update count badge
+        const badge = document.querySelector('.card-title .count-badge');
+        if (badge) {
+            const count = spawn.Conditions?.length || 0;
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = '';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+    
+    /**
+     * Toggle condition action between true/false
+     */
+    toggleConditionAction(index) {
+        const spawn = this.editor.state.currentFile;
+        if (!spawn || !spawn.Conditions || !spawn.Conditions[index]) return;
+        
+        const { conditionStr, action, actionParam } = this.parseCondition(spawn.Conditions[index]);
+        const newAction = action === 'true' ? 'false' : 'true';
+        const newCondition = actionParam 
+            ? `${conditionStr} ${newAction} ${actionParam}`
+            : `${conditionStr} ${newAction}`;
+        
+        spawn.Conditions[index] = newCondition;
+        this.refreshConditionList();
+        this.updateFormDataToFile();
+        this.editor.markDirty();
+    }
+    
+    /**
+     * Edit a condition
+     */
+    editCondition(index) {
+        const spawn = this.editor.state.currentFile;
+        if (!spawn || !spawn.Conditions || !spawn.Conditions[index]) return;
+        
+        // TODO: Implement edit functionality if needed
+        this.editor.showToast('Edit via Browse Conditions for now', 'info');
+    }
+    
+    /**
+     * Remove a condition
+     */
+    removeCondition(index) {
+        const spawn = this.editor.state.currentFile;
+        if (!spawn || !spawn.Conditions) return;
+        
+        spawn.Conditions.splice(index, 1);
+        this.refreshConditionList();
+        this.updateFormDataToFile();
+        this.editor.markDirty();
+        this.editor.showToast('Condition removed', 'success');
     }
 }
 

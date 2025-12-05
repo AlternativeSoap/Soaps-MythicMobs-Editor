@@ -90,8 +90,15 @@ class MythicMobsEditor {
         console.log('🚀 Initializing Soaps MythicMobs Editor...');
         
         try {
+            // Initialize authentication
+            this.authManager = new AuthManager();
+            await this.authManager.checkInitialAuth();
+            
             // Initialize storage
             this.storage = new StorageManager();
+            
+            // Initialize authentication UI
+            this.authUI = new AuthUI(this.authManager, this.storage);
             
             // Load settings
             this.loadSettings();
@@ -140,6 +147,7 @@ class MythicMobsEditor {
             this.render();
             
             console.log('✅ Editor initialized successfully');
+            console.log('🔐 Auth Status:', this.authManager.isAuthenticated() ? 'Authenticated' : 'Anonymous');
             
         } catch (error) {
             console.error('❌ Failed to initialize editor:', error);
@@ -269,6 +277,11 @@ class MythicMobsEditor {
                 this.closeContextMenu();
             }
         });
+        
+        // View all shortcuts button
+        document.getElementById('view-all-shortcuts')?.addEventListener('click', () => {
+            this.showAllShortcuts();
+        });
     }
     
     /**
@@ -276,6 +289,11 @@ class MythicMobsEditor {
      */
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
+            // Skip if user is typing in input/textarea
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
             // Command Palette (Ctrl+K)
             if (e.ctrlKey && e.key === 'k') {
                 e.preventDefault();
@@ -289,9 +307,39 @@ class MythicMobsEditor {
             }
             
             // New Mob (Ctrl+N)
-            if (e.ctrlKey && e.key === 'n') {
+            if (e.ctrlKey && !e.shiftKey && e.key === 'n') {
                 e.preventDefault();
                 this.createNewMob();
+            }
+            
+            // New Skill (Ctrl+Shift+M)
+            if (e.ctrlKey && e.shiftKey && e.key === 'M') {
+                e.preventDefault();
+                this.createNewSkill();
+            }
+            
+            // New Item (Ctrl+Shift+I)
+            if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+                e.preventDefault();
+                this.createNewItem();
+            }
+            
+            // New DropTable (Ctrl+Shift+T)
+            if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+                e.preventDefault();
+                this.createNewDropTable();
+            }
+            
+            // New RandomSpawn (Ctrl+Shift+R)
+            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                e.preventDefault();
+                this.createNewRandomSpawn();
+            }
+            
+            // Import YAML (Ctrl+Shift+O)
+            if (e.ctrlKey && e.shiftKey && e.key === 'O') {
+                e.preventDefault();
+                this.showImportDialog();
             }
             
             // Export (Ctrl+E)
@@ -830,8 +878,10 @@ class MythicMobsEditor {
         // Update YAML preview
         this.updateYAMLPreview();
         
-        // Update file tree to show active file
-        this.packManager.updateActiveFileInTree();
+        // Update file tree to show active file (with small delay to ensure DOM is ready)
+        setTimeout(() => {
+            this.packManager.updateActiveFileInTree();
+        }, 50);
         
         // Clear dirty flag and update status
         this.state.isDirty = false;
@@ -1812,6 +1862,130 @@ class MythicMobsEditor {
         if (menu) {
             menu.classList.add('hidden');
         }
+    }
+    
+    /**
+     * Show all keyboard shortcuts modal
+     */
+    showAllShortcuts() {
+        this.createModal('All Keyboard Shortcuts', `
+            <div class="shortcuts-modal-content">
+                <div class="shortcuts-category">
+                    <h3><i class="fas fa-file"></i> File Operations</h3>
+                    <div class="shortcuts-list">
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>S</kbd></span>
+                            <span class="description">Save changes</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>E</kbd></span>
+                            <span class="description">Export to YAML</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></span>
+                            <span class="description">Import YAML</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="shortcuts-category">
+                    <h3><i class="fas fa-plus-circle"></i> Create New</h3>
+                    <div class="shortcuts-list">
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>N</kbd></span>
+                            <span class="description">New Mob</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd></span>
+                            <span class="description">New Skill</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd></span>
+                            <span class="description">New Item</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></span>
+                            <span class="description">New DropTable</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd></span>
+                            <span class="description">New RandomSpawn</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="shortcuts-category">
+                    <h3><i class="fas fa-terminal"></i> Quick Access</h3>
+                    <div class="shortcuts-list">
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>
+                            <span class="description">Open Command Palette</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>F1</kbd></span>
+                            <span class="description">Show Help</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Esc</kbd></span>
+                            <span class="description">Close panels/modals</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="shortcuts-category">
+                    <h3><i class="fas fa-edit"></i> Editing (in Skill Builder)</h3>
+                    <div class="shortcuts-list">
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span>
+                            <span class="description">Undo</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span>
+                            <span class="description">Redo</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>F</kbd></span>
+                            <span class="description">Format all lines</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></span>
+                            <span class="description">Format selected line</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="shortcuts-category">
+                    <h3><i class="fas fa-columns"></i> Toggle Panels (in Skill Builder)</h3>
+                    <div class="shortcuts-list">
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>
+                            <span class="description">Toggle duplicates panel</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>
+                            <span class="description">Toggle validation panel</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>G</kbd></span>
+                            <span class="description">Toggle grouped view</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>A</kbd></span>
+                            <span class="description">Toggle analysis panel</span>
+                        </div>
+                        <div class="shortcut-row">
+                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd></span>
+                            <span class="description">Toggle dependencies panel</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="shortcuts-note">
+                    <i class="fas fa-info-circle"></i>
+                    <p>Some shortcuts are context-specific and only work in certain editors (like Skill Builder).</p>
+                </div>
+            </div>
+        `, [], 'modal-large');
     }
     
     /**

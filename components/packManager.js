@@ -10,7 +10,7 @@ class PackManager {
     }
     
     async loadPacks() {
-        const saved = this.editor.storage.get('packs');
+        const saved = await this.editor.storage.get('packs');
         if (saved && saved.length > 0) {
             this.packs = saved;
             // Ensure all packs have packinfo
@@ -72,8 +72,25 @@ class PackManager {
         };
     }
     
-    savePacks() {
-        this.editor.storage.set('packs', this.packs);
+    async savePacks() {
+        try {
+            // Update sync status UI
+            if (this.editor.authUI) {
+                this.editor.authUI.setSyncStatus('syncing');
+            }
+            
+            await this.editor.storage.set('packs', this.packs);
+            
+            // Show success
+            if (this.editor.authUI) {
+                this.editor.authUI.showSyncSuccess();
+            }
+        } catch (error) {
+            console.error('Failed to save packs:', error);
+            if (this.editor.authUI) {
+                this.editor.authUI.showSyncError();
+            }
+        }
     }
     
     /**

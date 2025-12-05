@@ -1,12 +1,27 @@
 /**
- * Storage Manager - LocalStorage wrapper
+ * Storage Manager - Wrapper for DatabaseStorageManager
+ * Provides backward compatibility while using Supabase cloud storage
  */
 class StorageManager {
     constructor() {
-        this.prefix = 'mythicmobs_';
+        // Use DatabaseStorageManager if available, otherwise fallback to basic localStorage
+        if (typeof DatabaseStorageManager !== 'undefined') {
+            this.db = new DatabaseStorageManager();
+            console.log('✅ Using cloud storage (Supabase)');
+        } else {
+            // Fallback to basic localStorage implementation
+            this.db = null;
+            this.prefix = 'mythicmobs_';
+            console.warn('⚠️ Using localStorage fallback');
+        }
     }
     
-    get(key) {
+    async get(key) {
+        if (this.db) {
+            return await this.db.get(key);
+        }
+        
+        // Fallback
         try {
             const value = localStorage.getItem(this.prefix + key);
             return value ? JSON.parse(value) : null;
@@ -16,7 +31,12 @@ class StorageManager {
         }
     }
     
-    set(key, value) {
+    async set(key, value) {
+        if (this.db) {
+            return await this.db.set(key, value);
+        }
+        
+        // Fallback
         try {
             localStorage.setItem(this.prefix + key, JSON.stringify(value));
             return true;
@@ -26,7 +46,12 @@ class StorageManager {
         }
     }
     
-    remove(key) {
+    async remove(key) {
+        if (this.db) {
+            return await this.db.remove(key);
+        }
+        
+        // Fallback
         try {
             localStorage.removeItem(this.prefix + key);
             return true;
@@ -36,7 +61,12 @@ class StorageManager {
         }
     }
     
-    clear() {
+    async clear() {
+        if (this.db) {
+            return await this.db.clear();
+        }
+        
+        // Fallback
         try {
             Object.keys(localStorage).forEach(key => {
                 if (key.startsWith(this.prefix)) {
@@ -48,6 +78,30 @@ class StorageManager {
             console.error('Failed to clear storage:', error);
             return false;
         }
+    }
+    
+    // Additional methods for cloud sync
+    async syncToCloud() {
+        if (this.db && this.db.syncToCloud) {
+            return await this.db.syncToCloud();
+        }
+    }
+    
+    async syncFromCloud() {
+        if (this.db && this.db.syncFromCloud) {
+            return await this.db.syncFromCloud();
+        }
+    }
+    
+    async getAllKeys() {
+        if (this.db && this.db.getAllKeys) {
+            return await this.db.getAllKeys();
+        }
+        
+        // Fallback
+        return Object.keys(localStorage)
+            .filter(key => key.startsWith(this.prefix))
+            .map(key => key.replace(this.prefix, ''));
     }
 }
 

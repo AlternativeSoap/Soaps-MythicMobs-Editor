@@ -72,14 +72,14 @@ class SkillEditor {
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Cooldown (seconds)</label>
-                                <input type="number" class="form-input" id="skill-cooldown" value="${skill.cooldown || ''}" min="0" step="0.1" placeholder="0">
+                                <input type="number" class="form-input" id="skill-cooldown" value="${this.getConditionStorageObject().cooldown || ''}" min="0" step="0.1" placeholder="0">
                                 <small class="form-hint">Time between executions for the same caster</small>
                             </div>
                         </div>
                         
                         <div class="form-group">
                             <label class="checkbox-label">
-                                <input type="checkbox" id="skill-cancelifnotargets" ${skill.cancelIfNoTargets !== false ? 'checked' : ''}>
+                                <input type=\"checkbox\" id=\"skill-cancelifnotargets\" ${this.getConditionStorageObject().cancelIfNoTargets !== false ? 'checked' : ''}>
                                 Cancel If No Targets
                             </label>
                             <small class="form-hint">If enabled, skill won't execute if no valid targets are found (default: true)</small>
@@ -124,6 +124,7 @@ class SkillEditor {
      * Render advanced skill options (OnCooldownSkill, FailedConditionsSkill, etc.)
      */
     renderAdvancedSkillOptions(skill) {
+        const targetObj = this.getConditionStorageObject();
         return `
             <div class="card collapsible-card collapsed">
                 <div class="card-header collapsible-header">
@@ -136,19 +137,19 @@ class SkillEditor {
                     <div class="grid-2">
                         <div class="form-group">
                             <label class="form-label">On Cooldown Skill</label>
-                            <input type="text" class="form-input" id="skill-oncooldownskill" value="${skill.onCooldownSkill || ''}" placeholder="SkillName">
+                            <input type="text" class="form-input" id="skill-oncooldownskill" value="${targetObj.onCooldownSkill || ''}" placeholder="SkillName">
                             <small class="form-hint">Skill to execute if this one is on cooldown</small>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Failed Conditions Skill</label>
-                            <input type="text" class="form-input" id="skill-failedconditionsskill" value="${skill.failedConditionsSkill || skill.onFailSkill || ''}" placeholder="SkillName">
+                            <input type="text" class="form-input" id="skill-failedconditionsskill" value="${targetObj.failedConditionsSkill || targetObj.onFailSkill || ''}" placeholder="SkillName">
                             <small class="form-hint">Skill to execute if conditions fail (alias: OnFailSkill)</small>
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label">Skill (Async Execute)</label>
-                        <input type="text" class="form-input" id="skill-skillref" value="${skill.skill || ''}" placeholder="AnotherSkillName">
+                        <input type="text" class="form-input" id="skill-skillref" value="${targetObj.skill || ''}" placeholder="AnotherSkillName">
                         <small class="form-hint">Another metaskill to execute (ignores its conditions/cooldown, runs before this skill's mechanics)</small>
                     </div>
                     
@@ -177,9 +178,10 @@ class SkillEditor {
      * Render conditions sections (Conditions, TargetConditions, TriggerConditions)
      */
     renderConditionsSections(skill) {
-        const conditions = skill.Conditions || skill.conditions || [];
-        const targetConditions = skill.TargetConditions || skill.targetConditions || [];
-        const triggerConditions = skill.TriggerConditions || skill.triggerConditions || [];
+        const targetObj = this.getConditionStorageObject();
+        const conditions = targetObj.Conditions || targetObj.conditions || [];
+        const targetConditions = targetObj.TargetConditions || targetObj.targetConditions || [];
+        const triggerConditions = targetObj.TriggerConditions || targetObj.triggerConditions || [];
         
         return `
             <div class="card collapsible-card collapsed">
@@ -265,13 +267,16 @@ class SkillEditor {
                     margin-bottom: 8px;
                 ">
                     <code style="flex: 1; font-size: 0.9em;">${this.escapeHtml(conditionStr)}</code>
-                    <span style="
+                    <button class="btn-sm" onclick="window.skillEditor.toggleConditionAction('${sectionType}', ${index})" title="Click to toggle true/false" style="
                         padding: 4px 8px;
                         background: ${action === 'true' ? '#10b98144' : action === 'false' ? '#ef444444' : '#3b82f644'};
+                        border: 1px solid ${action === 'true' ? '#10b981' : action === 'false' ? '#ef4444' : '#3b82f6'};
                         border-radius: 4px;
                         font-size: 0.85em;
                         white-space: nowrap;
-                    ">${this.escapeHtml(actionDisplay)}</span>
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    ">${this.escapeHtml(actionDisplay)}</button>
                     <button class="btn-icon" onclick="window.skillEditor.editCondition('${sectionType}', ${index})" title="Edit condition">
                         <i class="fas fa-edit"></i>
                     </button>
@@ -358,13 +363,16 @@ class SkillEditor {
                 
                 console.log(`✅ Adding condition to ${sectionType}:`, conditionEntry);
                 
+                // Determine where to store conditions
+                const targetObj = this.getConditionStorageObject();
+                
                 // Initialize array if needed
-                if (!this.currentSkill[sectionType]) {
-                    this.currentSkill[sectionType] = [];
+                if (!targetObj[sectionType]) {
+                    targetObj[sectionType] = [];
                 }
                 
                 // Add condition
-                this.currentSkill[sectionType].push(conditionEntry);
+                targetObj[sectionType].push(conditionEntry);
                 
                 // Re-render the condition list
                 this.refreshConditionList(sectionType);
@@ -386,7 +394,8 @@ class SkillEditor {
         const container = document.getElementById(containerId);
         if (!container) return;
         
-        const conditions = this.currentSkill[sectionType] || [];
+        const targetObj = this.getConditionStorageObject();
+        const conditions = targetObj[sectionType] || [];
         container.innerHTML = this.renderConditionList(conditions, sectionType);
         
         // Update count badge
@@ -410,6 +419,30 @@ class SkillEditor {
     }
     
     /**
+     * Toggle condition action between true and false
+     */
+    toggleConditionAction(sectionType, index) {
+        const targetObj = this.getConditionStorageObject();
+        if (!targetObj[sectionType] || !targetObj[sectionType][index]) return;
+        
+        const conditionStr = targetObj[sectionType][index];
+        const { conditionStr: cond, action, actionParam } = this.parseCondition(conditionStr);
+        
+        // Toggle between true and false only
+        const newAction = action === 'true' ? 'false' : 'true';
+        
+        // Rebuild condition string with new action
+        const newConditionStr = actionParam 
+            ? `${cond} ${newAction} ${actionParam}`
+            : `${cond} ${newAction}`;
+        
+        targetObj[sectionType][index] = newConditionStr;
+        this.refreshConditionList(sectionType);
+        this.syncToFile();
+        this.editor.markDirty();
+    }
+    
+    /**
      * Remove condition from a section
      */
     removeCondition(sectionType, index) {
@@ -429,15 +462,16 @@ class SkillEditor {
      * Edit existing condition
      */
     editCondition(sectionType, index) {
-        if (!this.currentSkill[sectionType] || !this.currentSkill[sectionType][index]) return;
+        const targetObj = this.getConditionStorageObject();
+        if (!targetObj[sectionType] || !targetObj[sectionType][index]) return;
         
-        const conditionStr = this.currentSkill[sectionType][index];
+        const conditionStr = targetObj[sectionType][index];
         const { conditionStr: cond, action, actionParam } = this.parseCondition(conditionStr);
         
         // TODO: Parse condition string to prefill browser form
         // For now, just remove and let user add again
         if (confirm('Edit mode: This will remove the condition. Add it again with new settings.')) {
-            this.currentSkill[sectionType].splice(index, 1);
+            targetObj[sectionType].splice(index, 1);
             this.refreshConditionList(sectionType);
             this.syncToFile();
             this.editor.markDirty();
@@ -491,7 +525,8 @@ class SkillEditor {
         
         document.getElementById('skill-cooldown')?.addEventListener('input', (e) => {
             if (this.currentSkill) {
-                this.currentSkill.cooldown = parseFloat(e.target.value) || 0;
+                const targetObj = this.getConditionStorageObject();
+                targetObj.cooldown = parseFloat(e.target.value) || 0;
                 this.syncToFile();
                 this.editor.markDirty();
             }
@@ -500,7 +535,8 @@ class SkillEditor {
         // Cancel if no targets
         document.getElementById('skill-cancelifnotargets')?.addEventListener('change', (e) => {
             if (this.currentSkill) {
-                this.currentSkill.cancelIfNoTargets = e.target.checked;
+                const targetObj = this.getConditionStorageObject();
+                targetObj.cancelIfNoTargets = e.target.checked;
                 this.syncToFile();
                 this.editor.markDirty();
             }
@@ -509,7 +545,8 @@ class SkillEditor {
         // Advanced options
         document.getElementById('skill-oncooldownskill')?.addEventListener('input', (e) => {
             if (this.currentSkill) {
-                this.currentSkill.onCooldownSkill = e.target.value || undefined;
+                const targetObj = this.getConditionStorageObject();
+                targetObj.onCooldownSkill = e.target.value || undefined;
                 this.syncToFile();
                 this.editor.markDirty();
             }
@@ -517,7 +554,8 @@ class SkillEditor {
         
         document.getElementById('skill-failedconditionsskill')?.addEventListener('input', (e) => {
             if (this.currentSkill) {
-                this.currentSkill.failedConditionsSkill = e.target.value || undefined;
+                const targetObj = this.getConditionStorageObject();
+                targetObj.failedConditionsSkill = e.target.value || undefined;
                 this.syncToFile();
                 this.editor.markDirty();
             }
@@ -525,7 +563,8 @@ class SkillEditor {
         
         document.getElementById('skill-skillref')?.addEventListener('input', (e) => {
             if (this.currentSkill) {
-                this.currentSkill.skill = e.target.value || undefined;
+                const targetObj = this.getConditionStorageObject();
+                targetObj.skill = e.target.value || undefined;
                 this.syncToFile();
                 this.editor.markDirty();
             }
@@ -546,6 +585,24 @@ class SkillEditor {
         
         // Store reference for onclick handlers
         window.skillEditor = this;
+    }
+    
+    /**
+     * Get the correct object where conditions should be stored
+     * For multi-skill format (skill.skills), store in the individual skill object
+     * For single skill format, store on root skill object
+     */
+    getConditionStorageObject() {
+        if (this.currentSkill.skills && this.skillBuilderEditor && this.skillBuilderEditor.currentSkill) {
+            // Multi-skill format: store in individual skill
+            const skillName = this.skillBuilderEditor.currentSkill;
+            if (!this.currentSkill.skills[skillName]) {
+                this.currentSkill.skills[skillName] = { lines: [] };
+            }
+            return this.currentSkill.skills[skillName];
+        }
+        // Single skill format: store on root
+        return this.currentSkill;
     }
     
     syncToFile() {

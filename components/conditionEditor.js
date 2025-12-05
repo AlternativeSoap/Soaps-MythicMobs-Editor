@@ -436,8 +436,10 @@ class ConditionEditor {
         // Get existing values if editing
         const existingValues = editIndex !== null ? this.options.conditions[editIndex] : {};
         
-        // Determine default usage mode (backward compatibility)
-        const defaultUsageMode = existingValues.usageMode || 'inline';
+        // Determine default usage mode based on context
+        // RandomSpawn and DropTable only support regular conditions
+        const contextMode = this.options.mode === 'Conditions' ? 'regular' : 'inline';
+        const defaultUsageMode = existingValues.usageMode || contextMode;
         const defaultSectionType = existingValues.sectionType || 'Conditions';
         
         body.innerHTML = `
