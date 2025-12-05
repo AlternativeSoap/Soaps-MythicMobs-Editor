@@ -855,7 +855,7 @@ class MechanicBrowser {
      */
     confirmConfiguration() {
         if (!this.currentMechanic) {
-            alert('Please select a mechanic');
+            // Silently return if no mechanic selected
             return;
         }
 

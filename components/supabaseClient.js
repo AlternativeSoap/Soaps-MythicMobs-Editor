@@ -77,6 +77,8 @@ class DatabaseStorageManager {
      * Get data from cloud or localStorage
      */
     async get(key) {
+        console.log(`📖 Storage GET: ${key}`, { userId: this.userId, useCloud: this.useCloud });
+        
         // Try cloud storage first
         if (this.useCloud && this.userId) {
             try {
@@ -90,23 +92,27 @@ class DatabaseStorageManager {
                 if (error) {
                     if (error.code === 'PGRST116') {
                         // No rows returned, key doesn't exist
+                        console.log(`   ℹ️ No cloud data for ${key}`);
                         return null;
                     }
                     throw error;
                 }
                 
+                console.log(`   ✅ Retrieved from cloud: ${key}`, { dataSize: JSON.stringify(data?.value || null).length });
                 return data?.value || null;
             } catch (error) {
-                console.warn(`Cloud get failed for ${key}, using localStorage:`, error);
+                console.warn(`   ⚠️ Cloud get failed for ${key}, using localStorage:`, error);
             }
         }
         
         // Fallback to localStorage
         try {
             const value = localStorage.getItem(this.prefix + key);
-            return value ? JSON.parse(value) : null;
+            const parsed = value ? JSON.parse(value) : null;
+            console.log(`   📱 Retrieved from localStorage: ${key}`, { found: !!parsed });
+            return parsed;
         } catch (error) {
-            console.error(`Failed to get ${key}:`, error);
+            console.error(`   ❌ Failed to get ${key}:`, error);
             return null;
         }
     }
@@ -115,11 +121,18 @@ class DatabaseStorageManager {
      * Set data to cloud and localStorage
      */
     async set(key, value) {
+        console.log(`💾 Storage SET: ${key}`, { 
+            userId: this.userId, 
+            useCloud: this.useCloud,
+            dataSize: JSON.stringify(value).length 
+        });
+        
         // Save to localStorage first (always available)
         try {
             localStorage.setItem(this.prefix + key, JSON.stringify(value));
+            console.log(`   ✅ Saved to localStorage: ${key}`);
         } catch (error) {
-            console.error(`Failed to save to localStorage:`, error);
+            console.error(`   ❌ Failed to save to localStorage:`, error);
         }
         
         // Try cloud storage
@@ -138,10 +151,10 @@ class DatabaseStorageManager {
                 
                 if (error) throw error;
                 
-                console.log(`✅ Saved to cloud: ${key}`);
+                console.log(`   ☁️ Saved to cloud: ${key}`);
                 return true;
             } catch (error) {
-                console.warn(`Cloud save failed for ${key}:`, error);
+                console.warn(`   ⚠️ Cloud save failed for ${key}:`, error);
                 return true; // Still return true since localStorage succeeded
             }
         }
@@ -244,11 +257,15 @@ class DatabaseStorageManager {
      */
     async syncToCloud() {
         if (!this.useCloud || !this.userId) {
-            console.warn('Cloud storage not available');
+            console.warn('☁️ Cloud storage not available:', { useCloud: this.useCloud, userId: this.userId });
             return;
         }
         
+        console.log('☁️ Starting cloud sync...', { userId: this.userId });
+        
         const keys = Object.keys(localStorage).filter(key => key.startsWith(this.prefix));
+        console.log(`📦 Found ${keys.length} items to sync:`, keys.map(k => k.replace(this.prefix, '')));
+        
         let synced = 0;
         let failed = 0;
         
@@ -256,15 +273,26 @@ class DatabaseStorageManager {
             const key = fullKey.replace(this.prefix, '');
             try {
                 const value = JSON.parse(localStorage.getItem(fullKey));
+                console.log(`  ↗️ Syncing ${key}...`);
                 await this.set(key, value);
                 synced++;
             } catch (error) {
-                console.error(`Failed to sync ${key}:`, error);
+                console.error(`  ❌ Failed to sync ${key}:`, error);
                 failed++;
             }
         }
         
-        console.log(`✅ Synced ${synced} items to cloud (${failed} failed)`);
+        console.log(`✅ Cloud sync complete: ${synced} synced, ${failed} failed`);
+    }
+    
+    /**
+     * Update user ID (called when auth state changes)
+     */
+    async updateUserId(userId) {
+        this.userId = userId;
+        if (userId) {
+            console.log('✅ User ID updated:', userId);
+        }
     }
     
     /**

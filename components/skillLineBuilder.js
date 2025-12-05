@@ -121,12 +121,12 @@ class SkillLineBuilder {
         
         this.state = newState;
         
-        console.log('🔄 setState called:', {
-            mechanic: this.state.currentLine?.mechanic,
-            trigger: this.state.currentLine?.trigger,
-            targeter: this.state.currentLine?.targeter,
-            conditions: this.state.currentLine?.conditions?.length || 0
-        });
+        // console.log('🔄 setState called:', {
+        //     mechanic: this.state.currentLine?.mechanic,
+        //     trigger: this.state.currentLine?.trigger,
+        //     targeter: this.state.currentLine?.targeter,
+        //     conditions: this.state.currentLine?.conditions?.length || 0
+        // });
         
         this.debouncedSaveState();
         this.notifyStateChange(oldState, newState);
@@ -1075,7 +1075,7 @@ class SkillLineBuilder {
     // ========================================
     
     render() {
-        console.log('🎨 render() called - updating all displays');
+        // console.log('🎨 render() called - updating all displays');
         this.updateComponentsDisplay();
         this.updatePreview();
         this.updateQueueDisplay();
@@ -1525,7 +1525,8 @@ class SkillLineBuilder {
         // Don't include the "- " prefix - the YAML renderer will add it
         let line = `${currentLine.mechanic.fullString || currentLine.mechanic.name}`;
         
-        if (currentLine.targeter && currentLine.targeter !== '@Self') {
+        // Include targeter if present (including @Self if explicitly selected)
+        if (currentLine.targeter) {
             line += ` ${currentLine.targeter}`;
         }
         
@@ -2462,6 +2463,12 @@ class SkillLineBuilder {
     
     processQueue() {
         const { queue } = this.state;
+        
+        // Check if queue exists and is an array
+        if (!queue || !Array.isArray(queue)) {
+            console.error('❌ Queue is undefined or not an array');
+            return;
+        }
         
         // If queue is empty, try to add the current line directly
         if (queue.length === 0) {

@@ -163,6 +163,11 @@ class FileManager {
     }
     
     saveFile(file, type) {
+        console.log('📁 FileManager.saveFile called:', {
+            fileName: file?.name,
+            fileType: type,
+            fileId: file?.id
+        });
         // File is already in pack, just need to save packs
         this.editor.packManager.savePacks();
     }

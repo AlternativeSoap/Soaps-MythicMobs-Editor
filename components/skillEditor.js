@@ -515,7 +515,35 @@ class SkillEditor {
         
         document.getElementById('skill-name')?.addEventListener('input', (e) => {
             if (this.currentSkill) {
-                this.currentSkill.name = e.target.value;
+                console.log('✏️ Skill name changed:', e.target.value);
+                const newName = e.target.value;
+                const oldName = this.currentSkill.name;
+                
+                // Update the skill name
+                this.currentSkill.name = newName;
+                
+                // If we have a skills object, also rename the key in the skills object
+                if (this.currentSkill.skills && this.skillBuilderEditor && this.skillBuilderEditor.currentSkill) {
+                    const currentKey = this.skillBuilderEditor.currentSkill;
+                    const skillData = this.currentSkill.skills[currentKey];
+                    
+                    // Only rename if the current key matches the old name and the new name is different
+                    if (currentKey === oldName && newName !== oldName && skillData) {
+                        // Create new key with new name
+                        this.currentSkill.skills[newName] = skillData;
+                        // Delete old key
+                        delete this.currentSkill.skills[currentKey];
+                        // Update current skill reference
+                        this.skillBuilderEditor.currentSkill = newName;
+                        this.skillBuilderEditor.skills = this.currentSkill.skills;
+                        
+                        console.log('🔄 Renamed skill key in skills object:', {
+                            from: currentKey,
+                            to: newName
+                        });
+                    }
+                }
+                
                 this.syncToFile();
                 this.editor.markDirty();
                 // Refresh file tree to show updated name
@@ -525,6 +553,7 @@ class SkillEditor {
         
         document.getElementById('skill-cooldown')?.addEventListener('input', (e) => {
             if (this.currentSkill) {
+                console.log('✏️ Skill cooldown changed:', e.target.value);
                 const targetObj = this.getConditionStorageObject();
                 targetObj.cooldown = parseFloat(e.target.value) || 0;
                 this.syncToFile();
@@ -608,11 +637,30 @@ class SkillEditor {
     syncToFile() {
         // Sync currentSkill data to state.currentFile for live preview
         if (this.currentSkill && this.editor.state.currentFile) {
-            Object.assign(this.editor.state.currentFile, this.currentSkill);
+            console.log('🔄 Syncing skill to file:', {
+                skillName: this.currentSkill.name,
+                fileId: this.editor.state.currentFile.id,
+                skillsData: JSON.parse(JSON.stringify(this.currentSkill.skills)),
+                skillsKeys: Object.keys(this.currentSkill.skills),
+                currentFileIdBefore: this.editor.state.currentFile.id
+            });
+            
+            // Deep copy to ensure nested objects are copied
+            const skillDataCopy = JSON.parse(JSON.stringify(this.currentSkill));
+            Object.assign(this.editor.state.currentFile, skillDataCopy);
+            
+            console.log('✅ Skill synced to file:', {
+                fileSkillsAfterSync: JSON.parse(JSON.stringify(this.editor.state.currentFile.skills)),
+                fileSkillsKeys: Object.keys(this.editor.state.currentFile.skills),
+                fileIdAfterSync: this.editor.state.currentFile.id
+            });
+            
             // Update YAML preview in side panel
             if (this.editor.updateYAMLPreview) {
                 this.editor.updateYAMLPreview();
             }
+        } else {
+            console.warn('⚠️ Cannot sync - missing currentSkill or currentFile');
         }
     }
     
@@ -652,10 +700,13 @@ class SkillEditor {
         }
         
         // Create new skill with defaults
+        const skillName = newName.trim();
         const newSkill = {
             id: 'skill-' + Date.now(),
-            name: newName.trim(),
-            skills: []
+            name: skillName,
+            skills: {
+                [skillName]: { lines: [] }
+            }
         };
         
         // Add to parent file's entries
@@ -695,9 +746,21 @@ class SkillEditor {
         
         // Create a deep copy of the skill
         const duplicatedSkill = typeof structuredClone !== 'undefined' ? structuredClone(this.currentSkill) : JSON.parse(JSON.stringify(this.currentSkill));
-        duplicatedSkill.name = newName.trim();
+        const trimmedNewName = newName.trim();
+        duplicatedSkill.name = trimmedNewName;
         duplicatedSkill.id = 'skill-' + Date.now();
         delete duplicatedSkill._parentFile;
+        
+        // If the skill has a skills object, rename the keys to match the new name
+        if (duplicatedSkill.skills && typeof duplicatedSkill.skills === 'object') {
+            const newSkillsObj = {};
+            for (const [oldKey, skillData] of Object.entries(duplicatedSkill.skills)) {
+                // Use the new name for the first/primary skill, keep other names
+                const newKey = oldKey === this.currentSkill.name ? trimmedNewName : oldKey;
+                newSkillsObj[newKey] = skillData;
+            }
+            duplicatedSkill.skills = newSkillsObj;
+        }
         
         // Add to parent file's entries
         parentFile.entries.push(duplicatedSkill);
@@ -788,6 +851,12 @@ class SkillEditor {
         const skillLinesContainer = document.getElementById('skill-lines-editor');
         if (skillLinesContainer) {
             // NEW: Initialize skills object if it doesn't exist
+            console.log('📋 Loading skills in render:', {
+                skillName: this.currentSkill.name,
+                hasSkillsProperty: !!this.currentSkill.skills,
+                skillsData: JSON.parse(JSON.stringify(this.currentSkill.skills || {}))
+            });
+            
             if (!this.currentSkill.skills) {
                 this.currentSkill.skills = {};
                 // Migrate old Skills array to new format if it exists
@@ -795,13 +864,48 @@ class SkillEditor {
                     this.currentSkill.skills[this.currentSkill.name || 'DefaultSkill'] = {
                         lines: this.currentSkill.Skills
                     };
+                    console.log('🔄 Migrated old Skills array to new format');
+                }
+            }
+            
+            // MIGRATION: Fix numeric keys (0, 1, 2) - replace with actual skill name
+            if (this.currentSkill.skills && typeof this.currentSkill.skills === 'object') {
+                const keys = Object.keys(this.currentSkill.skills);
+                // Check if we have numeric keys that need migration
+                const numericKeys = keys.filter(key => !isNaN(key));
+                if (numericKeys.length > 0) {
+                    console.log('🔄 Migrating numeric keys to skill name:', this.currentSkill.name);
+                    console.log('   Before migration keys:', keys);
+                    
+                    // Remove ALL numeric keys - they shouldn't exist
+                    numericKeys.forEach(numericKey => {
+                        console.log(`   🗑️ Removing numeric key: "${numericKey}"`);
+                        delete this.currentSkill.skills[numericKey];
+                    });
+                    
+                    // Ensure the proper skill name key exists
+                    if (!this.currentSkill.skills[this.currentSkill.name]) {
+                        this.currentSkill.skills[this.currentSkill.name] = { lines: [] };
+                        console.log(`   ✅ Created proper key: "${this.currentSkill.name}"`);
+                    }
+                    
+                    console.log('   After migration keys:', Object.keys(this.currentSkill.skills));
+                    
+                    // Mark dirty to trigger save
+                    this.editor.markDirty();
                 }
             }
             
             // Ensure at least one skill exists
             if (Object.keys(this.currentSkill.skills).length === 0) {
                 this.currentSkill.skills[this.currentSkill.name || 'DefaultSkill'] = { lines: [] };
+                console.log('📝 Created default empty skills object');
             }
+            
+            console.log('✅ Skills loaded for editor:', {
+                skillsObject: JSON.parse(JSON.stringify(this.currentSkill.skills)),
+                totalSkills: Object.keys(this.currentSkill.skills).length
+            });
             
             // Always recreate since DOM was recreated on render
             this.skillBuilderEditor = new SkillBuilderEditor(
@@ -811,28 +915,48 @@ class SkillEditor {
                 null  // No trigger browser for skill files
             );
             
-            // Set context to 'skill' (hides triggers)
-            this.skillBuilderEditor.setContext('skill');
-            
-            // Load the skills object into the editor
+            // Load the skills object into the editor BEFORE setting context
             this.skillBuilderEditor.skills = this.currentSkill.skills;
             this.skillBuilderEditor.currentSkill = Object.keys(this.currentSkill.skills)[0];
+            
+            // Set context to 'skill' (hides triggers) - do this AFTER loading skills
+            this.skillBuilderEditor.setContext('skill');
+            
+            // Sync to file after migration and editor setup
+            this.syncToFile();
             
             // Render with the loaded skills
             this.skillBuilderEditor.render();
             
             // Listen for changes
             this.skillBuilderEditor.onChange((skillLines) => {
+                console.log('🎯 SkillEditor onChange triggered:', {
+                    currentSkillName: this.skillBuilderEditor.currentSkill,
+                    linesCount: skillLines?.length || 0,
+                    skillsObjectBefore: JSON.parse(JSON.stringify(this.currentSkill.skills))
+                });
+                
                 // Update the current skill's lines
                 if (this.skillBuilderEditor.currentSkill) {
+                    // Ensure the skill object exists
+                    if (!this.currentSkill.skills[this.skillBuilderEditor.currentSkill]) {
+                        this.currentSkill.skills[this.skillBuilderEditor.currentSkill] = { lines: [] };
+                    }
                     this.currentSkill.skills[this.skillBuilderEditor.currentSkill].lines = skillLines;
+                    console.log('✅ Updated skill lines:', {
+                        skillName: this.skillBuilderEditor.currentSkill,
+                        newLinesCount: skillLines?.length || 0,
+                        skillsObjectAfter: JSON.parse(JSON.stringify(this.currentSkill.skills))
+                    });
                 }
+                
                 this.syncToFile();
                 this.editor.markDirty();
                 
                 // Update count badge (total lines across all skills)
                 const totalLines = Object.values(this.currentSkill.skills)
-                    .reduce((sum, s) => sum + (s.lines ? s.lines.length : 0), 0);
+                    .filter(s => s && s.lines) // Filter out null/undefined skills
+                    .reduce((sum, s) => sum + s.lines.length, 0);
                 const badge = document.querySelector('.card-title .fas.fa-magic')?.parentElement.querySelector('.count-badge');
                 if (badge) badge.textContent = totalLines;
             });

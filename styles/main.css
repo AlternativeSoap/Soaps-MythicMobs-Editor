@@ -9941,6 +9941,7 @@ kbd {
 .user-account {
     position: relative;
     margin-left: var(--spacing-md);
+    z-index: 100;
 }
 
 .user-account-btn {
@@ -9954,6 +9955,8 @@ kbd {
     color: var(--text-primary);
     cursor: pointer;
     transition: all 0.2s ease;
+    position: relative;
+    z-index: 101;
 }
 
 .user-account-btn:hover {

@@ -10,7 +10,18 @@ class PackManager {
     }
     
     async loadPacks() {
+        console.log('📂 Loading packs from storage...', {
+            userId: this.editor.storage.db?.userId || 'unknown'
+        });
+        
         const saved = await this.editor.storage.get('packs');
+        
+        console.log('📦 Loaded packs:', {
+            found: !!saved,
+            packCount: saved?.length || 0,
+            totalSkills: saved?.reduce((sum, p) => sum + (p.skills?.length || 0), 0) || 0
+        });
+        
         if (saved && saved.length > 0) {
             this.packs = saved;
             // Ensure all packs have packinfo
@@ -22,6 +33,7 @@ class PackManager {
             this.activePack = this.packs[0];
         } else {
             // Create default pack
+            console.log('🆕 No packs found, creating default pack');
             const defaultPack = await this.createPack('My First Pack');
             this.activePack = defaultPack;
         }
@@ -79,14 +91,22 @@ class PackManager {
                 this.editor.authUI.setSyncStatus('syncing');
             }
             
+            console.log('💾 Saving packs to storage...', {
+                packCount: this.packs.length,
+                totalSkills: this.packs.reduce((sum, p) => sum + (p.skills?.length || 0), 0),
+                userId: this.editor.storage.db?.userId || 'unknown'
+            });
+            
             await this.editor.storage.set('packs', this.packs);
+            
+            console.log('✅ Packs saved successfully');
             
             // Show success
             if (this.editor.authUI) {
                 this.editor.authUI.showSyncSuccess();
             }
         } catch (error) {
-            console.error('Failed to save packs:', error);
+            console.error('❌ Failed to save packs:', error);
             if (this.editor.authUI) {
                 this.editor.authUI.showSyncError();
             }

@@ -361,24 +361,24 @@ class TargeterBrowser {
      * Handle targeter selection
      */
     handleTargeterSelection(targeterId) {
-        console.log('🎯 handleTargeterSelection called with:', targeterId);
+        // console.log('🎯 handleTargeterSelection called with:', targeterId);
         const targeter = TARGETERS_DATA.getTargeter(targeterId);
-        console.log('📦 Targeter data:', targeter);
+        // console.log('📦 Targeter data:', targeter);
         if (!targeter) {
             console.error('❌ Targeter not found:', targeterId);
             return;
         }
 
         // Check if targeter has attributes
-        console.log('🔍 Checking attributes:', targeter.attributes);
+        // console.log('🔍 Checking attributes:', targeter.attributes);
         if (targeter.attributes && targeter.attributes.length > 0) {
-            console.log('✅ Targeter has attributes, showing configuration modal');
+            // console.log('✅ Targeter has attributes, showing configuration modal');
             this.showAttributeConfiguration(targeter);
             return;
         }
 
-        // No attributes, directly select
-        console.log('✅ Targeter has no attributes, selecting directly');
+        // No attributes, directly select (including @Self)
+        // console.log('✅ Targeter has no attributes, selecting directly');
         this.selectTargeter(targeter);
     }
 
@@ -549,7 +549,7 @@ class TargeterBrowser {
     selectTargeter(targeter) {
         const targeterString = `@${targeter.name}`;
         
-        console.log('✅ Targeter selected (no attributes):', targeterString);
+        // console.log('✅ Targeter selected (no attributes):', targeterString);
         
         // Store callback before closing (close() sets it to null)
         const callback = this.onSelectCallback;
@@ -558,7 +558,7 @@ class TargeterBrowser {
         this.callbackInvoked = true;
         
         if (callback) {
-            console.log('📞 Calling onSelect callback with:', { targeter, targeterString });
+            // console.log('📞 Calling onSelect callback with:', { targeter, targeterString });
             callback({
                 targeter: targeter,
                 targeterString: targeterString

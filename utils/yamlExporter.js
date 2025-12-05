@@ -1124,6 +1124,9 @@ class YAMLExporter {
         if (skill.skills && typeof skill.skills === 'object') {
             let yaml = '';
             for (const [skillName, skillData] of Object.entries(skill.skills)) {
+                // Skip null/undefined skill data
+                if (!skillData) continue;
+                
                 yaml += `${skillName}:\n`;
                 
                 // CancelIfNoTargets (only if false, since true is default)

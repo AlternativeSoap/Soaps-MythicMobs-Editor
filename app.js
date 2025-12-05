@@ -90,12 +90,19 @@ class MythicMobsEditor {
         console.log('🚀 Initializing Soaps MythicMobs Editor...');
         
         try {
-            // Initialize authentication
-            this.authManager = new AuthManager();
-            await this.authManager.checkInitialAuth();
-            
-            // Initialize storage
+            // Initialize storage FIRST
             this.storage = new StorageManager();
+            
+            // Wait for storage auth check to complete
+            console.log('⏳ Waiting for auth check...');
+            if (this.storage.db && this.storage.db.checkAuth) {
+                await this.storage.db.checkAuth();
+            }
+            console.log('✅ Auth check complete, userId:', this.storage.db?.userId || 'none');
+            
+            // Initialize authentication
+            this.authManager = new AuthManager(window.supabaseClient);
+            await this.authManager.checkInitialAuth();
             
             // Initialize authentication UI
             this.authUI = new AuthUI(this.authManager, this.storage);
@@ -134,7 +141,8 @@ class MythicMobsEditor {
             this.randomspawnEditor = new RandomSpawnEditor(this);
             this.commandPalette = new CommandPalette(this);
             
-            // Load packs
+            // Load packs (now userId should be set)
+            console.log('📦 Loading packs with userId:', this.storage.db?.userId);
             await this.packManager.loadPacks();
             
             // Setup event listeners
@@ -895,6 +903,12 @@ class MythicMobsEditor {
         if (!this.state.currentFile) return;
         
         try {
+            console.log('💾 Saving file:', {
+                name: this.state.currentFile.name,
+                type: this.state.currentFileType,
+                fileId: this.state.currentFile.id
+            });
+            
             this.showSavingStatus();
             this.fileManager.saveFile(this.state.currentFile, this.state.currentFileType);
             this.state.currentFile.modified = false;
@@ -902,8 +916,10 @@ class MythicMobsEditor {
             this.state.isDirty = false;
             this.updateSaveStatusIndicator();
             this.showToast('File saved successfully', 'success');
+            
+            console.log('✅ File saved successfully');
         } catch (error) {
-            console.error('Failed to save file:', error);
+            console.error('❌ Failed to save file:', error);
             this.showToast('Failed to save file', 'error');
             this.updateSaveStatusIndicator();
         }
@@ -913,6 +929,13 @@ class MythicMobsEditor {
      * Mark current state as dirty (unsaved changes)
      */
     markDirty() {
+        console.log('📝 Mark dirty called', {
+            currentFile: this.state.currentFile?.name,
+            fileType: this.state.currentFileType,
+            autoSave: this.settings.autoSave,
+            interval: this.settings.autoSaveInterval
+        });
+        
         this.state.isDirty = true;
         
         // Mark current file as modified for Save All
@@ -933,10 +956,14 @@ class MythicMobsEditor {
         
         // Schedule auto-save if enabled
         if (this.settings.autoSave) {
+            console.log('⏰ Auto-save scheduled in', this.settings.autoSaveInterval, 'ms');
             clearTimeout(this.autoSaveTimer);
             this.autoSaveTimer = setTimeout(() => {
+                console.log('🚀 Auto-save triggered');
                 this.save();
             }, this.settings.autoSaveInterval);
+        } else {
+            console.warn('⚠️ Auto-save is disabled');
         }
         
         // Schedule preview update if enabled

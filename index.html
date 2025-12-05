@@ -56,9 +56,9 @@
             </div>
             <div class="header-right">
                 <!-- Sync Status -->
-                <div class="sync-status" id="sync-status" title="Cloud sync status">
+                <div class="sync-status synced" id="sync-status" title="Cloud sync status">
                     <i class="fas fa-cloud"></i>
-                    <span>Synced</span>
+                    <span class="sync-text">Synced</span>
                 </div>
                 
                 <div class="save-status saved" id="save-status" title="Click to view recent changes">
@@ -82,10 +82,10 @@
                 
                 <!-- User Account -->
                 <div class="user-account" id="user-account">
-                    <button class="icon-btn" id="user-account-btn" title="Account">
+                    <button class="icon-btn user-account-btn" id="user-account-btn" title="Account">
                         <i class="fas fa-user-circle"></i>
                     </button>
-                    <div class="user-dropdown hidden" id="user-dropdown">
+                    <div class="user-dropdown" id="user-dropdown">
                         <div class="user-info" id="user-info">
                             <i class="fas fa-user-circle" style="font-size: 2em; color: var(--primary);"></i>
                             <div>
@@ -94,10 +94,13 @@
                             </div>
                         </div>
                         <div class="dropdown-divider"></div>
-                        <button class="dropdown-item" id="login-btn">
+                        <button class="btn btn-secondary" id="syncToCloudBtn" style="display: none;">
+                            <i class="fas fa-cloud-upload-alt"></i> Sync to Cloud
+                        </button>
+                        <button class="btn btn-secondary" id="loginBtn">
                             <i class="fas fa-sign-in-alt"></i> Sign In
                         </button>
-                        <button class="dropdown-item hidden" id="logout-btn">
+                        <button class="btn btn-secondary" id="logoutBtn" style="display: none;">
                             <i class="fas fa-sign-out-alt"></i> Sign Out
                         </button>
                     </div>
@@ -519,8 +522,8 @@
     </div>
 
     <!-- Auth Modal -->
-    <div class="modal-overlay hidden" id="auth-modal-overlay">
-        <div class="modal modal-medium" id="auth-modal">
+    <div class="modal-overlay hidden" id="authModal">
+        <div class="modal modal-medium">
             <div class="modal-header">
                 <h2 id="auth-modal-title">
                     <i class="fas fa-user-circle"></i> Sign In
@@ -530,9 +533,9 @@
                 </button>
             </div>
             <div class="modal-body">
-                <div class="auth-tabs">
-                    <button class="auth-tab active" data-tab="login">Sign In</button>
-                    <button class="auth-tab" data-tab="signup">Sign Up</button>
+                <div class="auth-tabs" id="authTabs">
+                    <button class="auth-tab active" id="loginTab" data-tab="login">Sign In</button>
+                    <button class="auth-tab" id="signupTab" data-tab="signup">Sign Up</button>
                 </div>
                 
                 <!-- Login Form -->
@@ -545,14 +548,12 @@
                         <label class="form-label">Password</label>
                         <input type="password" class="form-input" id="loginPassword" placeholder="Enter your password" autocomplete="current-password" required>
                     </div>
-                    <div class="form-group">
-                        <button type="button" class="btn-link" id="forgotPasswordBtn">Forgot password?</button>
-                    </div>
                     <div class="auth-error" id="loginError"></div>
                     <div class="auth-success" id="loginSuccess"></div>
                     <button type="submit" class="btn btn-primary btn-block">
                         <i class="fas fa-sign-in-alt"></i> Sign In
                     </button>
+                    <a href="#" class="forgot-password" id="forgotPasswordBtn">Forgot password?</a>
                 </form>
                 
                 <!-- Signup Form -->
@@ -581,7 +582,7 @@
                 </form>
                 
                 <!-- Reset Password Form -->
-                <form class="auth-form hidden" id="reset-form">
+                <form class="auth-form" id="resetPasswordForm">
                     <div class="form-group">
                         <label class="form-label">Email</label>
                         <input type="email" class="form-input" id="resetEmail" placeholder="your@email.com" autocomplete="email" required>

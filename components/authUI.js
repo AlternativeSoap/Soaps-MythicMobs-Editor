@@ -23,6 +23,7 @@ class AuthUI {
         this.userType = document.querySelector('.user-type');
         this.loginBtn = document.getElementById('loginBtn');
         this.logoutBtn = document.getElementById('logoutBtn');
+        this.syncToCloudBtn = document.getElementById('syncToCloudBtn');
         this.userInfo = document.querySelector('.user-info');
         
         // Sync Status
@@ -40,6 +41,12 @@ class AuthUI {
         
         // Update UI based on initial auth state
         this.updateUI();
+        
+        // Close modal on X button click
+        const closeBtn = document.getElementById('auth-modal-close');
+        closeBtn?.addEventListener('click', () => {
+            this.closeModal();
+        });
         
         // Close modal on overlay click
         this.modal?.addEventListener('click', (e) => {
@@ -79,6 +86,8 @@ class AuthUI {
     }
     
     switchTab(tab) {
+        const authTabs = document.getElementById('authTabs');
+        
         // Hide all forms
         document.querySelectorAll('.auth-form').forEach(form => {
             form.classList.remove('active');
@@ -93,11 +102,14 @@ class AuthUI {
         if (tab === 'login') {
             this.loginForm?.classList.add('active');
             this.loginTab?.classList.add('active');
+            if (authTabs) authTabs.style.display = 'flex';
         } else if (tab === 'signup') {
             this.signupForm?.classList.add('active');
             this.signupTab?.classList.add('active');
+            if (authTabs) authTabs.style.display = 'flex';
         } else if (tab === 'reset') {
             this.resetForm?.classList.add('active');
+            if (authTabs) authTabs.style.display = 'none';
         }
         
         // Clear any error/success messages
@@ -139,10 +151,21 @@ class AuthUI {
             await this.handleLogout();
             this.userDropdown?.classList.remove('show');
         });
+        
+        this.syncToCloudBtn?.addEventListener('click', async () => {
+            await this.handleManualSync();
+            this.userDropdown?.classList.remove('show');
+        });
     }
     
     setupAuthStateListener() {
-        this.authManager.onAuthChange((user) => {
+        this.authManager.onAuthChange((event, session) => {
+            // Update storage manager with new user ID
+            if (this.storageManager?.db?.updateUserId) {
+                const userId = session?.user?.id || null;
+                this.storageManager.db.updateUserId(userId);
+            }
+            
             this.updateUI();
         });
     }
@@ -164,13 +187,32 @@ class AuthUI {
         const result = await this.authManager.login(email, password);
         
         if (result.success) {
-            this.showSuccess('login', 'Login successful!');
+            // IMPORTANT: Update user ID FIRST
+            if (this.storageManager?.db?.updateUserId && result.user) {
+                await this.storageManager.db.updateUserId(result.user.id);
+            }
             
-            // Close modal after short delay
+            // Clear localStorage and load authenticated user data
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading your data...';
+            
+            // Clear local storage (keep anonymous ID for later)
+            const anonId = localStorage.getItem('mythicmobs_anon_id');
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('mythicmobs_') && key !== 'mythicmobs_anon_id') {
+                    localStorage.removeItem(key);
+                }
+            });
+            
+            // Load authenticated user data from cloud (DO NOT sync TO cloud - that would overwrite)
+            if (this.storageManager?.db?.syncFromCloud) {
+                await this.storageManager.db.syncFromCloud();
+            }
+            
+            // Reload the page to refresh all data
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> Success! Reloading...';
             setTimeout(() => {
-                this.closeModal();
-                this.loginForm?.reset();
-            }, 1000);
+                window.location.reload();
+            }, 500);
         } else {
             this.showError('login', result.error || 'Login failed');
             submitBtn.disabled = false;
@@ -206,10 +248,33 @@ class AuthUI {
         const result = await this.authManager.signup(email, password);
         
         if (result.success) {
-            // Migrate anonymous data
+            // Update storage with new user ID immediately
+            if (this.storageManager?.db?.updateUserId && result.user) {
+                await this.storageManager.db.updateUserId(result.user.id);
+            }
+            
+            // Migrate anonymous data to new account
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Migrating data...';
             await this.authManager.migrateAnonymousData(this.storageManager);
             
+            // Clear localStorage and load from cloud
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading your data...';
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('mythicmobs_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            
+            // Load the migrated data from cloud
+            if (this.storageManager?.db?.syncFromCloud) {
+                await this.storageManager.db.syncFromCloud();
+            }
+            
             this.showSuccess('signup', 'Account created! Your data has been migrated.');
+            
+            // Re-enable button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
             
             // Close modal after short delay
             setTimeout(() => {
@@ -249,17 +314,87 @@ class AuthUI {
         submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Reset Link';
     }
     
+    async handleManualSync() {
+        console.log('🔄 Manual sync triggered...');
+        this.setSyncStatus('syncing');
+        
+        // Show a loading message
+        const originalBtn = this.syncToCloudBtn;
+        if (originalBtn) {
+            originalBtn.disabled = true;
+            originalBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+        }
+        
+        try {
+            if (this.storageManager?.db?.syncToCloud) {
+                await this.storageManager.db.syncToCloud();
+                this.showSyncSuccess();
+                console.log('✅ Manual sync completed');
+                
+                // Show success message
+                if (window.editor && window.editor.showToast) {
+                    window.editor.showToast('Data synced to cloud successfully!', 'success');
+                }
+            }
+        } catch (error) {
+            console.error('❌ Manual sync failed:', error);
+            this.showSyncError();
+            
+            // Show error message
+            if (window.editor && window.editor.showToast) {
+                window.editor.showToast('Failed to sync to cloud', 'error');
+            }
+        } finally {
+            // Restore button
+            if (originalBtn) {
+                originalBtn.disabled = false;
+                originalBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Sync to Cloud';
+            }
+        }
+    }
+    
     async handleLogout() {
+        // Save any pending changes to cloud before logging out
+        if (this.storageManager?.db?.syncToCloud) {
+            console.log('💾 Saving data before logout...');
+            await this.storageManager.db.syncToCloud();
+        }
+        
         const result = await this.authManager.logout();
         
         if (result.success) {
-            // Generate new anonymous ID
-            this.authManager.generateAnonymousId();
+            console.log('🔓 Logged out successfully');
             
-            // Show notification
-            if (window.showNotification) {
-                window.showNotification('Logged out successfully', 'success');
+            // Clear localStorage to separate user data
+            const keysToKeep = ['mythicmobs_anon_id']; // Keep old anonymous ID if it exists
+            const oldAnonId = localStorage.getItem('mythicmobs_anon_id');
+            
+            // Clear all mythicmobs data
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('mythicmobs_') && !keysToKeep.includes(key)) {
+                    localStorage.removeItem(key);
+                }
+            });
+            
+            // Generate new anonymous ID if none exists
+            if (!oldAnonId) {
+                const newAnonId = 'anon_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('mythicmobs_anon_id', newAnonId);
             }
+            
+            // Update storage manager to use anonymous ID
+            if (this.storageManager?.db) {
+                const anonId = localStorage.getItem('mythicmobs_anon_id');
+                await this.storageManager.db.updateUserId(anonId);
+                
+                // Try to load old anonymous data from cloud if it exists
+                console.log('🔄 Loading anonymous user data...');
+                await this.storageManager.db.syncFromCloud();
+            }
+            
+            // Reload the page to reset the UI completely
+            console.log('♻️ Reloading page to reset state...');
+            window.location.reload();
         }
     }
     
@@ -274,6 +409,7 @@ class AuthUI {
             if (this.userInfo) this.userInfo.style.display = 'block';
             if (this.loginBtn) this.loginBtn.style.display = 'none';
             if (this.logoutBtn) this.logoutBtn.style.display = 'block';
+            if (this.syncToCloudBtn) this.syncToCloudBtn.style.display = 'block';
         } else {
             // Show anonymous state
             if (this.userEmail) this.userEmail.textContent = 'Anonymous User';
@@ -281,17 +417,18 @@ class AuthUI {
             if (this.userInfo) this.userInfo.style.display = 'block';
             if (this.loginBtn) this.loginBtn.style.display = 'block';
             if (this.logoutBtn) this.logoutBtn.style.display = 'none';
+            if (this.syncToCloudBtn) this.syncToCloudBtn.style.display = 'none';
         }
     }
     
     openModal(tab = 'login') {
-        this.modal?.classList.add('show');
+        this.modal?.classList.remove('hidden');
         this.switchTab(tab);
         this.clearMessages();
     }
     
     closeModal() {
-        this.modal?.classList.remove('show');
+        this.modal?.classList.add('hidden');
         this.clearMessages();
         
         // Reset all forms
