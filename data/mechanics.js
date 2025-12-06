@@ -4,6 +4,33 @@
  * Parsed from official MythicMobs documentation (8386 lines)
  */
 
+// Inherited Particle Attributes - Shared by all particle mechanics except base Particle
+const INHERITED_PARTICLE_ATTRIBUTES = [
+    { name: 'mob', alias: ['m', 't'], type: 'text', default: '', description: 'Entity to spawn as particle (Premium Only)' },
+    { name: 'amount', alias: ['count', 'a'], type: 'number', default: 10, description: 'Number of particles to create' },
+    { name: 'spread', alias: ['offset'], type: 'number', default: 0, description: 'Vertical spread of particles' },
+    { name: 'hspread', alias: ['hs'], type: 'number', default: 'spread', description: 'Horizontal spread of particles' },
+    { name: 'vspread', alias: ['vs', 'yspread', 'ys'], type: 'number', default: 'spread', description: 'Y-axis spread of particles' },
+    { name: 'xspread', alias: ['xs'], type: 'number', default: 'hSpread', description: 'X-axis spread (overwrites hSpread)' },
+    { name: 'zspread', alias: ['zs'], type: 'number', default: 'hSpread', description: 'Z-axis spread (overwrites hSpread)' },
+    { name: 'speed', alias: ['s'], type: 'number', default: 0, description: 'Speed of particles (inconsistent with DataTypes)' },
+    { name: 'yoffset', alias: ['y'], type: 'number', default: 0, description: 'Y offset from target' },
+    { name: 'viewdistance', alias: ['vd'], type: 'number', default: 128, description: 'Distance particles are rendered' },
+    { name: 'fromorigin', alias: ['fo'], type: 'boolean', default: false, description: 'Generate particles from origin' },
+    { name: 'directional', alias: ['d'], type: 'boolean', default: false, description: 'Use directional travel' },
+    { name: 'directionreversed', alias: ['dr'], type: 'boolean', default: false, description: 'Reverse particle direction' },
+    { name: 'direction', alias: ['dir'], type: 'text', default: '0,0,0', description: 'Vector direction (x,y,z)' },
+    { name: 'fixedyaw', alias: ['yaw'], type: 'number', default: -1111, description: 'Fixed yaw (-1111 = ignored)' },
+    { name: 'fixedpitch', alias: ['pitch'], type: 'number', default: -1111, description: 'Fixed pitch (-1111 = ignored)' },
+    { name: 'audience', alias: [], type: 'text', default: 'nearby', description: 'Audience of particle effect' },
+    { name: 'color', alias: ['c'], type: 'color', default: '#FF0000', description: 'Particle color (hex format)', showWhen: { requiresDataType: ['Color', 'DustOptions', 'DustTransition', 'Spell'] } },
+    { name: 'exactoffsets', alias: ['eo'], type: 'boolean', default: false, description: 'Changes spawn location formula' },
+    { name: 'material', alias: ['m', 'mat'], type: 'materialSelect', default: '', description: 'Material for block/item particles', showWhen: { requiresDataType: ['ItemStack', 'BlockData', 'MaterialData'] } },
+    { name: 'useEyeLocation', alias: ['uel'], type: 'boolean', default: false, description: 'Base particles on entity eyes' },
+    { name: 'forwardoffset', alias: ['startfoffset', 'sfo'], type: 'number', default: 0, description: 'Forward offset from entity' },
+    { name: 'sideoffset', alias: ['soffset', 'sso'], type: 'number', default: 0, description: 'Side offset from entity' }
+];
+
 const MECHANICS_DATA = {
     // Category definitions
     categories: {
@@ -333,20 +360,26 @@ const MECHANICS_DATA = {
         // ═══════════════════════════════════════════════════════════
         {
             id: 'particle',
-            name: 'particle',
+            name: 'Particle',
             aliases: ['particles', 'effect:particles', 'e:particles', 'e:particle', 'e:p'],
             category: 'effects',
-            description: 'Creates a particle effect at the targeted entity or location.',
+            description: 'Creates a particle effect at the targeted entity or location with smart DataType support.',
+            hasSmartParticles: true,
             attributes: [
-                { name: 'particle', alias: ['p'], type: 'string', default: 'reddust', description: 'Particle type' },
+                { name: 'particle', alias: ['p'], type: 'particleSelect', default: 'flame', description: 'Particle type (120+ options)', usesParticleTypes: true },
                 { name: 'amount', alias: ['count', 'a'], type: 'number', default: 10, description: 'Number of particles' },
                 { name: 'speed', alias: ['s'], type: 'number', default: 0, description: 'Speed of particles' },
                 { name: 'hspread', alias: ['hs'], type: 'number', default: 0, description: 'Horizontal spread' },
                 { name: 'vspread', alias: ['vs', 'yspread', 'ys'], type: 'number', default: 0, description: 'Vertical spread' },
-                { name: 'yoffset', alias: ['y'], type: 'number', default: 0, description: 'Y offset from target' }
+                { name: 'yoffset', alias: ['y'], type: 'number', default: 0, description: 'Y offset from target' },
+                { name: 'material', alias: ['m', 'mat'], type: 'materialSelect', default: '', description: 'Material (for block/item particles)', showWhen: { requiresDataType: ['ItemStack', 'BlockData', 'MaterialData'] } },
+                { name: 'color', alias: ['c'], type: 'color', default: '#FF0000', description: 'Color (hex format)', showWhen: { requiresDataType: ['Color', 'DustOptions', 'DustTransition', 'Spell'] } },
+                { name: 'size', alias: ['sz'], type: 'number', default: 1.0, description: 'Particle size', showWhen: { requiresDataType: ['DustOptions', 'DustTransition'] } },
+                { name: 'color2', alias: ['c2', 'toColor'], type: 'color', default: '#00FF00', description: 'End color (dust_color_transition)', showWhen: { requiresDataType: ['DustTransition'] } },
+                { name: 'power', alias: ['pow'], type: 'number', default: 1.0, description: 'Spell power', showWhen: { requiresDataType: ['Spell'] } }
             ],
             defaultTargeter: '@Self',
-            examples: ['- effect:particles{p=flame;a=200;hs=1;vs=1;s=5} ', '- particles{p=flame;a=10;y=0.3} ']
+            examples: ['- particle{p=flame;a=200;hs=1;vs=1;s=5}', '- particle{p=dust;color=#FF0000;size=2}', '- particle{p=block;material=STONE}']
         },
         {
             id: 'sound',
@@ -748,52 +781,192 @@ const MECHANICS_DATA = {
             defaultTargeter: '@Self',
             examples: ['- equip{slot=HEAD;material=DIAMOND_HELMET} ']
         },
+        {
+            id: 'particlebox',
+            name: 'ParticleBox',
+            aliases: ['effect:particlebox', 'e:pb', 'pb'],
+            category: 'effects',
+            description: 'Creates a box of particles at the targeted entity or location.',
+            hasSmartParticles: true,
+            inheritedParticleAttributes: true,
+            attributes: [
+                { name: 'particle', alias: ['p'], type: 'particleSelect', default: 'flame', description: 'Particle type (120+ options)', usesParticleTypes: true },
+                { name: 'amount', alias: ['count', 'a'], type: 'number', default: 10, description: 'Number of particles' },
+                { name: 'radius', alias: ['r'], type: 'number', default: 5, description: 'Box radius' },
+                { name: 'material', alias: ['m', 'mat'], type: 'materialSelect', default: '', description: 'Material (for block/item particles)', showWhen: { requiresDataType: ['ItemStack', 'BlockData', 'MaterialData'] } },
+                { name: 'color', alias: ['c'], type: 'color', default: '#FF0000', description: 'Color (hex format)', showWhen: { requiresDataType: ['Color', 'DustOptions', 'DustTransition', 'Spell'] } },
+                { name: 'size', alias: ['sz'], type: 'number', default: 1.0, description: 'Particle size', showWhen: { requiresDataType: ['DustOptions', 'DustTransition'] } }
+            ],
+            defaultTargeter: '@Self',
+            examples: ['- particlebox{particle=flame;amount=200;radius=5}', '- particlebox{p=dust;color=#00FF00;size=1.5;radius=3}']
+        },
+        {
+            id: 'particleline',
+            name: 'ParticleLine',
+            aliases: ['effect:particleline', 'e:pl', 'pl'],
+            category: 'effects',
+            description: 'Creates a line of particles between origin and target.',
+            hasSmartParticles: true,
+            inheritedParticleAttributes: true,
+            attributes: [
+                { name: 'particle', alias: ['p'], type: 'particleSelect', default: 'flame', description: 'Particle type (120+ options)', usesParticleTypes: true },
+                { name: 'amount', alias: ['count', 'a'], type: 'number', default: 1, description: 'Number of particles per point' },
+                { name: 'distanceBetween', alias: ['db'], type: 'number', default: 0.25, description: 'Distance between points' },
+                { name: 'fromOrigin', alias: ['fo'], type: 'boolean', default: false, description: 'Draw from origin' },
+                { name: 'material', alias: ['m', 'mat'], type: 'materialSelect', default: '', description: 'Material (for block/item particles)', showWhen: { requiresDataType: ['ItemStack', 'BlockData', 'MaterialData'] } },
+                { name: 'color', alias: ['c'], type: 'color', default: '#FF0000', description: 'Color (hex format)', showWhen: { requiresDataType: ['Color', 'DustOptions', 'DustTransition', 'Spell'] } },
+                { name: 'size', alias: ['sz'], type: 'number', default: 1.0, description: 'Particle size', showWhen: { requiresDataType: ['DustOptions', 'DustTransition'] } }
+            ],
+            defaultTargeter: '@Target',
+            examples: ['- particleline{particle=flame;amount=1;fromOrigin=true}', '- particleline{p=dust;color=#FF00FF;fromOrigin=true}']
+        },
+        {
+            id: 'particlelinehelix',
+            name: 'ParticleLineHelix',
+            aliases: ['effect:particlelinehelix', 'particlehelixline'],
+            category: 'effects',
+            description: 'Creates a particle line helix effect.',
+            hasSmartParticles: true,
+            inheritedParticleAttributes: true,
+            attributes: [
+                { name: 'particle', alias: ['p'], type: 'particleSelect', default: 'flame', description: 'Particle type (120+ options)', usesParticleTypes: true },
+                { name: 'amount', alias: ['count', 'a'], type: 'number', default: 1, description: 'Number of particles per point' },
+                { name: 'distanceBetween', alias: ['db'], type: 'number', default: 1, description: 'Distance between points' },
+                { name: 'helixlength', alias: ['hl'], type: 'number', default: 2, description: 'Helix length' },
+                { name: 'helixradius', alias: ['hr'], type: 'number', default: 1, description: 'Helix radius' },
+                { name: 'fromOrigin', alias: ['fo'], type: 'boolean', default: false, description: 'Draw from origin' },
+                { name: 'material', alias: ['m', 'mat'], type: 'materialSelect', default: '', description: 'Material (for block/item particles)', showWhen: { requiresDataType: ['ItemStack', 'BlockData', 'MaterialData'] } },
+                { name: 'color', alias: ['c'], type: 'color', default: '#FF0000', description: 'Color (hex format)', showWhen: { requiresDataType: ['Color', 'DustOptions', 'DustTransition', 'Spell'] } },
+                { name: 'size', alias: ['sz'], type: 'number', default: 1.0, description: 'Particle size', showWhen: { requiresDataType: ['DustOptions', 'DustTransition'] } }
+            ],
+            defaultTargeter: '@TargetLocation',
+            examples: ['- particlelinehelix{fo=true;db=0.4;hl=4;hr=0.5}', '- particlelinehelix{p=dust;color=#FFAA00;hl=6}']
+        },
+        {
+            id: 'particlelinering',
+            name: 'ParticleLineRing',
+            aliases: ['effect:particlelinering', 'particleringline'],
+            category: 'effects',
+            description: 'Creates a particle line ring.',
+            hasSmartParticles: true,
+            inheritedParticleAttributes: true,
+            attributes: [
+                { name: 'particle', alias: ['p'], type: 'particleSelect', default: 'flame', description: 'Particle type (120+ options)', usesParticleTypes: true },
+                { name: 'amount', alias: ['count', 'a'], type: 'number', default: 1, description: 'Number of particles per point' },
+                { name: 'ringpoints', alias: ['rp'], type: 'number', default: 16, description: 'Points in ring' },
+                { name: 'ringradius', alias: ['rr'], type: 'number', default: 0.5, description: 'Ring radius' },
+                { name: 'fromOrigin', alias: ['fo'], type: 'boolean', default: false, description: 'Draw from origin' },
+                { name: 'material', alias: ['m', 'mat'], type: 'materialSelect', default: '', description: 'Material (for block/item particles)', showWhen: { requiresDataType: ['ItemStack', 'BlockData', 'MaterialData'] } },
+                { name: 'color', alias: ['c'], type: 'color', default: '#FF0000', description: 'Color (hex format)', showWhen: { requiresDataType: ['Color', 'DustOptions', 'DustTransition', 'Spell'] } },
+                { name: 'size', alias: ['sz'], type: 'number', default: 1.0, description: 'Particle size', showWhen: { requiresDataType: ['DustOptions', 'DustTransition'] } }
+            ],
+            defaultTargeter: '@PIR{r=20;limit=1;sort=RANDOM}',
+            examples: ['- particlelinering{p=flame;r=3;rr=1}', '- particlelinering{p=dust;color=#0088FF;rr=2}']
+        },
+        {
+            id: 'particleorbital',
+            name: 'ParticleOrbital',
+            aliases: ['effect:particleorbital', 'e:particleorbital', 'effect:particlecircle', 'particlecircle', 'e:particlecricle'],
+            category: 'effects',
+            description: 'Creates orbiting particle effect.',
+            hasSmartParticles: true,
+            inheritedParticleAttributes: true,
+            attributes: [
+                { name: 'particle', alias: ['p'], type: 'particleSelect', default: 'flame', description: 'Particle type (120+ options)', usesParticleTypes: true },
+                { name: 'radius', alias: ['r'], type: 'number', default: 4, description: 'Orbit radius' },
+                { name: 'points', alias: ['pts'], type: 'number', default: 20, description: 'Points in circle' },
+                { name: 'ticks', alias: ['t'], type: 'number', default: 100, description: 'Duration in ticks' },
+                { name: 'interval', alias: ['in', 'i'], type: 'number', default: 10, description: 'Update interval' },
+                { name: 'material', alias: ['m', 'mat'], type: 'materialSelect', default: '', description: 'Material (for block/item particles)', showWhen: { requiresDataType: ['ItemStack', 'BlockData', 'MaterialData'] } },
+                { name: 'color', alias: ['c'], type: 'color', default: '#FF0000', description: 'Color (hex format)', showWhen: { requiresDataType: ['Color', 'DustOptions', 'DustTransition', 'Spell'] } },
+                { name: 'size', alias: ['sz'], type: 'number', default: 1.0, description: 'Particle size', showWhen: { requiresDataType: ['DustOptions', 'DustTransition'] } }
+            ],
+            defaultTargeter: '@Self',
+            examples: ['- particleorbital{r=2;points=16;t=100;i=1;particle=flame}', '- particleorbital{p=dust;color=#00FFFF;r=3}']
+        },
+        {
+            id: 'particlering',
+            name: 'ParticleRing',
+            aliases: ['effect:particlering', 'e:pr', 'pr'],
+            category: 'effects',
+            description: 'Creates a ring of particles around target.',
+            hasSmartParticles: true,
+            inheritedParticleAttributes: true,
+            attributes: [
+                { name: 'particle', alias: ['p'], type: 'particleSelect', default: 'flame', description: 'Particle type (120+ options)', usesParticleTypes: true },
+                { name: 'amount', alias: ['count', 'a'], type: 'number', default: 1, description: 'Number of particles per point' },
+                { name: 'points', alias: ['pts'], type: 'number', default: 8, description: 'Points in ring' },
+                { name: 'radius', alias: ['r'], type: 'number', default: 10, description: 'Ring radius' },
+                { name: 'material', alias: ['m', 'mat'], type: 'materialSelect', default: '', description: 'Material (for block/item particles)', showWhen: { requiresDataType: ['ItemStack', 'BlockData', 'MaterialData'] } },
+                { name: 'color', alias: ['c'], type: 'color', default: '#FF0000', description: 'Color (hex format)', showWhen: { requiresDataType: ['Color', 'DustOptions', 'DustTransition', 'Spell'] } },
+                { name: 'size', alias: ['sz'], type: 'number', default: 1.0, description: 'Particle size', showWhen: { requiresDataType: ['DustOptions', 'DustTransition'] } }
+            ],
+            defaultTargeter: '@Target',
+            examples: ['- particlering{particle=flame;radius=20;points=32;amount=1}', '- particlering{p=entity_effect;color=#FF6600;radius=5}']
+        },
+        {
+            id: 'particlesphere',
+            name: 'ParticleSphere',
+            aliases: ['effect:particlesphere', 'e:ps', 'ps'],
+            category: 'effects',
+            description: 'Creates a sphere of particles at target.',
+            hasSmartParticles: true,
+            inheritedParticleAttributes: true,
+            attributes: [
+                { name: 'particle', alias: ['p'], type: 'particleSelect', default: 'flame', description: 'Particle type (120+ options)', usesParticleTypes: true },
+                { name: 'amount', alias: ['count', 'a'], type: 'number', default: 200, description: 'Number of particles' },
+                { name: 'radius', alias: ['r'], type: 'number', default: 0, description: 'Sphere radius' },
+                { name: 'material', alias: ['m', 'mat'], type: 'materialSelect', default: '', description: 'Material (for block/item particles)', showWhen: { requiresDataType: ['ItemStack', 'BlockData', 'MaterialData'] } },
+                { name: 'color', alias: ['c'], type: 'color', default: '#FF0000', description: 'Color (hex format)', showWhen: { requiresDataType: ['Color', 'DustOptions', 'DustTransition', 'Spell'] } },
+                { name: 'size', alias: ['sz'], type: 'number', default: 1.0, description: 'Particle size', showWhen: { requiresDataType: ['DustOptions', 'DustTransition'] } }
+            ],
+            defaultTargeter: '@Self',
+            examples: ['- particlesphere{particle=flame;amount=200;radius=5}', '- particlesphere{p=dust;color=#FF0088;amount=100;radius=3}']
+        },
+        {
+            id: 'particletornado',
+            name: 'ParticleTornado',
+            aliases: ['effect:particletornado', 'e:pt'],
+            category: 'effects',
+            description: 'Creates a tornado styled particle effect.',
+            hasSmartParticles: true,
+            inheritedParticleAttributes: true,
+            attributes: [
+                { name: 'particle', alias: ['p'], type: 'particleSelect', default: 'flame', description: 'Particle type (120+ options)', usesParticleTypes: true },
+                { name: 'maxradius', alias: ['mr'], type: 'number', default: 3, description: 'Max tornado radius' },
+                { name: 'height', alias: ['h'], type: 'number', default: 4, description: 'Tornado height' },
+                { name: 'duration', alias: ['d'], type: 'number', default: 200, description: 'Effect duration' },
+                { name: 'material', alias: ['m', 'mat'], type: 'materialSelect', default: '', description: 'Material (for block/item particles)', showWhen: { requiresDataType: ['ItemStack', 'BlockData', 'MaterialData'] } },
+                { name: 'color', alias: ['c'], type: 'color', default: '#FF0000', description: 'Color (hex format)', showWhen: { requiresDataType: ['Color', 'DustOptions', 'DustTransition', 'Spell'] } },
+                { name: 'size', alias: ['sz'], type: 'number', default: 1.0, description: 'Particle size', showWhen: { requiresDataType: ['DustOptions', 'DustTransition'] } }
+            ],
+            defaultTargeter: '@Self',
+            examples: ['- particletornado{p=flame;mr=1;h=3;d=100}', '- particletornado{p=dust;color=#8800FF;mr=2}']
+        },
+        {
+            id: 'atom',
+            name: 'Atom',
+            aliases: ['effect:atom', 'e:atom'],
+            category: 'effects',
+            description: 'Creates an orbiting atom effect.',
+            hasSmartParticles: true,
+            inheritedParticleAttributes: true,
+            attributes: [
+                { name: 'particle', alias: ['p'], type: 'particleSelect', default: 'redstone', description: 'Particle type (120+ options)', usesParticleTypes: true },
+                { name: 'orbitals', alias: ['o'], type: 'number', default: 2, description: 'Number of orbitals' },
+                { name: 'radius', alias: ['r'], type: 'number', default: 4, description: 'Orbit radius' },
+                { name: 'ticks', alias: ['t'], type: 'number', default: 1, description: 'Duration in ticks' },
+                { name: 'material', alias: ['m', 'mat'], type: 'materialSelect', default: '', description: 'Material (for block/item particles)', showWhen: { requiresDataType: ['ItemStack', 'BlockData', 'MaterialData'] } },
+                { name: 'color', alias: ['c'], type: 'color', default: '#FF0000', description: 'Color (hex format)', showWhen: { requiresDataType: ['Color', 'DustOptions', 'DustTransition', 'Spell'] } },
+                { name: 'size', alias: ['sz'], type: 'number', default: 1.0, description: 'Particle size', showWhen: { requiresDataType: ['DustOptions', 'DustTransition'] } }
+            ],
+            defaultTargeter: '@Self',
+            examples: ['- atom{particle=flame;orbitals=3;radius=2}', '- atom{p=dust;color=#0099FF;radius=3}']
+        },
         
         // ═══════════════════════════════════════════════════════════
         // ADDITIONAL EFFECTS
         // ═══════════════════════════════════════════════════════════
-        {
-            id: 'particleline',
-            name: 'particleline',
-            aliases: [],
-            category: 'effects',
-            description: 'Creates a line of particles between origin and target.',
-            attributes: [
-                { name: 'particle', alias: ['p'], type: 'string', default: 'flame', description: 'Particle type' },
-                { name: 'points', alias: ['pt'], type: 'number', default: 10, description: 'Number of particles in line' },
-                { name: 'fromorigin', alias: ['fo'], type: 'boolean', default: false, description: 'Draw from origin to target' }
-            ],
-            defaultTargeter: '@Target',
-            examples: ['- particleLine{particle=flame;points=20;fromOrigin=true} ']
-        },
-        {
-            id: 'particlering',
-            name: 'particlering',
-            aliases: [],
-            category: 'effects',
-            description: 'Creates a ring of particles around the target.',
-            attributes: [
-                { name: 'particle', alias: ['p'], type: 'string', default: 'flame', description: 'Particle type' },
-                { name: 'radius', alias: ['r'], type: 'number', default: 5, description: 'Ring radius' },
-                { name: 'points', alias: ['pt'], type: 'number', default: 20, description: 'Number of particles' }
-            ],
-            defaultTargeter: '@Self',
-            examples: ['- particleRing{particle=reddust;r=3;points=32} ']
-        },
-        {
-            id: 'particlesphere',
-            name: 'particlesphere',
-            aliases: [],
-            category: 'effects',
-            description: 'Creates a sphere of particles at the target.',
-            attributes: [
-                { name: 'particle', alias: ['p'], type: 'string', default: 'flame', description: 'Particle type' },
-                { name: 'radius', alias: ['r'], type: 'number', default: 2, description: 'Sphere radius' },
-                { name: 'density', alias: ['d'], type: 'number', default: 50, description: 'Particle density' }
-            ],
-            defaultTargeter: '@Self',
-            examples: ['- particleSphere{particle=enchantment_table;r=2;d=100}']
-        },
         {
             id: 'blockwave',
             name: 'blockwave',
@@ -2166,20 +2339,6 @@ const MECHANICS_DATA = {
             examples: ['- opentrades ']
         },
         {
-            id: 'atom',
-            name: 'Atom',
-            aliases: [],
-            category: 'effects',
-            description: 'Creates orbiting particle atom effect.',
-            attributes: [
-                { name: 'particle', alias: ['p'], type: 'particle', default: 'REDSTONE', description: 'Particle type' },
-                { name: 'rings', alias: ['r'], type: 'number', default: 3, description: 'Number of rings' },
-                { name: 'radius', alias: ['rad'], type: 'number', default: 1, description: 'Orbit radius' }
-            ],
-            defaultTargeter: '@Self',
-            examples: ['- atom{particle=FLAME;rings=3;radius=2} ']
-        },
-        {
             id: 'pickupitem',
             name: 'PickupItem',
             aliases: ['pickup'],
@@ -3439,5 +3598,6 @@ if (typeof module !== 'undefined' && module.exports) {
 
 // Make available globally
 window.MECHANICS_DATA = MECHANICS_DATA;
+window.INHERITED_PARTICLE_ATTRIBUTES = INHERITED_PARTICLE_ATTRIBUTES;
 
 console.log('✅ Mechanics data loaded:', MECHANICS_DATA.mechanics.length, 'mechanics');

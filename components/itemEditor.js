@@ -159,84 +159,130 @@ class ItemEditor {
                     </h3>
                 </div>
                 <div class="card-body collapsible-card-body">
-                    <div class="grid-2">
-                        <div class="form-group full-width">
-                            <label for="item-display" class="form-label">Display Name</label>
+                    <!-- Display Name Section -->
+                    <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, transparent 100%); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="item-display" class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 8px;">
+                                <i class="fas fa-tag" style="color: #6366f1;"></i>
+                                Display Name
+                            </label>
                             <input 
                                 type="text" 
                                 id="item-display" 
                                 class="form-input" 
                                 value="${item?.Display || ''}"
                                 placeholder="&6&lLegendary Sword"
+                                style="font-size: 14px;"
                             >
-                            <small class="form-hint">Supports color codes (&amp;a, &amp;l, etc.)</small>
+                            <small class="form-hint" style="margin-top: 6px; display: block;">
+                                <i class="fas fa-info-circle" style="color: #6366f1; margin-right: 4px;"></i>
+                                Supports color codes (&amp;a, &amp;l, etc.) and formatting
+                            </small>
                         </div>
+                    </div>
 
-                        <div class="form-group full-width">
-                            <label class="form-label">Lore</label>
-                            <small class="form-hint">Item description lines</small>
-                            <div id="item-lore-list" class="list-editor">
-                                ${loreLines.map((line, index) => `
-                                    <div class="list-item" data-index="${index}">
-                                        <input 
-                                            type="text" 
-                                            class="form-input lore-line" 
-                                            value="${line}"
-                                            placeholder="&7Enter lore text..."
-                                        >
-                                        <button type="button" class="btn-icon btn-danger remove-lore" data-index="${index}">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                `).join('')}
-                                <button type="button" class="btn-secondary add-lore-btn">
-                                    <i class="fas fa-plus"></i> Add Lore Line
-                                </button>
+                    <!-- Lore Section -->
+                    <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, transparent 100%); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                            <span style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                                <i class="fas fa-scroll" style="color: #8b5cf6;"></i>
+                                Lore Lines
+                                ${loreLines.length > 0 ? `<span style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${loreLines.length}</span>` : ''}
+                            </span>
+                        </label>
+                        <small class="form-hint" style="margin-bottom: 12px; display: block;">
+                            <i class="fas fa-info-circle" style="color: #8b5cf6; margin-right: 4px;"></i>
+                            Item description lines shown in the tooltip
+                        </small>
+                        <div id="item-lore-list" class="list-editor">
+                            ${loreLines.map((line, index) => `
+                                <div class="list-item" data-index="${index}" style="margin-bottom: 8px;">
+                                    <span style="color: var(--text-tertiary); font-size: 12px; margin-right: 8px; min-width: 20px; text-align: right;">${index + 1}.</span>
+                                    <input 
+                                        type="text" 
+                                        class="form-input lore-line" 
+                                        value="${line}"
+                                        placeholder="&7Enter lore text..."
+                                        style="flex: 1;"
+                                    >
+                                    <button type="button" class="btn-icon btn-danger remove-lore" data-index="${index}" title="Remove line">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            `).join('')}
+                            <button type="button" class="add-item-btn add-lore-btn" style="width: 100%; margin-top: 8px;">
+                                <i class="fas fa-plus-circle"></i>
+                                <span>Add Lore Line</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Visual Properties Section -->
+                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 16px;">
+                        <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 16px;">
+                            <i class="fas fa-wand-magic-sparkles" style="color: #10b981;"></i>
+                            Visual Properties
+                        </label>
+                        
+                        <div class="grid-2" style="gap: 16px;">
+                            <!-- Color -->
+                            <div class="form-group" id="item-color-group" style="display: none; margin-bottom: 0;">
+                                <label for="item-color" class="form-label" style="font-size: 13px; font-weight: 500;">
+                                    <i class="fas fa-palette" style="color: #10b981; margin-right: 6px;"></i>
+                                    Color (RGB)
+                                </label>
+                                <div class="color-picker-container" style="display: flex; gap: 8px;">
+                                    <input 
+                                        type="text" 
+                                        id="item-color" 
+                                        class="form-input" 
+                                        value="${item?.Color || ''}"
+                                        placeholder="255,128,0"
+                                        style="flex: 1;"
+                                    >
+                                    <select id="item-color-preset" class="form-select" style="flex: 1;">
+                                        <option value="">Presets</option>
+                                        ${window.ItemOptions?.PREDEFINED_COLORS.map(color => `
+                                            <option value="${color.rgb}">${color.name}</option>
+                                        `).join('') || ''}
+                                    </select>
+                                </div>
+                                <small class="form-hint" style="margin-top: 6px;">For leather armor, potions, banners</small>
                             </div>
-                        </div>
 
-                        <div class="form-group" id="item-color-group" style="display: none;">
-                            <label for="item-color" class="form-label">Color (RGB)</label>
-                            <div class="color-picker-container">
+                            <!-- Durability -->
+                            <div class="form-group" id="item-durability-group" style="margin-bottom: 0;">
+                                <label for="item-durability" class="form-label" style="font-size: 13px; font-weight: 500;">
+                                    <i class="fas fa-heart-crack" style="color: #ef4444; margin-right: 6px;"></i>
+                                    Durability
+                                </label>
                                 <input 
-                                    type="text" 
-                                    id="item-color" 
+                                    type="number" 
+                                    id="item-durability" 
                                     class="form-input" 
-                                    value="${item?.Color || ''}"
-                                    placeholder="255,128,0"
+                                    value="${item?.Durability || ''}"
+                                    min="0"
+                                    placeholder="Current value"
                                 >
-                                <select id="item-color-preset" class="form-select">
-                                    <option value="">Custom Color</option>
-                                    ${window.ItemOptions?.PREDEFINED_COLORS.map(color => `
-                                        <option value="${color.rgb}">${color.name}</option>
-                                    `).join('') || ''}
-                                </select>
+                                <small class="form-hint" style="margin-top: 6px;">Current durability value</small>
                             </div>
-                            <small class="form-hint">For leather armor, banners, etc.</small>
-                        </div>
 
-                        <div class="form-group" id="item-durability-group">
-                            <label for="item-durability" class="form-label">Durability</label>
-                            <input 
-                                type="number" 
-                                id="item-durability" 
-                                class="form-input" 
-                                value="${item?.Durability || ''}"
-                                min="0"
-                            >
-                            <small class="form-hint">Current durability value</small>
-                        </div>
-
-                        <div class="form-group" id="item-max-durability-group">
-                            <label for="item-max-durability" class="form-label">Max Durability</label>
-                            <input 
-                                type="number" 
-                                id="item-max-durability" 
-                                class="form-input" 
-                                value="${item?.MaxDurability || ''}"
-                                min="1"
-                            >
-                            <small class="form-hint">Override maximum durability</small>
+                            <!-- Max Durability -->
+                            <div class="form-group" id="item-max-durability-group" style="margin-bottom: 0;">
+                                <label for="item-max-durability" class="form-label" style="font-size: 13px; font-weight: 500;">
+                                    <i class="fas fa-shield-halved" style="color: #3b82f6; margin-right: 6px;"></i>
+                                    Max Durability
+                                </label>
+                                <input 
+                                    type="number" 
+                                    id="item-max-durability" 
+                                    class="form-input" 
+                                    value="${item?.MaxDurability || ''}"
+                                    min="1"
+                                    placeholder="Override max"
+                                >
+                                <small class="form-hint" style="margin-top: 6px;">Override maximum durability</small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -308,8 +354,9 @@ class ItemEditor {
                                 </div>
                             `;
                         }).join('')}
-                        <button type="button" class="btn-secondary add-enchantment-btn">
-                            <i class="fas fa-plus"></i> Add Enchantment
+                        <button type="button" class="add-item-btn add-enchantment-btn">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Add Enchantment</span>
                         </button>
                     </div>
                 </div>
@@ -318,7 +365,7 @@ class ItemEditor {
     }
 
     /**
-     * Attributes Section (Slot-based with tabs)
+     * Attributes Section (Slot-based with tabs) - Enhanced UX
      */
     generateAttributesSection(item) {
         const attributes = item?.Attributes || {};
@@ -326,28 +373,63 @@ class ItemEditor {
         const attributeTypes = window.ItemOptions?.ATTRIBUTE_TYPES || [];
         const operations = window.ItemOptions?.ATTRIBUTE_OPERATIONS || [];
         
+        // Count total attributes across all slots
+        const totalAttributes = Object.values(attributes).reduce((sum, slotAttrs) => {
+            return sum + (Array.isArray(slotAttrs) ? slotAttrs.length : 0);
+        }, 0);
+        
         return `
             <div class="card collapsible-card collapsed">
                 <div class="card-header collapsible-header">
                     <h3 class="card-title">
                         <i class="fas fa-chart-line"></i> Attributes
-                        ${Object.keys(attributes).length > 0 ? `<span class="card-badge">${Object.keys(attributes).length}</span>` : ''}
+                        ${totalAttributes > 0 ? `<span class="card-badge">${totalAttributes}</span>` : ''}
                         <i class="fas fa-chevron-down collapse-icon"></i>
                     </h3>
                 </div>
                 <div class="card-body collapsible-card-body">
+                    <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, transparent 100%); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: start; gap: 10px;">
+                            <i class="fas fa-info-circle" style="color: #3b82f6; margin-top: 2px;"></i>
+                            <div style="flex: 1;">
+                                <strong style="color: #3b82f6;">How Attributes Work:</strong>
+                                <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 0.875rem; color: var(--text-secondary);">
+                                    <li><strong>ADD</strong> - Adds to base value (e.g., +5 damage)</li>
+                                    <li><strong>MULTIPLY_BASE</strong> - Multiplies base value before additions (e.g., ×1.2 = +20%)</li>
+                                    <li><strong>MULTIPLY_TOTAL</strong> - Multiplies final value after all additions</li>
+                                    <li>Values can be numbers (5), percentages (10%), or ranges (-1to2)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                     <div class="tabs-container">
                         <div class="tabs-header">
-                            ${slots.map((slot, index) => `
-                                <button 
-                                    type="button" 
-                                    class="tab-btn ${index === 0 ? 'active' : ''}" 
-                                    data-slot="${slot.id}"
-                                    title="${slot.description}"
-                                >
-                                    ${slot.name}
-                                </button>
-                            `).join('')}
+                            ${slots.map((slot, index) => {
+                                const slotColors = {
+                                    'MainHand': '#ef4444',
+                                    'OffHand': '#3b82f6',
+                                    'Head': '#f59e0b',
+                                    'Chest': '#10b981',
+                                    'Legs': '#8b5cf6',
+                                    'Feet': '#ec4899'
+                                };
+                                const slotColor = slotColors[slot.id] || '#6b7280';
+                                const rawSlotAttributes = attributes[slot.id] || [];
+                                const slotAttrCount = Array.isArray(rawSlotAttributes) ? rawSlotAttributes.length : 0;
+                                
+                                return `
+                                    <button 
+                                        type="button" 
+                                        class="tab-btn ${index === 0 ? 'active' : ''}" 
+                                        data-slot="${slot.id}"
+                                        title="${slot.description}"
+                                        style="border-bottom: 3px solid ${slotColor}; position: relative;"
+                                    >
+                                        ${slot.name}
+                                        ${slotAttrCount > 0 ? `<span class="badge" style="background: ${slotColor}; margin-left: 6px; font-size: 0.7rem;">${slotAttrCount}</span>` : ''}
+                                    </button>
+                                `;
+                            }).join('')}
                         </div>
                         <div class="tabs-content">
                             ${slots.map((slot, index) => {
@@ -358,8 +440,9 @@ class ItemEditor {
                                     <div class="tab-panel ${index === 0 ? 'active' : ''}" data-slot="${slot.id}">
                                         <div class="attribute-list" data-slot="${slot.id}">
                                             ${slotAttributes.map((attr, attrIndex) => this.generateAttributeItem(slot.id, attr, attrIndex, attributeTypes, operations)).join('')}
-                                            <button type="button" class="btn-secondary add-attribute-btn" data-slot="${slot.id}">
-                                                <i class="fas fa-plus"></i> Add Attribute
+                                            <button type="button" class="add-item-btn add-attribute-btn" data-slot="${slot.id}">
+                                                <i class="fas fa-plus-circle"></i>
+                                                <span>Add Attribute</span>
                                             </button>
                                         </div>
                                     </div>
@@ -415,39 +498,72 @@ class ItemEditor {
     }
 
     /**
-     * Generate single attribute item HTML
+     * Generate single attribute item HTML with enhanced UX
      */
     generateAttributeItem(slot, attr, index, attributeTypes, operations) {
         // Support both numeric amounts and range strings like "-1to2"
         const amountValue = attr?.amount !== undefined ? attr.amount : 0;
         
+        // Get slot color for visual indicator
+        const slotColors = {
+            'MainHand': '#ef4444',
+            'OffHand': '#3b82f6',
+            'Head': '#f59e0b',
+            'Chest': '#10b981',
+            'Legs': '#8b5cf6',
+            'Feet': '#ec4899'
+        };
+        const slotColor = slotColors[slot] || '#6b7280';
+        
+        // Get operation icon and color
+        const operationStyles = {
+            'ADD': { icon: '+', color: '#10b981', label: 'Add' },
+            'MULTIPLY_BASE': { icon: '×', color: '#3b82f6', label: 'Multiply' },
+            'MULTIPLY_TOTAL': { icon: '⊗', color: '#8b5cf6', label: 'Multiply Total' }
+        };
+        const currentOp = operationStyles[attr?.operation] || operationStyles['ADD'];
+        
+        // Show preview of attribute effect
+        let previewText = '';
+        if (attr?.type && attr?.amount !== undefined && attr?.amount !== '') {
+            const typeName = attributeTypes.find(t => t.id === attr.type)?.name || attr.type;
+            previewText = `<span class="attribute-preview" style="color: ${currentOp.color};">${currentOp.icon} ${typeName}: ${amountValue}</span>`;
+        }
+        
         return `
-            <div class="list-item attribute-item" data-index="${index}">
-                <select class="form-select attribute-type" required>
-                    <option value="">Select Type...</option>
-                    ${attributeTypes.map(type => `
-                        <option value="${type.id}" ${attr?.type === type.id || attr?.type?.toUpperCase() === type.id?.toUpperCase() ? 'selected' : ''} title="${type.description}">
-                            ${type.name}
-                        </option>
-                    `).join('')}
-                </select>
+            <div class="list-item attribute-item" data-index="${index}" style="border-left: 3px solid ${slotColor}; padding-left: 12px; background: linear-gradient(to right, ${slotColor}08, transparent);">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <select class="form-select attribute-type" required style="font-weight: 500;">
+                        <option value="">Select Attribute...</option>
+                        ${attributeTypes.map(type => `
+                            <option value="${type.id}" ${attr?.type === type.id || attr?.type?.toUpperCase() === type.id?.toUpperCase() ? 'selected' : ''} title="${type.description}">
+                                ${type.name}
+                            </option>
+                        `).join('')}
+                    </select>
+                    ${previewText ? `<div style="font-size: 0.75rem; margin-left: 4px;">${previewText}</div>` : ''}
+                </div>
                 <input 
                     type="text" 
                     class="form-input attribute-amount" 
                     value="${amountValue}"
-                    placeholder="Amount (e.g., 5 or -1to2)"
-                    title="Enter a number or range like -1to2"
+                    placeholder="Amount (e.g., 5, 10%, or -1to2)"
+                    title="Enter a number, percentage (10%), or range (-1to2)"
                     required
+                    style="text-align: center; font-weight: 600;"
                 >
                 <select class="form-select attribute-operation" required>
                     <option value="">Operation...</option>
-                    ${operations.map(op => `
-                        <option value="${op.id}" ${attr?.operation === op.id || attr?.operation?.toUpperCase() === op.id?.toUpperCase() ? 'selected' : ''} title="${op.description}">
-                            ${op.name}
-                        </option>
-                    `).join('')}
+                    ${operations.map(op => {
+                        const opStyle = operationStyles[op.id] || { icon: '', color: '#6b7280' };
+                        return `
+                            <option value="${op.id}" ${attr?.operation === op.id || attr?.operation?.toUpperCase() === op.id?.toUpperCase() ? 'selected' : ''} title="${op.description}">
+                                ${opStyle.icon} ${op.name}
+                            </option>
+                        `;
+                    }).join('')}
                 </select>
-                <button type="button" class="btn-icon btn-danger remove-attribute" data-slot="${slot}" data-index="${index}">
+                <button type="button" class="btn-icon btn-danger remove-attribute" data-slot="${slot}" data-index="${index}" title="Remove this attribute">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -507,8 +623,9 @@ class ItemEditor {
                                 </div>
                             `;
                         }).join('')}
-                        <button type="button" class="btn-secondary add-potion-effect-btn">
-                            <i class="fas fa-plus"></i> Add Effect
+                        <button type="button" class="add-item-btn add-potion-effect-btn">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Add Potion Effect</span>
                         </button>
                     </div>
                 </div>
@@ -524,6 +641,7 @@ class ItemEditor {
         const booleanOptions = window.ItemOptions?.BOOLEAN_OPTIONS || [];
         const numberOptions = window.ItemOptions?.NUMBER_OPTIONS || [];
         const textOptions = window.ItemOptions?.TEXT_OPTIONS || [];
+        const hideFlags = window.ItemOptions?.HIDE_FLAGS || [];
         
         return `
             <div class="card collapsible-card collapsed">
@@ -534,69 +652,132 @@ class ItemEditor {
                     </h3>
                 </div>
                 <div class="card-body collapsible-card-body">
-                    <div class="grid-2">
-                        <div class="form-group full-width">
-                            <label class="form-label">Boolean Options</label>
-                            <div class="checkbox-grid">
-                                ${booleanOptions.map(opt => `
-                                    <label class="checkbox-label" title="${opt.description}">
-                                        <input 
-                                            type="checkbox" 
-                                            id="option-${opt.id}" 
-                                            ${options[opt.id] === true ? 'checked' : ''}
-                                        >
-                                        <span>${opt.name}</span>
+                    
+                    <!-- Boolean Options -->
+                    <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, transparent 100%); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                            <span style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                                <i class="fas fa-toggle-on" style="color: #3b82f6;"></i>
+                                Toggle Settings
+                                <span style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${booleanOptions.length}</span>
+                            </span>
+                        </label>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; background: rgba(255, 255, 255, 0.5); padding: 12px; border-radius: 6px;">
+                            ${booleanOptions.map(opt => `
+                                <label class="checkbox-label-enhanced" title="${opt.description}">
+                                    <input 
+                                        type="checkbox" 
+                                        id="option-${opt.id}" 
+                                        ${options[opt.id] === true ? 'checked' : ''}
+                                    >
+                                    <span class="checkbox-custom"></span>
+                                    <span class="checkbox-text">${opt.name}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Number Options -->
+                    <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.05) 0%, transparent 100%); border: 1px solid rgba(249, 115, 22, 0.2); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 16px;">
+                            <i class="fas fa-hashtag" style="color: #f97316;"></i>
+                            Numeric Settings
+                            <span style="background: rgba(249, 115, 22, 0.15); color: #f97316; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${numberOptions.length}</span>
+                        </label>
+                        <div class="grid-2" style="gap: 16px;">
+                            ${numberOptions.map(opt => `
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="option-${opt.id}" class="form-label" style="font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                                        <i class="fas fa-${opt.id === 'RepairCost' ? 'wrench' : 'layer-group'}" style="color: #f97316;"></i>
+                                        ${opt.name}
                                     </label>
+                                    <input 
+                                        type="number" 
+                                        id="option-${opt.id}" 
+                                        class="form-input" 
+                                        value="${options[opt.id] !== undefined ? options[opt.id] : opt.default}"
+                                        min="${opt.min}"
+                                        ${opt.max ? `max="${opt.max}"` : ''}
+                                        style="font-weight: 600; font-size: 14px;"
+                                    >
+                                    <small class="form-hint" style="margin-top: 6px;">
+                                        <i class="fas fa-info-circle" style="color: #f97316; margin-right: 4px;"></i>
+                                        ${opt.description || ''}
+                                    </small>
+                                    ${opt.warning ? `
+                                        <div style="background: #fff3cd; border-left: 3px solid #ffc107; padding: 10px 12px; margin-top: 10px; border-radius: 4px; font-size: 12px; color: #856404; display: flex; align-items: start; gap: 8px;">
+                                            <i class="fas fa-exclamation-triangle" style="color: #f59e0b; margin-top: 2px;"></i>
+                                            <span>${opt.warning}</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Text Options (Collapsible) -->
+                    <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, transparent 100%); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; cursor: pointer;" id="text-options-toggle">
+                            <span style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                                <i class="fas fa-keyboard" style="color: #8b5cf6;"></i>
+                                Advanced Text Settings
+                                <span style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${textOptions.length}</span>
+                            </span>
+                            <i class="fas fa-chevron-down" id="text-options-chevron" style="color: #8b5cf6; transition: transform 0.2s;"></i>
+                        </label>
+                        <small class="form-hint" style="margin-bottom: 12px; display: block;">
+                            <i class="fas fa-info-circle" style="color: #8b5cf6; margin-right: 4px;"></i>
+                            Click to show/hide advanced options (rarely used)
+                        </small>
+                        <div id="text-options-content" style="display: none; margin-top: 12px;">
+                            <div class="grid-2" style="gap: 16px;">
+                                ${textOptions.map(opt => `
+                                    <div class="form-group" id="option-${opt.id}-group" style="margin-bottom: 0;">
+                                        <label for="option-${opt.id}" class="form-label" style="font-size: 13px; font-weight: 500;">
+                                            <i class="fas fa-text-height" style="color: #8b5cf6; margin-right: 6px;"></i>
+                                            ${opt.name}
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            id="option-${opt.id}" 
+                                            class="form-input" 
+                                            value="${options[opt.id] || ''}"
+                                            placeholder="Optional"
+                                        >
+                                        <small class="form-hint" style="margin-top: 6px;">${opt.description}</small>
+                                    </div>
                                 `).join('')}
                             </div>
                         </div>
+                    </div>
 
-                        ${numberOptions.map(opt => `
-                            <div class="form-group">
-                                <label for="option-${opt.id}" class="form-label">${opt.name}</label>
-                                <input 
-                                    type="number" 
-                                    id="option-${opt.id}" 
-                                    class="form-input" 
-                                    value="${options[opt.id] !== undefined ? options[opt.id] : opt.default}"
-                                    min="${opt.min}"
-                                    ${opt.max ? `max="${opt.max}"` : ''}
-                                >
-                                <small class="form-hint">${opt.description || ''}</small>
-                            </div>
-                        `).join('')}
-
-                        ${textOptions.map(opt => `
-                            <div class="form-group" id="option-${opt.id}-group" style="display: none;">
-                                <label for="option-${opt.id}" class="form-label">${opt.name}</label>
-                                <input 
-                                    type="text" 
-                                    id="option-${opt.id}" 
-                                    class="form-input" 
-                                    value="${options[opt.id] || ''}"
-                                >
-                                <small class="form-hint">${opt.description}</small>
-                            </div>
-                        `).join('')}
-
-                        <div class="form-group full-width">
-                            <label class="form-label">Hide Flags</label>
-                            <small class="form-hint">Hide information from tooltip</small>
-                            <div class="checkbox-grid">
-                                ${window.ItemOptions?.HIDE_FLAGS.map(flag => `
-                                    <label class="checkbox-label" title="${flag.description}">
-                                        <input 
-                                            type="checkbox" 
-                                            class="hide-flag-checkbox" 
-                                            data-flag="${flag.id}"
-                                            ${(item?.Hide || []).includes(flag.id) ? 'checked' : ''}
-                                        >
-                                        <span>${flag.name}</span>
-                                    </label>
-                                `).join('') || ''}
-                            </div>
+                    <!-- Hide Flags -->
+                    <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, transparent 100%); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 16px;">
+                        <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 12px;">
+                            <i class="fas fa-eye-slash" style="color: #ef4444;"></i>
+                            Visibility Controls
+                            <span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${hideFlags.length}</span>
+                        </label>
+                        <small class="form-hint" style="margin-bottom: 12px; display: block;">
+                            <i class="fas fa-info-circle" style="color: #ef4444; margin-right: 4px;"></i>
+                            Hide specific information from item tooltip
+                        </small>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; background: rgba(255, 255, 255, 0.5); padding: 12px; border-radius: 6px;">
+                            ${hideFlags.map(flag => `
+                                <label class="checkbox-label-enhanced" title="${flag.description}">
+                                    <input 
+                                        type="checkbox" 
+                                        class="hide-flag-checkbox" 
+                                        data-flag="${flag.id}"
+                                        ${(item?.Hide || []).includes(flag.id) ? 'checked' : ''}
+                                    >
+                                    <span class="checkbox-custom"></span>
+                                    <span class="checkbox-text">${flag.name}</span>
+                                </label>
+                            `).join('')}
                         </div>
                     </div>
+
                 </div>
             </div>
         `;
@@ -647,8 +828,9 @@ class ItemEditor {
                                 </div>
                             `;
                         }).join('')}
-                        <button type="button" class="btn-secondary add-banner-layer-btn">
-                            <i class="fas fa-plus"></i> Add Layer
+                        <button type="button" class="add-item-btn add-banner-layer-btn">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Add Banner Layer</span>
                         </button>
                     </div>
                 </div>
@@ -776,8 +958,9 @@ class ItemEditor {
                                         </button>
                                     </div>
                                 `).join('')}
-                                <button type="button" class="btn-secondary add-nbt-btn">
-                                    <i class="fas fa-plus"></i> Add NBT Tag
+                                <button type="button" class="add-item-btn add-nbt-btn">
+                                    <i class="fas fa-plus-circle"></i>
+                                    <span>Add NBT Tag</span>
                                 </button>
                             </div>
                         </div>
@@ -879,8 +1062,9 @@ class ItemEditor {
                                         </button>
                                     </div>
                                 `).join('')}
-                                <button type="button" class="btn-secondary add-skill-btn">
-                                    <i class="fas fa-plus"></i> Add Skill
+                                <button type="button" class="add-item-btn add-skill-btn">
+                                    <i class="fas fa-plus-circle"></i>
+                                    <span>Add Skill</span>
                                 </button>
                             </div>
                         </div>
@@ -986,7 +1170,26 @@ class ItemEditor {
         this.attachNBTHandlers(item);
         this.attachSkillHandlers(item);
         this.attachBasicInputHandlers(item);
+        this.attachOptionsHandlers(item);
         this.initializeAttributeTabs();
+    }
+    
+    /**
+     * Attach options handlers (collapsible text options)
+     */
+    attachOptionsHandlers(item) {
+        // Toggle text options section
+        const textOptionsToggle = document.getElementById('text-options-toggle');
+        const textOptionsContent = document.getElementById('text-options-content');
+        const textOptionsChevron = document.getElementById('text-options-chevron');
+        
+        if (textOptionsToggle && textOptionsContent && textOptionsChevron) {
+            textOptionsToggle.addEventListener('click', () => {
+                const isHidden = textOptionsContent.style.display === 'none';
+                textOptionsContent.style.display = isHidden ? 'block' : 'none';
+                textOptionsChevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+            });
+        }
     }
     
     /**
@@ -1213,9 +1416,63 @@ class ItemEditor {
         if (addBtn) {
             addBtn.addEventListener('click', () => {
                 if (!item.Enchantments) item.Enchantments = [];
+                const newIndex = item.Enchantments.length;
                 item.Enchantments.push('SHARPNESS 1');
-                window.collapsibleManager.saveStates();
-                this.render(item);
+                
+                // Add new enchantment row directly to DOM instead of full re-render
+                const enchantmentsList = window.EnchantmentData?.ENCHANTMENTS || [];
+                const newRow = document.createElement('div');
+                newRow.className = 'list-item enchantment-item';
+                newRow.dataset.index = newIndex;
+                newRow.innerHTML = `
+                    <select class="form-select enchantment-type">
+                        <option value="">Select Enchantment...</option>
+                        ${enchantmentsList.map(e => `
+                            <option value="${e.id}" ${e.id === 'SHARPNESS' ? 'selected' : ''}>
+                                ${e.name} (Max: ${e.maxLevel})
+                            </option>
+                        `).join('')}
+                    </select>
+                    <input 
+                        type="text" 
+                        class="form-input enchantment-level" 
+                        value="1"
+                        placeholder="Level (e.g., 3 or 1to5)"
+                        title="Enter a level number or range like 1to5"
+                    >
+                    <button type="button" class="btn-icon btn-danger remove-enchantment" data-index="${newIndex}" title="Remove">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                
+                // Insert before the add button
+                addBtn.parentElement.insertBefore(newRow, addBtn);
+                
+                // Attach event listeners to new row
+                const typeSelect = newRow.querySelector('.enchantment-type');
+                const levelInput = newRow.querySelector('.enchantment-level');
+                const removeBtn = newRow.querySelector('.remove-enchantment');
+                
+                [typeSelect, levelInput].forEach(el => {
+                    el.addEventListener('change', () => {
+                        const type = typeSelect.value;
+                        const level = levelInput.value || 1;
+                        if (type) {
+                            item.Enchantments[newIndex] = `${type} ${level}`;
+                            this.editor.markDirty();
+                            this.editor.updateYAMLPreview();
+                        }
+                    });
+                });
+                
+                removeBtn.addEventListener('click', () => {
+                    item.Enchantments.splice(newIndex, 1);
+                    window.collapsibleManager.saveStates();
+                    this.render(item);
+                });
+                
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
             });
         }
 
@@ -1240,6 +1497,7 @@ class ItemEditor {
                     if (type) {
                         item.Enchantments[index] = `${type} ${level}`;
                         this.editor.markDirty();
+                        this.editor.updateYAMLPreview();
                     }
                 });
             });
@@ -1255,9 +1513,77 @@ class ItemEditor {
                 const slot = e.target.dataset.slot;
                 if (!item.Attributes) item.Attributes = {};
                 if (!item.Attributes[slot]) item.Attributes[slot] = [];
-                item.Attributes[slot].push({ type: '', amount: 0, operation: 'ADD' });
-                window.collapsibleManager.saveStates();
-                this.render(item);
+                const newIndex = item.Attributes[slot].length;
+                item.Attributes[slot].push({ type: 'Damage', amount: 0, operation: 'ADD' });
+                
+                // Add new attribute row directly to DOM instead of full re-render
+                const attributeTypes = window.ItemOptions?.ATTRIBUTE_TYPES || [];
+                const operations = window.ItemOptions?.ATTRIBUTE_OPERATIONS || [];
+                const newRow = document.createElement('div');
+                newRow.className = 'list-item attribute-item';
+                newRow.dataset.index = newIndex;
+                newRow.innerHTML = `
+                    <select class="form-select attribute-type" required>
+                        <option value="">Select Type...</option>
+                        ${attributeTypes.map(type => `
+                            <option value="${type.id}" ${type.id === 'Damage' ? 'selected' : ''} title="${type.description}">
+                                ${type.name}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <input 
+                        type="text" 
+                        class="form-input attribute-amount" 
+                        value="0"
+                        placeholder="Amount (e.g., 5 or -1to2)"
+                        title="Enter a number or range like -1to2"
+                        required
+                    >
+                    <select class="form-select attribute-operation" required>
+                        <option value="">Operation...</option>
+                        ${operations.map(op => `
+                            <option value="${op.id}" ${op.id === 'ADD' ? 'selected' : ''} title="${op.description}">
+                                ${op.name}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <button type="button" class="btn-icon btn-danger remove-attribute" data-slot="${slot}" data-index="${newIndex}" title="Remove">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                
+                // Find the attribute list for this slot and insert before the add button
+                const attributeList = e.target.closest('.attribute-list');
+                attributeList.insertBefore(newRow, btn);
+                
+                // Attach event listeners to new row
+                const typeSelect = newRow.querySelector('.attribute-type');
+                const amountInput = newRow.querySelector('.attribute-amount');
+                const operationSelect = newRow.querySelector('.attribute-operation');
+                const removeBtn = newRow.querySelector('.remove-attribute');
+                
+                [typeSelect, amountInput, operationSelect].forEach(input => {
+                    input.addEventListener('change', (e) => {
+                        const prop = e.target.classList.contains('attribute-type') ? 'type' :
+                                     e.target.classList.contains('attribute-amount') ? 'amount' : 'operation';
+                        if (!item.Attributes[slot][newIndex]) return;
+                        item.Attributes[slot][newIndex][prop] = e.target.value;
+                        this.editor.markDirty();
+                        this.editor.updateYAMLPreview();
+                    });
+                });
+                
+                removeBtn.addEventListener('click', () => {
+                    item.Attributes[slot].splice(newIndex, 1);
+                    if (item.Attributes[slot].length === 0) {
+                        delete item.Attributes[slot];
+                    }
+                    window.collapsibleManager.saveStates();
+                    this.render(item);
+                });
+                
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
             });
         });
 
@@ -1291,6 +1617,7 @@ class ItemEditor {
                         // Keep amount as string to preserve range values like "-1to2"
                         item.Attributes[slot][index][prop] = e.target.value;
                         this.editor.markDirty();
+                        this.editor.updateYAMLPreview();
                     });
                 }
             });
@@ -1382,6 +1709,66 @@ class ItemEditor {
     }
 
     /**
+     * Update NBT list without full re-render
+     */
+    updateNBTList(item) {
+        const container = document.getElementById('item-nbt-list');
+        if (!container) return;
+        
+        const nbtTags = item?.NBT || {};
+        const entries = Object.entries(nbtTags);
+        
+        // Update list content
+        const nbtItemsHTML = entries.map(([key, value], index) => `
+            <div class="list-item nbt-item" data-index="${index}">
+                <input 
+                    type="text" 
+                    class="form-input nbt-key" 
+                    value="${key}"
+                    placeholder="Tag name"
+                >
+                <input 
+                    type="text" 
+                    class="form-input nbt-value" 
+                    value="${value}"
+                    placeholder="Value (use prefix: int:10, str:text)"
+                >
+                <button type="button" class="btn-icon btn-danger remove-nbt" data-index="${index}">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+        
+        container.innerHTML = nbtItemsHTML + `
+            <button type="button" class="add-item-btn add-nbt-btn">
+                <i class="fas fa-plus-circle"></i>
+                <span>Add NBT Tag</span>
+            </button>
+        `;
+        
+        // Update badge count in header
+        const header = container.closest('.card').querySelector('.card-title');
+        const badge = header?.querySelector('.card-badge');
+        const count = entries.length;
+        
+        if (count > 0) {
+            if (badge) {
+                badge.textContent = count;
+            } else {
+                const icon = header?.querySelector('.collapse-icon');
+                if (icon) {
+                    icon.insertAdjacentHTML('beforebegin', `<span class="card-badge">${count}</span>`);
+                }
+            }
+        } else if (badge) {
+            badge.remove();
+        }
+        
+        // Reattach handlers
+        this.attachNBTHandlers(item);
+    }
+
+    /**
      * Attach NBT handlers
      */
     attachNBTHandlers(item) {
@@ -1391,8 +1778,9 @@ class ItemEditor {
                 if (!item.NBT) item.NBT = {};
                 const newKey = `custom_tag_${Object.keys(item.NBT).length + 1}`;
                 item.NBT[newKey] = 'str:value';
-                window.collapsibleManager.saveStates();
-                this.render(item);
+                this.editor.markDirty();
+                // Use partial update instead of full render
+                this.updateNBTList(item);
             });
         }
 
@@ -1401,8 +1789,9 @@ class ItemEditor {
                 const nbtItem = e.currentTarget.closest('.nbt-item');
                 const key = nbtItem.querySelector('.nbt-key').value;
                 delete item.NBT[key];
-                window.collapsibleManager.saveStates();
-                this.render(item);
+                this.editor.markDirty();
+                // Use partial update instead of full render
+                this.updateNBTList(item);
             });
         });
 
@@ -1417,8 +1806,8 @@ class ItemEditor {
                     item.NBT[newKey] = item.NBT[originalKey];
                     delete item.NBT[originalKey];
                     this.editor.markDirty();
-                    window.collapsibleManager.saveStates();
-                    this.render(item);
+                    // Use partial update instead of full render
+                    this.updateNBTList(item);
                 }
             });
             

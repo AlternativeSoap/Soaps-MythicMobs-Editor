@@ -31,12 +31,15 @@ class EquipmentEditor {
 
     renderSlot(slot) {
         const value = this.equipment[slot.id] || '';
+        const aliasText = slot.aliases && slot.aliases.length > 0 
+            ? `Aliases: ${slot.aliases.join(', ')}` 
+            : '';
         
         return `
             <div class="equipment-slot" data-slot="${slot.id}">
                 <div class="equipment-slot-header">
                     <i class="fas fa-${slot.icon}"></i>
-                    <span>${slot.name}</span>
+                    <span title="${slot.description}${aliasText ? '\n' + aliasText : ''}">${slot.name}</span>
                 </div>
                 <div class="form-group">
                     <input type="text" 
@@ -52,7 +55,7 @@ class EquipmentEditor {
                         <i class="fas fa-cog"></i> Attributes
                     </button>
                 </div>
-                <small class="form-hint">Enter item name or ID</small>
+                <small class="form-hint">Enter item name or ID${aliasText ? ' (Aliases: ' + slot.aliases.join(', ') + ')' : ''}</small>
             </div>
         `;
     }

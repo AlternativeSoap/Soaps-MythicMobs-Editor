@@ -31,49 +31,66 @@ class TargeterBrowser {
                     </div>
                     
                     <div class="condition-browser-body">
-                        <!-- Search Bar -->
-                        <div class="search-bar">
-                            <input type="text" 
-                                   id="targeterSearchInput" 
-                                   placeholder="Search targeters..." 
-                                   class="search-input">
-                            <i class="fas fa-search search-icon"></i>
+                        <!-- Step 1: Targeter Selection -->
+                        <div id="targeterSelectionStep" class="targeter-step active">
+                            <!-- Search Bar -->
+                            <div class="search-bar">
+                                <input type="text" 
+                                       id="targeterSearchInput" 
+                                       placeholder="Search targeters..." 
+                                       class="search-input">
+                                <i class="fas fa-search search-icon"></i>
+                            </div>
+                            
+                            <!-- Category Tabs -->
+                            <div class="category-tabs" id="targeterCategories">
+                                <button class="category-tab active" data-category="all">All (0)</button>
+                                <button class="category-tab" data-category="single_entity">👤 Single Entity (0)</button>
+                                <button class="category-tab" data-category="multi_entity">👥 Multi Entity (0)</button>
+                                <button class="category-tab" data-category="location_single">📍 Single Location (0)</button>
+                                <button class="category-tab" data-category="location_multi">🗺️ Multi Location (0)</button>
+                                <button class="category-tab" data-category="meta_entity">🔗 Meta Entity (0)</button>
+                                <button class="category-tab" data-category="threat_table">⚔️ Threat Table (0)</button>
+                                <button class="category-tab" data-category="special">✨ Special (0)</button>
+                            </div>
+                            
+                            <!-- Targeter Grid -->
+                            <div class="condition-grid" id="targeterList">
+                                <!-- Targeters will be rendered here -->
+                            </div>
                         </div>
                         
-                        <!-- Category Tabs -->
-                        <div class="category-tabs" id="targeterCategories">
-                            <button class="category-tab active" data-category="all">All (0)</button>
-                            <button class="category-tab" data-category="single_entity">👤 Single Entity (0)</button>
-                            <button class="category-tab" data-category="multi_entity">👥 Multi Entity (0)</button>
-                            <button class="category-tab" data-category="location_single">📍 Single Location (0)</button>
-                            <button class="category-tab" data-category="location_multi">🗺️ Multi Location (0)</button>
-                            <button class="category-tab" data-category="meta_entity">🔗 Meta Entity (0)</button>
-                            <button class="category-tab" data-category="threat_table">⚔️ Threat Table (0)</button>
-                            <button class="category-tab" data-category="special">✨ Special (0)</button>
+                        <!-- Step 2: Attribute Configuration -->
+                        <div id="targeterConfigurationStep" class="targeter-step">
+                            <div class="targeter-config-header">
+                                <button class="btn-back" id="targeterAttributeBack">&larr; Back</button>
+                                <h3 id="targeterAttributeTitle">Configure Targeter</h3>
+                            </div>
+                            
+                            <div class="targeter-config-body">
+                                <!-- Targeter Attributes Section -->
+                                <div class="config-section">
+                                    <h4>Targeter Attributes <span class="required">*</span></h4>
+                                    <div id="targeterAttributeForm" class="targeter-attribute-form">
+                                        <!-- Attribute inputs will be rendered here -->
+                                    </div>
+                                </div>
+                                
+                                <!-- Live Preview Section -->
+                                <div class="config-section preview-section">
+                                    <h4>Preview</h4>
+                                    <div class="skill-line-preview">
+                                        <code id="targeterPreviewCode">@Self</code>
+                                    </div>
+                                    <small class="config-hint">This targeter will be used in your skill line</small>
+                                </div>
+                            </div>
+                            
+                            <div class="targeter-config-footer">
+                                <button class="btn btn-secondary" id="targeterAttributeCancel">Cancel</button>
+                                <button class="btn btn-primary" id="targeterAttributeConfirm">Confirm</button>
+                            </div>
                         </div>
-                        
-                        <!-- Targeter Grid -->
-                        <div class="condition-grid" id="targeterList">
-                            <!-- Targeters will be rendered here -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Attribute Configuration Modal -->
-            <div id="targeterAttributeOverlay" class="targeter-attribute-overlay">
-                <div class="targeter-attribute-modal">
-                    <h3 id="targeterAttributeTitle">Configure Targeter</h3>
-                    <div id="targeterAttributeForm" class="targeter-attribute-form">
-                        <!-- Attribute inputs will be rendered here -->
-                    </div>
-                    <div class="targeter-preview">
-                        <label>Preview:</label>
-                        <code id="targeterPreviewCode">@Self</code>
-                    </div>
-                    <div class="targeter-attribute-buttons">
-                        <button class="targeter-attribute-btn cancel" id="targeterAttributeCancel">Cancel</button>
-                        <button class="targeter-attribute-btn confirm" id="targeterAttributeConfirm">Confirm</button>
                     </div>
                 </div>
             </div>
@@ -121,8 +138,12 @@ class TargeterBrowser {
         });
 
         // Attribute modal buttons
+        document.getElementById('targeterAttributeBack').addEventListener('click', () => {
+            this.showTargeterSelection();
+        });
+        
         document.getElementById('targeterAttributeCancel').addEventListener('click', () => {
-            this.closeAttributeModal();
+            this.showTargeterSelection();
         });
 
         document.getElementById('targeterAttributeConfirm').addEventListener('click', () => {
@@ -361,24 +382,24 @@ class TargeterBrowser {
      * Handle targeter selection
      */
     handleTargeterSelection(targeterId) {
-        // console.log('🎯 handleTargeterSelection called with:', targeterId);
+        console.log('🎯 handleTargeterSelection called with:', targeterId);
         const targeter = TARGETERS_DATA.getTargeter(targeterId);
-        // console.log('📦 Targeter data:', targeter);
+        console.log('📦 Targeter data:', targeter);
         if (!targeter) {
             console.error('❌ Targeter not found:', targeterId);
             return;
         }
 
         // Check if targeter has attributes
-        // console.log('🔍 Checking attributes:', targeter.attributes);
+        console.log('🔍 Checking attributes:', targeter.attributes);
         if (targeter.attributes && targeter.attributes.length > 0) {
-            // console.log('✅ Targeter has attributes, showing configuration modal');
+            console.log('✅ Targeter has attributes, showing configuration modal');
             this.showAttributeConfiguration(targeter);
             return;
         }
 
         // No attributes, directly select (including @Self)
-        // console.log('✅ Targeter has no attributes, selecting directly');
+        console.log('✅ Targeter has no attributes, selecting directly');
         this.selectTargeter(targeter);
     }
 
@@ -386,20 +407,31 @@ class TargeterBrowser {
      * Show attribute configuration modal
      */
     showAttributeConfiguration(targeter) {
+        console.log('🎨 showAttributeConfiguration called for:', targeter.name);
+        console.log('🎨 Targeter attributes:', targeter.attributes);
+        
         this.currentTargeter = targeter;
+        
+        // Switch steps
+        document.getElementById('targeterSelectionStep').classList.remove('active');
+        document.getElementById('targeterConfigurationStep').classList.add('active');
         
         document.getElementById('targeterAttributeTitle').textContent = `Configure @${targeter.name}`;
         
         const formContainer = document.getElementById('targeterAttributeForm');
         formContainer.innerHTML = targeter.attributes.map(attr => {
             const aliases = attr.alias && (Array.isArray(attr.alias) ? attr.alias : [attr.alias]);
-            const aliasText = aliases && aliases.length > 0 ? ` (${aliases.join(', ')})` : '';
-            const requiredMark = attr.required ? '<span class="required">*</span>' : '';
+            const aliasText = aliases && aliases.length > 0 ? 
+                `<span class="alias-text">(${aliases.join(', ')})</span>` : '';
+            const requiredMark = attr.required ? '<span class="required-mark">*</span>' : '';
+            const fieldClass = attr.required ? 'attribute-required' : 'attribute-optional';
+            const defaultText = attr.default !== undefined ? ` (Default: ${attr.default})` : '';
+            const tooltipContent = `${attr.description}${defaultText}`;
             
             let inputHTML = '';
             if (attr.type === 'boolean') {
                 inputHTML = `
-                    <select class="targeter-attribute-input" data-attr="${attr.name}">
+                    <select class="targeter-attribute-input mechanic-attribute-input" data-attr="${attr.name}">
                         <option value="true" ${attr.default === true ? 'selected' : ''}>true</option>
                         <option value="false" ${attr.default === false || !attr.default ? 'selected' : ''}>false</option>
                     </select>
@@ -407,7 +439,7 @@ class TargeterBrowser {
             } else if (attr.type === 'number') {
                 inputHTML = `
                     <input type="number" 
-                           class="targeter-attribute-input" 
+                           class="targeter-attribute-input mechanic-attribute-input" 
                            data-attr="${attr.name}"
                            placeholder="${attr.default || ''}"
                            value="${attr.default || ''}">
@@ -415,7 +447,7 @@ class TargeterBrowser {
             } else {
                 inputHTML = `
                     <input type="text" 
-                           class="targeter-attribute-input" 
+                           class="targeter-attribute-input mechanic-attribute-input" 
                            data-attr="${attr.name}"
                            placeholder="${attr.default || ''}"
                            value="${attr.default || ''}">
@@ -423,10 +455,19 @@ class TargeterBrowser {
             }
 
             return `
-                <div class="targeter-attribute-field">
-                    <label>${attr.name}${aliasText} ${requiredMark}</label>
-                    ${inputHTML}
-                    <small>${attr.description}</small>
+                <div class="mechanic-attribute-field ${fieldClass}" data-tooltip="${tooltipContent.replace(/"/g, '&quot;')}">
+                    <div class="attribute-card">
+                        <label class="attribute-label">
+                            <span class="attribute-name">${attr.name}</span>
+                            ${aliasText}
+                            ${requiredMark}
+                            <span class="info-icon" title="Click for details">ℹ️</span>
+                        </label>
+                        <div class="attribute-input-wrapper">
+                            ${inputHTML}
+                        </div>
+                        <small class="attribute-description">${attr.description}${defaultText}</small>
+                    </div>
                 </div>
             `;
         }).join('');
@@ -440,7 +481,7 @@ class TargeterBrowser {
             input.addEventListener('change', () => this.updateTargeterPreview());
         });
 
-        document.getElementById('targeterAttributeOverlay').classList.add('active');
+        console.log('🎨 Configuration step activated');
     }
 
     /**
@@ -476,11 +517,28 @@ class TargeterBrowser {
     }
 
     /**
-     * Close attribute modal
+     * Close attribute modal and return to selection
      */
     closeAttributeModal() {
-        document.getElementById('targeterAttributeOverlay').classList.remove('active');
+        this.showTargeterSelection();
         this.currentTargeter = null;
+    }
+
+    /**
+     * Show targeter selection step (back from configuration)
+     */
+    showTargeterSelection() {
+        document.getElementById('targeterSelectionStep').classList.add('active');
+        document.getElementById('targeterConfigurationStep').classList.remove('active');
+        
+        // Reset search and category
+        document.getElementById('targeterSearchInput').value = '';
+        document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector('[data-category="all"]').classList.add('active');
+        this.currentCategory = 'all';
+        this.searchQuery = '';
+        
+        this.renderTargeters();
     }
 
     /**

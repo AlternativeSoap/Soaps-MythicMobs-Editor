@@ -983,3 +983,54 @@ const MINECRAFT_BLOCKS = [
     'yellow_wool',
     'zombie_head'
 ];
+
+// Categorized blocks for dropdown
+const MINECRAFT_BLOCKS_CATEGORIZED = [
+    {
+        name: 'Building Blocks',
+        blocks: ['stone', 'granite', 'diorite', 'andesite', 'cobblestone', 'oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 'acacia_planks', 'dark_oak_planks', 'mangrove_planks', 'cherry_planks', 'bamboo_planks', 'crimson_planks', 'warped_planks', 'bricks', 'stone_bricks', 'mossy_stone_bricks', 'granite_slab', 'diorite_slab', 'andesite_slab', 'cobblestone_slab', 'sandstone', 'red_sandstone', 'prismarine', 'nether_bricks', 'end_stone', 'purpur_block', 'quartz_block']
+    },
+    {
+        name: 'Natural Blocks',
+        blocks: ['grass_block', 'dirt', 'coarse_dirt', 'podzol', 'mycelium', 'sand', 'red_sand', 'gravel', 'clay', 'terracotta', 'ice', 'packed_ice', 'blue_ice', 'snow', 'snow_block', 'moss_block', 'mud', 'muddy_mangrove_roots', 'oak_log', 'spruce_log', 'birch_log', 'jungle_log', 'acacia_log', 'dark_oak_log', 'mangrove_log', 'cherry_log', 'oak_leaves', 'spruce_leaves', 'birch_leaves', 'jungle_leaves', 'acacia_leaves', 'dark_oak_leaves', 'mangrove_leaves', 'cherry_leaves', 'azalea_leaves']
+    },
+    {
+        name: 'Ores & Minerals',
+        blocks: ['coal_ore', 'deepslate_coal_ore', 'iron_ore', 'deepslate_iron_ore', 'copper_ore', 'deepslate_copper_ore', 'gold_ore', 'deepslate_gold_ore', 'redstone_ore', 'deepslate_redstone_ore', 'emerald_ore', 'deepslate_emerald_ore', 'lapis_ore', 'deepslate_lapis_ore', 'diamond_ore', 'deepslate_diamond_ore', 'nether_quartz_ore', 'nether_gold_ore', 'ancient_debris', 'coal_block', 'iron_block', 'copper_block', 'gold_block', 'diamond_block', 'emerald_block', 'redstone_block', 'lapis_block', 'netherite_block', 'amethyst_block']
+    },
+    {
+        name: 'Decorative Blocks',
+        blocks: ['glass', 'white_stained_glass', 'orange_stained_glass', 'magenta_stained_glass', 'light_blue_stained_glass', 'yellow_stained_glass', 'lime_stained_glass', 'pink_stained_glass', 'gray_stained_glass', 'light_gray_stained_glass', 'cyan_stained_glass', 'purple_stained_glass', 'blue_stained_glass', 'brown_stained_glass', 'green_stained_glass', 'red_stained_glass', 'black_stained_glass', 'white_wool', 'orange_wool', 'magenta_wool', 'light_blue_wool', 'yellow_wool', 'lime_wool', 'pink_wool', 'gray_wool', 'light_gray_wool', 'cyan_wool', 'purple_wool', 'blue_wool', 'brown_wool', 'green_wool', 'red_wool', 'black_wool', 'white_carpet', 'orange_carpet', 'magenta_carpet', 'light_blue_carpet']
+    },
+    {
+        name: 'Redstone & Mechanisms',
+        blocks: ['redstone_torch', 'redstone_block', 'repeater', 'comparator', 'piston', 'sticky_piston', 'dispenser', 'dropper', 'hopper', 'observer', 'lever', 'stone_button', 'oak_button', 'stone_pressure_plate', 'oak_pressure_plate', 'light_weighted_pressure_plate', 'heavy_weighted_pressure_plate', 'redstone_lamp', 'daylight_detector', 'tripwire_hook', 'tnt', 'note_block', 'jukebox', 'target']
+    },
+    {
+        name: 'Plants & Crops',
+        blocks: ['oak_sapling', 'spruce_sapling', 'birch_sapling', 'jungle_sapling', 'acacia_sapling', 'dark_oak_sapling', 'mangrove_propagule', 'cherry_sapling', 'bamboo_sapling', 'wheat', 'carrots', 'potatoes', 'beetroots', 'sweet_berry_bush', 'cactus', 'sugar_cane', 'pumpkin', 'melon', 'vine', 'lily_pad', 'seagrass', 'kelp', 'bamboo', 'dandelion', 'poppy', 'blue_orchid', 'allium', 'azure_bluet', 'red_tulip', 'orange_tulip', 'white_tulip', 'pink_tulip', 'oxeye_daisy', 'cornflower', 'lily_of_the_valley', 'sunflower', 'lilac', 'rose_bush', 'peony', 'torchflower']
+    },
+    {
+        name: 'Nether Blocks',
+        blocks: ['netherrack', 'nether_bricks', 'red_nether_bricks', 'cracked_nether_bricks', 'chiseled_nether_bricks', 'nether_wart_block', 'warped_wart_block', 'soul_sand', 'soul_soil', 'basalt', 'polished_basalt', 'smooth_basalt', 'blackstone', 'polished_blackstone', 'chiseled_polished_blackstone', 'glowstone', 'crimson_nylium', 'warped_nylium', 'crimson_stem', 'warped_stem', 'crimson_hyphae', 'warped_hyphae', 'shroomlight', 'weeping_vines', 'twisting_vines', 'nether_gold_ore', 'ancient_debris', 'crying_obsidian', 'respawn_anchor', 'lodestone']
+    },
+    {
+        name: 'End Blocks',
+        blocks: ['end_stone', 'end_stone_bricks', 'purpur_block', 'purpur_pillar', 'purpur_slab', 'purpur_stairs', 'chorus_plant', 'chorus_flower', 'end_rod', 'dragon_egg', 'obsidian', 'crying_obsidian']
+    },
+    {
+        name: 'Functional Blocks',
+        blocks: ['crafting_table', 'furnace', 'blast_furnace', 'smoker', 'anvil', 'chipped_anvil', 'damaged_anvil', 'enchanting_table', 'bookshelf', 'lectern', 'brewing_stand', 'cauldron', 'composter', 'barrel', 'chest', 'ender_chest', 'trapped_chest', 'shulker_box', 'bed', 'respawn_anchor', 'beacon', 'conduit', 'grindstone', 'stonecutter', 'smithing_table', 'loom', 'cartography_table', 'fletching_table', 'bell']
+    },
+    {
+        name: 'All Other Blocks',
+        blocks: MINECRAFT_BLOCKS.filter(block => {
+            const allCategorized = ['stone', 'granite', 'diorite', 'andesite', 'cobblestone', 'oak_planks', 'spruce_planks', 'birch_planks', 'jungle_planks', 'acacia_planks', 'dark_oak_planks', 'mangrove_planks', 'cherry_planks', 'bamboo_planks', 'crimson_planks', 'warped_planks', 'bricks', 'stone_bricks', 'mossy_stone_bricks', 'granite_slab', 'diorite_slab', 'andesite_slab', 'cobblestone_slab', 'sandstone', 'red_sandstone', 'prismarine', 'nether_bricks', 'end_stone', 'purpur_block', 'quartz_block', 'grass_block', 'dirt', 'coarse_dirt', 'podzol', 'mycelium', 'sand', 'red_sand', 'gravel', 'clay', 'terracotta', 'ice', 'packed_ice', 'blue_ice', 'snow', 'snow_block', 'moss_block', 'mud', 'muddy_mangrove_roots', 'oak_log', 'spruce_log', 'birch_log', 'jungle_log', 'acacia_log', 'dark_oak_log', 'mangrove_log', 'cherry_log', 'oak_leaves', 'spruce_leaves', 'birch_leaves', 'jungle_leaves', 'acacia_leaves', 'dark_oak_leaves', 'mangrove_leaves', 'cherry_leaves', 'azalea_leaves', 'coal_ore', 'deepslate_coal_ore', 'iron_ore', 'deepslate_iron_ore', 'copper_ore', 'deepslate_copper_ore', 'gold_ore', 'deepslate_gold_ore', 'redstone_ore', 'deepslate_redstone_ore', 'emerald_ore', 'deepslate_emerald_ore', 'lapis_ore', 'deepslate_lapis_ore', 'diamond_ore', 'deepslate_diamond_ore', 'nether_quartz_ore', 'nether_gold_ore', 'ancient_debris', 'coal_block', 'iron_block', 'copper_block', 'gold_block', 'diamond_block', 'emerald_block', 'redstone_block', 'lapis_block', 'netherite_block', 'amethyst_block', 'glass', 'white_stained_glass', 'orange_stained_glass', 'magenta_stained_glass', 'light_blue_stained_glass', 'yellow_stained_glass', 'lime_stained_glass', 'pink_stained_glass', 'gray_stained_glass', 'light_gray_stained_glass', 'cyan_stained_glass', 'purple_stained_glass', 'blue_stained_glass', 'brown_stained_glass', 'green_stained_glass', 'red_stained_glass', 'black_stained_glass', 'white_wool', 'orange_wool', 'magenta_wool', 'light_blue_wool', 'yellow_wool', 'lime_wool', 'pink_wool', 'gray_wool', 'light_gray_wool', 'cyan_wool', 'purple_wool', 'blue_wool', 'brown_wool', 'green_wool', 'red_wool', 'black_wool', 'white_carpet', 'orange_carpet', 'magenta_carpet', 'light_blue_carpet', 'redstone_torch', 'redstone_block', 'repeater', 'comparator', 'piston', 'sticky_piston', 'dispenser', 'dropper', 'hopper', 'observer', 'lever', 'stone_button', 'oak_button', 'stone_pressure_plate', 'oak_pressure_plate', 'light_weighted_pressure_plate', 'heavy_weighted_pressure_plate', 'redstone_lamp', 'daylight_detector', 'tripwire_hook', 'tnt', 'note_block', 'jukebox', 'target', 'oak_sapling', 'spruce_sapling', 'birch_sapling', 'jungle_sapling', 'acacia_sapling', 'dark_oak_sapling', 'mangrove_propagule', 'cherry_sapling', 'bamboo_sapling', 'wheat', 'carrots', 'potatoes', 'beetroots', 'sweet_berry_bush', 'cactus', 'sugar_cane', 'pumpkin', 'melon', 'vine', 'lily_pad', 'seagrass', 'kelp', 'bamboo', 'dandelion', 'poppy', 'blue_orchid', 'allium', 'azure_bluet', 'red_tulip', 'orange_tulip', 'white_tulip', 'pink_tulip', 'oxeye_daisy', 'cornflower', 'lily_of_the_valley', 'sunflower', 'lilac', 'rose_bush', 'peony', 'torchflower', 'netherrack', 'nether_bricks', 'red_nether_bricks', 'cracked_nether_bricks', 'chiseled_nether_bricks', 'nether_wart_block', 'warped_wart_block', 'soul_sand', 'soul_soil', 'basalt', 'polished_basalt', 'smooth_basalt', 'blackstone', 'polished_blackstone', 'chiseled_polished_blackstone', 'glowstone', 'crimson_nylium', 'warped_nylium', 'crimson_stem', 'warped_stem', 'crimson_hyphae', 'warped_hyphae', 'shroomlight', 'weeping_vines', 'twisting_vines', 'nether_gold_ore', 'ancient_debris', 'crying_obsidian', 'respawn_anchor', 'lodestone', 'end_stone', 'end_stone_bricks', 'purpur_block', 'purpur_pillar', 'purpur_slab', 'purpur_stairs', 'chorus_plant', 'chorus_flower', 'end_rod', 'dragon_egg', 'obsidian', 'crying_obsidian', 'crafting_table', 'furnace', 'blast_furnace', 'smoker', 'anvil', 'chipped_anvil', 'damaged_anvil', 'enchanting_table', 'bookshelf', 'lectern', 'brewing_stand', 'cauldron', 'composter', 'barrel', 'chest', 'ender_chest', 'trapped_chest', 'shulker_box', 'bed', 'respawn_anchor', 'beacon', 'conduit', 'grindstone', 'stonecutter', 'smithing_table', 'loom', 'cartography_table', 'fletching_table', 'bell'];
+            return !allCategorized.includes(block);
+        })
+    }
+];
+
+// Export for use in other modules
+window.MINECRAFT_BLOCKS = MINECRAFT_BLOCKS;
+window.MINECRAFT_BLOCKS_CATEGORIZED = MINECRAFT_BLOCKS_CATEGORIZED;

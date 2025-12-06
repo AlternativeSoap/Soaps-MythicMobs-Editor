@@ -3426,6 +3426,241 @@ kbd {
     overflow-y: auto;
 }
 
+/* Targeter Step-Based System (matches mechanic browser) */
+.targeter-step {
+    display: none;
+    flex-direction: column;
+    padding: 1.5rem;
+    flex: 1;
+    overflow: hidden;
+}
+
+.targeter-step.active {
+    display: flex;
+}
+
+/* Performance optimizations for targeter list */
+#targeterList {
+    transform: translateZ(0);
+    will-change: scroll-position;
+    contain: layout style paint;
+    -webkit-overflow-scrolling: touch;
+}
+
+.targeter-attribute-field small {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.targeter-attribute-input {
+    padding: 0.625rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.9375rem;
+    transition: border-color 0.2s;
+}
+
+.targeter-attribute-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.targeter-attribute-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+
+.targeter-attribute-btn {
+    padding: 0.625rem 1.5rem;
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9375rem;
+}
+
+.targeter-attribute-btn.cancel {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+}
+
+.targeter-attribute-btn.cancel:hover {
+    background: var(--bg-tertiary);
+}
+
+.targeter-attribute-btn.confirm {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.targeter-attribute-btn.confirm:hover {
+    opacity: 0.9;
+}
+
+/* Targeter Attribute Modal - Match Mechanic Browser Design */
+.targeter-config-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: 1.5rem;
+}
+
+.targeter-config-header .btn-back {
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9375rem;
+    font-weight: 500;
+}
+
+.targeter-config-header .btn-back:hover {
+    background: var(--bg-tertiary);
+    transform: translateX(-2px);
+}
+
+.targeter-config-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.targeter-config-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1.5rem 2rem;
+    min-height: 0;
+    /* Performance optimizations */
+    transform: translateZ(0);
+    will-change: scroll-position;
+    contain: layout style paint;
+    -webkit-overflow-scrolling: touch;
+}
+
+.targeter-config-body .config-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.targeter-config-body .config-section h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.targeter-config-body .config-section h4 .required {
+    color: var(--error-primary);
+    margin-left: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.targeter-config-body .preview-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+}
+
+.targeter-config-body .skill-line-preview {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.targeter-config-body .skill-line-preview code {
+    font-family: var(--font-mono);
+    font-size: 0.9375rem;
+    color: var(--accent-secondary);
+    word-break: break-all;
+}
+
+.targeter-config-body .config-hint {
+    display: block;
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.targeter-config-footer {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-primary);
+}
+
+.targeter-config-footer .btn {
+    padding: 0.625rem 1.5rem;
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9375rem;
+}
+
+.targeter-config-footer .btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+}
+
+.targeter-config-footer .btn-secondary:hover {
+    background: var(--bg-tertiary);
+}
+
+.targeter-config-footer .btn-primary {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.targeter-config-footer .btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* Reuse mechanic-attribute-field styles for targeters */
+.targeter-attribute-form .mechanic-attribute-field {
+    margin-bottom: 0;
+    /* Prevent reflow on input changes */
+    contain: layout style;
+    /* Reduce repaints on hover */
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+/* Performance optimizations for targeter list */
+#targeterList {
+    transform: translateZ(0);
+    will-change: scroll-position;
+    contain: layout style paint;
+    -webkit-overflow-scrolling: touch;
+}
+
 .targeter-attribute-group {
     margin-bottom: 1.5rem;
 }

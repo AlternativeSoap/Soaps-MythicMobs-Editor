@@ -4,39 +4,54 @@ const EQUIPMENT_SLOT_LIST = [
     value: 'HEAD',
     label: 'Head',
     description: 'Accepts regular helmets, playerheads, and even blocktypes',
-    icon: 'fa-helmet-battle'
+    icon: 'fa-helmet-battle',
+    aliases: ['HELMET', 'HELM', 'HAT']
   },
   {
     value: 'CHEST',
     label: 'Chest',
     description: 'Will only render chestplates, but will carry any items',
-    icon: 'fa-vest'
+    icon: 'fa-vest',
+    aliases: ['CHESTPLATE', 'BODY', 'TORSO']
   },
   {
     value: 'LEGS',
     label: 'Legs',
     description: 'Will only render leggings, but will carry any items',
-    icon: 'fa-person'
+    icon: 'fa-person',
+    aliases: ['LEGGINGS', 'PANTS']
   },
   {
     value: 'FEET',
     label: 'Feet',
     description: 'Will only render boots, but will carry any items',
-    icon: 'fa-shoe-prints'
+    icon: 'fa-shoe-prints',
+    aliases: ['BOOTS', 'SHOES']
   },
   {
     value: 'HAND',
     label: 'Main Hand',
     description: 'The mainhand (right) hand slot',
-    icon: 'fa-hand-fist'
+    icon: 'fa-hand-fist',
+    aliases: ['MAINHAND', 'MAIN_HAND', 'WEAPON']
   },
   {
     value: 'OFFHAND',
     label: 'Off Hand',
     description: 'The offhand (left) hand slot',
-    icon: 'fa-hand'
+    icon: 'fa-hand',
+    aliases: ['OFF_HAND', 'SHIELD']
   }
 ];
+
+// Create EQUIPMENT_SLOTS constant for backward compatibility
+const EQUIPMENT_SLOTS = EQUIPMENT_SLOT_LIST.map(slot => ({
+  id: slot.value,
+  name: slot.label,
+  icon: slot.icon.replace('fa-', ''),
+  description: slot.description,
+  aliases: slot.aliases
+}));
 
 // Inline item attributes from wiki (for equipment section)
 const EQUIPMENT_INLINE_ATTRIBUTES = [

@@ -240,7 +240,7 @@ const FANCY_DROP_ATTRIBUTES = [
 ];
 
 // Equipment slots for equipment droptables
-const EQUIPMENT_SLOTS = [
+const DROP_EQUIPMENT_SLOTS = [
     { id: 'HEAD', name: 'Head/Helmet', icon: 'user-helmet-safety' },
     { id: 'CHEST', name: 'Chest/Chestplate', icon: 'vest' },
     { id: 'LEGS', name: 'Legs/Leggings', icon: 'socks' },
@@ -252,7 +252,7 @@ const EQUIPMENT_SLOTS = [
 window.DROP_TYPES = DROP_TYPES;
 window.INLINE_ITEM_ATTRIBUTES = INLINE_ITEM_ATTRIBUTES;
 window.FANCY_DROP_ATTRIBUTES = FANCY_DROP_ATTRIBUTES;
-window.EQUIPMENT_SLOTS = EQUIPMENT_SLOTS;
+window.DROP_EQUIPMENT_SLOTS = DROP_EQUIPMENT_SLOTS;
 
 console.log('✅ Drop Types loaded:', DROP_TYPES.length, 'types');
 console.log('Drop type IDs:', DROP_TYPES.map(t => t.id));

@@ -62,6 +62,36 @@
     color: white;
 }
 
+.btn-help {
+    border: 1px solid currentColor;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.btn-help.audience-help {
+    color: #8b5cf6;
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.btn-help.audience-help:hover {
+    background: #8b5cf6;
+    color: white;
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+    transform: translateY(-1px);
+}
+
+.btn-help.math-help {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.btn-help.math-help:hover {
+    background: #10b981;
+    color: white;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+    transform: translateY(-1px);
+}
+
 .btn-sm {
     padding: 6px 12px;
     font-size: 0.8125rem;
@@ -1146,6 +1176,65 @@ body[data-mode="advanced"] .advanced-only {
     color: var(--accent-secondary);
 }
 
+/* Enhanced Checkbox for Options Section */
+.checkbox-label-enhanced {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    background: transparent;
+    user-select: none;
+    position: relative;
+}
+
+.checkbox-label-enhanced:hover {
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.checkbox-label-enhanced input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.checkbox-label-enhanced .checkbox-custom {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-primary);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.checkbox-label-enhanced input[type="checkbox"]:checked ~ .checkbox-custom {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.checkbox-label-enhanced input[type="checkbox"]:checked ~ .checkbox-custom::after {
+    content: '✓';
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.checkbox-label-enhanced .checkbox-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.checkbox-label-enhanced input[type="checkbox"]:checked ~ .checkbox-text {
+    color: var(--primary);
+}
+
 /* Skill & Drop Lists */
 .skill-list,
 .drop-list {
@@ -1456,17 +1545,120 @@ body[data-mode="advanced"] .advanced-only {
 .attribute-list {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-md);
 }
 
 .attribute-item {
     display: grid;
     grid-template-columns: 2fr 1fr 1.5fr auto;
     gap: var(--spacing-sm);
+    align-items: start;
+    border-radius: 6px;
+    padding: 10px;
+    transition: all 0.2s ease;
+}
+
+.attribute-item:hover {
+    background: var(--bg-tertiary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .attribute-item .form-control {
     margin: 0;
+}
+
+.attribute-preview {
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Enhanced tab styling for attributes */
+.tabs-header .tab-btn .badge {
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: white;
+}
+
+/* Add Item Button - Large, prominent style for Add Lore, Add Enchantment, Add Attribute buttons */
+.add-item-btn {
+    width: 100%;
+    padding: 16px 20px;
+    margin-top: 12px;
+    background: transparent;
+    border: 2px dashed var(--border-primary);
+    border-radius: 8px;
+    color: var(--accent-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.add-item-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.1);
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.add-item-btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.add-item-btn:hover {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);
+    border-color: var(--accent-primary);
+    border-style: solid;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+}
+
+.add-item-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(139, 92, 246, 0.15);
+}
+
+.add-item-btn i {
+    font-size: 1.1rem;
+    position: relative;
+    z-index: 1;
+    transition: transform 0.2s ease;
+}
+
+.add-item-btn:hover i {
+    transform: rotate(90deg);
+}
+
+.add-item-btn span {
+    letter-spacing: 0.3px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Responsive - stack better on mobile */
+@media (max-width: 768px) {
+    .add-item-btn {
+        padding: 14px 16px;
+        font-size: 0.9rem;
+    }
 }
 
 /* Enchantment Item */

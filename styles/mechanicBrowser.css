@@ -569,6 +569,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.375rem;
+    position: relative;
 }
 
 .mb-attribute-label {
@@ -913,4 +914,536 @@
 .mechanic-list-container::-webkit-scrollbar-thumb:hover,
 .mechanic-config-body::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
+}
+
+/* ================================
+   UNIFIED PARTICLE MECHANIC
+   ================================ */
+
+.unified-particle-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Conditional fields (hidden by default until condition met) */
+.conditional-field {
+    transition: opacity 0.3s ease, max-height 0.3s ease, margin 0.3s ease;
+    overflow: hidden;
+    max-height: 200px;
+    opacity: 1;
+}
+
+.conditional-field.hidden {
+    opacity: 0;
+    max-height: 0;
+    margin: 0;
+    pointer-events: none;
+}
+
+/* DataType-specific field styling */
+.datatype-field {
+    border-left: 3px solid #6366f1;
+    padding-left: 1rem;
+    background: rgba(99, 102, 241, 0.05);
+    border-radius: 4px;
+}
+
+/* Color picker container */
+.color-input-wrapper {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.mechanic-attribute-color {
+    width: 60px;
+    height: 38px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+    padding: 0;
+}
+
+.mechanic-attribute-color:hover {
+    border-color: rgba(99, 102, 241, 0.5);
+}
+
+.color-hex-input {
+    flex: 1;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #fff;
+    transition: all 0.2s ease;
+}
+
+.color-hex-input:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.color-hex-input:invalid {
+    border-color: #ef4444;
+}
+
+/* Material selector */
+.mechanic-attribute-material {
+    width: 100%;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #fff;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.mechanic-attribute-material:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.mechanic-attribute-material option {
+    background: #1a1d2e;
+    color: #fff;
+}
+
+/* Particle type selector with categories */
+.mechanic-attribute-particle {
+    width: 100%;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #fff;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.mechanic-attribute-particle:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.mechanic-attribute-particle optgroup {
+    background: #0f1117;
+    color: #6366f1;
+    font-weight: bold;
+    padding: 0.5rem 0;
+}
+
+.mechanic-attribute-particle option {
+    background: #1a1d2e;
+    color: #fff;
+    padding: 0.3rem 1rem;
+}
+
+/* Variant selector */
+.particle-variant-select {
+    width: 100%;
+    padding: 0.5rem;
+    background: rgba(99, 102, 241, 0.1);
+    border: 2px solid rgba(99, 102, 241, 0.3);
+    border-radius: 6px;
+    color: #fff;
+    font-family: inherit;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.particle-variant-select:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.particle-variant-select option {
+    background: #1a1d2e;
+    color: #fff;
+}
+
+/* Highlight required fields */
+.mechanic-attribute-field .required {
+    color: #ef4444;
+    margin-left: 0.25rem;
+}
+
+/* ================================
+   Particle Dropdown Selector
+   ================================ */
+
+.particle-selector-wrapper {
+    position: relative;
+    width: 100%;
+    z-index: 999;
+}
+
+.particle-selector-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    position: relative;
+    z-index: 1;
+}
+
+.particle-selector-display:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.particle-selector-display:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.particle-preview {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.particle-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.particle-name {
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.particle-dropdown-arrow {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.7rem;
+    transition: transform 0.2s ease;
+}
+
+.particle-selector-display:hover .particle-dropdown-arrow {
+    color: rgba(99, 102, 241, 0.8);
+}
+
+/* Dropdown Menu */
+.particle-dropdown-menu {
+    position: fixed;
+    background: #1a1d2e;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1);
+    z-index: 99999;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Search Input */
+.particle-search-input {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: none;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+    color: #fff;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.particle-search-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.particle-search-input:focus {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+/* Options Container */
+.particle-options-container {
+    overflow-y: auto;
+    max-height: 320px;
+    padding: 0.5rem 0;
+}
+
+.particle-options-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.particle-options-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.particle-options-container::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 4px;
+}
+
+.particle-options-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.5);
+}
+
+/* Category Headers */
+.particle-category {
+    margin-bottom: 0.5rem;
+}
+
+.particle-category-header {
+    padding: 0.5rem 0.75rem;
+    color: #6366f1;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(99, 102, 241, 0.1);
+    border-left: 3px solid #6366f1;
+}
+
+.particle-category-options {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Particle Options */
+.particle-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem 0.5rem 1.5rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.particle-option:hover {
+    background: rgba(99, 102, 241, 0.15);
+    color: #fff;
+}
+
+.particle-option.selected {
+    background: rgba(99, 102, 241, 0.25);
+    color: #fff;
+    font-weight: 500;
+    border-left: 3px solid #6366f1;
+    padding-left: calc(1.5rem - 3px);
+}
+
+.particle-option-name {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+}
+
+/* ============================================
+   MATERIAL DROPDOWN STYLES
+   ============================================ */
+
+.material-selector-wrapper {
+    position: relative;
+    z-index: 999;
+}
+
+.material-selector-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 38px;
+}
+
+.material-selector-display:hover {
+    border-color: var(--accent-color);
+    background: var(--hover-bg);
+}
+
+.material-preview {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.material-dropdown-arrow {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
+}
+
+.material-dropdown-menu {
+    position: fixed;
+    z-index: 99999;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    min-width: 320px;
+    max-width: 400px;
+    max-height: 400px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.material-search-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    border-bottom: 2px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    outline: none;
+}
+
+.material-search-input:focus {
+    border-bottom-color: var(--accent-color);
+}
+
+.material-options-container {
+    overflow-y: auto;
+    max-height: 320px;
+    padding: 0.5rem 0;
+}
+
+.material-options-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.material-options-container::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+.material-options-container::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.material-options-container::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+.material-category {
+    margin-bottom: 0.5rem;
+}
+
+.material-category-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 0.5rem 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--bg-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.material-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.material-option:hover {
+    background: var(--hover-bg);
+}
+
+.material-option-name {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+/* ============================================
+   INHERITED PARTICLE ATTRIBUTES SECTION
+   ============================================ */
+
+.inherited-particle-attributes {
+    margin-top: 1.5rem;
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    overflow: hidden;
+}
+
+.inherited-attributes-header {
+    padding: 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-tertiary);
+    user-select: none;
+    transition: background 0.2s ease;
+}
+
+.inherited-attributes-header:hover {
+    background: var(--hover-bg);
+}
+
+.inherited-attributes-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.inherited-attributes-toggle {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    transition: transform 0.3s ease;
+}
+
+.inherited-attributes-toggle.expanded {
+    transform: rotate(90deg);
+}
+
+.inherited-attributes-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    padding: 0 1rem;
+}
+
+.inherited-attributes-content.expanded {
+    max-height: 3000px;
+    padding: 1rem;
+    transition: max-height 0.5s ease-in;
+}
+
+.inherited-attribute-hint {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border-left: 3px solid var(--accent-color);
+    border-radius: 4px;
 }

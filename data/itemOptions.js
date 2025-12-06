@@ -101,7 +101,7 @@ const BOOLEAN_OPTIONS = [
 // Number item options
 const NUMBER_OPTIONS = [
     { id: 'RepairCost', name: 'Repair Cost', description: 'Anvil repair cost (-1 = vanilla)', default: -1, min: -1 },
-    { id: 'StackSize', name: 'Stack Size', description: 'Maximum stack size in inventory', default: 64, min: 1, max: 64 }
+    { id: 'StackSize', name: 'Stack Size', description: 'Maximum stack size in inventory', default: 64, min: 1, max: 64, warning: 'Note: StackSize only works with naturally stackable items (like coal, ender pearls). Items with Attributes are always limited to stack size 1 due to unique NBT requirements.' }
 ];
 
 // Text item options

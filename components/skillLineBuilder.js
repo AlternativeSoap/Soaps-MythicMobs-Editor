@@ -1586,14 +1586,17 @@ class SkillLineBuilder {
         // This method just validates they're available
         if (!this.browsers.mechanic) {
             console.warn('⚠️ MechanicBrowser not provided to SkillLineBuilder');
+            console.log('Available browsers:', this.browsers);
         }
         if (!this.browsers.targeter) {
             console.warn('⚠️ TargeterBrowser not provided to SkillLineBuilder');
+            console.log('Available browsers:', this.browsers);
         }
         // ConditionBrowser is now used instead of ConditionEditor
         // Trigger browser is optional (only for mob context)
         if (this.state.context === 'mob' && !this.browsers.trigger) {
             console.warn('⚠️ TriggerBrowser not provided (mob context)');
+            console.log('Available browsers:', this.browsers);
         }
     }
     
@@ -1612,7 +1615,8 @@ class SkillLineBuilder {
         this.initializeBrowsers();
         
         if (!this.browsers.mechanic) {
-            console.error('MechanicBrowser not available');
+            console.error('❌ MechanicBrowser not available - browsers must be passed via open() options');
+            alert('Mechanic Browser is not available in this context. Please ensure you\'re accessing this feature from the skill editor.');
             return;
         }
         
@@ -1739,7 +1743,8 @@ class SkillLineBuilder {
         this.initializeBrowsers();
         
         if (!this.browsers.targeter) {
-            console.error('TargeterBrowser not available');
+            console.error('❌ TargeterBrowser not available - browsers must be passed via open() options');
+            alert('Targeter Browser is not available in this context. Please ensure you\'re accessing this feature from the skill editor.');
             return;
         }
         

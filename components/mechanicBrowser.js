@@ -716,6 +716,30 @@ class MechanicBrowser {
                         <span class="checkbox-value">${defaultChecked ? 'true' : 'false'}</span>
                     </label>
                 `;
+            } else if (attr.type === 'particleSelect') {
+                // Smart particle type selector with categories
+                inputHTML = this.renderParticleSelector(attr);
+            } else if (attr.type === 'color') {
+                // Color picker
+                inputHTML = `
+                    <div class="color-input-wrapper">
+                        <input type="color" 
+                               class="mechanic-attribute-input mechanic-attribute-color" 
+                               data-attr="${attr.name}"
+                               data-default="${attr.default || '#FF0000'}"
+                               data-modified="false"
+                               value="${attr.default || '#FF0000'}">
+                        <input type="text" 
+                               class="color-hex-input" 
+                               data-attr="${attr.name}"
+                               data-modified="false"
+                               placeholder="${attr.default || '#FF0000'}"
+                               pattern="^#[0-9A-Fa-f]{6}$">
+                    </div>
+                `;
+            } else if (attr.type === 'materialSelect') {
+                // Material selector dropdown (for block/item particles)
+                inputHTML = this.renderMaterialSelector(attr);
             } else if (attr.type === 'number') {
                 // Number input with step detection (don't pre-fill, only placeholder)
                 const step = attr.default && attr.default.toString().includes('.') ? '0.01' : '1';
@@ -740,8 +764,12 @@ class MechanicBrowser {
                 `;
             }
 
+            // Check if field should be conditionally shown
+            const conditionalClass = attr.showWhen ? 'conditional-field' : '';
+            const conditionalData = attr.showWhen ? `data-show-when='${JSON.stringify(attr.showWhen)}'` : '';
+
             return `
-                <div class="mechanic-attribute-field" data-tooltip="${tooltipContent.replace(/"/g, '&quot;')}">
+                <div class="mechanic-attribute-field ${conditionalClass}" ${conditionalData} data-tooltip="${tooltipContent.replace(/"/g, '&quot;')}">
                     <label class="attribute-label">
                         ${attr.name}${aliasText} ${requiredMark}
                         <span class="info-icon" title="Click for details">ℹ️</span>
@@ -752,7 +780,483 @@ class MechanicBrowser {
             `;
         }).join('');
 
+        // Add inherited particle attributes section if applicable
+        if (this.currentMechanic.inheritedParticleAttributes) {
+            formContainer.innerHTML += this.renderInheritedParticleAttributes();
+        }
+
         // Attach input listeners
+        this.attachAttributeListeners(formContainer);
+        
+        // Setup inherited attributes toggle if section exists
+        if (this.currentMechanic.inheritedParticleAttributes) {
+            this.setupInheritedAttributesToggle();
+        }
+        
+        // Setup material dropdowns
+        this.setupMaterialDropdowns();
+        
+        // If smart particles, setup dynamic field visibility
+        if (this.currentMechanic.hasSmartParticles) {
+            this.setupSmartParticleFields(formContainer);
+        }
+        
+        // Update YAML preview
+        this.updateSkillLinePreview();
+    }
+
+    /**
+     * Render particle type selector with categories and preview
+     */
+    renderParticleSelector(attr) {
+        if (!window.ParticleTypes) {
+            return `<input type="text" class="mechanic-attribute-input" data-attr="${attr.name}" placeholder="flame">`;
+        }
+
+        const defaultValue = attr.default || 'flame';
+        const randomId = 'particle-' + Math.random().toString(36).substr(2, 9);
+
+        return `
+            <div class="particle-selector-wrapper" data-dropdown-id="${randomId}">
+                <div class="particle-selector-display" id="${randomId}-display" tabindex="0">
+                    <span class="particle-preview" data-particle="${defaultValue}">
+                        <span class="particle-icon">🔥</span>
+                        <span class="particle-name">${defaultValue}</span>
+                    </span>
+                    <span class="particle-dropdown-arrow">▼</span>
+                </div>
+                <input type="hidden" 
+                       class="mechanic-attribute-input mechanic-attribute-particle" 
+                       data-attr="${attr.name}"
+                       data-modified="false"
+                       value="${defaultValue}"
+                       id="${randomId}-input">
+            </div>
+        `;
+    }
+
+    /**
+     * Render particle options grouped by category
+     */
+    renderParticleOptions(selectedValue) {
+        const categories = window.ParticleTypes.categories;
+        let html = '';
+
+        for (const category of categories) {
+            html += `<div class="particle-category">
+                <div class="particle-category-header">${category.name}</div>
+                <div class="particle-category-options">`;
+            
+            for (const particle of category.particles) {
+                const isSelected = particle === selectedValue ? 'selected' : '';
+                const icon = this.getParticleIcon(particle);
+                html += `
+                    <div class="particle-option ${isSelected}" data-particle="${particle}">
+                        <span class="particle-icon">${icon}</span>
+                        <span class="particle-option-name">${particle}</span>
+                    </div>`;
+            }
+            
+            html += `</div></div>`;
+        }
+
+        return html;
+    }
+
+    /**
+     * Get an icon/emoji that represents the particle type
+     */
+    getParticleIcon(particle) {
+        const iconMap = {
+            // Fire & Heat
+            'flame': '🔥', 'soul_fire_flame': '💙', 'small_flame': '🕯️',
+            'lava': '🌋', 'dripping_lava': '💧', 'landing_lava': '💥',
+            
+            // Water & Liquid
+            'water_bubble': '💧', 'water_splash': '💦', 'water_wake': '🌊',
+            'dripping_water': '💧', 'falling_water': '💧', 'rain': '🌧️',
+            
+            // Smoke & Clouds
+            'smoke': '💨', 'large_smoke': '☁️', 'white_smoke': '☁️',
+            'campfire_cosy_smoke': '🏕️', 'campfire_signal_smoke': '🔥',
+            
+            // Magic & Enchanting
+            'enchant': '✨', 'enchanted_hit': '⚡', 'crit': '💥',
+            'magic_crit': '✨', 'portal': '🌀', 'reverse_portal': '🌀',
+            'spell': '🔮', 'instant_spell': '✨', 'witch': '🔮',
+            'spell_mob': '👻', 'spell_mob_ambient': '👻',
+            
+            // Redstone & Electric
+            'redstone': '🔴', 'electric_spark': '⚡', 'glow': '💡',
+            'scrape': '✨', 'wax_on': '🕯️', 'wax_off': '🕯️',
+            
+            // Dust & Particles
+            'dust': '✨', 'dust_color_transition': '🌈', 'falling_dust': '⬇️',
+            'ash': '🌫️', 'white_ash': '☁️', 'spore_blossom_air': '🌸',
+            
+            // Nature & Environment
+            'totem_of_undying': '🗿', 'cherry_leaves': '🌸', 'pale_oak_leaves': '🍃',
+            'mycelium': '🍄', 'spore_blossom_air': '🌸', 'warped_spore': '🍄',
+            'crimson_spore': '🍄', 'falling_spore_blossom': '🌸',
+            
+            // Snow & Ice
+            'snowflake': '❄️', 'item_snowball': '⚪', 'snowflake': '❄️',
+            
+            // Damage & Effects
+            'damage_indicator': '💔', 'angry_villager': '😠', 'heart': '❤️',
+            'explosion': '💥', 'explosion_emitter': '💥', 'firework': '🎆',
+            
+            // Sounds & Notes
+            'note': '🎵', 'happy_villager': '😊',
+            
+            // Blocks & Items
+            'block': '🟫', 'block_marker': '🎯', 'falling_dust': '⬇️',
+            'item': '📦', 'item_cobweb': '🕸️', 'item_slime': '🟢',
+            
+            // End & Dragon
+            'dragon_breath': '🐉', 'end_rod': '⭐', 'reverse_portal': '🌀',
+            
+            // Sculk
+            'sculk_charge': '💠', 'sculk_charge_pop': '✨', 'sculk_soul': '👻',
+            'shriek': '😱', 'vibration': '〰️',
+            
+            // Honey & Nectar
+            'dripping_honey': '🍯', 'falling_honey': '🍯', 'landing_honey': '🍯',
+            'dripping_dripstone_water': '💧', 'falling_dripstone_water': '💧',
+            'dripping_dripstone_lava': '🔥', 'falling_dripstone_lava': '🔥',
+            
+            // Nautilus & Ocean
+            'nautilus': '🐚', 'dolphin': '🐬', 'squid_ink': '🦑',
+            'gust': '💨', 'gust_emitter': '💨', 'trial_spawner_detection': '👁️',
+            
+            // Brewing & Alchemy
+            'effect': '💊', 'entity_effect': '✨',
+            
+            // Slime & Creatures
+            'slime': '🟢', 'dripping_obsidian_tear': '😢', 'falling_obsidian_tear': '😢',
+            'landing_obsidian_tear': '😢',
+            
+            // Ominous
+            'ominous_spawning': '☠️', 'trial_spawner_detection_ominous': '💀',
+            
+            // Misc
+            'current_down': '⬇️', 'bubble_pop': '💭', 'bubble_column_up': '⬆️',
+            'poof': '💨', 'explosion': '💥', 'fishing': '🎣',
+            'underwater': '🌊', 'suspended': '✨', 'crit': '💥',
+            'sweep_attack': '⚔️', 'cloud': '☁️', 'dust_plume': '💨',
+            'ender_chest': '📦', 'sonic_boom': '💥', 'trial_spawner_detection': '🔎',
+            'vault_connection': '🔗', 'infested': '🐛', 'item_cobweb': '🕸️'
+        };
+
+        return iconMap[particle] || '✨';
+    }
+
+    /**
+     * Render material selector dropdown (similar to particle selector)
+     */
+    renderMaterialSelector(attr) {
+        if (!window.MINECRAFT_BLOCKS_CATEGORIZED) {
+            return `<input type="text" class="mechanic-attribute-input" data-attr="${attr.name}" placeholder="STONE">`;
+        }
+
+        const defaultValue = attr.default || '';
+        const randomId = 'material-' + Math.random().toString(36).substr(2, 9);
+
+        return `
+            <div class="material-selector-wrapper" data-dropdown-id="${randomId}">
+                <div class="material-selector-display" id="${randomId}-display" tabindex="0">
+                    <span class="material-preview">
+                        <span class="material-name">${defaultValue || 'Select material...'}</span>
+                    </span>
+                    <span class="material-dropdown-arrow">▼</span>
+                </div>
+                <input type="hidden" 
+                       class="mechanic-attribute-input mechanic-attribute-material" 
+                       data-attr="${attr.name}"
+                       data-modified="false"
+                       value="${defaultValue}"
+                       id="${randomId}-input">
+            </div>
+        `;
+    }
+
+    /**
+     * Render inherited particle attributes as collapsible section
+     */
+    renderInheritedParticleAttributes() {
+        if (!window.INHERITED_PARTICLE_ATTRIBUTES) {
+            return '';
+        }
+
+        // Get inherited attributes, excluding ones already in mechanic's attributes
+        const mechanicAttrNames = this.currentMechanic.attributes.map(a => a.name.toLowerCase());
+        const inheritedAttrs = window.INHERITED_PARTICLE_ATTRIBUTES.filter(attr => {
+            return !mechanicAttrNames.includes(attr.name.toLowerCase());
+        });
+
+        if (inheritedAttrs.length === 0) {
+            return '';
+        }
+
+        // Render each inherited attribute
+        const attributesHTML = inheritedAttrs.map(attr => {
+            const aliases = attr.alias && (Array.isArray(attr.alias) ? attr.alias : [attr.alias]);
+            const aliasText = aliases && aliases.length > 0 ? ` (${aliases.join(', ')})` : '';
+            const defaultText = attr.default !== undefined && attr.default !== '' ? ` [default: ${attr.default}]` : '';
+            
+            const tooltipContent = `
+                <div class="attribute-tooltip-content">
+                    <strong>${attr.name}</strong>
+                    ${aliases && aliases.length > 0 ? `<div class="tooltip-aliases">Aliases: ${aliases.join(', ')}</div>` : ''}
+                    <div class="tooltip-type">Type: ${attr.type || 'string'}</div>
+                    ${attr.default !== undefined ? `<div class="tooltip-default">Default: ${attr.default}</div>` : ''}
+                    <div class="tooltip-description">${attr.description}</div>
+                </div>
+            `.trim();
+            
+            let inputHTML = '';
+            if (attr.type === 'boolean') {
+                inputHTML = `
+                    <label class="checkbox-container">
+                        <input type="checkbox" 
+                               class="mechanic-attribute-input mechanic-attribute-checkbox" 
+                               data-attr="${attr.name}"
+                               data-modified="false">
+                        <span class="checkbox-value">false</span>
+                    </label>
+                `;
+            } else if (attr.type === 'particleSelect') {
+                inputHTML = this.renderParticleSelector(attr);
+            } else if (attr.type === 'materialSelect') {
+                inputHTML = this.renderMaterialSelector(attr);
+            } else if (attr.type === 'color') {
+                inputHTML = `
+                    <div class="color-input-wrapper">
+                        <input type="color" 
+                               class="mechanic-attribute-input mechanic-attribute-color" 
+                               data-attr="${attr.name}"
+                               data-default="${attr.default || '#FF0000'}"
+                               data-modified="false"
+                               value="${attr.default || '#FF0000'}">
+                        <input type="text" 
+                               class="color-hex-input" 
+                               data-attr="${attr.name}"
+                               data-modified="false"
+                               placeholder="${attr.default || '#FF0000'}"
+                               pattern="^#[0-9A-Fa-f]{6}$">
+                    </div>
+                `;
+            } else if (attr.type === 'number') {
+                const step = attr.default && attr.default.toString().includes('.') ? '0.01' : '1';
+                inputHTML = `
+                    <input type="number" 
+                           class="mechanic-attribute-input" 
+                           data-attr="${attr.name}"
+                           data-default="${attr.default !== undefined ? attr.default : ''}"
+                           data-modified="false"
+                           step="${step}"
+                           placeholder="${attr.default !== undefined ? attr.default : ''}">
+                `;
+            } else {
+                inputHTML = `
+                    <input type="text" 
+                           class="mechanic-attribute-input" 
+                           data-attr="${attr.name}"
+                           data-default="${attr.default || ''}"
+                           data-modified="false"
+                           placeholder="${attr.default || ''}">
+                `;
+            }
+
+            const conditionalClass = attr.showWhen ? 'conditional-field' : '';
+            const conditionalData = attr.showWhen ? `data-show-when='${JSON.stringify(attr.showWhen)}'` : '';
+
+            return `
+                <div class="mechanic-attribute-field ${conditionalClass}" ${conditionalData} data-tooltip="${tooltipContent.replace(/"/g, '&quot;')}">
+                    <label class="attribute-label">
+                        ${attr.name}${aliasText}
+                        <span class="info-icon" title="Click for details">ℹ️</span>
+                    </label>
+                    ${inputHTML}
+                    <small class="attribute-description">${attr.description}${defaultText}</small>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="inherited-particle-attributes">
+                <div class="inherited-attributes-header">
+                    <div class="inherited-attributes-title">
+                        <span>🎨 Inherited Particle Attributes</span>
+                    </div>
+                    <span class="inherited-attributes-toggle">▶</span>
+                </div>
+                <div class="inherited-attributes-content">
+                    <div class="inherited-attribute-hint">
+                        These attributes are inherited from the base Particle mechanic and can be used to further customize the particle effect.
+                    </div>
+                    ${attributesHTML}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Setup inherited attributes toggle functionality
+     */
+    setupInheritedAttributesToggle() {
+        const header = document.querySelector('.inherited-attributes-header');
+        if (!header) return;
+
+        const content = document.querySelector('.inherited-attributes-content');
+        const toggle = document.querySelector('.inherited-attributes-toggle');
+
+        header.addEventListener('click', () => {
+            const isExpanded = content.classList.contains('expanded');
+            
+            if (isExpanded) {
+                content.classList.remove('expanded');
+                toggle.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                toggle.classList.add('expanded');
+            }
+        });
+    }
+
+    /**
+     * Setup material dropdown functionality
+     */
+    setupMaterialDropdowns() {
+        if (!window.MINECRAFT_BLOCKS_CATEGORIZED) return;
+
+        document.querySelectorAll('.material-selector-display').forEach(display => {
+            display.addEventListener('click', (e) => {
+                e.stopPropagation();
+
+                // Remove any existing material dropdown
+                document.querySelectorAll('.material-dropdown-menu').forEach(m => m.remove());
+
+                const wrapper = display.closest('.material-selector-wrapper');
+                const dropdownId = wrapper.dataset.dropdownId;
+                const hiddenInput = document.getElementById(`${dropdownId}-input`);
+                const currentMaterial = hiddenInput.value || '';
+
+                // Create dropdown menu
+                const menu = document.createElement('div');
+                menu.className = 'material-dropdown-menu';
+                menu.dataset.dropdownId = dropdownId;
+
+                // Build dropdown HTML
+                let menuHTML = '<input type="text" class="material-search-input" placeholder="Search materials...">';
+                menuHTML += '<div class="material-options-container">';
+
+                for (const category of window.MINECRAFT_BLOCKS_CATEGORIZED) {
+                    if (category.blocks.length === 0) continue;
+                    
+                    menuHTML += `<div class="material-category">`;
+                    menuHTML += `<div class="material-category-name">${category.name}</div>`;
+                    
+                    for (const material of category.blocks) {
+                        const selected = material.toUpperCase() === currentMaterial.toUpperCase() ? 'selected' : '';
+                        menuHTML += `
+                            <div class="material-option ${selected}" data-material="${material.toUpperCase()}">
+                                <span class="material-option-name">${material.toUpperCase()}</span>
+                            </div>
+                        `;
+                    }
+                    
+                    menuHTML += `</div>`;
+                }
+
+                menuHTML += '</div>';
+                menu.innerHTML = menuHTML;
+
+                // Position dropdown
+                document.body.appendChild(menu);
+                const rect = display.getBoundingClientRect();
+                menu.style.top = `${rect.bottom + 8}px`;
+                menu.style.left = `${rect.left}px`;
+
+                // Focus search input
+                const searchInput = menu.querySelector('.material-search-input');
+                searchInput.focus();
+
+                // Search functionality
+                searchInput.addEventListener('input', (e) => {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const options = menu.querySelectorAll('.material-option');
+                    const categories = menu.querySelectorAll('.material-category');
+
+                    options.forEach(option => {
+                        const materialName = option.dataset.material.toLowerCase();
+                        const matches = materialName.includes(searchTerm);
+                        option.style.display = matches ? 'flex' : 'none';
+                    });
+
+                    // Hide empty categories
+                    categories.forEach(category => {
+                        const visibleOptions = category.querySelectorAll('.material-option[style="display: flex;"], .material-option:not([style*="display"])');
+                        category.style.display = visibleOptions.length > 0 ? 'block' : 'none';
+                    });
+                });
+
+                // Prevent search input from closing dropdown
+                searchInput.addEventListener('click', (e) => e.stopPropagation());
+
+                // Select material option
+                menu.querySelectorAll('.material-option').forEach(option => {
+                    option.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const material = option.dataset.material;
+
+                        // Update display
+                        const preview = display.querySelector('.material-preview');
+                        preview.querySelector('.material-name').textContent = material;
+
+                        // Update hidden input
+                        hiddenInput.value = material;
+                        hiddenInput.dataset.modified = 'true';
+
+                        // Trigger change event
+                        hiddenInput.dispatchEvent(new Event('change'));
+                        
+                        // Update YAML preview
+                        this.updateSkillLinePreview();
+                        
+                        // Remove dropdown
+                        menu.remove();
+                    });
+                });
+
+                // Click outside to close
+                const closeDropdown = (e) => {
+                    if (!menu.contains(e.target) && !display.contains(e.target)) {
+                        menu.remove();
+                        document.removeEventListener('click', closeDropdown);
+                        window.removeEventListener('scroll', scrollClose, true);
+                    }
+                };
+
+                // Scroll to close
+                const scrollClose = () => {
+                    menu.remove();
+                    document.removeEventListener('click', closeDropdown);
+                    window.removeEventListener('scroll', scrollClose, true);
+                };
+
+                setTimeout(() => {
+                    document.addEventListener('click', closeDropdown);
+                    window.addEventListener('scroll', scrollClose, true);
+                }, 10);
+            });
+        });
+    }
+
+    /**
+     * Attach event listeners to attribute inputs
+     */
+    attachAttributeListeners(formContainer) {
         formContainer.querySelectorAll('.mechanic-attribute-input').forEach(input => {
             if (input.type === 'checkbox') {
                 // For checkboxes: update label and mark as modified
@@ -764,12 +1268,217 @@ class MechanicBrowser {
                     e.target.dataset.modified = 'true';
                     this.updateSkillLinePreview();
                 });
+            } else if (input.classList.contains('mechanic-attribute-particle')) {
+                // For particle selector: update conditional fields
+                input.addEventListener('change', (e) => {
+                    e.target.dataset.modified = 'true';
+                    this.updateConditionalFields(e.target.value);
+                    this.updateSkillLinePreview();
+                });
+            } else if (input.classList.contains('mechanic-attribute-color')) {
+                // For color picker: sync with hex input
+                input.addEventListener('input', (e) => {
+                    const hexInput = e.target.nextElementSibling;
+                    if (hexInput) hexInput.value = e.target.value;
+                    e.target.dataset.modified = 'true';
+                    this.updateSkillLinePreview();
+                });
             } else {
                 // For text/number inputs: mark as modified and update preview
                 input.addEventListener('input', (e) => {
                     e.target.dataset.modified = 'true';
                     this.updateSkillLinePreview();
                 });
+            }
+        });
+
+        // Sync hex input with color picker
+        formContainer.querySelectorAll('.color-hex-input').forEach(input => {
+            input.addEventListener('input', (e) => {
+                if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                    const colorPicker = e.target.previousElementSibling;
+                    if (colorPicker) colorPicker.value = e.target.value;
+                    e.target.dataset.modified = 'true';
+                    this.updateSkillLinePreview();
+                }
+            });
+        });
+
+        // Setup particle dropdown interactions
+        this.setupParticleDropdowns(formContainer);
+    }
+
+    /**
+     * Setup particle dropdown interactions
+     */
+    setupParticleDropdowns(formContainer) {
+        formContainer.querySelectorAll('.particle-selector-wrapper').forEach(wrapper => {
+            const display = wrapper.querySelector('.particle-selector-display');
+            const hiddenInput = wrapper.querySelector('.mechanic-attribute-particle');
+            const dropdownId = wrapper.dataset.dropdownId;
+            
+            let currentDropdown = null;
+
+            // Toggle dropdown
+            display.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                // Close any existing dropdown
+                const existingDropdown = document.getElementById(`${dropdownId}-menu-overlay`);
+                if (existingDropdown) {
+                    existingDropdown.remove();
+                    return;
+                }
+                
+                // Close all other dropdowns
+                document.querySelectorAll('.particle-dropdown-menu').forEach(m => m.remove());
+                
+                // Create dropdown menu
+                const currentValue = hiddenInput.value;
+                const menu = document.createElement('div');
+                menu.className = 'particle-dropdown-menu';
+                menu.id = `${dropdownId}-menu-overlay`;
+                menu.innerHTML = `
+                    <input type="text" 
+                           class="particle-search-input" 
+                           placeholder="Search particles..."
+                           id="${dropdownId}-search">
+                    <div class="particle-options-container">
+                        ${this.renderParticleOptions(currentValue)}
+                    </div>
+                `;
+                
+                // Append to body
+                document.body.appendChild(menu);
+                
+                // Position dropdown
+                const rect = display.getBoundingClientRect();
+                menu.style.position = 'fixed';
+                menu.style.top = `${rect.bottom + 8}px`;
+                menu.style.left = `${rect.left}px`;
+                menu.style.width = `${rect.width}px`;
+                menu.style.display = 'block';
+                
+                const searchInput = menu.querySelector('.particle-search-input');
+                searchInput.focus();
+
+                // Search functionality
+                searchInput.addEventListener('input', (e) => {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const options = menu.querySelectorAll('.particle-option');
+                    const categories = menu.querySelectorAll('.particle-category');
+
+                    options.forEach(option => {
+                        const particleName = option.dataset.particle.toLowerCase();
+                        const matches = particleName.includes(searchTerm);
+                        option.style.display = matches ? 'flex' : 'none';
+                    });
+
+                    // Hide empty categories
+                    categories.forEach(category => {
+                        const visibleOptions = category.querySelectorAll('.particle-option[style="display: flex;"], .particle-option:not([style*="display"])');
+                        category.style.display = visibleOptions.length > 0 ? 'block' : 'none';
+                    });
+                });
+
+                // Prevent search input from closing dropdown
+                searchInput.addEventListener('click', (e) => e.stopPropagation());
+
+                // Select particle option
+                menu.querySelectorAll('.particle-option').forEach(option => {
+                    option.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const particle = option.dataset.particle;
+                        const icon = option.querySelector('.particle-icon').textContent;
+
+                        // Update display
+                        const preview = display.querySelector('.particle-preview');
+                        preview.dataset.particle = particle;
+                        preview.querySelector('.particle-icon').textContent = icon;
+                        preview.querySelector('.particle-name').textContent = particle;
+
+                        // Update hidden input
+                        hiddenInput.value = particle;
+                        hiddenInput.dataset.modified = 'true';
+
+                        // Trigger change event
+                        hiddenInput.dispatchEvent(new Event('change'));
+                        
+                        // Update YAML preview
+                        this.updateSkillLinePreview();
+                        
+                        // Remove dropdown
+                        menu.remove();
+                    });
+                });
+            });
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.particle-selector-wrapper') && !e.target.closest('.particle-dropdown-menu')) {
+                document.querySelectorAll('.particle-dropdown-menu').forEach(menu => {
+                    menu.remove();
+                });
+            }
+        });
+
+        // Close dropdowns when scrolling the config panel
+        const configContent = document.querySelector('.mechanic-config-content');
+        if (configContent) {
+            configContent.addEventListener('scroll', () => {
+                document.querySelectorAll('.particle-dropdown-menu').forEach(menu => {
+                    menu.remove();
+                });
+            });
+        }
+    }
+
+    /**
+     * Setup smart particle fields (conditional visibility)
+     */
+    setupSmartParticleFields(formContainer) {
+        const particleSelect = formContainer.querySelector('[data-attr="particle"]');
+        if (!particleSelect) return;
+
+        // Initial visibility update
+        this.updateConditionalFields(particleSelect.value);
+
+        // Populate material selector if exists
+        const materialSelect = formContainer.querySelector('.mechanic-attribute-material');
+        if (materialSelect && window.minecraftBlocks) {
+            materialSelect.innerHTML = '<option value="">-- Select Material --</option>';
+            window.minecraftBlocks.forEach(block => {
+                materialSelect.innerHTML += `<option value="${block}">${block}</option>`;
+            });
+        }
+    }
+
+    /**
+     * Update conditional field visibility based on particle type
+     */
+    updateConditionalFields(particleType) {
+        if (!window.ParticleTypes || !particleType) return;
+
+        const particleData = window.ParticleTypes.getParticleData(particleType);
+        const dataType = particleData?.dataType || null;
+        const formContainer = document.getElementById('mechanicAttributesForm');
+        
+        formContainer.querySelectorAll('.conditional-field').forEach(field => {
+            const showWhen = JSON.parse(field.dataset.showWhen || '{}');
+            
+            if (showWhen.requiresDataType) {
+                const shouldShow = dataType && showWhen.requiresDataType.includes(dataType);
+                field.style.display = shouldShow ? 'block' : 'none';
+                
+                // Clear value if hidden
+                if (!shouldShow) {
+                    const input = field.querySelector('.mechanic-attribute-input');
+                    if (input) {
+                        input.value = '';
+                        input.dataset.modified = 'false';
+                    }
+                }
             }
         });
     }
@@ -794,10 +1503,18 @@ class MechanicBrowser {
      * Build skill line string from current configuration
      */
     buildSkillLine() {
-        if (!this.currentMechanic) return '- mechanic{}';
+        if (!this.currentMechanic) {
+            console.warn('buildSkillLine: No currentMechanic');
+            return '- mechanic{}';
+        }
+        
+        if (!this.currentMechanic.id) {
+            console.warn('buildSkillLine: currentMechanic has no id', this.currentMechanic);
+            return '- mechanic{}';
+        }
 
-        // Build mechanic name
-        let mechanicName = this.currentMechanic.name;
+        // Build mechanic name (use id for YAML, not display name)
+        let mechanicName = this.currentMechanic.id;
         if (MechanicBrowser.hasEffectPrefix(this.currentMechanic) && this.useEffectPrefix) {
             mechanicName = `effect:${mechanicName}`;
         }

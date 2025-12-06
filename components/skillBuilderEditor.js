@@ -238,10 +238,6 @@ class SkillBuilderEditor {
                 this.showNotification('Changes saved!', 'success');
                 break;
                 
-            case 'format-all':
-                this.formatAllLines();
-                break;
-                
             case 'toggle-duplicates':
                 this.showDuplicates = !this.showDuplicates;
                 this.render();
@@ -254,10 +250,8 @@ class SkillBuilderEditor {
                 
             case 'toggle-analysis':
             case 'toggle-dependencies':
-                if (this.context === 'skill') {
-                    this.showDependencies = !this.showDependencies;
-                    this.render();
-                }
+                this.showDependencies = !this.showDependencies;
+                this.render();
                 break;
                 
             case 'add-line':
@@ -425,18 +419,28 @@ class SkillBuilderEditor {
                         
                         <!-- Analysis Tools -->
                         <div class="toolbar-section toolbar-divider">
-                            ${this.context === 'skill' ? `
-                                <button class="btn btn-sm toggle-dependencies-btn ${this.showDependencies ? 'active' : ''}" id="toggle-dependencies-btn" title="${this.showDependencies ? 'Hide' : 'Show'} dependencies & insights">
-                                    <i class="fas fa-project-diagram"></i>
-                                    Dependencies & Insights
-                                    ${depSummary.missingSkills + depSummary.circularDeps + allProblems.length > 0 ? `<span class="badge badge-error">${depSummary.missingSkills + depSummary.circularDeps + allProblems.length}</span>` : ''}
-                                    ${this.analysisResults.tips?.length > 0 ? `<span class="badge badge-tip">${this.analysisResults.tips.length}</span>` : ''}
-                                </button>
-                            ` : ''}
+                            <button class="btn btn-sm toggle-dependencies-btn ${this.showDependencies ? 'active' : ''}" id="toggle-dependencies-btn" title="${this.showDependencies ? 'Hide' : 'Show'} dependencies & insights">
+                                <i class="fas fa-project-diagram"></i>
+                                Dependencies & Insights
+                                ${depSummary.missingSkills + depSummary.circularDeps + allProblems.length > 0 ? `<span class="badge badge-error">${depSummary.missingSkills + depSummary.circularDeps + allProblems.length}</span>` : ''}
+                                ${this.analysisResults.tips?.length > 0 ? `<span class="badge badge-tip">${this.analysisResults.tips.length}</span>` : ''}
+                            </button>
                             <button class="btn btn-sm toggle-duplicates-btn ${this.showDuplicates ? 'active' : ''}" id="toggle-duplicates-btn" title="${this.showDuplicates ? 'Hide' : 'Show'} duplicates">
                                 <i class="fas fa-clone"></i>
                                 Duplicates
                                 ${dupSummary.exactDuplicates + dupSummary.similarGroups > 0 ? `<span class="badge badge-warning">${dupSummary.exactDuplicates + dupSummary.similarGroups}</span>` : ''}
+                            </button>
+                        </div>
+                        
+                        <!-- Documentation Help -->
+                        <div class="toolbar-section toolbar-divider">
+                            <button class="btn btn-sm btn-help audience-help" id="audience-help-btn" title="Learn about Audience mechanics">
+                                <i class="fas fa-users"></i>
+                                Audience Help
+                            </button>
+                            <button class="btn btn-sm btn-help math-help" id="math-help-btn" title="Learn about Math operations">
+                                <i class="fas fa-calculator"></i>
+                                Math Help
                             </button>
                         </div>
                         
@@ -447,10 +451,6 @@ class SkillBuilderEditor {
                             </button>
                             <button class="btn btn-sm btn-icon redo-btn" disabled title="Redo (Ctrl+Y)">
                                 <i class="fas fa-redo"></i>
-                            </button>
-                            <button class="btn btn-sm format-all-btn" id="format-all-btn" title="Format all skill lines">
-                                <i class="fas fa-magic"></i>
-                                Format
                             </button>
                         </div>
                     </div>
@@ -1129,20 +1129,32 @@ class SkillBuilderEditor {
             });
         }
         
-        // Format all button
-        const formatAllBtn = this.container.querySelector('#format-all-btn');
-        if (formatAllBtn) {
-            formatAllBtn.addEventListener('click', () => {
-                this.formatAllLines();
-            });
-        }
-        
         // Toggle duplicates button
         const toggleDuplicatesBtn = this.container.querySelector('#toggle-duplicates-btn');
         if (toggleDuplicatesBtn) {
             toggleDuplicatesBtn.addEventListener('click', () => {
                 this.showDuplicates = !this.showDuplicates;
                 this.render();
+            });
+        }
+        
+        // Audience help button
+        const audienceHelpBtn = this.container.querySelector('#audience-help-btn');
+        if (audienceHelpBtn) {
+            audienceHelpBtn.addEventListener('click', () => {
+                if (window.DocumentationHelper) {
+                    window.DocumentationHelper.showAudienceHelp();
+                }
+            });
+        }
+        
+        // Math help button
+        const mathHelpBtn = this.container.querySelector('#math-help-btn');
+        if (mathHelpBtn) {
+            mathHelpBtn.addEventListener('click', () => {
+                if (window.DocumentationHelper) {
+                    window.DocumentationHelper.showMathHelp();
+                }
             });
         }
         
