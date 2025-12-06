@@ -6,23 +6,12 @@
 const DROP_TYPES = [
     {
         id: 'item',
-        name: 'Minecraft Item',
-        description: 'Drop a vanilla Minecraft item with optional inline attributes',
+        name: 'Item',
+        description: 'Drop a Minecraft or MythicMobs item',
         icon: 'cube',
         hasInlineAttributes: true,
-        fields: [
-            { name: 'item', label: 'Item Material', type: 'text', required: true, placeholder: 'DIAMOND' },
-            { name: 'amount', label: 'Amount', type: 'text', default: '1', placeholder: '1 or 1-3' },
-            { name: 'chance', label: 'Drop Chance', type: 'number', default: '1.0', min: 0, max: 1, step: 0.01 }
-        ]
-    },
-    {
-        id: 'mythicitem',
-        name: 'MythicItem',
-        description: 'Drop a MythicMobs custom item',
-        icon: 'wand-magic-sparkles',
         attributes: [
-            { name: 'level', label: 'Item Level', type: 'number', description: 'Level of the item' },
+            { name: 'level', label: 'Item Level', type: 'number', description: 'Level of the item (MythicMobs only)' },
             { name: 'lootsplosion', label: 'Lootsplosion', type: 'boolean', description: 'Enable lootsplosion effect' },
             { name: 'itemvfx', label: 'Item VFX', type: 'boolean', description: 'Enable item VFX' },
             { name: 'itemvfxmaterial', label: 'VFX Material', type: 'text', description: 'Material for item VFX' },
@@ -36,7 +25,7 @@ const DROP_TYPES = [
             { name: 'brightness', label: 'Brightness', type: 'number', description: 'Brightness level' }
         ],
         fields: [
-            { name: 'item', label: 'MythicItem Name', type: 'text', required: true, placeholder: 'SuperCoolItem' },
+            { name: 'item', label: 'Item', type: 'text', required: true, placeholder: 'diamond_sword or CustomItem' },
             { name: 'amount', label: 'Amount', type: 'text', default: '1', placeholder: '1 or 1-3' },
             { name: 'chance', label: 'Drop Chance', type: 'number', default: '1.0', min: 0, max: 1, step: 0.01 }
         ]
@@ -46,8 +35,10 @@ const DROP_TYPES = [
         name: 'MythicMob',
         description: 'Spawn a MythicMob as a drop',
         icon: 'dragon',
+        basicFields: [
+            { name: 'type', label: 'Mob Type', type: 'text', required: true, description: 'MythicMob internal name or vanilla entity', placeholder: 'SkeletonKing' }
+        ],
         attributes: [
-            { name: 'type', label: 'Mob Type', type: 'text', required: true, description: 'MythicMob type or vanilla entity' },
             { name: 'amount', label: 'Amount', type: 'number', default: 1, description: 'Number of mobs to spawn' },
             { name: 'level', label: 'Level', type: 'number', default: 0, description: 'Level of the mob' },
             { name: 'radius', label: 'Radius', type: 'number', default: 0, description: 'Spawn radius around target' },

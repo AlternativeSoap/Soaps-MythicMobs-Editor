@@ -6,7 +6,7 @@
 -- =====================================================
 CREATE TABLE IF NOT EXISTS user_data (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,  -- TEXT to support both UUID and anonymous IDs
     key TEXT NOT NULL,
     value JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -21,11 +21,13 @@ CREATE INDEX IF NOT EXISTS idx_user_data_user_id ON user_data(user_id);
 -- Enable Row Level Security (RLS)
 ALTER TABLE user_data ENABLE ROW LEVEL SECURITY;
 
--- Create policy to allow users to access their own data (including anonymous)
-CREATE POLICY "Users can access their own data"
+-- Create policy to allow all access (for both authenticated and anonymous users)
+DROP POLICY IF EXISTS "Users can access their own data" ON user_data;
+CREATE POLICY "Allow all access"
     ON user_data
     FOR ALL
-    USING (true)  -- Allow all for anonymous users
+    TO public
+    USING (true)
     WITH CHECK (true);
 
 -- =====================================================
@@ -49,11 +51,13 @@ CREATE INDEX IF NOT EXISTS idx_user_projects_user_updated ON user_projects(user_
 -- Enable RLS for user_projects
 ALTER TABLE user_projects ENABLE ROW LEVEL SECURITY;
 
--- Policy for user_projects (users can only access their own projects)
-CREATE POLICY "Users can access their own projects"
+-- Policy for user_projects - allow all access
+DROP POLICY IF EXISTS "Users can access their own projects" ON user_projects;
+CREATE POLICY "Allow all access"
     ON user_projects
     FOR ALL
-    USING (true)  -- Allow all for anonymous users
+    TO public
+    USING (true)
     WITH CHECK (true);
 
 -- Optional: Create a function to automatically update updated_at timestamp

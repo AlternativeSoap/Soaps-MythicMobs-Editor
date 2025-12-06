@@ -1336,3 +1336,6 @@ const MINECRAFT_ITEMS = [
     'zombie_villager_spawn_egg',
     'zombified_piglin_spawn_egg'
 ];
+
+// Expose globally
+window.MINECRAFT_ITEMS = MINECRAFT_ITEMS;
