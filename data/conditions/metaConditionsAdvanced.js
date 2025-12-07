@@ -654,4 +654,4 @@ const META_CONDITIONS_ADVANCED = [
 
 // Export
 window.META_CONDITIONS_ADVANCED = META_CONDITIONS_ADVANCED;
-console.log('✅ Meta Conditions (Part 2) loaded:', META_CONDITIONS_ADVANCED.length, 'conditions');
+// Loaded silently

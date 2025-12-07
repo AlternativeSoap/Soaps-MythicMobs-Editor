@@ -213,4 +213,4 @@ window.MathDocumentation = {
     MATH_EXAMPLES
 };
 
-console.log('✅ Math Documentation loaded');
+// Loaded silently

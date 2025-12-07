@@ -126,4 +126,4 @@ window.ItemOptions = {
     TEXT_OPTIONS
 };
 
-console.log('✅ Item Options loaded');
+// Loaded silently

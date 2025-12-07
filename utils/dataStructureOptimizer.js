@@ -21,7 +21,7 @@ class DataStructureOptimizer {
      * Initialize all optimized data structures
      */
     initialize() {
-        console.log('🚀 Initializing optimized data structures...');
+        if (window.DEBUG_MODE) console.log('🚀 Initializing optimized data structures...');
         
         // Convert arrays to Maps
         this.mechanicsMap = this.arrayToMap(window.MECHANICS_DATA?.mechanics || [], 'id');
@@ -41,12 +41,14 @@ class DataStructureOptimizer {
             window.TRIGGERS_DATA?.triggers || [], 'category'
         );
         
-        console.log('✅ Data structures optimized:', {
-            mechanics: this.mechanicsMap.size,
-            conditions: this.conditionsMap.size,
-            targeters: this.targetersMap.size,
-            triggers: this.triggersMap.size
-        });
+        if (window.DEBUG_MODE) {
+            console.log('✅ Data structures optimized:', {
+                mechanics: this.mechanicsMap.size,
+                conditions: this.conditionsMap.size,
+                targeters: this.targetersMap.size,
+                triggers: this.triggersMap.size
+            });
+        }
     }
 
     /**
@@ -74,12 +76,16 @@ class DataStructureOptimizer {
         const map = new Map();
         const conditionsData = window.CONDITIONS_DATA || {};
         
-        console.log('🔨 Building conditions map from CONDITIONS_DATA:', Object.keys(conditionsData));
+        if (window.DEBUG_MODE) {
+            console.log('🔨 Building conditions map from CONDITIONS_DATA:', Object.keys(conditionsData));
+        }
         
         for (const category in conditionsData) {
             const conditions = conditionsData[category];
             if (Array.isArray(conditions)) {
-                console.log(`  📁 Category ${category}: ${conditions.length} conditions`);
+                if (window.DEBUG_MODE) {
+                    console.log(`  📁 Category ${category}: ${conditions.length} conditions`);
+                }
                 for (const condition of conditions) {
                     if (condition.name) {
                         // Add category to condition for filtering
@@ -92,7 +98,9 @@ class DataStructureOptimizer {
             }
         }
         
-        console.log(`✅ Conditions map built: ${map.size} total conditions`);
+        if (window.DEBUG_MODE) {
+            console.log(`✅ Conditions map built: ${map.size} total conditions`);
+        }
         return map;
     }
 

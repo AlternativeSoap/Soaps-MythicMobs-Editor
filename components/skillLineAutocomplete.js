@@ -687,4 +687,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = SkillLineAutocomplete;
 }
 
-console.log('✅ SkillLineAutocomplete engine loaded');
+// Loaded silently

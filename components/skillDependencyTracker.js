@@ -409,4 +409,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = SkillDependencyTracker;
 }
 
-console.log('✅ SkillDependencyTracker loaded');
+// Loaded silently

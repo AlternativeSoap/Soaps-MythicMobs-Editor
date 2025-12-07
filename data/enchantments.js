@@ -90,4 +90,4 @@ window.EnchantmentData = {
     }
 };
 
-console.log('✅ Enchantments loaded:', ENCHANTMENTS.length, 'enchantments');
+// Loaded silently

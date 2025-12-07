@@ -13,7 +13,9 @@
 
 class MechanicBrowser {
     constructor(targeterBrowser, triggerBrowser, conditionEditor) {
-        console.log('🏗️ Creating MechanicBrowser instance (Enhanced Version)');
+        if (window.DEBUG_MODE) {
+            console.log('🏗️ Creating MechanicBrowser instance (Enhanced Version)');
+        }
         this.targeterBrowser = targeterBrowser;
         this.triggerBrowser = triggerBrowser;
         this.conditionEditor = conditionEditor;
@@ -37,7 +39,9 @@ class MechanicBrowser {
         
         this.createModal();
         this.attachEventListeners();
-        console.log('✅ MechanicBrowser (Enhanced) ready with', this.getMechanicsCount(), 'mechanics');
+        if (window.DEBUG_MODE) {
+            console.log('✅ MechanicBrowser (Enhanced) ready with', this.getMechanicsCount(), 'mechanics');
+        }
     }
     
     /**
@@ -1727,4 +1731,4 @@ class MechanicBrowser {
 
 // Export for global use
 window.MechanicBrowser = MechanicBrowser;
-console.log('✅ MechanicBrowser component loaded');
+// Loaded silently

@@ -104,7 +104,7 @@ class SkillLineBuilder {
         this.attachEventListeners();
         this.saveState();
         
-        console.log('✅ SkillLineBuilder v2.0 ready');
+        if (window.DEBUG_MODE) console.log('✅ SkillLineBuilder v2.0 ready');
     }
     
     // ========================================
@@ -583,13 +583,15 @@ class SkillLineBuilder {
             bulkInvalid: get('bulkInvalid')
         };
         
-        console.log('✅ DOM elements cached');
-        console.log('🔍 Critical button references:', {
-            btnAdd: this.dom.btnAdd,
-            btnAddToQueue: this.dom.btnAddToQueue,
-            btnAddId: this.dom.btnAdd?.id,
-            btnAddToQueueId: this.dom.btnAddToQueue?.id
-        });
+        if (window.DEBUG_MODE) {
+            console.log('✅ DOM elements cached');
+            console.log('🔍 Critical button references:', {
+                btnAdd: this.dom.btnAdd,
+                btnAddToQueue: this.dom.btnAddToQueue,
+                btnAddId: this.dom.btnAdd?.id,
+                btnAddToQueueId: this.dom.btnAddToQueue?.id
+            });
+        }
     }
     
     // ========================================
@@ -637,13 +639,15 @@ class SkillLineBuilder {
         // Keyboard shortcuts (attached to document but checks if builder is open)
         document.addEventListener('keydown', this.boundHandlers.keydown);
         
-        console.log('✅ Event listeners attached');
+        if (window.DEBUG_MODE) console.log('✅ Event listeners attached');
     }
     
     handleClick(e) {
         const target = e.target.closest('button');
         if (!target) {
-            console.log('🖱️ Click event but no button found. Target:', e.target.tagName, e.target.className);
+            if (window.DEBUG_MODE) {
+                console.log('🖱️ Click event but no button found. Target:', e.target.tagName, e.target.className);
+            }
             return;
         }
         
@@ -2690,4 +2694,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = SkillLineBuilder;
 }
 
-console.log('✅ SkillLineBuilder v2.0 loaded');
+// Loaded silently

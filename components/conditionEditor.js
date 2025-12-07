@@ -1046,4 +1046,4 @@ class ConditionEditor {
 
 // Export for global use
 window.ConditionEditor = ConditionEditor;
-console.log('✅ ConditionEditor component loaded');
+// Loaded silently

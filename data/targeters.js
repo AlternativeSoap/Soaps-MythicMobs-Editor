@@ -828,4 +828,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = TARGETERS_DATA;
 }
 
-console.log('✅ Targeters data loaded:', TARGETERS_DATA.targeters.length, 'targeters');
+// Loaded silently

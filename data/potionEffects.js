@@ -71,4 +71,4 @@ window.PotionEffectData = {
     }
 };
 
-console.log('✅ Potion Effects loaded:', POTION_EFFECTS.length, 'effects');
+// Loaded silently

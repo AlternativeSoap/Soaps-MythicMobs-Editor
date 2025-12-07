@@ -112,4 +112,4 @@ window.AudienceDocumentation = {
     AUDIENCE_EXAMPLES
 };
 
-console.log('✅ Audience Documentation loaded');
+// Loaded silently

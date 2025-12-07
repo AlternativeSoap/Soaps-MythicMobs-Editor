@@ -389,4 +389,4 @@ const LOCATION_CONDITIONS = [
 
 // Export
 window.LOCATION_CONDITIONS = LOCATION_CONDITIONS;
-console.log('✅ Location Conditions loaded:', LOCATION_CONDITIONS.length, 'conditions');
+// Loaded silently

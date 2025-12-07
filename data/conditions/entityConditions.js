@@ -544,4 +544,4 @@ const ENTITY_CONDITIONS = [
 
 // Export
 window.ENTITY_CONDITIONS = ENTITY_CONDITIONS;
-console.log('✅ Entity Conditions (Part 1) loaded:', ENTITY_CONDITIONS.length, 'conditions');
+// Loaded silently

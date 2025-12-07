@@ -262,4 +262,4 @@ class DocumentationHelper {
 // Export to global scope
 window.DocumentationHelper = DocumentationHelper;
 
-console.log('✅ Documentation Helper loaded');
+// Loaded silently

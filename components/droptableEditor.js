@@ -494,9 +494,9 @@ class DropTableEditor {
         
         // Navigate to appropriate view
         if (parentFile.entries.length > 0) {
-            this.editor.loadContent(parentFile.entries[0].id, 'droptable');
+            this.editor.openFile(parentFile.entries[0], 'droptable');
         } else {
-            this.editor.loadContent(parentFile.id, 'droptable');
+            this.editor.openFile(parentFile, 'droptable');
         }
     }
     

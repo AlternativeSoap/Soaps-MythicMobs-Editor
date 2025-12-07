@@ -1417,9 +1417,9 @@ class ItemEditor {
         
         // Navigate to appropriate view
         if (parentFile.entries.length > 0) {
-            this.editor.loadContent(parentFile.entries[0].id, 'item');
+            this.editor.openFile(parentFile.entries[0], 'item');
         } else {
-            this.editor.loadContent(parentFile.id, 'item');
+            this.editor.openFile(parentFile, 'item');
         }
     }
 
@@ -2116,5 +2116,5 @@ class ItemEditor {
     }
 }
 
-console.log('✅ Item Editor loaded');
+// Loaded silently
 window.ItemEditor = ItemEditor;

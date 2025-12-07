@@ -3600,4 +3600,4 @@ if (typeof module !== 'undefined' && module.exports) {
 window.MECHANICS_DATA = MECHANICS_DATA;
 window.INHERITED_PARTICLE_ATTRIBUTES = INHERITED_PARTICLE_ATTRIBUTES;
 
-console.log('✅ Mechanics data loaded:', MECHANICS_DATA.mechanics.length, 'mechanics');
+// Loaded silently

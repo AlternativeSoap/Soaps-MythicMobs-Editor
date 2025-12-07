@@ -94,4 +94,4 @@ const CONDITION_ACTIONS = [
 
 // Export
 window.CONDITION_ACTIONS = CONDITION_ACTIONS;
-console.log('✅ Condition Actions loaded:', CONDITION_ACTIONS.length, 'actions');
+// Loaded silently

@@ -352,11 +352,13 @@ window.CONDITIONS_BY_ID = CONDITIONS_BY_ID;
 window.CONDITIONS_BY_ALIAS = CONDITIONS_BY_ALIAS;
 window.ConditionHelpers = ConditionHelpers;
 
-// Log summary
-console.log('📦 Conditions System Loaded:');
-console.log('  - Total Conditions:', ALL_CONDITIONS.length);
-console.log('  - Entity Conditions:', CONDITION_CATEGORIES['Entity'].length);
-console.log('  - Location Conditions:', CONDITION_CATEGORIES['Location'].length);
-console.log('  - Compare Conditions:', CONDITION_CATEGORIES['Compare'].length);
-console.log('  - Meta Conditions:', CONDITION_CATEGORIES['Meta'].length);
-console.log('  - Condition Actions:', (window.CONDITION_ACTIONS || []).length);
+// Log summary (debug mode only)
+if (window.DEBUG_MODE) {
+    console.log('📦 Conditions System Loaded:');
+    console.log('  - Total Conditions:', ALL_CONDITIONS.length);
+    console.log('  - Entity Conditions:', CONDITION_CATEGORIES['Entity'].length);
+    console.log('  - Location Conditions:', CONDITION_CATEGORIES['Location'].length);
+    console.log('  - Compare Conditions:', CONDITION_CATEGORIES['Compare'].length);
+    console.log('  - Meta Conditions:', CONDITION_CATEGORIES['Meta'].length);
+    console.log('  - Condition Actions:', (window.CONDITION_ACTIONS || []).length);
+}

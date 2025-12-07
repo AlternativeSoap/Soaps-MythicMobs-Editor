@@ -636,4 +636,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = SkillPatternAnalyzer;
 }
 
-console.log('✅ SkillPatternAnalyzer loaded');
+// Loaded silently

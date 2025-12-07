@@ -252,4 +252,4 @@ class AuthManager {
 }
 
 window.AuthManager = AuthManager;
-console.log('✅ AuthManager loaded');
+// Loaded silently

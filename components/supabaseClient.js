@@ -13,7 +13,7 @@ try {
     // Initialize using the global supabase object from CDN
     if (typeof supabase !== 'undefined' && supabase.createClient) {
         supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('✅ Supabase client initialized');
+        // Initialized silently
     } else {
         console.error('❌ Supabase library not loaded');
     }
@@ -49,7 +49,7 @@ class DatabaseStorageManager {
             const { data: { session } } = await this.supabase.auth.getSession();
             if (session) {
                 this.userId = session.user.id;
-                console.log('✅ User authenticated:', this.userId);
+                if (window.DEBUG_MODE) console.log('✅ User authenticated:', this.userId);
             } else {
                 console.log('ℹ️ No active session, using anonymous mode');
                 // Generate a unique anonymous ID
@@ -77,7 +77,9 @@ class DatabaseStorageManager {
      * Get data from cloud or localStorage
      */
     async get(key) {
-        console.log(`📖 Storage GET: ${key}`, { userId: this.userId, useCloud: this.useCloud });
+        if (window.DEBUG_MODE) {
+            console.log(`📖 Storage GET: ${key}`, { userId: this.userId, useCloud: this.useCloud });
+        }
         
         // Try cloud storage first
         if (this.useCloud && this.userId) {
@@ -92,13 +94,15 @@ class DatabaseStorageManager {
                 if (error) {
                     if (error.code === 'PGRST116') {
                         // No rows returned, key doesn't exist
-                        console.log(`   ℹ️ No cloud data for ${key}`);
+                        if (window.DEBUG_MODE) console.log(`   ℹ️ No cloud data for ${key}`);
                         return null;
                     }
                     throw error;
                 }
                 
-                console.log(`   ✅ Retrieved from cloud: ${key}`, { dataSize: JSON.stringify(data?.value || null).length });
+                if (window.DEBUG_MODE) {
+                    console.log(`   ✅ Retrieved from cloud: ${key}`, { dataSize: JSON.stringify(data?.value || null).length });
+                }
                 return data?.value || null;
             } catch (error) {
                 console.warn(`   ⚠️ Cloud get failed for ${key}, using localStorage:`, error);
@@ -109,7 +113,9 @@ class DatabaseStorageManager {
         try {
             const value = localStorage.getItem(this.prefix + key);
             const parsed = value ? JSON.parse(value) : null;
-            console.log(`   📱 Retrieved from localStorage: ${key}`, { found: !!parsed });
+            if (window.DEBUG_MODE) {
+                console.log(`   📱 Retrieved from localStorage: ${key}`, { found: !!parsed });
+            }
             return parsed;
         } catch (error) {
             console.error(`   ❌ Failed to get ${key}:`, error);
@@ -121,16 +127,18 @@ class DatabaseStorageManager {
      * Set data to cloud and localStorage
      */
     async set(key, value) {
-        console.log(`💾 Storage SET: ${key}`, { 
-            userId: this.userId, 
-            useCloud: this.useCloud,
-            dataSize: JSON.stringify(value).length 
-        });
+        if (window.DEBUG_MODE) {
+            console.log(`💾 Storage SET: ${key}`, { 
+                userId: this.userId, 
+                useCloud: this.useCloud,
+                dataSize: JSON.stringify(value).length 
+            });
+        }
         
         // Save to localStorage first (always available)
         try {
             localStorage.setItem(this.prefix + key, JSON.stringify(value));
-            console.log(`   ✅ Saved to localStorage: ${key}`);
+            if (window.DEBUG_MODE) console.log(`   ✅ Saved to localStorage: ${key}`);
         } catch (error) {
             console.error(`   ❌ Failed to save to localStorage:`, error);
         }
@@ -151,7 +159,7 @@ class DatabaseStorageManager {
                 
                 if (error) throw error;
                 
-                console.log(`   ☁️ Saved to cloud: ${key}`);
+                if (window.DEBUG_MODE) console.log(`   ☁️ Saved to cloud: ${key}`);
                 return true;
             } catch (error) {
                 console.warn(`   ⚠️ Cloud save failed for ${key}:`, error);
@@ -291,7 +299,7 @@ class DatabaseStorageManager {
     async updateUserId(userId) {
         this.userId = userId;
         if (userId) {
-            console.log('✅ User ID updated:', userId);
+            if (window.DEBUG_MODE) console.log('✅ User ID updated:', userId);
         }
     }
     
@@ -330,4 +338,4 @@ class DatabaseStorageManager {
 }
 
 window.DatabaseStorageManager = DatabaseStorageManager;
-console.log('✅ Supabase storage manager loaded');
+// Loaded silently

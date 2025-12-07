@@ -1309,4 +1309,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = SKILL_TEMPLATES;
 }
 
-console.log('✅ Skill Templates data loaded');
+// Loaded silently

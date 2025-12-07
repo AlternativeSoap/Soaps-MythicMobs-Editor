@@ -646,4 +646,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = TargeterBrowser;
 }
 
-console.log('✅ TargeterBrowser component loaded');
+// Loaded silently

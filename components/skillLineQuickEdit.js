@@ -477,4 +477,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = SkillLineQuickEdit;
 }
 
-console.log('✅ SkillLineQuickEdit loaded');
+// Loaded silently

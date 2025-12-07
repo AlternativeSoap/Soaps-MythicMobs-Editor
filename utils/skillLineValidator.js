@@ -189,4 +189,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = SkillLineValidator;
 }
 
-console.log('✅ SkillLineValidator utility loaded');
+// Loaded silently

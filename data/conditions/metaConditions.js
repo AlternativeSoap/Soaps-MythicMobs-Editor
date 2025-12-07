@@ -638,4 +638,4 @@ const META_CONDITIONS = [
 
 // Export
 window.META_CONDITIONS = META_CONDITIONS;
-console.log('✅ Meta Conditions (Part 1) loaded:', META_CONDITIONS.length, 'conditions');
+// Loaded silently

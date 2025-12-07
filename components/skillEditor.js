@@ -872,9 +872,9 @@ class SkillEditor {
         
         // Navigate to appropriate view
         if (parentFile.entries.length > 0) {
-            this.editor.loadContent(parentFile.entries[0].id, 'skill');
+            this.editor.openFile(parentFile.entries[0], 'skill');
         } else {
-            this.editor.loadContent(parentFile.id, 'skill');
+            this.editor.openFile(parentFile, 'skill');
         }
     }
     
@@ -946,13 +946,15 @@ class SkillEditor {
             // Ensure at least one skill exists
             if (Object.keys(this.currentSkill.skills).length === 0) {
                 this.currentSkill.skills[this.currentSkill.name || 'DefaultSkill'] = { lines: [] };
-                console.log('📝 Created default empty skills object');
+                if (window.DEBUG_MODE) console.log('📝 Created default empty skills object');
             }
             
-            console.log('✅ Skills loaded for editor:', {
-                skillsObject: JSON.parse(JSON.stringify(this.currentSkill.skills)),
-                totalSkills: Object.keys(this.currentSkill.skills).length
-            });
+            if (window.DEBUG_MODE) {
+                console.log('✅ Skills loaded for editor:', {
+                    skillsObject: JSON.parse(JSON.stringify(this.currentSkill.skills)),
+                    totalSkills: Object.keys(this.currentSkill.skills).length
+                });
+            }
             
             // Always recreate since DOM was recreated on render
             this.skillBuilderEditor = new SkillBuilderEditor(

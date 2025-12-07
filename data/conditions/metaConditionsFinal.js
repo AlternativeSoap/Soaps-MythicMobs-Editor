@@ -1014,4 +1014,4 @@ const META_CONDITIONS_FINAL = [
 
 // Export
 window.META_CONDITIONS_FINAL = META_CONDITIONS_FINAL;
-console.log('✅ Meta Conditions (Part 3) loaded:', META_CONDITIONS_FINAL.length, 'conditions');
+// Loaded silently

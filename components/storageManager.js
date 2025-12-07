@@ -7,7 +7,7 @@ class StorageManager {
         // Use DatabaseStorageManager if available, otherwise fallback to basic localStorage
         if (typeof DatabaseStorageManager !== 'undefined') {
             this.db = new DatabaseStorageManager();
-            console.log('✅ Using cloud storage (Supabase)');
+            if (window.DEBUG_MODE) console.log('✅ Using cloud storage (Supabase)');
         } else {
             // Fallback to basic localStorage implementation
             this.db = null;

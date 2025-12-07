@@ -339,4 +339,4 @@ const COMPARE_CONDITIONS = [
 
 // Export
 window.COMPARE_CONDITIONS = COMPARE_CONDITIONS;
-console.log('✅ Compare Conditions loaded:', COMPARE_CONDITIONS.length, 'conditions');
+// Loaded silently

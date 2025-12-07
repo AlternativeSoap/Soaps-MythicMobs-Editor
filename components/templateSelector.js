@@ -625,4 +625,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = TemplateSelector;
 }
 
-console.log('✅ TemplateSelector component loaded');
+// Loaded silently

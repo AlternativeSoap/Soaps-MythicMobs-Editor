@@ -87,18 +87,20 @@ class MythicMobsEditor {
      * Initialize the application
      */
     async init() {
-        console.log('🚀 Initializing Soaps MythicMobs Editor...');
+        if (window.DEBUG_MODE) console.log('🚀 Initializing Soaps MythicMobs Editor...');
         
         try {
             // Initialize storage FIRST
             this.storage = new StorageManager();
             
             // Wait for storage auth check to complete
-            console.log('⏳ Waiting for auth check...');
+            if (window.DEBUG_MODE) console.log('⏳ Waiting for auth check...');
             if (this.storage.db && this.storage.db.checkAuth) {
                 await this.storage.db.checkAuth();
             }
-            console.log('✅ Auth check complete, userId:', this.storage.db?.userId || 'none');
+            if (window.DEBUG_MODE) {
+                console.log('✅ Auth check complete, userId:', this.storage.db?.userId || 'none');
+            }
             
             // Initialize authentication
             this.authManager = new AuthManager(window.supabaseClient);
@@ -142,7 +144,9 @@ class MythicMobsEditor {
             this.commandPalette = new CommandPalette(this);
             
             // Load packs (now userId should be set)
-            console.log('📦 Loading packs with userId:', this.storage.db?.userId);
+            if (window.DEBUG_MODE) {
+                console.log('📦 Loading packs with userId:', this.storage.db?.userId);
+            }
             await this.packManager.loadPacks();
             
             // Setup event listeners
@@ -154,8 +158,10 @@ class MythicMobsEditor {
             // Render initial UI
             this.render();
             
-            console.log('✅ Editor initialized successfully');
-            console.log('🔐 Auth Status:', this.authManager.isAuthenticated() ? 'Authenticated' : 'Anonymous');
+            if (window.DEBUG_MODE) {
+                console.log('✅ Editor initialized successfully');
+                console.log('🔐 Auth Status:', this.authManager.isAuthenticated() ? 'Authenticated' : 'Anonymous');
+            }
             
         } catch (error) {
             console.error('❌ Failed to initialize editor:', error);
@@ -903,11 +909,13 @@ class MythicMobsEditor {
         if (!this.state.currentFile) return;
         
         try {
-            console.log('💾 Saving file:', {
-                name: this.state.currentFile.name,
-                type: this.state.currentFileType,
-                fileId: this.state.currentFile.id
-            });
+            if (window.DEBUG_MODE) {
+                console.log('💾 Saving file:', {
+                    name: this.state.currentFile.name,
+                    type: this.state.currentFileType,
+                    fileId: this.state.currentFile.id
+                });
+            }
             
             this.showSavingStatus();
             this.fileManager.saveFile(this.state.currentFile, this.state.currentFileType);
@@ -917,7 +925,7 @@ class MythicMobsEditor {
             this.updateSaveStatusIndicator();
             this.showToast('File saved successfully', 'success');
             
-            console.log('✅ File saved successfully');
+            if (window.DEBUG_MODE) console.log('✅ File saved successfully');
         } catch (error) {
             console.error('❌ Failed to save file:', error);
             this.showToast('Failed to save file', 'error');
@@ -929,12 +937,14 @@ class MythicMobsEditor {
      * Mark current state as dirty (unsaved changes)
      */
     markDirty() {
-        console.log('📝 Mark dirty called', {
-            currentFile: this.state.currentFile?.name,
-            fileType: this.state.currentFileType,
-            autoSave: this.settings.autoSave,
-            interval: this.settings.autoSaveInterval
-        });
+        if (window.DEBUG_MODE) {
+            console.log('📝 Mark dirty called', {
+                currentFile: this.state.currentFile?.name,
+                fileType: this.state.currentFileType,
+                autoSave: this.settings.autoSave,
+                interval: this.settings.autoSaveInterval
+            });
+        }
         
         this.state.isDirty = true;
         
@@ -956,13 +966,15 @@ class MythicMobsEditor {
         
         // Schedule auto-save if enabled
         if (this.settings.autoSave) {
-            console.log('⏰ Auto-save scheduled in', this.settings.autoSaveInterval, 'ms');
+            if (window.DEBUG_MODE) {
+                console.log('⏰ Auto-save scheduled in', this.settings.autoSaveInterval, 'ms');
+            }
             clearTimeout(this.autoSaveTimer);
             this.autoSaveTimer = setTimeout(() => {
-                console.log('🚀 Auto-save triggered');
+                if (window.DEBUG_MODE) console.log('🚀 Auto-save triggered');
                 this.save();
             }, this.settings.autoSaveInterval);
-        } else {
+        } else if (window.DEBUG_MODE) {
             console.warn('⚠️ Auto-save is disabled');
         }
         

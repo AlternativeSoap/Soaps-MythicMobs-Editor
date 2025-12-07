@@ -245,5 +245,6 @@ window.INLINE_ITEM_ATTRIBUTES = INLINE_ITEM_ATTRIBUTES;
 window.FANCY_DROP_ATTRIBUTES = FANCY_DROP_ATTRIBUTES;
 window.DROP_EQUIPMENT_SLOTS = DROP_EQUIPMENT_SLOTS;
 
-console.log('✅ Drop Types loaded:', DROP_TYPES.length, 'types');
-console.log('Drop type IDs:', DROP_TYPES.map(t => t.id));
+if (window.DEBUG_MODE) {
+    console.log('✅ Drop Types loaded:', DROP_TYPES.length, 'types');
+}

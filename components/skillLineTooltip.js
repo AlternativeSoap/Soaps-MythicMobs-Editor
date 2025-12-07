@@ -836,4 +836,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = SkillLineTooltip;
 }
 
-console.log('✅ SkillLineTooltip loaded');
+// Loaded silently

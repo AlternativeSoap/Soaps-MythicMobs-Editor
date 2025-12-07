@@ -10,17 +10,21 @@ class PackManager {
     }
     
     async loadPacks() {
-        console.log('📂 Loading packs from storage...', {
-            userId: this.editor.storage.db?.userId || 'unknown'
-        });
+        if (window.DEBUG_MODE) {
+            console.log('📂 Loading packs from storage...', {
+                userId: this.editor.storage.db?.userId || 'unknown'
+            });
+        }
         
         const saved = await this.editor.storage.get('packs');
         
-        console.log('📦 Loaded packs:', {
-            found: !!saved,
-            packCount: saved?.length || 0,
-            totalSkills: saved?.reduce((sum, p) => sum + (p.skills?.length || 0), 0) || 0
-        });
+        if (window.DEBUG_MODE) {
+            console.log('📦 Loaded packs:', {
+                found: !!saved,
+                packCount: saved?.length || 0,
+                totalSkills: saved?.reduce((sum, p) => sum + (p.skills?.length || 0), 0) || 0
+            });
+        }
         
         if (saved && saved.length > 0) {
             this.packs = saved;
@@ -91,15 +95,17 @@ class PackManager {
                 this.editor.authUI.setSyncStatus('syncing');
             }
             
-            console.log('💾 Saving packs to storage...', {
-                packCount: this.packs.length,
-                totalSkills: this.packs.reduce((sum, p) => sum + (p.skills?.length || 0), 0),
-                userId: this.editor.storage.db?.userId || 'unknown'
-            });
+            if (window.DEBUG_MODE) {
+                console.log('💾 Saving packs to storage...', {
+                    packCount: this.packs.length,
+                    totalSkills: this.packs.reduce((sum, p) => sum + (p.skills?.length || 0), 0),
+                    userId: this.editor.storage.db?.userId || 'unknown'
+                });
+            }
             
             await this.editor.storage.set('packs', this.packs);
             
-            console.log('✅ Packs saved successfully');
+            if (window.DEBUG_MODE) console.log('✅ Packs saved successfully');
             
             // Show success
             if (this.editor.authUI) {

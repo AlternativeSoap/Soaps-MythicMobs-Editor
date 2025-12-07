@@ -12,7 +12,7 @@ class PanelResizer {
     }
     
     init() {
-        console.log('🔧 Initializing PanelResizer...');
+        if (window.DEBUG_MODE) console.log('🔧 Initializing PanelResizer...');
         this.loadSizes();
         this.attachHandlers();
     }
@@ -21,28 +21,24 @@ class PanelResizer {
         // Left resize handle (between left sidebar and center)
         const leftHandle = document.getElementById('resize-left');
         if (leftHandle) {
-            console.log('✅ Left resize handle found');
             leftHandle.addEventListener('mousedown', (e) => this.startResize(e, 'left'));
             leftHandle.style.cursor = 'col-resize';
-        } else {
+        } else if (window.DEBUG_MODE) {
             console.warn('❌ Left resize handle not found');
         }
         
         // Right resize handle (between center and right sidebar)
         const rightHandle = document.getElementById('resize-right');
         if (rightHandle) {
-            console.log('✅ Right resize handle found');
             rightHandle.addEventListener('mousedown', (e) => this.startResize(e, 'right'));
             rightHandle.style.cursor = 'col-resize';
-        } else {
+        } else if (window.DEBUG_MODE) {
             console.warn('❌ Right resize handle not found');
         }
         
         // Global mouse move and up
         document.addEventListener('mousemove', (e) => this.resize(e));
         document.addEventListener('mouseup', () => this.stopResize());
-        
-        console.log('✅ PanelResizer event handlers attached');
     }
     
     startResize(e, side) {

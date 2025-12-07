@@ -364,9 +364,9 @@ class MobEditor {
         
         // Navigate to appropriate view
         if (parentFile.entries.length > 0) {
-            this.editor.loadContent(parentFile.entries[0].id, 'mob');
+            this.editor.openFile(parentFile.entries[0], 'mob');
         } else {
-            this.editor.loadContent(parentFile.id, 'mob');
+            this.editor.openFile(parentFile, 'mob');
         }
     }
     

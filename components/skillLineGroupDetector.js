@@ -315,4 +315,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = SkillLineGroupDetector;
 }
 
-console.log('✅ SkillLineGroupDetector loaded');
+// Loaded silently

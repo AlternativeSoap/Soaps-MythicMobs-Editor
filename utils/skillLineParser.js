@@ -337,4 +337,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = SkillLineParser;
 }
 
-console.log('✅ SkillLineParser utility loaded');
+// Loaded silently

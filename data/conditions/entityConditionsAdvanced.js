@@ -545,4 +545,4 @@ const ENTITY_CONDITIONS_ADVANCED = [
 
 // Export
 window.ENTITY_CONDITIONS_ADVANCED = ENTITY_CONDITIONS_ADVANCED;
-console.log('✅ Entity Conditions (Part 2) loaded:', ENTITY_CONDITIONS_ADVANCED.length, 'conditions');
+// Loaded silently

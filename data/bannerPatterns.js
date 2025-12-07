@@ -90,4 +90,4 @@ window.BannerPatternData = {
     }
 };
 
-console.log('✅ Banner Patterns loaded:', BANNER_PATTERNS.length, 'patterns');
+// Loaded silently

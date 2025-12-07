@@ -452,4 +452,4 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-console.log('✅ Browser Performance Utilities loaded');
+// Loaded silently
