@@ -2817,6 +2817,9 @@ class MobEditor {
                 this.equipmentEditor.onChange((equipment) => {
                     this.currentMob.equipment = equipment;
                     this.editor.markDirty();
+                    // Update count badge
+                    const badge = document.querySelector('.card-title .fas.fa-tshirt')?.parentElement.querySelector('.count-badge');
+                    if (badge) badge.textContent = equipment ? Object.keys(equipment).filter(k => equipment[k]).length : 0;
                 });
             }
             this.equipmentEditor.render();
@@ -2830,6 +2833,9 @@ class MobEditor {
                 this.damageModifiersEditor.onChange((damageModifiers) => {
                     this.currentMob.damageModifiers = damageModifiers;
                     this.editor.markDirty();
+                    // Update count badge
+                    const badge = document.querySelector('.card-title .fas.fa-shield')?.parentElement.querySelector('.count-badge');
+                    if (badge) badge.textContent = damageModifiers ? Object.keys(damageModifiers).length : 0;
                 });
             }
             this.damageModifiersEditor.render();

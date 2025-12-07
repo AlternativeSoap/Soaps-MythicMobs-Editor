@@ -158,6 +158,9 @@ class DropTableEditor {
             this.dropsEditor.onChange((drops) => {
                 droptable.drops = drops;
                 this.editor.markDirty();
+                // Update count badge
+                const badge = document.querySelector('.card-title .fas.fa-box-open')?.parentElement.querySelector('.count-badge');
+                if (badge) badge.textContent = drops ? drops.length : 0;
             });
         }, 100);
         

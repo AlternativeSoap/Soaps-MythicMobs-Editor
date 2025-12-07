@@ -795,6 +795,34 @@ class PackManager {
             // Update active highlighting
             this.updateActiveFileInTree();
         }
+        
+        // Update folder-level badge counter
+        this.updateFolderBadge(type + 's');
+    }
+    
+    /**
+     * Update the folder-level badge counter for a specific collection
+     */
+    updateFolderBadge(folderName) {
+        if (!this.activePack) return;
+        
+        const collection = this.activePack[folderName];
+        if (!collection) return;
+        
+        // Calculate total entries across all files
+        const totalEntries = collection.reduce((sum, file) => sum + (file.entries?.length || 0), 0);
+        
+        // Special case for assets (no entries, just file count)
+        const badgeCount = folderName === 'assets' ? (collection.length || 0) : totalEntries;
+        
+        // Find and update the badge
+        const folderHeader = document.querySelector(`.folder-header[data-folder="${folderName}"]`);
+        if (folderHeader) {
+            const badge = folderHeader.querySelector('.badge');
+            if (badge) {
+                badge.textContent = badgeCount;
+            }
+        }
     }
     
     /**
