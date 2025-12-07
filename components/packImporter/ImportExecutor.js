@@ -879,22 +879,43 @@ class ImportExecutor {
     convertRandomSpawn(entry, baseData) {
         const data = entry.data || {};
 
+        // Handle Worlds - can be string or array in YAML
+        let worlds = data.Worlds || [];
+        if (typeof worlds === 'string') {
+            worlds = [worlds];
+        }
+
+        // Handle Biomes - can be string or array
+        let biomes = data.Biomes || [];
+        if (typeof biomes === 'string') {
+            biomes = [biomes];
+        }
+
         return {
             ...baseData,
             name: entry.name,
             internalName: entry.name,
-            mobType: data.MobType || '',
-            chance: data.Chance || 1.0,
-            priority: data.Priority || 0,
-            worlds: data.Worlds || [],
-            biomes: data.Biomes || [],
-            conditions: data.Conditions || [],
-            action: data.Action || 'ADD',
-            spawnReasons: data.SpawnReasons || data.Reason || ['NATURAL'],
-            generateRadius: data.GenerateRadius,
-            minDistance: data.MinDistance,
-            maxDistance: data.MaxDistance,
-            cooldown: data.Cooldown || 0
+            // Core spawn settings
+            Type: data.Type || '',                    // Single mob type
+            Types: data.Types || [],                  // Multi-type mode
+            Level: data.Level,                        // Optional level
+            Chance: data.Chance !== undefined ? data.Chance : 1.0,
+            Priority: data.Priority !== undefined ? data.Priority : 0,
+            Action: data.Action || 'ADD',
+            UseWorldScaling: data.UseWorldScaling || false,
+            // Location settings
+            Worlds: worlds,
+            Biomes: biomes,
+            Reason: data.Reason || 'NATURAL',
+            PositionType: data.PositionType || 'LAND',
+            Structures: data.Structures || [],
+            // Advanced settings
+            Cooldown: data.Cooldown || 0,
+            GenerateRadius: data.GenerateRadius,
+            MinDistance: data.MinDistance,
+            MaxDistance: data.MaxDistance,
+            // Conditions
+            Conditions: data.Conditions || []
         };
     }
 

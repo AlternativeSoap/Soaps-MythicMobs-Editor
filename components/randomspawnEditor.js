@@ -137,6 +137,9 @@ class RandomSpawnEditor {
                         <button class="btn btn-outline" id="rename-randomspawn-btn" title="Rename this spawn">
                             <i class="fas fa-pen"></i> Rename
                         </button>
+                        <button class="btn btn-outline btn-danger" id="delete-randomspawn-btn" title="Delete this spawn">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
                         <button class="btn btn-secondary" id="new-randomspawn-btn" title="Add a new spawn to this file">
                             <i class="fas fa-plus"></i> New Section
                         </button>
@@ -557,6 +560,10 @@ class RandomSpawnEditor {
             this.renameRandomSpawn();
         });
         
+        document.getElementById('delete-randomspawn-btn')?.addEventListener('click', () => {
+            this.deleteRandomSpawn();
+        });
+        
         // Save button
         document.getElementById('save-randomspawn')?.addEventListener('click', () => {
             this.save();
@@ -669,6 +676,21 @@ class RandomSpawnEditor {
             this.updateSelectedStructures();
         });
         
+        // Reposition on window resize
+        window.addEventListener('resize', () => {
+            if (structureDropdown?.style.display === 'block') {
+                this.positionDropdown(structureSearch, structureDropdown);
+            }
+        });
+        
+        // Reposition on scroll
+        const scrollContainer = document.querySelector('.editor-content');
+        scrollContainer?.addEventListener('scroll', () => {
+            if (structureDropdown?.style.display === 'block') {
+                this.positionDropdown(structureSearch, structureDropdown);
+            }
+        });
+        
         structureSearch?.addEventListener('input', (e) => {
             this.filterStructures(e.target.value);
         });
@@ -677,14 +699,6 @@ class RandomSpawnEditor {
         structureDropdown?.addEventListener('change', (e) => {
             if (e.target.type === 'checkbox') {
                 this.toggleStructure(e.target.value, e.target.checked);
-            }
-        });
-        
-        // Reposition dropdown on scroll
-        const scrollContainer = document.querySelector('.editor-content');
-        scrollContainer?.addEventListener('scroll', () => {
-            if (structureDropdown.style.display === 'block') {
-                this.positionDropdown(structureSearch, structureDropdown);
             }
         });
         
@@ -847,9 +861,38 @@ class RandomSpawnEditor {
     
     positionDropdown(input, dropdown) {
         const rect = input.getBoundingClientRect();
-        dropdown.style.top = `${rect.bottom + 2}px`;
-        dropdown.style.left = `${rect.left}px`;
-        dropdown.style.width = `${rect.width}px`;
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        const dropdownMaxHeight = 300;
+        
+        // Calculate available space below and above
+        const spaceBelow = viewportHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        
+        // Position horizontally
+        let left = rect.left;
+        let width = Math.min(rect.width, viewportWidth - rect.left - 20); // Leave 20px margin from right edge
+        
+        // If dropdown would go off the right edge, align it to the right edge
+        if (left + width > viewportWidth - 20) {
+            left = Math.max(20, viewportWidth - width - 20);
+        }
+        
+        dropdown.style.left = `${left}px`;
+        dropdown.style.width = `${width}px`;
+        
+        // Position vertically - prefer below, but flip above if not enough space
+        if (spaceBelow >= dropdownMaxHeight || spaceBelow >= spaceAbove) {
+            // Show below
+            dropdown.style.top = `${rect.bottom + 2}px`;
+            dropdown.style.bottom = 'auto';
+            dropdown.style.maxHeight = `${Math.min(dropdownMaxHeight, spaceBelow - 10)}px`;
+        } else {
+            // Show above
+            dropdown.style.bottom = `${viewportHeight - rect.top + 2}px`;
+            dropdown.style.top = 'auto';
+            dropdown.style.maxHeight = `${Math.min(dropdownMaxHeight, spaceAbove - 10)}px`;
+        }
     }
     
     filterStructures(search) {
@@ -1144,8 +1187,8 @@ class RandomSpawnEditor {
     /**
      * Add a new spawn section to the current file
      */
-    addNewSection() {
-        const newName = prompt('Enter name for new spawn:');
+    async addNewSection() {
+        const newName = await this.editor.showPrompt('New Spawn', 'Enter name for new spawn:');
         if (!newName || newName.trim() === '') return;
         
         // Find the parent file for the current spawn
@@ -1190,14 +1233,14 @@ class RandomSpawnEditor {
     /**
      * Duplicate the current spawn within the same file
      */
-    duplicateRandomSpawn() {
+    async duplicateRandomSpawn() {
         const file = this.editor.state.currentFile;
         if (!file) {
             this.editor.showToast('No spawn is currently loaded to duplicate.', 'error');
             return;
         }
         
-        const newName = prompt('Enter name for duplicated spawn:', file.name + '_copy');
+        const newName = await this.editor.showPrompt('Duplicate Spawn', 'Enter name for duplicated spawn:', file.name + '_copy');
         if (!newName || newName.trim() === '') return;
         
         // Find the parent file for the current spawn
@@ -1261,14 +1304,14 @@ class RandomSpawnEditor {
     /**
      * Rename the current spawn
      */
-    renameRandomSpawn() {
+    async renameRandomSpawn() {
         const file = this.editor.state.currentFile;
         if (!file) {
             this.editor.showToast('No spawn is currently loaded to rename.', 'error');
             return;
         }
         
-        const newName = prompt('Enter new name for the spawn:', file.name);
+        const newName = await this.editor.showPrompt('Rename Spawn', 'Enter new name for the spawn:', file.name);
         if (!newName || newName.trim() === '' || newName.trim() === file.name) return;
         
         // Find the parent file for the current spawn
@@ -1291,6 +1334,52 @@ class RandomSpawnEditor {
         // Refresh the file tree
         if (this.editor.packManager) {
             this.editor.packManager.render();
+        }
+    }
+    
+    /**
+     * Delete the current spawn
+     */
+    async deleteRandomSpawn() {
+        const file = this.editor.state.currentFile;
+        if (!file) {
+            this.editor.showToast('No spawn is currently loaded to delete.', 'error');
+            return;
+        }
+        
+        const confirmed = await this.editor.showConfirmDialog(
+            'Delete Spawn',
+            `Delete spawn "${file.name}"? This cannot be undone.`,
+            'Delete',
+            'Cancel'
+        );
+        
+        if (!confirmed) return;
+        
+        // Find parent file
+        const parentFile = this.findParentFile();
+        if (!parentFile) {
+            this.editor.showToast('Could not find parent file', 'error');
+            return;
+        }
+        
+        const spawnName = file.name;
+        
+        // Remove from entries
+        parentFile.entries = parentFile.entries.filter(e => e.id !== file.id);
+        
+        // Update pack tree
+        this.editor.packManager.updateFileContainer(parentFile.id, 'randomspawn');
+        
+        // Show success message
+        this.editor.showToast(`Spawn "${spawnName}" deleted`, 'success');
+        this.editor.markDirty();
+        
+        // Navigate to appropriate view
+        if (parentFile.entries.length > 0) {
+            this.editor.loadContent(parentFile.entries[0].id, 'randomspawn');
+        } else {
+            this.editor.loadContent(parentFile.id, 'randomspawn');
         }
     }
     

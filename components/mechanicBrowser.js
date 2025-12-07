@@ -290,11 +290,24 @@ class MechanicBrowser {
             this.confirmConfiguration();
         });
 
-        // ESC key
+        // Keyboard support
         document.addEventListener('keydown', (e) => {
             const overlay = document.getElementById('mechanicBrowserOverlay');
-            if (e.key === 'Escape' && overlay && overlay.style.display === 'flex') {
-                this.close(true); // Pass true to indicate cancelled
+            const configSection = document.getElementById('mechanicConfigSection');
+            
+            if (overlay && overlay.style.display === 'flex') {
+                // If config section is visible (mechanic selected)
+                if (configSection && configSection.style.display === 'block') {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.confirmConfiguration();
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        this.close(true); // Pass true to indicate cancelled
+                    }
+                } else if (e.key === 'Escape') {
+                    this.close(true); // Pass true to indicate cancelled
+                }
             }
         });
     }

@@ -918,8 +918,15 @@ class ConditionEditor {
         }
     }
     
-    deleteCondition(index) {
-        if (confirm('Are you sure you want to delete this condition?')) {
+    async deleteCondition(index) {
+        const confirmed = await this.editor.showConfirmDialog(
+            'Delete Condition',
+            'Are you sure you want to delete this condition?',
+            'Delete',
+            'Cancel'
+        );
+        
+        if (confirmed) {
             this.options.conditions.splice(index, 1);
             this.options.onChange(this.options.conditions);
             this.refreshConditionList();

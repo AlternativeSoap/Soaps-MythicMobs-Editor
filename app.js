@@ -1775,22 +1775,45 @@ class MythicMobsEditor {
      */
     showPrompt(title, message, defaultValue = '') {
         return new Promise((resolve) => {
+            const submitAction = () => {
+                const value = document.getElementById('prompt-input')?.value;
+                resolve(value);
+            };
+            
+            const cancelAction = () => {
+                resolve(null);
+            };
+            
             this.createModal(title, `
                 <div class="form-group">
                     <label class="form-label">${message}</label>
-                    <input type="text" class="form-input" id="prompt-input" value="${defaultValue}">
+                    <input type="text" class="form-input" id="prompt-input" value="${defaultValue}" placeholder="Enter a name...">
                 </div>
             `, [
-                { label: 'Cancel', class: 'btn-secondary', action: () => resolve(null) },
-                { label: 'OK', class: 'btn-primary', action: () => {
-                    const value = document.getElementById('prompt-input')?.value;
-                    resolve(value);
-                }}
+                { label: 'Cancel', class: 'btn-secondary', action: cancelAction },
+                { label: 'OK', class: 'btn-primary', action: submitAction }
             ], 'modal-prompt');
             
-            // Focus input
+            // Focus input and setup keyboard shortcuts
             setTimeout(() => {
-                document.getElementById('prompt-input')?.focus();
+                const input = document.getElementById('prompt-input');
+                if (input) {
+                    input.focus();
+                    input.select(); // Auto-select text for easy overwriting
+                    
+                    // Enter key to submit
+                    input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            submitAction();
+                            this.closeModal();
+                        } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            cancelAction();
+                            this.closeModal();
+                        }
+                    });
+                }
             }, 100);
         });
     }
@@ -1800,14 +1823,48 @@ class MythicMobsEditor {
      */
     showConfirmDialog(title, message, confirmLabel = 'OK', cancelLabel = 'Cancel') {
         return new Promise((resolve) => {
+            const confirmAction = () => {
+                resolve(true);
+            };
+            
+            const cancelAction = () => {
+                resolve(false);
+            };
+            
             this.createModal(title, `
                 <div class="form-group">
                     <p>${message}</p>
                 </div>
             `, [
-                { label: cancelLabel, class: 'btn-secondary', action: () => resolve(false) },
-                { label: confirmLabel, class: 'btn-primary', action: () => resolve(true) }
+                { label: cancelLabel, class: 'btn-secondary', action: cancelAction },
+                { label: confirmLabel, class: 'btn-primary', action: confirmAction }
             ], 'modal-confirm');
+            
+            // Add keyboard shortcuts
+            setTimeout(() => {
+                const modal = document.querySelector('.modal-confirm');
+                if (modal) {
+                    // Focus the modal for keyboard events
+                    modal.setAttribute('tabindex', '-1');
+                    modal.focus();
+                    
+                    const keyHandler = (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            confirmAction();
+                            this.closeModal();
+                            document.removeEventListener('keydown', keyHandler);
+                        } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            cancelAction();
+                            this.closeModal();
+                            document.removeEventListener('keydown', keyHandler);
+                        }
+                    };
+                    
+                    document.addEventListener('keydown', keyHandler);
+                }
+            }, 100);
         });
     }
     
@@ -1868,6 +1925,33 @@ class MythicMobsEditor {
             }
         });
         
+        // Add keyboard support for modals with primary buttons
+        setTimeout(() => {
+            const primaryBtn = container.querySelector('.btn-primary');
+            const secondaryBtn = container.querySelector('.btn-secondary');
+            
+            if (primaryBtn && !modalClass.includes('modal-prompt')) { // prompt already has its own handler
+                const keyHandler = (e) => {
+                    const modal = container.querySelector('.modal');
+                    if (!modal) return; // Modal was closed
+                    
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        primaryBtn.click();
+                    } else if (e.key === 'Escape' && secondaryBtn) {
+                        e.preventDefault();
+                        secondaryBtn.click();
+                    }
+                };
+                
+                document.addEventListener('keydown', keyHandler);
+                
+                // Store handler for cleanup
+                if (!container._keyHandlers) container._keyHandlers = [];
+                container._keyHandlers.push(keyHandler);
+            }
+        }, 50);
+        
         return container;
     }
     
@@ -1877,6 +1961,13 @@ class MythicMobsEditor {
     closeModal() {
         const container = document.getElementById('modal-container');
         if (container) {
+            // Clean up keyboard handlers
+            if (container._keyHandlers) {
+                container._keyHandlers.forEach(handler => {
+                    document.removeEventListener('keydown', handler);
+                });
+                container._keyHandlers = [];
+            }
             container.innerHTML = '';
         }
     }

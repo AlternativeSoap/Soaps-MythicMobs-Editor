@@ -158,12 +158,22 @@ class TriggerBrowser {
             const confirmOverlay = document.getElementById('triggerConfirmOverlay');
             const browserOverlay = document.getElementById('triggerBrowserOverlay');
             
+            // Handle Enter key for confirmation modal
+            if (confirmOverlay && confirmOverlay.classList.contains('active')) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.confirmAutoEnable();
+                    return;
+                } else if (e.key === 'Escape') {
+                    this.closeConfirmModal();
+                    return;
+                }
+            }
+            
             // Escape key handling
             if (e.key === 'Escape') {
                 if (paramOverlay && paramOverlay.classList.contains('active')) {
                     this.closeParamModal();
-                } else if (confirmOverlay && confirmOverlay.classList.contains('active')) {
-                    this.closeConfirmModal();
                 } else if (browserOverlay && browserOverlay.style.display === 'flex') {
                     this.close();
                 }

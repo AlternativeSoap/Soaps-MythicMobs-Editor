@@ -57,6 +57,20 @@
     background: #dc2626;
 }
 
+/* Outline button with danger styling */
+.btn-outline.btn-danger {
+    background: transparent;
+    color: var(--error);
+    border: 1px solid var(--error);
+}
+
+.btn-outline.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--error);
+    border-color: var(--error);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+}
+
 .btn-success {
     background: var(--success);
     color: white;
@@ -2348,7 +2362,31 @@ body[data-mode="advanced"] .advanced-only {
 
 /* Small prompt modals (for simple input dialogs) */
 .modal-overlay .modal-prompt {
-    max-width: 400px;
+    max-width: 450px;
+}
+
+.modal-prompt .form-label {
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.modal-prompt .form-input {
+    font-size: 1rem;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-primary);
+    transition: all var(--transition-fast);
+}
+
+.modal-prompt .form-input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    background: var(--bg-secondary);
+}
+
+.modal-prompt .modal-footer {
+    padding: 1rem 1.5rem;
 }
 
 .modal-body {

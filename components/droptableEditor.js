@@ -45,6 +45,9 @@ class DropTableEditor {
                         <button class="btn btn-outline" id="rename-droptable" title="Rename this droptable">
                             <i class="fas fa-pen"></i> Rename
                         </button>
+                        <button class="btn btn-outline btn-danger" id="delete-droptable" title="Delete this droptable">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
                         <button class="btn btn-secondary" id="new-droptable" title="Add a new droptable to this file">
                             <i class="fas fa-plus"></i> New Section
                         </button>
@@ -261,6 +264,11 @@ class DropTableEditor {
             this.renameDropTable(droptable);
         });
         
+        // Delete droptable button
+        document.getElementById('delete-droptable')?.addEventListener('click', () => {
+            this.deleteDropTable(droptable);
+        });
+        
         // View mode toggle
         document.getElementById('toggle-view-mode')?.addEventListener('click', () => {
             this.toggleViewMode();
@@ -317,8 +325,8 @@ class DropTableEditor {
     /**
      * Add a new droptable section to the current file
      */
-    addNewSection() {
-        const newName = prompt('Enter name for new droptable:');
+    async addNewSection() {
+        const newName = await this.editor.showPrompt('New Drop Table', 'Enter name for new droptable:');
         if (!newName || newName.trim() === '') return;
         
         // Find the parent file for the current droptable
@@ -359,8 +367,8 @@ class DropTableEditor {
     /**
      * Duplicate the current droptable within the same file
      */
-    duplicateDropTable(droptable) {
-        const newName = prompt('Enter name for duplicated droptable:', droptable.name + '_copy');
+    async duplicateDropTable(droptable) {
+        const newName = await this.editor.showPrompt('Duplicate Drop Table', 'Enter name for duplicated droptable:', droptable.name + '_copy');
         if (!newName || newName.trim() === '') return;
         
         // Find the parent file for the current droptable
@@ -424,8 +432,8 @@ class DropTableEditor {
     /**
      * Rename the current droptable
      */
-    renameDropTable(droptable) {
-        const newName = prompt('Enter new name for droptable:', droptable.name);
+    async renameDropTable(droptable) {
+        const newName = await this.editor.showPrompt('Rename Drop Table', 'Enter new name for droptable:', droptable.name);
         if (!newName || newName.trim() === '' || newName.trim() === droptable.name) return;
         
         // Check if name already exists
@@ -449,6 +457,46 @@ class DropTableEditor {
         // Refresh the file tree
         if (this.editor.packManager) {
             this.editor.packManager.render();
+        }
+    }
+    
+    /**
+     * Delete the current droptable
+     */
+    async deleteDropTable(droptable) {
+        const confirmed = await this.editor.showConfirmDialog(
+            'Delete Drop Table',
+            `Delete droptable "${droptable.name}"? This cannot be undone.`,
+            'Delete',
+            'Cancel'
+        );
+        
+        if (!confirmed) return;
+        
+        // Find parent file
+        const parentFile = this.findParentFile();
+        if (!parentFile) {
+            this.editor.showToast('Could not find parent file', 'error');
+            return;
+        }
+        
+        const droptableName = droptable.name;
+        
+        // Remove from entries
+        parentFile.entries = parentFile.entries.filter(e => e.id !== droptable.id);
+        
+        // Update pack tree
+        this.editor.packManager.updateFileContainer(parentFile.id, 'droptable');
+        
+        // Show success message
+        this.editor.showToast(`Drop table "${droptableName}" deleted`, 'success');
+        this.editor.markDirty();
+        
+        // Navigate to appropriate view
+        if (parentFile.entries.length > 0) {
+            this.editor.loadContent(parentFile.entries[0].id, 'droptable');
+        } else {
+            this.editor.loadContent(parentFile.id, 'droptable');
         }
     }
     

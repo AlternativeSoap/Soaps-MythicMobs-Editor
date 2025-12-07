@@ -42,6 +42,9 @@ class MobEditor {
                         <button class="btn btn-outline" id="rename-mob" title="Rename this mob">
                             <i class="fas fa-pen"></i> Rename
                         </button>
+                        <button class="btn btn-outline btn-danger" id="delete-mob" title="Delete this mob">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
                         <button class="btn btn-secondary" id="new-mob" title="Add a new mob to this file">
                             <i class="fas fa-plus"></i> New Section
                         </button>
@@ -115,8 +118,8 @@ class MobEditor {
     /**
      * Add a new mob section to the current file
      */
-    addNewSection() {
-        const newName = prompt('Enter name for new mob:');
+    async addNewSection() {
+        const newName = await this.editor.showPrompt('New Mob', 'Enter name for new mob:');
         if (!newName || newName.trim() === '') return;
         
         // Find the parent file for the current mob
@@ -159,8 +162,8 @@ class MobEditor {
     /**
      * Duplicate the current mob within the same file
      */
-    duplicateMob() {
-        const newName = prompt('Enter name for duplicated mob:', this.currentMob.name + '_copy');
+    async duplicateMob() {
+        const newName = await this.editor.showPrompt('Duplicate Mob', 'Enter name for duplicated mob:', this.currentMob.name + '_copy');
         if (!newName || newName.trim() === '') return;
         
         // Find the parent file for the current mob
@@ -301,8 +304,8 @@ class MobEditor {
     /**
      * Rename the current mob
      */
-    renameMob() {
-        const newName = prompt('Enter new name for mob:', this.currentMob.name);
+    async renameMob() {
+        const newName = await this.editor.showPrompt('Rename Mob', 'Enter new name for mob:', this.currentMob.name);
         if (!newName || newName.trim() === '' || newName.trim() === this.currentMob.name) return;
         
         // Check if name already exists across all mobs
@@ -324,6 +327,46 @@ class MobEditor {
         // Refresh the file tree
         if (this.editor.packManager) {
             this.editor.packManager.render();
+        }
+    }
+    
+    /**
+     * Delete the current mob
+     */
+    async deleteMob() {
+        const confirmed = await this.editor.showConfirmDialog(
+            'Delete Mob',
+            `Delete mob "${this.currentMob.name}"? This cannot be undone.`,
+            'Delete',
+            'Cancel'
+        );
+        
+        if (!confirmed) return;
+        
+        // Find parent file
+        const parentFile = this.findParentFile();
+        if (!parentFile) {
+            this.editor.showToast('Could not find parent file', 'error');
+            return;
+        }
+        
+        const mobName = this.currentMob.name;
+        
+        // Remove from entries
+        parentFile.entries = parentFile.entries.filter(e => e.id !== this.currentMob.id);
+        
+        // Update pack tree
+        this.editor.packManager.updateFileContainer(parentFile.id, 'mob');
+        
+        // Show success message
+        this.editor.showToast(`Mob "${mobName}" deleted`, 'success');
+        this.editor.markDirty();
+        
+        // Navigate to appropriate view
+        if (parentFile.entries.length > 0) {
+            this.editor.loadContent(parentFile.entries[0].id, 'mob');
+        } else {
+            this.editor.loadContent(parentFile.id, 'mob');
         }
     }
     
@@ -2412,6 +2455,11 @@ class MobEditor {
         // Rename mob button
         document.getElementById('rename-mob')?.addEventListener('click', () => {
             this.renameMob();
+        });
+        
+        // Delete mob button
+        document.getElementById('delete-mob')?.addEventListener('click', () => {
+            this.deleteMob();
         });
 
         // Initialize collapsible functionality

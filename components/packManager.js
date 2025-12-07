@@ -1435,7 +1435,7 @@ class PackManager {
         ];
         
         while (!newName) {
-            const inputName = prompt('Enter new pack name:', pack.name);
+            const inputName = await this.editor.showPrompt('Rename Pack', 'Enter new pack name:', pack.name);
             if (!inputName || inputName.trim() === '') return; // User cancelled
             
             // Check for duplicate names (excluding current pack)
@@ -1580,11 +1580,18 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
         }
     }
     
-    deletePack(packId) {
+    async deletePack(packId) {
         const pack = this.packs.find(p => p.id === packId);
         if (!pack) return;
         
-        if (!confirm(`Are you sure you want to delete '${pack.name}'? This cannot be undone.`)) {
+        const confirmed = await this.editor.showConfirmDialog(
+            'Delete Pack',
+            `Are you sure you want to delete '${pack.name}'? This cannot be undone.`,
+            'Delete',
+            'Cancel'
+        );
+        
+        if (!confirmed) {
             return;
         }
         

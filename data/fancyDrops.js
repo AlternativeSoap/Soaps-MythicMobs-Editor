@@ -190,10 +190,12 @@ const DROP_OPTIONS_CONFIG = {
 
 // Helper function to get all DropOptions fields
 function getAllDropOptionsFields() {
-    const fields = [];
+    const fields = {};
     Object.values(DROP_OPTIONS_CONFIG).forEach(section => {
         if (section.fields) {
-            fields.push(...section.fields);
+            section.fields.forEach(field => {
+                fields[field.name] = field;
+            });
         }
     });
     return fields;

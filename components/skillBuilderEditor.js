@@ -1994,8 +1994,8 @@ class SkillBuilderEditor {
     /**
      * Create a new skill
      */
-    createNewSkill() {
-        const skillName = prompt('Enter new skill name:');
+    async createNewSkill() {
+        const skillName = await this.editor.showPrompt('New Skill', 'Enter new skill name:');
         if (!skillName) return;
         
         // Validate skill name
@@ -2042,8 +2042,8 @@ class SkillBuilderEditor {
     /**
      * Rename the current skill
      */
-    renameCurrentSkill() {
-        const newName = prompt('Enter new skill name:', this.currentSkill);
+    async renameCurrentSkill() {
+        const newName = await this.editor.showPrompt('Rename Skill', 'Enter new skill name:', this.currentSkill);
         if (!newName || newName === this.currentSkill) return;
         
         // Validate skill name

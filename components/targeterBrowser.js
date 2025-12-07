@@ -149,6 +149,20 @@ class TargeterBrowser {
         document.getElementById('targeterAttributeConfirm').addEventListener('click', () => {
             this.confirmAttributeConfiguration();
         });
+        
+        // Add keyboard support for attribute modal
+        document.addEventListener('keydown', (e) => {
+            const attrOverlay = document.getElementById('targeterAttributeOverlay');
+            if (attrOverlay && attrOverlay.classList.contains('active')) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.confirmAttributeConfiguration();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.showTargeterSelection();
+                }
+            }
+        });
 
         // Enhanced keyboard navigation
         document.addEventListener('keydown', (e) => {

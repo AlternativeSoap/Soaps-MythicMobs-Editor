@@ -55,6 +55,9 @@ class ItemEditor {
                         <button class="btn btn-outline" id="rename-item" title="Rename this item">
                             <i class="fas fa-pen"></i> Rename
                         </button>
+                        <button class="btn btn-outline btn-danger" id="delete-item" title="Delete this item">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
                         <button class="btn btn-secondary" id="new-item" title="Add a new item to this file">
                             <i class="fas fa-plus"></i> New Section
                         </button>
@@ -1141,6 +1144,10 @@ class ItemEditor {
             this.renameItem();
         });
         
+        document.getElementById('delete-item')?.addEventListener('click', () => {
+            this.deleteItem();
+        });
+        
         const materialSelect = document.getElementById('item-material');
         if (materialSelect) {
             materialSelect.addEventListener('change', (e) => {
@@ -1242,8 +1249,8 @@ class ItemEditor {
     /**
      * Add a new item section to the current file
      */
-    addNewSection() {
-        const newName = prompt('Enter name for new item:');
+    async addNewSection() {
+        const newName = await this.editor.showPrompt('New Item', 'Enter name for new item:');
         if (!newName || newName.trim() === '') return;
         
         // Find the parent file for the current item
@@ -1284,8 +1291,8 @@ class ItemEditor {
     /**
      * Duplicate the current item within the same file
      */
-    duplicateItem() {
-        const newName = prompt('Enter name for duplicated item:', this.currentItem.internalName + '_copy');
+    async duplicateItem() {
+        const newName = await this.editor.showPrompt('Duplicate Item', 'Enter name for duplicated item:', this.currentItem.internalName + '_copy');
         if (!newName || newName.trim() === '') return;
         
         // Find the parent file for the current item
@@ -1347,8 +1354,8 @@ class ItemEditor {
     /**
      * Rename the current item
      */
-    renameItem() {
-        const newName = prompt('Enter new name for item:', this.currentItem.internalName);
+    async renameItem() {
+        const newName = await this.editor.showPrompt('Rename Item', 'Enter new name for item:', this.currentItem.internalName);
         if (!newName || newName.trim() === '' || newName.trim() === this.currentItem.internalName) return;
         
         // Check if name already exists
@@ -1373,6 +1380,46 @@ class ItemEditor {
         // Refresh the file tree
         if (this.editor.packManager) {
             this.editor.packManager.render();
+        }
+    }
+    
+    /**
+     * Delete the current item
+     */
+    async deleteItem() {
+        const confirmed = await this.editor.showConfirmDialog(
+            'Delete Item',
+            `Delete item "${this.currentItem.internalName}"? This cannot be undone.`,
+            'Delete',
+            'Cancel'
+        );
+        
+        if (!confirmed) return;
+        
+        // Find parent file
+        const parentFile = this.findParentFile();
+        if (!parentFile) {
+            this.editor.showToast('Could not find parent file', 'error');
+            return;
+        }
+        
+        const itemName = this.currentItem.internalName;
+        
+        // Remove from entries
+        parentFile.entries = parentFile.entries.filter(e => e.id !== this.currentItem.id);
+        
+        // Update pack tree
+        this.editor.packManager.updateFileContainer(parentFile.id, 'item');
+        
+        // Show success message
+        this.editor.showToast(`Item "${itemName}" deleted`, 'success');
+        this.editor.markDirty();
+        
+        // Navigate to appropriate view
+        if (parentFile.entries.length > 0) {
+            this.editor.loadContent(parentFile.entries[0].id, 'item');
+        } else {
+            this.editor.loadContent(parentFile.id, 'item');
         }
     }
 

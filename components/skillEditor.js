@@ -44,6 +44,9 @@ class SkillEditor {
                         <button class="btn btn-outline" id="rename-skill" title="Rename this skill">
                             <i class="fas fa-pen"></i> Rename
                         </button>
+                        <button class="btn btn-outline btn-danger" id="delete-skill" title="Delete this skill">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
                         <button class="btn btn-secondary" id="new-skill" title="Add a new skill to this file">
                             <i class="fas fa-plus"></i> New Section
                         </button>
@@ -513,6 +516,10 @@ class SkillEditor {
             this.renameSkill();
         });
         
+        document.getElementById('delete-skill')?.addEventListener('click', () => {
+            this.deleteSkill();
+        });
+        
         document.getElementById('skill-name')?.addEventListener('input', (e) => {
             if (this.currentSkill) {
                 console.log('✏️ Skill name changed:', e.target.value);
@@ -682,8 +689,8 @@ class SkillEditor {
     /**
      * Add a new skill section to the current file
      */
-    addNewSection() {
-        const newName = prompt('Enter name for new skill:');
+    async addNewSection() {
+        const newName = await this.editor.showPrompt('New Skill', 'Enter name for new skill:');
         if (!newName || newName.trim() === '') return;
         
         // Find the parent file for the current skill
@@ -727,8 +734,8 @@ class SkillEditor {
     /**
      * Duplicate the current skill within the same file
      */
-    duplicateSkill() {
-        const newName = prompt('Enter name for duplicated skill:', this.currentSkill.name + '_copy');
+    async duplicateSkill() {
+        const newName = await this.editor.showPrompt('Duplicate Skill', 'Enter name for duplicated skill:', this.currentSkill.name + '_copy');
         if (!newName || newName.trim() === '') return;
         
         // Find the parent file for the current skill
@@ -802,8 +809,8 @@ class SkillEditor {
     /**
      * Rename the current skill
      */
-    renameSkill() {
-        const newName = prompt('Enter new name for skill:', this.currentSkill.name);
+    async renameSkill() {
+        const newName = await this.editor.showPrompt('Rename Skill', 'Enter new name for skill:', this.currentSkill.name);
         if (!newName || newName.trim() === '' || newName.trim() === this.currentSkill.name) return;
         
         // Check if name already exists
@@ -828,6 +835,46 @@ class SkillEditor {
         // Refresh the file tree
         if (this.editor.packManager) {
             this.editor.packManager.render();
+        }
+    }
+    
+    /**
+     * Delete the current skill
+     */
+    async deleteSkill() {
+        const confirmed = await this.editor.showConfirmDialog(
+            'Delete Skill',
+            `Delete skill "${this.currentSkill.name}"? This cannot be undone.`,
+            'Delete',
+            'Cancel'
+        );
+        
+        if (!confirmed) return;
+        
+        // Find parent file
+        const parentFile = this.findParentFile();
+        if (!parentFile) {
+            this.editor.showToast('Could not find parent file', 'error');
+            return;
+        }
+        
+        const skillName = this.currentSkill.name;
+        
+        // Remove from entries
+        parentFile.entries = parentFile.entries.filter(e => e.id !== this.currentSkill.id);
+        
+        // Update pack tree
+        this.editor.packManager.updateFileContainer(parentFile.id, 'skill');
+        
+        // Show success message
+        this.editor.showToast(`Skill "${skillName}" deleted`, 'success');
+        this.editor.markDirty();
+        
+        // Navigate to appropriate view
+        if (parentFile.entries.length > 0) {
+            this.editor.loadContent(parentFile.entries[0].id, 'skill');
+        } else {
+            this.editor.loadContent(parentFile.id, 'skill');
         }
     }
     
