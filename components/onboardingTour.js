@@ -408,8 +408,9 @@ class OnboardingTour {
     /**
      * Skip tour
      */
-    skip() {
-        if (confirm('Are you sure you want to skip the tour? You can restart it anytime from the Help menu.')) {
+    async skip() {
+        const confirmed = await window.editor.showConfirmDialog('Skip Tour', 'Are you sure you want to skip the tour? You can restart it anytime from the Help menu.', 'Skip', 'Continue Tour');
+        if (confirmed) {
             this.end();
         }
     }

@@ -526,9 +526,13 @@ class TriggerBrowser {
 
         if (inputValue && param.validation && !param.validation(inputValue)) {
             if (param.type === 'number') {
-                alert('Please enter a valid number greater than 0.');
+                if (window.editor && window.editor.showAlert) {
+                    window.editor.showAlert('Please enter a valid number greater than 0.', 'warning', 'Invalid Value');
+                }
             } else {
-                alert('Invalid parameter value. Must be alphanumeric.');
+                if (window.editor && window.editor.showAlert) {
+                    window.editor.showAlert('Invalid parameter value. Must be alphanumeric.', 'warning', 'Invalid Value');
+                }
             }
             return;
         }

@@ -329,8 +329,9 @@ class DropTableEditor {
      * Add a new droptable section to the current file
      */
     async addNewSection() {
-        const newName = await this.editor.showPrompt('New Drop Table', 'Enter name for new droptable:');
+        let newName = await this.editor.showPrompt('New Drop Table', 'Enter name for new droptable:');
         if (!newName || newName.trim() === '') return;
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Find the parent file for the current droptable
         const parentFile = this.findParentFile();
@@ -371,8 +372,9 @@ class DropTableEditor {
      * Duplicate the current droptable within the same file
      */
     async duplicateDropTable(droptable) {
-        const newName = await this.editor.showPrompt('Duplicate Drop Table', 'Enter name for duplicated droptable:', droptable.name + '_copy');
+        let newName = await this.editor.showPrompt('Duplicate Drop Table', 'Enter name for duplicated droptable:', droptable.name + '_copy');
         if (!newName || newName.trim() === '') return;
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Find the parent file for the current droptable
         const parentFile = this.findParentFile();
@@ -436,8 +438,9 @@ class DropTableEditor {
      * Rename the current droptable
      */
     async renameDropTable(droptable) {
-        const newName = await this.editor.showPrompt('Rename Drop Table', 'Enter new name for droptable:', droptable.name);
+        let newName = await this.editor.showPrompt('Rename Drop Table', 'Enter new name for droptable:', droptable.name);
         if (!newName || newName.trim() === '' || newName.trim() === droptable.name) return;
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Check if name already exists
         const pack = this.editor.state.currentPack;

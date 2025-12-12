@@ -6,7 +6,7 @@
  */
 
 class SkillBuilderEditor {
-    constructor(container, targeterBrowser = null, mechanicBrowser = null, triggerBrowser = null, conditionEditor = null) {
+    constructor(container, targeterBrowser = null, mechanicBrowser = null, triggerBrowser = null, conditionEditor = null, templateManager = null, templateEditor = null) {
         // Handle both element and string ID
         this.container = typeof container === 'string' ? document.getElementById(container) : container;
         // NEW MODEL: Object of named skills instead of flat array
@@ -22,10 +22,14 @@ class SkillBuilderEditor {
         this.triggerBrowser = triggerBrowser;
         // conditionEditor parameter deprecated - keeping for backwards compatibility but unused
         
+        // Template system dependencies
+        this.templateManager = templateManager;
+        this.templateEditor = templateEditor;
+        
         // Creation Mode Selector & Template Selector & Skill Line Builder
         this.creationModeSelector = new CreationModeSelector();
-        this.templateSelector = new TemplateSelector();
-        this.skillLineBuilder = new SkillLineBuilder();
+        this.templateSelector = new TemplateSelector(templateManager, templateEditor);
+        this.skillLineBuilder = new SkillLineBuilder(templateManager, templateEditor);
         
         // Group detection
         this.groupDetector = new SkillLineGroupDetector();
@@ -1209,9 +1213,11 @@ class SkillBuilderEditor {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const groupIndex = parseInt(btn.dataset.groupIndex);
-                if (confirm('Delete entire group?')) {
-                    this.deleteGroup(groupIndex);
-                }
+                this.editor.showConfirmDialog('Delete Group', 'Delete entire group?', 'Delete', 'Cancel').then(confirmed => {
+                    if (confirmed) {
+                        this.deleteGroup(groupIndex);
+                    }
+                });
             });
         });
         
@@ -1393,15 +1399,17 @@ class SkillBuilderEditor {
                 const focused = document.activeElement;
                 if (focused && focused.classList.contains('skill-line-card')) {
                     const index = parseInt(focused.dataset.index);
-                    if (confirm('Delete this skill line?')) {
-                        if (this.context === 'mob') {
-                            this.skillLines.splice(index, 1);
-                        } else {
-                            this.skills[this.currentSkill].lines.splice(index, 1);
+                    this.editor.showConfirmDialog('Delete Skill Line', 'Delete this skill line?', 'Delete', 'Cancel').then(confirmed => {
+                        if (confirmed) {
+                            if (this.context === 'mob') {
+                                this.skillLines.splice(index, 1);
+                            } else {
+                                this.skills[this.currentSkill].lines.splice(index, 1);
+                            }
+                            this.render();
+                            this.triggerChange();
                         }
-                        this.render();
-                        this.triggerChange();
-                    }
+                    });
                 }
             }
             
@@ -1552,7 +1560,7 @@ class SkillBuilderEditor {
         addBtn.addEventListener('click', () => {
             const input = textarea.value.trim();
             if (!input) {
-                alert('Please enter at least one skill line');
+                this.editor.showAlert('Please enter at least one skill line', 'warning');
                 return;
             }
             
@@ -2000,13 +2008,13 @@ class SkillBuilderEditor {
         
         // Validate skill name
         if (!/^[a-zA-Z0-9_]+$/.test(skillName)) {
-            alert('Skill name must contain only letters, numbers, and underscores.');
+            this.editor.showAlert('Skill name must contain only letters, numbers, and underscores.', 'warning', 'Invalid Name');
             return;
         }
         
         // Check if skill already exists
         if (this.skills[skillName]) {
-            alert('A skill with this name already exists.');
+            this.editor.showAlert('A skill with this name already exists.', 'warning', 'Duplicate Name');
             return;
         }
         
@@ -2020,14 +2028,15 @@ class SkillBuilderEditor {
     /**
      * Delete the current skill
      */
-    deleteCurrentSkill() {
+    async deleteCurrentSkill() {
         const skillNames = Object.keys(this.skills);
         if (skillNames.length <= 1) {
-            alert('Cannot delete the last skill. At least one skill must remain.');
+            this.editor.showAlert('Cannot delete the last skill. At least one skill must remain.', 'warning', 'Delete Not Allowed');
             return;
         }
         
-        if (!confirm(`Delete skill "${this.currentSkill}"?`)) {
+        const confirmed = await this.editor.showConfirmDialog('Delete Skill', `Delete skill "${this.currentSkill}"?`, 'Delete', 'Cancel');
+        if (!confirmed) {
             return;
         }
         
@@ -2048,13 +2057,13 @@ class SkillBuilderEditor {
         
         // Validate skill name
         if (!/^[a-zA-Z0-9_]+$/.test(newName)) {
-            alert('Skill name must contain only letters, numbers, and underscores.');
+            this.editor.showAlert('Skill name must contain only letters, numbers, and underscores.', 'warning', 'Invalid Name');
             return;
         }
         
         // Check if skill already exists
         if (this.skills[newName]) {
-            alert('A skill with this name already exists.');
+            this.editor.showAlert('A skill with this name already exists.', 'warning', 'Duplicate Name');
             return;
         }
         
@@ -2080,6 +2089,27 @@ class SkillBuilderEditor {
             setTimeout(() => {
                 card.classList.remove('highlight-flash');
             }, 2000);
+        }
+    }
+    
+    /**
+     * Update template system dependencies (called when they become available)
+     */
+    updateTemplateDependencies(templateManager, templateEditor) {
+        console.log('🔄 Updating template dependencies in SkillBuilderEditor');
+        this.templateManager = templateManager;
+        this.templateEditor = templateEditor;
+        
+        // Recreate TemplateSelector with new dependencies
+        if (this.templateSelector) {
+            this.templateSelector.destroy();
+        }
+        this.templateSelector = new TemplateSelector(templateManager, templateEditor);
+        
+        // Update SkillLineBuilder
+        if (this.skillLineBuilder) {
+            this.skillLineBuilder.templateManager = templateManager;
+            this.skillLineBuilder.templateEditor = templateEditor;
         }
     }
 }

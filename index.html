@@ -24,15 +24,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Styles -->
-    <link rel="stylesheet" href="styles/main.css?v=3.5">
-    <link rel="stylesheet" href="styles/components.css?v=3.5">
-    <link rel="stylesheet" href="styles/editor.css?v=3.5">
-    <link rel="stylesheet" href="styles/conditionEditor.css?v=3.5">
-    <link rel="stylesheet" href="styles/conditionBrowser.css?v=3.5">
-    <link rel="stylesheet" href="styles/triggerBrowser.css?v=3.5">
-    <link rel="stylesheet" href="styles/packImporter.css?v=3.5">
-    <link rel="stylesheet" href="styles/skillLineBuilder.css?v=3.7">
-    <link rel="stylesheet" href="styles/mechanicBrowser.css?v=3.5">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/editor.css">
+    <link rel="stylesheet" href="styles/conditionEditor.css">
+    <link rel="stylesheet" href="styles/conditionBrowser.css">
+    <link rel="stylesheet" href="styles/triggerBrowser.css">
+    <link rel="stylesheet" href="styles/packImporter.css">
+    <link rel="stylesheet" href="styles/skillLineBuilder.css">
+    <link rel="stylesheet" href="styles/mechanicBrowser.css">
 </head>
 <body>
     <!-- Main Container -->
@@ -483,6 +483,20 @@
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Internal Name Space Replacement</label>
+                                <span class="setting-description">Character used to replace spaces in internal names (e.g., "My Skill" → "My<span id="separator-preview">_</span>Skill")</span>
+                            </div>
+                            <div class="setting-control">
+                                <select class="form-select" id="setting-internal-name-separator" style="width: 120px;">
+                                    <option value="_">_ (underscore)</option>
+                                    <option value="-">- (hyphen)</option>
+                                    <option value=".">. (period)</option>
+                                    <option value="|">| (pipe)</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- History Settings -->
@@ -688,7 +702,11 @@
     <script src="components/fileManager.js"></script>
     <script src="components/documentationHelper.js"></script>
     <script src="components/mobEditor/EntityFieldManager.js"></script>
-    <script src="components/searchableDropdown.js"></script>
+    
+    <!-- Enhanced Dropdown with Categories & Icons -->
+    <script src="data/minecraftItemCategories.js"></script>
+    <script src="data/minecraftItemIcons.js"></script>
+    <script src="components/searchableDropdown.js?v=2.0"></script>
     <script src="components/bossBarEditor.js"></script>
     <script src="components/equipmentEditor.js"></script>
     <script src="components/damageModifierEditor.js"></script>
@@ -702,6 +720,10 @@
     <script src="components/targeterBrowser.js?v=3.8"></script>
     <script src="components/mechanicBrowser.js"></script>
     <script src="components/creationModeSelector.js"></script>
+    <script src="components/notificationModal.js"></script>
+    <script src="components/templateManager.js"></script>
+    <script src="components/templateEditor.js"></script>
+    <script src="components/templateCreationWizard.js"></script>
     <script src="components/templateSelector.js"></script>
     <script src="components/skillLineBuilder.js?v=3.9"></script>
     <script src="components/mechanicReference.js"></script>
@@ -759,6 +781,36 @@
             
             window.editor = new MythicMobsEditor();
             window.editor.init();
+            
+            // Initialize template system AFTER editor (requires auth and supabase)
+            setTimeout(() => {
+                if (window.supabaseClient && window.editor?.authManager) {
+                    // Expose authManager globally for template system
+                    window.authManager = window.editor.authManager;
+                    
+                    window.templateManager = new TemplateManager(window.supabaseClient, window.authManager);
+                    window.templateEditor = new TemplateEditor(window.templateManager);
+                    window.templateWizard = new TemplateCreationWizard(window.templateManager, window.templateEditor);
+                    
+                    console.log('✅ Template system initialized (Manager, Editor, Wizard)');
+                    
+                    // Update any existing SkillBuilderEditor instances with the new dependencies
+                    if (window.editor.skillEditor?.skillBuilderEditor) {
+                        window.editor.skillEditor.skillBuilderEditor.updateTemplateDependencies(
+                            window.templateManager, 
+                            window.templateEditor
+                        );
+                    }
+                    if (window.editor.mobEditor?.skillsEditor) {
+                        window.editor.mobEditor.skillsEditor.updateTemplateDependencies(
+                            window.templateManager,
+                            window.templateEditor
+                        );
+                    }
+                } else {
+                    console.warn('⚠️ Template system not initialized: supabaseClient or authManager missing');
+                }
+            }, 100);
             
             // Auto-start tour for new users after a short delay
             setTimeout(() => {

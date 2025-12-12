@@ -569,7 +569,9 @@ class TargeterBrowser {
         for (const attr of requiredAttrs) {
             const input = formContainer.querySelector(`[data-attr="${attr.name}"]`);
             if (!input || !input.value.trim()) {
-                alert(`${attr.name} is required`);
+                if (window.editor && window.editor.showAlert) {
+                    window.editor.showAlert(`${attr.name} is required`, 'warning', 'Required Field');
+                }
                 return;
             }
         }

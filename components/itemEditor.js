@@ -109,6 +109,7 @@ class ItemEditor {
                                 required
                             >
                             <small class="form-hint">Unique identifier for this item</small>
+                            <small class="form-hint" id="item-name-sanitized" style="color: var(--accent-primary); display: none;"></small>
                         </div>
 
                         <div class="form-group">
@@ -1160,8 +1161,21 @@ class ItemEditor {
         const internalNameInput = document.getElementById('item-internal-name');
         if (internalNameInput) {
             internalNameInput.addEventListener('input', (e) => {
-                item.internalName = e.target.value;
-                document.querySelector('.item-name').textContent = e.target.value || 'New Item';
+                let newName = e.target.value;
+                
+                // Show sanitization preview if needed
+                const sanitizedName = this.editor.sanitizeInternalName(newName);
+                const sanitizedHint = document.getElementById('item-name-sanitized');
+                if (sanitizedHint && sanitizedName !== newName && newName.trim()) {
+                    sanitizedHint.textContent = `Will be saved as: ${sanitizedName}`;
+                    sanitizedHint.style.display = 'block';
+                } else if (sanitizedHint) {
+                    sanitizedHint.style.display = 'none';
+                }
+                
+                // Apply sanitization
+                item.internalName = sanitizedName;
+                document.querySelector('.item-name').textContent = sanitizedName || 'New Item';
                 this.syncToFile();
                 this.editor.markDirty();
                 // Refresh file tree to show updated name
@@ -1250,8 +1264,11 @@ class ItemEditor {
      * Add a new item section to the current file
      */
     async addNewSection() {
-        const newName = await this.editor.showPrompt('New Item', 'Enter name for new item:');
+        let newName = await this.editor.showPrompt('New Item', 'Enter name for new item:');
         if (!newName || newName.trim() === '') return;
+        
+        // Sanitize the name
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Find the parent file for the current item
         const parentFile = this.findParentFile();
@@ -1292,8 +1309,11 @@ class ItemEditor {
      * Duplicate the current item within the same file
      */
     async duplicateItem() {
-        const newName = await this.editor.showPrompt('Duplicate Item', 'Enter name for duplicated item:', this.currentItem.internalName + '_copy');
+        let newName = await this.editor.showPrompt('Duplicate Item', 'Enter name for duplicated item:', this.currentItem.internalName + '_copy');
         if (!newName || newName.trim() === '') return;
+        
+        // Sanitize the name
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Find the parent file for the current item
         const parentFile = this.findParentFile();
@@ -1355,8 +1375,11 @@ class ItemEditor {
      * Rename the current item
      */
     async renameItem() {
-        const newName = await this.editor.showPrompt('Rename Item', 'Enter new name for item:', this.currentItem.internalName);
+        let newName = await this.editor.showPrompt('Rename Item', 'Enter new name for item:', this.currentItem.internalName);
         if (!newName || newName.trim() === '' || newName.trim() === this.currentItem.internalName) return;
+        
+        // Sanitize the name
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Check if name already exists
         const pack = this.editor.state.currentPack;
@@ -1909,7 +1932,10 @@ class ItemEditor {
                 // Clear container first
                 container.innerHTML = '';
                 window.itemMaterialDropdown = new SearchableDropdown('item-material-dropdown', {
-                    items: MINECRAFT_ITEMS,
+                    categories: window.getCombinedItemCategories ? window.getCombinedItemCategories(true) : (window.MINECRAFT_ITEM_CATEGORIES || null),
+                    items: !window.getCombinedItemCategories && !window.MINECRAFT_ITEM_CATEGORIES ? MINECRAFT_ITEMS : null,
+                    useIcons: true,
+                    storageKey: 'item-material',
                     placeholder: 'Search materials...',
                     value: item.Id || '',
                     onSelect: (value) => {

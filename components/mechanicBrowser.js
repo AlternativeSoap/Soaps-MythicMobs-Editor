@@ -37,6 +37,11 @@ class MechanicBrowser {
         this.recentMechanics = this.loadRecentMechanics();
         this.favoritesManager = new FavoritesManager('mechanicBrowser_favorites');
         
+        // Performance optimizations
+        this.eventListeners = [];
+        this.domCache = {};
+        this.renderCache = new Map(); // Cache rendered HTML by category/search key
+        
         this.createModal();
         this.attachEventListeners();
         if (window.DEBUG_MODE) {
@@ -362,6 +367,9 @@ class MechanicBrowser {
             overlay.style.display = 'none';
         }
         
+        // Cleanup event listeners
+        this.cleanup();
+        
         // Notify parent that browser was closed without selection
         if (this.onSelectCallback) {
             this.onSelectCallback(null);
@@ -375,7 +383,40 @@ class MechanicBrowser {
         
         this.onSelectCallback = null;
     }
+    
+    /**
+     * Cleanup event listeners to prevent memory leaks
+     */
+    cleanup() {
+        // Remove all tracked event listeners
+        this.eventListeners.forEach(({ element, event, handler }) => {
+            if (element && element.removeEventListener) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.eventListeners = [];
+        
+        // Clear DOM cache
+        this.domCache = {};
+        
+        if (window.DEBUG_MODE) {
+            console.log('🧹 MechanicBrowser cleanup complete');
+        }
+    }
+    
+    /**
+     * Get DOM element with caching
+     */
+    getElement(id) {
+        if (!this.domCache[id]) {
+            this.domCache[id] = document.getElementById(id);
+        }
+        return this.domCache[id];
+    }
 
+    /**
+     * Show mechanic selection step
+     */
     /**
      * Show mechanic selection step
      */
@@ -389,7 +430,34 @@ class MechanicBrowser {
         this.currentCategory = 'All';
         this.searchQuery = '';
         
-        this.renderMechanics();
+        // Show skeleton loading first, then render with requestAnimationFrame
+        this.showSkeletonLoading();
+        requestAnimationFrame(() => {
+            this.renderMechanics();
+        });
+    }
+    
+    /**
+     * Show skeleton loading state
+     */
+    showSkeletonLoading() {
+        const listContainer = this.getElement('mechanicList');
+        if (!listContainer) return;
+        
+        const skeletonHTML = Array(6).fill(0).map(() => `
+            <div class="condition-card skeleton">
+                <div class="condition-card-header">
+                    <div class="skeleton-title"></div>
+                    <div class="skeleton-badge"></div>
+                </div>
+                <div class="condition-card-body">
+                    <div class="skeleton-text"></div>
+                    <div class="skeleton-text"></div>
+                </div>
+            </div>
+        `).join('');
+        
+        listContainer.innerHTML = skeletonHTML;
     }
 
     /**
@@ -434,10 +502,10 @@ class MechanicBrowser {
     }
 
     /**
-     * Render mechanics list (using DataOptimizer)
+     * Render mechanics list (using DataOptimizer with HTML caching)
      */
     renderMechanics() {
-        const listContainer = document.getElementById('mechanicList');
+        const listContainer = this.getElement('mechanicList');
         
         // Add CSS optimizations on first render
         if (listContainer && !listContainer.dataset.optimized) {
@@ -453,8 +521,17 @@ class MechanicBrowser {
             return;
         }
         
-        // Check cache first
+        // Check HTML render cache first
         const cacheKey = `${this.currentCategory}:${this.searchQuery}`;
+        const cachedHTML = this.renderCache.get(cacheKey);
+        if (cachedHTML) {
+            listContainer.innerHTML = cachedHTML;
+            this.setupMechanicEventDelegation(listContainer);
+            this.updateCategoryCounts();
+            return;
+        }
+        
+        // Check data cache
         let mechanics = this.searchCache.get(cacheKey);
         
         if (!mechanics) {
@@ -485,16 +562,29 @@ class MechanicBrowser {
         this.updateCategoryCounts();
 
         if (mechanics.length === 0) {
-            listContainer.innerHTML = '<div class="empty-state">No mechanics found matching your search.</div>';
+            const emptyHTML = '<div class="empty-state">No mechanics found matching your search.</div>';
+            listContainer.innerHTML = emptyHTML;
+            this.renderCache.set(cacheKey, emptyHTML);
             return;
         }
 
         // Note: Virtual scrolling disabled for grid layouts to preserve multi-column CSS grid
         // The grid layout is more important for UX than virtual scrolling performance
 
-        listContainer.innerHTML = mechanics.map(mechanic => 
+        const renderedHTML = mechanics.map(mechanic => 
             this.renderMechanicCard(mechanic)
         ).join('');
+        
+        listContainer.innerHTML = renderedHTML;
+        
+        // Cache the rendered HTML
+        this.renderCache.set(cacheKey, renderedHTML);
+        
+        // Keep cache size manageable (max 20 entries)
+        if (this.renderCache.size > 20) {
+            const firstKey = this.renderCache.keys().next().value;
+            this.renderCache.delete(firstKey);
+        }
 
         this.setupMechanicEventDelegation(listContainer);
     }
@@ -572,6 +662,13 @@ class MechanicBrowser {
         };
 
         listContainer.addEventListener('click', this.selectMechanicHandler);
+        
+        // Track this listener for cleanup
+        this.eventListeners.push({
+            element: listContainer,
+            event: 'click',
+            handler: this.selectMechanicHandler
+        });
     }
 
     /**
@@ -1631,7 +1728,9 @@ class MechanicBrowser {
         
         // Check for errors
         if (result.errors.length > 0) {
-            alert('Validation Error:\n\n' + result.errors.join('\n'));
+            if (window.editor && window.editor.showAlert) {
+                window.editor.showAlert('Validation Error:\n\n' + result.errors.join('\n'), 'error', 'Validation Error');
+            }
             return;
         }
         

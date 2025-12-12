@@ -119,8 +119,11 @@ class MobEditor {
      * Add a new mob section to the current file
      */
     async addNewSection() {
-        const newName = await this.editor.showPrompt('New Mob', 'Enter name for new mob:');
+        let newName = await this.editor.showPrompt('New Mob', 'Enter name for new mob:');
         if (!newName || newName.trim() === '') return;
+        
+        // Sanitize the name
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Find the parent file for the current mob
         const parentFile = this.findParentFile();
@@ -163,8 +166,11 @@ class MobEditor {
      * Duplicate the current mob within the same file
      */
     async duplicateMob() {
-        const newName = await this.editor.showPrompt('Duplicate Mob', 'Enter name for duplicated mob:', this.currentMob.name + '_copy');
+        let newName = await this.editor.showPrompt('Duplicate Mob', 'Enter name for duplicated mob:', this.currentMob.name + '_copy');
         if (!newName || newName.trim() === '') return;
+        
+        // Sanitize the name
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Find the parent file for the current mob
         const parentFile = this.findParentFile();
@@ -305,8 +311,11 @@ class MobEditor {
      * Rename the current mob
      */
     async renameMob() {
-        const newName = await this.editor.showPrompt('Rename Mob', 'Enter new name for mob:', this.currentMob.name);
+        let newName = await this.editor.showPrompt('Rename Mob', 'Enter new name for mob:', this.currentMob.name);
         if (!newName || newName.trim() === '' || newName.trim() === this.currentMob.name) return;
+        
+        // Sanitize the name
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Check if name already exists across all mobs
         const existing = this.findMobByName(newName.trim());
@@ -389,6 +398,7 @@ class MobEditor {
                             <label class="form-label">Internal Name <span class="required">*</span></label>
                             <input type="text" class="form-input" id="mob-name" value="${mob.name}">
                             <small class="form-hint">Internal mob identifier (no spaces)</small>
+                            <small class="form-hint" id="mob-name-sanitized" style="color: var(--accent-primary); display: none;"></small>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Entity Type ${isAdvanced && hasTemplate ? '' : '<span class="required">*</span>'}</label>
@@ -857,7 +867,7 @@ class MobEditor {
     /**
      * Detach from template - copy all inherited values locally
      */
-    detachFromTemplate() {
+    async detachFromTemplate() {
         if (!this.currentMob || !this.currentMob.template) return;
         
         const templateMob = this.getTemplateMob(this.currentMob.template);
@@ -867,7 +877,8 @@ class MobEditor {
         }
         
         // Confirm action
-        if (!confirm(`This will copy all values from "${this.currentMob.template}" to this mob and remove the template reference. Continue?`)) {
+        const confirmed = await this.editor.showConfirmDialog('Apply Template', `This will copy all values from "${this.currentMob.template}" to this mob and remove the template reference. Continue?`, 'Continue', 'Cancel');
+        if (!confirmed) {
             return;
         }
         
@@ -1708,7 +1719,10 @@ class MobEditor {
             setTimeout(() => {
                 if (!window.blockDropdown) {
                     window.blockDropdown = new SearchableDropdown('mob-block-dropdown', {
-                        items: MINECRAFT_BLOCKS,
+                        categories: window.MINECRAFT_ITEM_CATEGORIES || null,
+                        items: window.MINECRAFT_ITEM_CATEGORIES ? null : MINECRAFT_BLOCKS,
+                        useIcons: true,
+                        storageKey: 'mob-block',
                         placeholder: 'Search blocks...',
                         value: mob.block || '',
                         onSelect: (value) => this.updateMob('block', value)
@@ -1747,7 +1761,10 @@ class MobEditor {
             setTimeout(() => {
                 if (!window.itemDropdown) {
                     window.itemDropdown = new SearchableDropdown('mob-item-dropdown', {
-                        items: MINECRAFT_ITEMS,
+                        categories: window.getCombinedItemCategories ? window.getCombinedItemCategories(true) : (window.MINECRAFT_ITEM_CATEGORIES || null),
+                        items: !window.getCombinedItemCategories && !window.MINECRAFT_ITEM_CATEGORIES ? MINECRAFT_ITEMS : null,
+                        useIcons: true,
+                        storageKey: 'mob-item',
                         placeholder: 'Search items...',
                         value: mob.item || '',
                         onSelect: (value) => this.updateMob('item', value)
@@ -2470,6 +2487,27 @@ class MobEditor {
             window.collapsibleManager.restoreStates();
         }
         
+        // Mob name input with sanitization
+        document.getElementById('mob-name')?.addEventListener('input', (e) => {
+            if (this.currentMob) {
+                let newName = e.target.value;
+                
+                // Show sanitization preview if needed
+                const sanitizedName = this.editor.sanitizeInternalName(newName);
+                const sanitizedHint = document.getElementById('mob-name-sanitized');
+                if (sanitizedHint && sanitizedName !== newName && newName.trim()) {
+                    sanitizedHint.textContent = `Will be saved as: ${sanitizedName}`;
+                    sanitizedHint.style.display = 'block';
+                } else if (sanitizedHint) {
+                    sanitizedHint.style.display = 'none';
+                }
+                
+                // Apply sanitization and update mob name
+                this.currentMob.name = sanitizedName;
+                this.editor.markDirty();
+            }
+        });
+        
         // Initialize Phase 1 components
         this.initializePhase1Components();
         
@@ -3046,7 +3084,9 @@ class MobEditor {
                 this.targeterBrowser,
                 this.mechanicBrowser,
                 this.triggerBrowser,
-                null  // Using global conditionBrowserV2 instead
+                null,  // Using global conditionBrowserV2 instead
+                window.templateManager,
+                window.templateEditor
             );
             this.skillsEditor.setContext('mob');
             this.skillsEditor.setValue(mob.skills || []);

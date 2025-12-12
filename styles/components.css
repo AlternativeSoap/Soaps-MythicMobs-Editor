@@ -397,6 +397,65 @@
     max-width: 800px;
 }
 
+/* Alert Modal Styles */
+.modal-alert {
+    max-width: 450px !important;
+    width: 90%;
+}
+
+.alert-message-container {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) 0;
+}
+
+.alert-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+    margin-top: 4px;
+}
+
+.alert-icon-error {
+    color: var(--error);
+}
+
+.alert-icon-warning {
+    color: var(--warning);
+}
+
+.alert-icon-success {
+    color: var(--success);
+}
+
+.alert-icon-info {
+    color: var(--info);
+}
+
+.alert-message {
+    flex: 1;
+    margin: 0;
+    line-height: 1.6;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+}
+
+.modal-alert-error .modal-header {
+    border-bottom-color: var(--error);
+}
+
+.modal-alert-warning .modal-header {
+    border-bottom-color: var(--warning);
+}
+
+.modal-alert-success .modal-header {
+    border-bottom-color: var(--success);
+}
+
+.modal-alert-info .modal-header {
+    border-bottom-color: var(--info);
+}
+
 @keyframes slideUp {
     from {
         opacity: 0;
@@ -435,6 +494,8 @@
 .modal-body {
     padding: var(--spacing-lg);
     overflow-y: auto;
+    flex: 1;
+    min-height: 0;
 }
 
 .modal-footer {

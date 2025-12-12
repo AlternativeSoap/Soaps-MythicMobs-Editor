@@ -19,8 +19,14 @@
  */
 
 class SkillLineBuilder {
-    constructor() {
+    constructor(templateManager = null, templateEditor = null) {
         console.log('🚀 Initializing SkillLineBuilder v2.0');
+        
+        // ========================================
+        // DEPENDENCIES
+        // ========================================
+        this.templateManager = templateManager;
+        this.templateEditor = templateEditor;
         
         // ========================================
         // STATE MANAGEMENT
@@ -293,6 +299,10 @@ class SkillLineBuilder {
                         </div>
                         <div class="footer-actions" style="display: flex; gap: 12px; align-items: center;">
                             <button class="btn btn-secondary" id="btnCancel" style="min-width: 100px; padding: 10px 20px;">Cancel</button>
+                            <button class="btn btn-info" id="btnSaveTemplate" style="display: none; min-width: 160px; padding: 10px 20px;">
+                                <i class="fas fa-save" style="margin-right: 6px;"></i>
+                                Save as Template
+                            </button>
                             <button class="btn btn-primary" id="btnAdd" disabled style="min-width: 140px; padding: 10px 24px; font-size: 14px;">
                                 <i class="fas fa-plus" style="margin-right: 6px;"></i>
                                 <span id="btnAddText">Add Skill Line</span>
@@ -569,6 +579,7 @@ class SkillLineBuilder {
             // Buttons
             btnAdd: get('btnAdd'),
             btnAddText: get('btnAddText'),
+            btnSaveTemplate: get('btnSaveTemplate'),
             btnClose: get('skillBuilderClose'),
             btnBack: get('skillBuilderBack'),
             btnCopyPreview: get('btnCopyPreview'),
@@ -681,6 +692,7 @@ class SkillLineBuilder {
             
             // Footer
             'btnAdd': () => this.processQueue(),
+            'btnSaveTemplate': () => this.showTemplateSaveDialog(),
             
             // Bulk
             'btnClearBulk': () => this.clearBulk(),
@@ -1503,6 +1515,92 @@ class SkillLineBuilder {
         if (this.state.lastRenderTime > 0) {
             this.dom.footerPerf.textContent = `${this.state.lastRenderTime.toFixed(1)}ms`;
         }
+        
+        // Update "Save as Template" button visibility
+        this.updateSaveTemplateButton();
+    }
+    
+    /**
+     * Update visibility of "Save as Template" button
+     * Shows when user is logged in and has content in queue or current line
+     */
+    updateSaveTemplateButton() {
+        if (!this.dom.btnSaveTemplate || !this.templateManager) return;
+        
+        // Check if user is logged in
+        const isLoggedIn = window.authManager && window.authManager.user;
+        
+        // Check if there's content to save (queue or valid current line)
+        const hasQueueContent = this.state.queue && this.state.queue.length > 0;
+        const hasValidCurrentLine = this.state.currentLine.mechanic !== null;
+        const hasContent = hasQueueContent || hasValidCurrentLine;
+        
+        // Show button only if logged in AND has content
+        if (isLoggedIn && hasContent) {
+            this.dom.btnSaveTemplate.style.display = '';
+        } else {
+            this.dom.btnSaveTemplate.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Get current skill lines from queue + current line
+     */
+    getCurrentSkillLines() {
+        const lines = [];
+        
+        // Add all queued lines
+        if (this.state.queue && this.state.queue.length > 0) {
+            lines.push(...this.state.queue);
+        }
+        
+        // Add current line if valid
+        const currentLine = this.generateSkillLine();
+        if (currentLine) {
+            lines.push(currentLine);
+        }
+        
+        return lines;
+    }
+    
+    /**
+     * Show template save dialog with auto-suggestions
+     */
+    async showTemplateSaveDialog() {
+        if (!this.templateEditor || !this.templateManager) {
+            console.error('Template system not initialized');
+            return;
+        }
+        
+        const skillLines = this.getCurrentSkillLines();
+        
+        if (skillLines.length === 0) {
+            alert('No skill lines to save as template');
+            return;
+        }
+        
+        // Auto-detect template properties
+        const templateType = this.templateManager.detectTemplateType(skillLines);
+        const category = this.templateManager.suggestCategory(skillLines);
+        const icon = this.templateManager.suggestIcon(category);
+        
+        // Open template editor with pre-filled data
+        this.templateEditor.open({
+            skillLines: skillLines,
+            type: templateType,
+            category: category,
+            icon: icon,
+            onSave: async (template) => {
+                console.log('✅ Template saved successfully:', template);
+                
+                // Optionally clear the builder after saving
+                const clearAfterSave = confirm('Template saved! Clear the skill builder?');
+                if (clearAfterSave) {
+                    this.clearQueue();
+                    this.resetCurrentLine();
+                }
+            }
+        });
     }
     
     switchTab(tab) {
@@ -1620,7 +1718,9 @@ class SkillLineBuilder {
         
         if (!this.browsers.mechanic) {
             console.error('❌ MechanicBrowser not available - browsers must be passed via open() options');
-            alert('Mechanic Browser is not available in this context. Please ensure you\'re accessing this feature from the skill editor.');
+            if (this.editor && this.editor.showAlert) {
+                this.editor.showAlert('Mechanic Browser is not available in this context. Please ensure you\'re accessing this feature from the skill editor.', 'error', 'Browser Not Available');
+            }
             return;
         }
         
@@ -1748,7 +1848,9 @@ class SkillLineBuilder {
         
         if (!this.browsers.targeter) {
             console.error('❌ TargeterBrowser not available - browsers must be passed via open() options');
-            alert('Targeter Browser is not available in this context. Please ensure you\'re accessing this feature from the skill editor.');
+            if (this.editor && this.editor.showAlert) {
+                this.editor.showAlert('Targeter Browser is not available in this context. Please ensure you\'re accessing this feature from the skill editor.', 'error', 'Browser Not Available');
+            }
             return;
         }
         
@@ -1959,7 +2061,9 @@ class SkillLineBuilder {
         // Check if ConditionBrowser class exists
         if (typeof ConditionBrowser === 'undefined') {
             console.error('❌ ConditionBrowser class not found!');
-            alert('Condition Browser component failed to load. Please refresh the page.');
+            if (this.editor && this.editor.showAlert) {
+                this.editor.showAlert('Condition Browser component failed to load. Please refresh the page.', 'error', 'Component Error');
+            }
             return;
         }
         
@@ -1971,7 +2075,9 @@ class SkillLineBuilder {
             }
         } catch (error) {
             console.error('❌ Error creating ConditionBrowser:', error);
-            alert('Failed to initialize Condition Browser: ' + error.message);
+            if (this.editor && this.editor.showAlert) {
+                this.editor.showAlert('Failed to initialize Condition Browser: ' + error.message, 'error', 'Initialization Error');
+            }
             return;
         }
         

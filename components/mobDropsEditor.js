@@ -155,10 +155,11 @@ class MobDropsEditor {
         
         // Delete drop buttons
         this.container.querySelectorAll('.delete-mobdrop-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', async (e) => {
                 const index = parseInt(e.target.closest('button').dataset.index);
                 const displayName = this.getDropDisplayName(this.drops[index]);
-                if (confirm(`Delete drop "${displayName}"?`)) {
+                const confirmed = await this.editor.showConfirmDialog('Delete Drop', `Delete drop "${displayName}"?`, 'Delete', 'Cancel');
+                if (confirmed) {
                     this.drops.splice(index, 1);
                     this.render();
                     this.attachEventListeners();
@@ -253,6 +254,9 @@ class MobDropsEditor {
         
         document.body.appendChild(modal);
         this.attachDropEditorListeners(modal, drop, index);
+        
+        // Initialize item dropdown after modal is in DOM
+        setTimeout(() => this.initializeItemDropdown(), 50);
     }
     
     renderDropTypeSelector(drop) {
@@ -616,53 +620,29 @@ class MobDropsEditor {
         if (field.description) html += ` <span class="help-text">${field.description}</span>`;
         html += `</label>`;
         
-        // Special handling for item field - Unified dropdown with MythicMobs + Minecraft items
+        // Special handling for item field - Use SearchableDropdown with MythicMobs + Minecraft items
         if (field.name === 'item' && !namespace) {
-            // Override label to be more descriptive
             html = `<div class="form-group" data-field="${field.name}">`;
             html += `<label class="form-label">`;
             html += `<i class="fas fa-cube"></i> Item (MythicMobs or Minecraft)`;
             if (field.required) html += ' <span class="required">*</span>';
             html += ` <span class="help-text">Select from your items or Minecraft's item list</span>`;
             html += `</label>`;
-            
-            // Get MythicMobs items from items folder
-            const items = window.editor?.state?.items || [];
-            const mythicItems = items.filter(item => !item._isFileContainer && item.internalName);
-            
-            html += `<select class="form-select" id="${fieldId}" ${field.required ? 'required' : ''}>`;
-            html += `<option value="">-- Select Item --</option>`;
-            
-            // MythicMobs Items Group
-            if (mythicItems.length > 0) {
-                html += `<optgroup label="━━ MythicMobs Items (${mythicItems.length}) ━━">`;
-                mythicItems.forEach(item => {
-                    const displayName = item.displayName || item.internalName;
-                    const isSelected = value === item.internalName ? 'selected' : '';
-                    html += `<option value="${item.internalName}" ${isSelected}>${item.internalName}${displayName !== item.internalName ? ' - ' + displayName : ''}</option>`;
-                });
-                html += `</optgroup>`;
-            } else {
-                html += `<optgroup label="━━ MythicMobs Items (0) - Create items first ━━">`;
-                html += `<option disabled>No items found in items folder</option>`;
-                html += `</optgroup>`;
-            }
-            
-            // Minecraft Items Group
-            if (window.MINECRAFT_ITEMS && MINECRAFT_ITEMS.length > 0) {
-                html += `<optgroup label="━━ Minecraft Items (${MINECRAFT_ITEMS.length}) ━━">`;
-                MINECRAFT_ITEMS.forEach(item => {
-                    html += `<option value="${item}" ${value === item ? 'selected' : ''}>${item}</option>`;
-                });
-                html += `</optgroup>`;
-            }
-            
-            html += `</select>`;
+            html += `<div id="${fieldId}"></div>`;
             html += `<input type="text" class="form-input" id="${fieldId}-custom" 
-                    value="${value && !MINECRAFT_ITEMS?.includes(value) && !mythicItems.find(i => i.internalName === value) ? value : ''}" 
+                    value="${value || ''}" 
                     placeholder="Or enter custom item name manually" 
                     style="margin-top: 8px;">`;
-            return html + `</div>`;
+            html += `</div>`;
+            
+            // Store the fieldId for initialization after render
+            this._pendingItemDropdown = {
+                containerId: fieldId,
+                value: value,
+                customInputId: `${fieldId}-custom`
+            };
+            
+            return html;
         }
         
         // Special handling for glow color field
@@ -810,7 +790,9 @@ class MobDropsEditor {
                 else value = newDrop.item;
                 
                 if (!value || value.trim() === '') {
-                    alert(`${field.label} is required`);
+                    if (this.editor && this.editor.showAlert) {
+                        this.editor.showAlert(`${field.label} is required`, 'warning', 'Required Field');
+                    }
                     return;
                 }
             }
@@ -819,7 +801,9 @@ class MobDropsEditor {
             if (dropType.attributes) {
                 for (const attr of dropType.attributes.filter(a => a.required)) {
                     if (!newDrop.attributes[attr.name] || newDrop.attributes[attr.name].trim() === '') {
-                        alert(`${attr.label} is required for ${dropType.name}`);
+                        if (this.editor && this.editor.showAlert) {
+                            this.editor.showAlert(`${attr.label} is required for ${dropType.name}`, 'warning', 'Required Field');
+                        }
                         return;
                     }
                 }
@@ -1075,6 +1059,70 @@ class MobDropsEditor {
         });
         
         return newDrop;
+    }
+    
+    initializeItemDropdown() {
+        // Check if we have a pending dropdown to initialize
+        if (!this._pendingItemDropdown) {
+            return;
+        }
+        
+        const { containerId, value, customInputId } = this._pendingItemDropdown;
+        const container = document.getElementById(containerId);
+        const customInput = document.getElementById(customInputId);
+        
+        if (!container) {
+            console.warn('Item dropdown container not found:', containerId);
+            return;
+        }
+        
+        // Get combined categories including MythicMobs items
+        const getCombinedCategories = window.getCombinedItemCategories || 
+            (() => window.MINECRAFT_ITEM_CATEGORIES || []);
+        const categories = getCombinedCategories(true);
+        
+        // Initialize SearchableDropdown
+        const dropdown = new SearchableDropdown(containerId, {
+            items: window.MINECRAFT_ITEMS || [],
+            categories: categories,
+            placeholder: 'Search for an item...',
+            storageKey: 'mobdrop-item',
+            onSelect: (itemName) => {
+                // Update the current editing drop
+                if (this._currentEditingDrop) {
+                    this._currentEditingDrop.item = itemName;
+                }
+                // Sync with custom input
+                if (customInput) {
+                    customInput.value = itemName;
+                }
+            },
+            allowCustom: true
+        });
+        
+        // Set initial value if provided
+        if (value) {
+            dropdown.setValue(value);
+        }
+        
+        // Sync custom input changes back to dropdown
+        if (customInput) {
+            customInput.addEventListener('input', (e) => {
+                const customValue = e.target.value.trim();
+                if (customValue) {
+                    dropdown.setValue(customValue);
+                    if (this._currentEditingDrop) {
+                        this._currentEditingDrop.item = customValue;
+                    }
+                }
+            });
+        }
+        
+        // Store dropdown instance for later access
+        this._currentItemDropdown = dropdown;
+        
+        // Clear pending initialization
+        this._pendingItemDropdown = null;
     }
     
     getValue() {

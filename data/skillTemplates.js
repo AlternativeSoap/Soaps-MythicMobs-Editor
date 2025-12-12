@@ -214,8 +214,8 @@ const SKILL_TEMPLATES = {
             {
                 id: 'mob_meteor_strike',
                 name: 'Meteor Strike',
-                description: 'Summons falling block at target',
-                skillLine: '- fallingblock{m=MAGMA_BLOCK;v=3;vy=2;sn=true} @Target ~onAttack\n- delay 30\n- damage{a=25} @EntitiesInRadius{r=4} ~onAttack\n- effect:explosion @Target ~onAttack',
+                description: 'Shoots fireball at target with explosion',
+                skillLine: '- shoot{type=FIREBALL;yield=2;incendiary=false} @Target ~onAttack\n- delay 20\n- damage{a=25} @EntitiesInRadius{r=4} ~onAttack\n- effect:explosion @Target ~onAttack',
                 category: 'combat',
                 icon: '☄️',
                 difficulty: 'advanced'
@@ -228,6 +228,87 @@ const SKILL_TEMPLATES = {
                 category: 'combat',
                 icon: '🌪️',
                 difficulty: 'advanced'
+            },
+            {
+                id: 'mob_frost_bite',
+                name: 'Frost Bite',
+                description: 'Slows and damages with cold',
+                skillLine: '- damage{a=6} @Target ~onAttack\n- potion{type=SLOW;duration=100;level=2} @Target ~onAttack\n- effect:particles{p=snowflake;a=15} @Target ~onAttack',
+                category: 'combat',
+                icon: '❄️',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'mob_shield_bash',
+                name: 'Shield Bash',
+                description: 'Knockback with temporary invulnerability',
+                skillLine: '- throw{v=2;vy=1} @Target ~onAttack\n- shield{a=10;d=40} @Self ~onAttack\n- sound{s=item.shield.block;v=1;p=0.8} @Self ~onAttack',
+                category: 'combat',
+                icon: '🛡️',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'mob_ground_slam',
+                name: 'Ground Slam',
+                description: 'AoE knockback and damage',
+                skillLine: '- damage{a=12} @EntitiesInRadius{r=5} ~onAttack\n- throw{v=1.5;vy=1.2} @EntitiesInRadius{r=5} ~onAttack\n- effect:blockmask{m=CRACKED_STONE_BRICKS;r=5;d=40} @Self ~onAttack',
+                category: 'combat',
+                icon: '💥',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'mob_life_steal',
+                name: 'Life Steal',
+                description: 'Heals when dealing damage',
+                skillLine: '- damage{a=10} @Target ~onAttack\n- heal{a=5} @Self ~onAttack\n- effect:particleline{p=heart;a=10} @Line{to=@Target} ~onAttack',
+                category: 'combat',
+                icon: '💉',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'mob_chain_attack',
+                name: 'Chain Attack',
+                description: 'Damage jumps to nearby enemies',
+                skillLine: '- damage{a=8} @Target ~onAttack\n- projectile{onTick=mob_chain_tick;i=1;v=10;hnp=true;hs=0.3;vs=0.3} @EIR{r=8;limit=3} ~onAttack',
+                category: 'combat',
+                icon: '⛓️',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'mob_counter_attack',
+                name: 'Counter Attack',
+                description: 'Reflects damage when hit',
+                skillLine: '- damage{a=<trigger.damage>} @Trigger ~onDamaged\n- effect:particles{p=sweep_attack;a=10} @Self ~onDamaged\n- sound{s=entity.player.attack.strong;v=1;p=1.2} @Self ~onDamaged',
+                category: 'combat',
+                icon: '⚡',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'mob_blood_rage',
+                name: 'Blood Rage',
+                description: 'Gains strength when low HP',
+                skillLine: '- potion{type=INCREASE_DAMAGE;duration=200;level=3} @Self ~onTimer:100 ?healthbelow{a=40;p=true}\n- potion{type=SPEED;duration=200;level=2} @Self ~onTimer:100 ?healthbelow{a=40;p=true}',
+                category: 'combat',
+                icon: '🩸',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'mob_backstab',
+                name: 'Backstab',
+                description: 'Extra damage from behind',
+                skillLine: '- damage{a=20} @Target ~onAttack ?targetnotlookingatme\n- effect:particles{p=crit;a=20} @Target ~onAttack ?targetnotlookingatme',
+                category: 'combat',
+                icon: '🗡️',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'mob_explosive_death',
+                name: 'Explosive Death',
+                description: 'Explodes on death',
+                skillLine: '- explosion{yield=2;fire=false} @Self ~onDeath\n- damage{a=15} @EntitiesInRadius{r=4} ~onDeath\n- effect:particles{p=explosion_large;a=10} @Self ~onDeath',
+                category: 'combat',
+                icon: '💣',
+                difficulty: 'intermediate'
             }
         ],
         
@@ -317,6 +398,33 @@ const SKILL_TEMPLATES = {
                 category: 'effects',
                 icon: '🌀',
                 difficulty: 'advanced'
+            },
+            {
+                id: 'effect_aura_glow',
+                name: 'Aura Glow',
+                description: 'Glowing aura around mob',
+                skillLine: '- effect:particles{p=glow;a=20;hs=1;vs=1;s=0.01} @Self ~onTimer:20',
+                category: 'effects',
+                icon: '✨',
+                difficulty: 'easy'
+            },
+            {
+                id: 'effect_ender_trail',
+                name: 'Ender Trail',
+                description: 'Portal particles following mob',
+                skillLine: '- effect:particles{p=portal;a=10;hs=0.5;vs=0.5} @Self ~onTimer:10',
+                category: 'effects',
+                icon: '🌌',
+                difficulty: 'easy'
+            },
+            {
+                id: 'effect_blood_drip',
+                name: 'Blood Drip',
+                description: 'Dripping blood particles when low HP',
+                skillLine: '- effect:particles{p=block_marker{block=redstone_block};a=5;vy=-0.3} @Self ~onTimer:30 ?healthbelow{a=50;p=true}',
+                category: 'effects',
+                icon: '🩸',
+                difficulty: 'intermediate'
             },
             {
                 id: 'effect_orbital_particles',
@@ -414,6 +522,24 @@ const SKILL_TEMPLATES = {
                 skillLine: '- summonmob{mob=Elite_Guard;amount=2;radius=4;yaw=spread} @Self ~onDamaged ?healthbelow{a=50;p=true}\n- message{m="<red>Reinforcements arrive!"} @PIR{r=20} ~onDamaged ?healthbelow{a=50;p=true}',
                 category: 'summons',
                 icon: '📯',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'summon_necromancy',
+                name: 'Necromancy',
+                description: 'Raises undead from corpses',
+                skillLine: '- summon{type=ZOMBIE;amount=3;radius=5;duration=200} @Self ~onKillPlayer\n- effect:particles{p=soul;a=30} @Self ~onKillPlayer',
+                category: 'summons',
+                icon: '☠️',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'summon_split',
+                name: 'Split on Death',
+                description: 'Spawns smaller versions on death',
+                skillLine: '- summonmob{mob=<caster.name>_Small;amount=2;radius=2} @Self ~onDeath',
+                category: 'summons',
+                icon: '🪓',
                 difficulty: 'advanced'
             },
             {
@@ -522,6 +648,24 @@ const SKILL_TEMPLATES = {
                 category: 'projectiles',
                 icon: '⚡',
                 difficulty: 'advanced'
+            },
+            {
+                id: 'proj_scatter_shot',
+                name: 'Scatter Shot',
+                description: 'Fires projectiles in all directions',
+                skillLine: '- projectile{onEnd=- damage{a=6} @EIR{r=2};v=3;i=1;d=60;hy=0;hp=0} @Self ~onAttack\n- projectile{onEnd=- damage{a=6} @EIR{r=2};v=3;i=1;d=60;hy=45;hp=0} @Self ~onAttack\n- projectile{onEnd=- damage{a=6} @EIR{r=2};v=3;i=1;d=60;hy=90;hp=0} @Self ~onAttack\n- projectile{onEnd=- damage{a=6} @EIR{r=2};v=3;i=1;d=60;hy=135;hp=0} @Self ~onAttack\n- projectile{onEnd=- damage{a=6} @EIR{r=2};v=3;i=1;d=60;hy=180;hp=0} @Self ~onAttack\n- projectile{onEnd=- damage{a=6} @EIR{r=2};v=3;i=1;d=60;hy=225;hp=0} @Self ~onAttack\n- projectile{onEnd=- damage{a=6} @EIR{r=2};v=3;i=1;d=60;hy=270;hp=0} @Self ~onAttack\n- projectile{onEnd=- damage{a=6} @EIR{r=2};v=3;i=1;d=60;hy=315;hp=0} @Self ~onAttack',
+                category: 'projectiles',
+                icon: '💫',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'proj_poison_arrow',
+                name: 'Poison Arrow',
+                description: 'Arrow that poisons target',
+                skillLine: '- shoot{type=ARROW;v=4} @Target ~onAttack\n- projectile{onEnd=- potion{type=POISON;duration=100;level=2} @EIR{r=2};v=4;i=1;d=100} @Target ~onAttack',
+                category: 'projectiles',
+                icon: '🏹',
+                difficulty: 'intermediate'
             }
         ],
         
@@ -593,6 +737,33 @@ const SKILL_TEMPLATES = {
                 difficulty: 'intermediate'
             },
             {
+                id: 'util_prison',
+                name: 'Ice Prison',
+                description: 'Traps target in ice temporarily',
+                skillLine: '- blockwave{m=ICE;r=3;d=60;v=1} @Target ~onAttack\n- freeze{d=60} @Target ~onAttack',
+                category: 'utility',
+                icon: '🧊',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'util_silence',
+                name: 'Silence',
+                description: 'Prevents target from using skills',
+                skillLine: '- silence{d=100} @Target ~onAttack\n- message{m="<dark_purple>You have been silenced!"} @Target ~onAttack',
+                category: 'utility',
+                icon: '🤐',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'util_disarm',
+                name: 'Disarm',
+                description: 'Removes target weapon',
+                skillLine: '- removeHeldItem @Target ~onAttack\n- effect:particles{p=item_crack{item=iron_sword};a=20} @Target ~onAttack',
+                category: 'utility',
+                icon: '🗡️',
+                difficulty: 'intermediate'
+            },
+            {
                 id: 'util_set_time',
                 name: 'Set Time',
                 description: 'Changes time for nearby players',
@@ -637,6 +808,96 @@ const SKILL_TEMPLATES = {
                 skillLine: '- setgravity{g=-0.08;d=100} @PIR{r=5} ~onAttack',
                 category: 'utility',
                 icon: '⬆️',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'util_cleanse',
+                name: 'Cleanse',
+                description: 'Removes negative effects',
+                skillLine: '- potion{type=CLEAR} @Self ~onTimer:200\n- effect:particles{p=happy_villager;a=20} @Self ~onTimer:200',
+                category: 'utility',
+                icon: '✨',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'util_phase',
+                name: 'Phase Shift',
+                description: 'Becomes invulnerable briefly',
+                skillLine: '- modifyTargetable{t=false;d=60} @Self ~onDamaged ?chance{c=0.3}\n- potion{type=INVISIBILITY;duration=60;level=1} @Self ~onDamaged ?chance{c=0.3}',
+                category: 'utility',
+                icon: '👻',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'util_taunt',
+                name: 'Taunt',
+                description: 'Forces nearby enemies to target',
+                skillLine: '- taunt{d=100} @MIR{r=10} ~onTimer:100\n- message{m="<red><mob.name> taunts you!"} @MIR{r=10} ~onTimer:100',
+                category: 'utility',
+                icon: '🎭',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'util_fear',
+                name: 'Fear',
+                description: 'Forces targets to flee',
+                skillLine: '- flee{s=2;d=100;ce=true} @PIR{r=8} ~onCombat\n- message{m="<dark_purple>You are terrified!"} @PIR{r=8} ~onCombat',
+                category: 'utility',
+                icon: '😱',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'util_Rally',
+                name: 'Rally Cry',
+                description: 'Buffs nearby allies',
+                skillLine: '- potion{type=INCREASE_DAMAGE;duration=200;level=1} @MIR{r=10} ~onTimer:200\n- potion{type=DAMAGE_RESISTANCE;duration=200;level=1} @MIR{r=10} ~onTimer:200\n- effect:particlesphere{p=enchanted_hit;r=10;a=50} @Self ~onTimer:200',
+                category: 'utility',
+                icon: '📯',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'util_mark',
+                name: 'Mark Target',
+                description: 'Marks target for increased damage',
+                skillLine: '- setScore{objective=marked;value=1} @Target ~onAttack\n- effect:particles{p=crit_magic;a=30;repeat=100;repeatInterval=10} @Target ~onAttack',
+                category: 'utility',
+                icon: '🎯',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'util_siphon',
+                name: 'Mana Siphon',
+                description: 'Drains resource from target',
+                skillLine: '- removeSkillCooldown{s=all} @Self ~onAttack\n- effect:particleline{p=portal;a=20} @Line{to=@Target} ~onAttack',
+                category: 'utility',
+                icon: '🔮',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'util_weather',
+                name: 'Storm Call',
+                description: 'Changes weather',
+                skillLine: '- weather{type=THUNDER;duration=600} @World ~onCombat\n- message{m="<dark_gray>Storm clouds gather..."} @World ~onCombat',
+                category: 'utility',
+                icon: '⛈️',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'util_levitate',
+                name: 'Levitate',
+                description: 'Lifts target into air',
+                skillLine: '- potion{type=LEVITATION;duration=100;level=3} @Target ~onAttack\n- effect:particles{p=cloud;a=20;vy=0.3} @Target ~onAttack',
+                category: 'utility',
+                icon: '☁️',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'util_orbital',
+                name: 'Orbital Minions',
+                description: 'Summons orbiting defenders',
+                skillLine: '- orbit{mob=OrbitalDefender;r=3;points=3;duration=200;interval=10} @Self ~onSpawn',
+                category: 'utility',
+                icon: '🌐',
                 difficulty: 'advanced'
             }
         ]
@@ -738,6 +999,51 @@ const SKILL_TEMPLATES = {
                 category: 'damage',
                 icon: '🩸',
                 difficulty: 'advanced'
+            },
+            {
+                id: 'skill_combo_strike',
+                name: 'Combo Strike',
+                description: 'Multi-hit combo attack',
+                skillLine: '- damage{a=5} @Target\n- delay 3\n- damage{a=7} @Target\n- delay 3\n- damage{a=10} @Target\n- effect:particles{p=crit;a=20} @Target',
+                category: 'damage',
+                icon: '🥊',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'skill_ground_pound',
+                name: 'Ground Pound',
+                description: 'AoE damage with knockback',
+                skillLine: '- damage{a=15} @EntitiesInRadius{r=5}\n- throw{v=1;vy=1.5} @EntitiesInRadius{r=5}\n- effect:particlering{p=block_crack{block=stone};r=5;a=100;y=0.1} @Self\n- sound{s=entity.generic.explode;v=1;p=0.8} @Self',
+                category: 'damage',
+                icon: '💥',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_frost_nova',
+                name: 'Frost Nova',
+                description: 'Freezing AoE that slows and damages',
+                skillLine: '- damage{a=8} @EntitiesInRadius{r=6}\n- potion{type=SLOW;duration=100;level=3} @EntitiesInRadius{r=6}\n- effect:particlesphere{p=snowflake;r=6;a=150} @Self\n- sound{s=block.glass.break;v=1;p=0.5} @Self',
+                category: 'damage',
+                icon: '❄️',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'skill_meteor_shower',
+                name: 'Meteor Shower',
+                description: 'Multiple fireballs in a pattern',
+                skillLine: '- shoot{type=FIREBALL;yield=1} @Target\n- delay 10\n- shoot{type=FIREBALL;yield=1} @Ring{radius=5;points=3}\n- delay 10\n- shoot{type=FIREBALL;yield=1} @Ring{radius=8;points=5}\n- delay 20\n- damage{a=20} @EntitiesInRadius{r=10}',
+                category: 'damage',
+                icon: '☄️',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_bleed',
+                name: 'Bleeding Strike',
+                description: 'Initial damage plus bleed DoT',
+                skillLine: '- damage{a=12} @Target\n- damage{a=2;repeat=10;repeatInterval=20} @Target\n- effect:particles{p=block_marker{block=redstone_block};a=3;vy=-0.2;repeat=10;repeatInterval=20} @Target',
+                category: 'damage',
+                icon: '🩸',
+                difficulty: 'advanced'
             }
         ],
         
@@ -827,6 +1133,33 @@ const SKILL_TEMPLATES = {
                 category: 'healing',
                 icon: '✨',
                 difficulty: 'advanced'
+            },
+            {
+                id: 'skill_healing_circle',
+                name: 'Healing Circle',
+                description: 'Creates healing zone',
+                skillLine: '- heal{a=3;repeat=20;repeatInterval=20} @PlayersInRadius{r=6}\n- effect:particlering{p=heart;r=6;a=50;y=0.5;repeat=20;repeatInterval=20} @Self\n- sound{s=block.beacon.ambient;v=0.5;p=1.5;repeat=20;repeatInterval=20} @Self',
+                category: 'healing',
+                icon: '⭕',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_transfusion',
+                name: 'Health Transfusion',
+                description: 'Transfers health to ally',
+                skillLine: '- damage{a=10;pi=false} @Self\n- heal{a=20} @NearestPlayer{r=10}\n- effect:particleline{p=heart;a=30} @Line{to=@NearestPlayer{r=10}}',
+                category: 'healing',
+                icon: '💉',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'skill_spring_heal',
+                name: 'Healing Spring',
+                description: 'Ground-based healing over time',
+                skillLine: '- blockwave{m=MOSS_BLOCK;r=4;rs=1;d=100;ifo=true} @Self\n- heal{a=2;repeat=25;repeatInterval=20} @PlayersInRadius{r=4}\n- effect:particles{p=happy_villager;a=5;hs=4;vs=0.5;repeat=25;repeatInterval=20} @Self',
+                category: 'healing',
+                icon: '🌿',
+                difficulty: 'advanced'
             }
         ],
         
@@ -915,6 +1248,33 @@ const SKILL_TEMPLATES = {
                 skillLine: '- pull{v=2;repeat=10;repeatInterval=2} @EntitiesInRadius{r=10}\n- effect:particlespiral{p=portal;r=8;a=100;repeat=10;repeatInterval=2} @Self',
                 category: 'movement',
                 icon: '🌀',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_dash',
+                name: 'Quick Dash',
+                description: 'Rapid forward movement',
+                skillLine: '- velocity{mode=SET;x=0;y=0.2;z=0;relative=true} @Self\n- velocity{mode=ADD;x=0;y=0;z=3;relative=true} @Self\n- effect:particles{p=cloud;a=20;hs=0.5;vs=0.3} @Self',
+                category: 'movement',
+                icon: '💨',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'skill_recall',
+                name: 'Recall to Origin',
+                description: 'Teleports back to spawn point',
+                skillLine: '- teleport @Origin\n- effect:particles{p=portal;a=50} @Origin\n- effect:particles{p=portal;a=50} @Self',
+                category: 'movement',
+                icon: '🏠',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'skill_whirlwind',
+                name: 'Whirlwind Movement',
+                description: 'Spinning dash that hits enemies',
+                skillLine: '- velocity{mode=ADD;x=0;y=0;z=2;relative=true} @Self\n- damage{a=6;repeat=8;repeatInterval=3} @EntitiesInRadius{r=3}\n- effect:particles{p=sweep_attack;a=10;repeat=8;repeatInterval=3} @Self\n- sound{s=entity.player.attack.sweep;v=1;p=1;repeat=8;repeatInterval=3} @Self',
+                category: 'movement',
+                icon: '🌪️',
                 difficulty: 'advanced'
             }
         ],
@@ -1023,6 +1383,24 @@ const SKILL_TEMPLATES = {
                 category: 'buffs',
                 icon: '😠',
                 difficulty: 'advanced'
+            },
+            {
+                id: 'skill_battle_cry',
+                name: 'Battle Cry',
+                description: 'AoE team buff with sound',
+                skillLine: '- potion{type=INCREASE_DAMAGE;duration=200;level=2} @PlayersInRadius{r=15}\n- potion{type=DAMAGE_RESISTANCE;duration=200;level=1} @PlayersInRadius{r=15}\n- effect:particlesphere{p=flame;r=15;a=200} @Self\n- sound{s=entity.ender_dragon.growl;v=2;p=0.8} @Self\n- message{m="<gold><bold>BATTLE CRY!"} @PlayersInRadius{r=15}',
+                category: 'buffs',
+                icon: '📯',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_blessing',
+                name: 'Divine Blessing',
+                description: 'Full buff suite for allies',
+                skillLine: '- potion{type=REGENERATION;duration=200;level=2} @PlayersInRadius{r=8}\n- potion{type=ABSORPTION;duration=200;level=2} @PlayersInRadius{r=8}\n- potion{type=DAMAGE_RESISTANCE;duration=200;level=1} @PlayersInRadius{r=8}\n- effect:particles{p=enchanted_hit;a=100;hs=8;vs=3} @Self\n- sound{s=block.beacon.power_select;v=1;p=1.5} @Self',
+                category: 'buffs',
+                icon: '✨',
+                difficulty: 'advanced'
             }
         ],
         
@@ -1112,11 +1490,60 @@ const SKILL_TEMPLATES = {
                 category: 'debuffs',
                 icon: '🌑',
                 difficulty: 'advanced'
+            },
+            {
+                id: 'skill_confusion',
+                name: 'Confusion',
+                description: 'Nausea and disorientation',
+                skillLine: '- potion{type=CONFUSION;duration=100;level=1} @Target\n- effect:particles{p=portal;a=50;hs=1;vs=1} @Target\n- sound{s=entity.enderman.teleport;v=1;p=0.5} @Target',
+                category: 'debuffs',
+                icon: '😵',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'skill_hex',
+                name: 'Hex',
+                description: 'Damage vulnerability curse',
+                skillLine: '- potion{type=UNLUCK;duration=200;level=3} @Target\n- potion{type=GLOWING;duration=200;level=1} @Target\n- effect:particles{p=squid_ink;a=30;repeat=10;repeatInterval=20} @Target',
+                category: 'debuffs',
+                icon: '🔮',
+                difficulty: 'advanced'
             }
         ],
         
-        utility: [
-            // === EASY UTILITY ===
+        auras: [
+            // === EASY AURAS ===
+            {
+                id: 'skill_healing_aura',
+                name: 'Healing Aura',
+                description: 'Heals nearby players over time',
+                skillLine: '- aura{auraName=HealingAura;charges=1;chargesPerSecond=0.2;d=100;i=20;onTick=healNearby} @Self',
+                category: 'auras',
+                icon: '🌟',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'skill_damage_aura',
+                name: 'Damage Aura',
+                description: 'Damages nearby enemies periodically',
+                skillLine: '- aura{auraName=DamageAura;charges=1;chargesPerSecond=0.5;d=100;i=10;onTick=damageNearby} @Self',
+                category: 'auras',
+                icon: '💥',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'skill_thorns_aura',
+                name: 'Thorns Aura',
+                description: 'Reflects damage to attackers',
+                skillLine: '- aura{auraName=ThornsAura;charges=1;d=100;onHurt=reflectDamage} @Self',
+                category: 'auras',
+                icon: '🛡️',
+                difficulty: 'intermediate'
+            }
+        ],
+        
+        examples: [
+            // === COMPLETE SKILL EXAMPLES (formerly second 'utility' section) ===
             {
                 id: 'skill_message_cast',
                 name: 'Cast Message',
@@ -1173,6 +1600,24 @@ const SKILL_TEMPLATES = {
                 icon: '💨',
                 difficulty: 'intermediate'
             },
+            {
+                id: 'skill_firework',
+                name: 'Firework Display',
+                description: 'Launches celebratory firework',
+                skillLine: '- effect:firework{t=BALL;c=RED,BLUE,GREEN;fade=YELLOW;f=true;trail=true} @Self\n- sound{s=entity.firework_rocket.launch;v=1;p=1} @Self',
+                category: 'utility',
+                icon: '🎆',
+                difficulty: 'intermediate'
+            },
+            {
+                id: 'skill_extinguish',
+                name: 'Extinguish Flames',
+                description: 'Removes fire from self',
+                skillLine: '- extinguish @Self\n- effect:particles{p=smoke_large;a=20} @Self\n- sound{s=block.fire.extinguish;v=1;p=1} @Self',
+                category: 'utility',
+                icon: '💨',
+                difficulty: 'intermediate'
+            },
             
             // === ADVANCED UTILITY ===
             {
@@ -1200,6 +1645,78 @@ const SKILL_TEMPLATES = {
                 skillLine: '- actionbarmessage{m="<gold>Skill Ready!";duration=40} @Self',
                 category: 'utility',
                 icon: '📝',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_thunder_strike',
+                name: '⚡ Thunder Strike',
+                description: 'Complete: Lightning with damage and effects',
+                skillLine: '- message{m="<yellow>⚡ Thunder Strike!"} @Self\n- sound{s=entity.lightning_bolt.thunder;v=2;p=1} @Self\n- lightning @Target\n- damage{a=25} @Target\n- effect:particles{p=electric_spark;a=100;hs=2;vs=3} @Target\n- throw{v=1;vy=2} @Target\n- delay 10\n- potion{type=SLOW;duration=60;level=2} @Target',
+                category: 'utility',
+                icon: '⚡',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_flame_burst',
+                name: '🔥 Flame Burst',
+                description: 'Complete: AoE fire skill with lingering flames',
+                skillLine: '- message{m="<red><bold>FLAME BURST!"} @PlayersInRadius{r=10}\n- sound{s=entity.blaze.shoot;v=1.5;p=0.8} @Self\n- effect:particlesphere{p=flame;r=6;a=200} @Self\n- damage{a=15} @EntitiesInRadius{r=6}\n- ignite{ticks=80} @EntitiesInRadius{r=6}\n- delay 10\n- blockwave{m=FIRE;r=6;d=80;v=1} @Self\n- effect:particles{p=lava;a=50;hs=6;vs=1} @Self',
+                category: 'utility',
+                icon: '🔥',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_holy_nova',
+                name: '✨ Holy Nova',
+                description: 'Complete: Damage enemies, heal allies',
+                skillLine: '- message{m="<white><bold>✨ HOLY NOVA!"} @PlayersInRadius{r=12}\n- sound{s=block.beacon.power_select;v=2;p=1.5} @Self\n- effect:particlesphere{p=enchanted_hit;r=8;a=300} @Self\n- damage{a=20} @EntitiesInRadius{r=8;t=MONSTER}\n- heal{a=15} @PlayersInRadius{r=8}\n- potion{type=REGENERATION;duration=100;level=2} @PlayersInRadius{r=8}\n- effect:particles{p=heart;a=30} @PlayersInRadius{r=8}',
+                category: 'utility',
+                icon: '✨',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_ice_prison',
+                name: '🧊 Ice Prison',
+                description: 'Complete: Traps and damages target',
+                skillLine: '- message{m="<aqua>🧊 Ice Prison!"} @Self\n- sound{s=block.glass.break;v=1;p=0.5} @Self\n- blockwave{m=ICE;r=3;d=80;v=1} @Target\n- blockwave{m=PACKED_ICE;r=2;d=80;v=2} @Target\n- freeze{d=80} @Target\n- damage{a=8;repeat=8;repeatInterval=10} @Target\n- effect:particles{p=snowflake;a=10;repeat=8;repeatInterval=10} @Target\n- potion{type=SLOW;duration=100;level=4} @Target',
+                category: 'utility',
+                icon: '🧊',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_shadow_step',
+                name: '👻 Shadow Step',
+                description: 'Complete: Teleport behind target with stealth',
+                skillLine: '- message{m="<dark_purple>👻 Shadow Step..."} @Self\n- potion{type=INVISIBILITY;duration=40;level=1} @Self\n- effect:particles{p=squid_ink;a=50} @Self\n- sound{s=entity.enderman.teleport;v=1;p=0.8} @Self\n- teleport{spreadh=0;spreadv=0} @Target\n- delay 15\n- damage{a=30} @Target\n- effect:particles{p=crit;a=30} @Target\n- sound{s=entity.player.attack.crit;v=1;p=1} @Self',
+                category: 'utility',
+                icon: '👻',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_dragon_breath',
+                name: '🐉 Dragon Breath',
+                description: 'Complete: Cone of fire damage and ignite',
+                skillLine: '- message{m="<gold><bold>🐉 DRAGON BREATH!"} @PlayersInRadius{r=15}\n- sound{s=entity.ender_dragon.growl;v=2;p=0.7} @Self\n- damage{a=20} @EntitiesInCone{a=45;r=12}\n- ignite{ticks=80} @EntitiesInCone{a=45;r=12}\n- effect:particles{p=dragon_breath;a=200;hs=4;vs=2} @Cone{a=45;r=12;p=30}\n- effect:particles{p=flame;a=100;hs=8;vs=3} @Self',
+                category: 'utility',
+                icon: '🐉',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_earthquake',
+                name: '🌋 Earthquake',
+                description: 'Complete: Ground slam with waves',
+                skillLine: '- message{m="<dark_red><bold>🌋 EARTHQUAKE!"} @PlayersInRadius{r=15}\n- sound{s=entity.generic.explode;v=2;p=0.5} @Self\n- throw{v=0;vy=2} @EntitiesInRadius{r=10}\n- damage{a=18} @EntitiesInRadius{r=10}\n- blockwave{m=CRACKED_STONE_BRICKS;r=10;d=60;v=2} @Self\n- effect:particles{p=block_crack{block=stone};a=200;hs=10;vs=2} @Self\n- delay 20\n- damage{a=10;repeat=5;repeatInterval=10} @EntitiesInRadius{r=10}\n- effect:particlering{p=smoke_large;r=10;a=100;y=0.1;repeat=5;repeatInterval=10} @Self',
+                category: 'utility',
+                icon: '🌋',
+                difficulty: 'advanced'
+            },
+            {
+                id: 'skill_meteor_rain',
+                name: '☄️ Meteor Rain',
+                description: 'Complete: Multiple fireballs with explosions',
+                skillLine: '- message{m="<gold><bold>☄️ METEOR RAIN!"} @PlayersInRadius{r=20}\n- sound{s=entity.wither.spawn;v=2;p=0.8} @Self\n- shoot{type=FIREBALL;yield=2} @Ring{radius=5to12;points=5;repeat=5;repeatInterval=8}\n- delay 40\n- damage{a=25} @EntitiesInRadius{r=15}\n- effect:explosion @RandomLocationsNearCaster{r=12;a=5}\n- sound{s=entity.generic.explode;v=2;p=0.8} @Self',
+                category: 'utility',
+                icon: '☄️',
                 difficulty: 'advanced'
             }
         ]
@@ -1269,16 +1786,17 @@ const SKILL_TEMPLATES = {
     getCategoryIcon(category) {
         const icons = {
             combat: '⚔️',
+            damage: '💥',
             effects: '✨',
             summons: '👾',
             projectiles: '🎯',
             utility: '🔧',
-            damage: '💥',
             healing: '💚',
             movement: '🏃',
             buffs: '💪',
             debuffs: '🐌',
-            auras: '🌟'
+            auras: '🌟',
+            examples: '📚'
         };
         return icons[category] || '📦';
     },
@@ -1289,18 +1807,43 @@ const SKILL_TEMPLATES = {
     getCategoryDisplayName(category) {
         const names = {
             combat: 'Combat',
+            damage: 'Damage',
             effects: 'Effects',
             summons: 'Summons',
             projectiles: 'Projectiles',
             utility: 'Utility',
-            damage: 'Damage',
             healing: 'Healing',
             movement: 'Movement',
             buffs: 'Buffs',
             debuffs: 'Debuffs',
-            auras: 'Auras'
+            auras: 'Auras',
+            examples: 'Complete Examples'
         };
         return names[category] || category.charAt(0).toUpperCase() + category.slice(1);
+    },
+    
+    /**
+     * Check if a template has triggers (for mob files only)
+     * @param {Object} template - The template to check
+     * @returns {boolean} - True if template has triggers
+     */
+    hasTrigger(template) {
+        if (!template) return false;
+        // Check for explicit requiresMobFile flag
+        if (template.requiresMobFile === true) return true;
+        // Check for trigger patterns in skillLine
+        if (template.skillLine && template.skillLine.includes('~on')) return true;
+        return false;
+    },
+    
+    /**
+     * Get only skill-compatible templates (without triggers)
+     * @param {string} context - The context to filter ('mob' or 'skill')
+     * @returns {Array} - Array of templates without triggers
+     */
+    getSkillCompatibleTemplates(context = 'skill') {
+        const allTemplates = this.getAll(context);
+        return allTemplates.filter(template => !this.hasTrigger(template));
     }
 };
 

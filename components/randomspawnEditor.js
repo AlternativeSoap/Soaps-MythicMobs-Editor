@@ -729,7 +729,7 @@ class RandomSpawnEditor {
         const weight = parseInt(weightInput.value) || 100;
         
         if (!name) {
-            alert('Please select or enter a mob type');
+            this.editor.showAlert('Please select or enter a mob type', 'warning', 'Missing Mob Type');
             return;
         }
         
@@ -1188,8 +1188,9 @@ class RandomSpawnEditor {
      * Add a new spawn section to the current file
      */
     async addNewSection() {
-        const newName = await this.editor.showPrompt('New Spawn', 'Enter name for new spawn:');
+        let newName = await this.editor.showPrompt('New Spawn', 'Enter name for new spawn:');
         if (!newName || newName.trim() === '') return;
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Find the parent file for the current spawn
         const parentFile = this.findParentFile();
@@ -1240,8 +1241,9 @@ class RandomSpawnEditor {
             return;
         }
         
-        const newName = await this.editor.showPrompt('Duplicate Spawn', 'Enter name for duplicated spawn:', file.name + '_copy');
+        let newName = await this.editor.showPrompt('Duplicate Spawn', 'Enter name for duplicated spawn:', file.name + '_copy');
         if (!newName || newName.trim() === '') return;
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Find the parent file for the current spawn
         const parentFile = this.findParentFile();
@@ -1311,8 +1313,9 @@ class RandomSpawnEditor {
             return;
         }
         
-        const newName = await this.editor.showPrompt('Rename Spawn', 'Enter new name for the spawn:', file.name);
+        let newName = await this.editor.showPrompt('Rename Spawn', 'Enter new name for the spawn:', file.name);
         if (!newName || newName.trim() === '' || newName.trim() === file.name) return;
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Find the parent file for the current spawn
         const parentFile = this.findParentFile();

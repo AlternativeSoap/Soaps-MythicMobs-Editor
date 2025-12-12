@@ -71,7 +71,8 @@ class MythicMobsEditor {
             autoFormat: true,
             keepHistory: true,
             maxHistory: 100,
-            warnDuplicateFiles: true
+            warnDuplicateFiles: true,
+            internalNameSeparator: '_'
         };
         
         this.settings = { ...this.defaultSettings };
@@ -280,6 +281,10 @@ class MythicMobsEditor {
         });
         document.getElementById('setting-max-history')?.addEventListener('input', (e) => {
             document.getElementById('max-history-value').textContent = e.target.value;
+        });
+        document.getElementById('setting-internal-name-separator')?.addEventListener('change', (e) => {
+            const preview = document.getElementById('separator-preview');
+            if (preview) preview.textContent = e.target.value;
         });
         
         // Note: Modal overlay click handler is attached per-modal in createModal()
@@ -1541,6 +1546,11 @@ class MythicMobsEditor {
         document.getElementById('setting-max-history').value = this.settings.maxHistory;
         document.getElementById('max-history-value').textContent = this.settings.maxHistory;
         document.getElementById('setting-warn-duplicate-files').checked = this.settings.warnDuplicateFiles !== false;
+        document.getElementById('setting-internal-name-separator').value = this.settings.internalNameSeparator || '_';
+        
+        // Update separator preview
+        const separatorPreview = document.getElementById('separator-preview');
+        if (separatorPreview) separatorPreview.textContent = this.settings.internalNameSeparator || '_';
         
         modal.classList.remove('hidden');
     }
@@ -1595,6 +1605,7 @@ class MythicMobsEditor {
         this.settings.keepHistory = document.getElementById('setting-keep-history').checked;
         this.settings.maxHistory = parseInt(document.getElementById('setting-max-history').value);
         this.settings.warnDuplicateFiles = document.getElementById('setting-warn-duplicate-files').checked;
+        this.settings.internalNameSeparator = document.getElementById('setting-internal-name-separator').value || '_';
         
         // Save to storage
         this.saveSettings();
@@ -1611,8 +1622,12 @@ class MythicMobsEditor {
     /**
      * Reset settings to defaults
      */
-    resetSettings() {
-        if (!confirm('Reset all settings to default values?')) return;
+    async resetSettings() {
+        const confirmed = await this.showConfirmDialog(
+            'Reset all settings to default values?',
+            'Reset Settings'
+        );
+        if (!confirmed) return;
         
         this.settings = { ...this.defaultSettings };
         this.saveSettings();
@@ -1661,6 +1676,71 @@ class MythicMobsEditor {
                 saveAllBtn.classList.add('pulse-highlight');
             }
         }
+    }
+    
+    /**
+     * Sanitize internal name by replacing spaces with configured separator
+     */
+    sanitizeInternalName(name) {
+        if (!name) return name;
+        const separator = this.settings.internalNameSeparator || '_';
+        // Replace spaces with separator and remove other invalid characters
+        return name.replace(/\s+/g, separator)
+                   .replace(/[^a-zA-Z0-9_\-\.]/g, '')
+                   .trim();
+    }
+    
+    /**
+     * Show alert dialog (replacement for native alert)
+     */
+    showAlert(message, type = 'info', title = null) {
+        // Auto-determine title based on type if not provided
+        if (!title) {
+            const titles = {
+                'error': 'Error',
+                'warning': 'Warning',
+                'success': 'Success',
+                'info': 'Notice'
+            };
+            title = titles[type] || 'Notice';
+        }
+        
+        return new Promise((resolve) => {
+            const okAction = () => {
+                resolve(true);
+            };
+            
+            // Determine icon based on type
+            const icons = {
+                'error': 'fa-exclamation-circle',
+                'warning': 'fa-exclamation-triangle',
+                'success': 'fa-check-circle',
+                'info': 'fa-info-circle'
+            };
+            const icon = icons[type] || 'fa-info-circle';
+            
+            this.createModal(title, `
+                <div class="alert-message-container">
+                    <i class="fas ${icon} alert-icon alert-icon-${type}"></i>
+                    <p class="alert-message">${message}</p>
+                </div>
+            `, [
+                { label: 'OK', class: 'btn-primary', action: okAction }
+            ], `modal-alert modal-alert-${type}`);
+            
+            // Add keyboard shortcuts
+            setTimeout(() => {
+                const keyHandler = (e) => {
+                    if (e.key === 'Enter' || e.key === 'Escape') {
+                        e.preventDefault();
+                        okAction();
+                        this.closeModal();
+                        document.removeEventListener('keydown', keyHandler);
+                    }
+                };
+                document.addEventListener('keydown', keyHandler);
+            }, 100);
+        });
     }
     
     /**

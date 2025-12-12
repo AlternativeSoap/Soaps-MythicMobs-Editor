@@ -5,7 +5,7 @@
  */
 
 class TemplateSelector {
-    constructor() {
+    constructor(templateManager = null, templateEditor = null) {
         this.context = 'mob';
         this.currentTab = 'favorites';
         this.searchQuery = '';
@@ -14,6 +14,32 @@ class TemplateSelector {
         this.favorites = this.loadFavorites();
         this.recentTemplates = this.loadRecent();
         this.selectedTemplate = null;
+        
+        // NEW: Template management
+        this.templateManager = templateManager;
+        this.templateEditor = templateEditor;
+        this.builtInTemplates = [];
+        this.userTemplates = [];
+        this.allTemplates = [];
+        this.isLoading = false;
+        this.currentPage = 1;
+        this.pageSize = 50;
+        this.hasMore = false;
+        
+        // View mode and filters
+        this.viewMode = localStorage.getItem('templateSelector_viewMode') || 'grid'; // 'grid' or 'list'
+        this.filterCategory = 'all';
+        this.filterComplexity = 'all';
+        this.filterOwner = 'all';
+        this.sortBy = localStorage.getItem('templateSelector_sortBy') || 'name'; // 'name', 'date', 'lines'
+        this.sortOrder = localStorage.getItem('templateSelector_sortOrder') || 'asc';
+        
+        // Phase 2: Event listener tracking and performance
+        this.eventListeners = [];
+        this.searchDebounceTimer = null;
+        this.cachedElements = {};
+        this.skeletonTimeout = null; // Issue #4: Timeout to force hide skeleton
+        
         this.createModal();
         this.attachEventListeners();
     }
@@ -86,8 +112,8 @@ class TemplateSelector {
      */
     createModal() {
         const modalHTML = `
-            <div id="templateSelectorOverlay" class="condition-modal" style="display: none;">
-                <div class="modal-content condition-browser template-browser-content">
+            <div id="templateSelectorOverlay" class="condition-modal" style="display: none; z-index: 9000;">
+                <div class="modal-content condition-browser template-browser-content" style="max-width: 1200px; height: 85vh; max-height: 900px;">
                     <!-- Header -->
                     <div class="modal-header">
                         <button class="btn btn-secondary btn-back" id="templateSelectorBack" title="Back to options" style="display: none;">
@@ -97,6 +123,13 @@ class TemplateSelector {
                             <i class="fas fa-layer-group"></i>
                             Skill Templates
                         </h2>
+                        <button class="btn btn-success" id="templateSelectorCreate" title="Create new template" style="margin-right: 8px; display: none;">
+                            <i class="fas fa-plus"></i>
+                            Create Template
+                        </button>
+                        <button class="btn btn-secondary btn-icon" id="templateSelectorRefresh" title="Refresh templates" style="margin-right: 8px;">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                         <button class="btn-close" id="templateSelectorClose" title="Close">
                             <i class="fas fa-times"></i>
                         </button>
@@ -114,13 +147,53 @@ class TemplateSelector {
                         </button>
                     </div>
                     
+                    <!-- Filters & View Toggle -->
+                    <div style="padding: 0 1.5rem; margin-bottom: 1rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                        <!-- View Toggle -->
+                        <div class="view-toggle" style="display: flex; gap: 0.25rem; background: var(--bg-secondary); border-radius: 6px; padding: 0.25rem;">
+                            <button id="viewGrid" class="view-btn active" title="Grid View" style="padding: 0.5rem 0.75rem; border: none; background: var(--primary-color); color: white; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+                                <i class="fas fa-th"></i>
+                            </button>
+                            <button id="viewList" class="view-btn" title="List View" style="padding: 0.5rem 0.75rem; border: none; background: transparent; color: var(--text-secondary); border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+                                <i class="fas fa-list"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Filters -->
+                        <select id="filterComplexity" class="form-control" style="width: auto; padding: 0.5rem 0.75rem; font-size: 0.9rem;">
+                            <option value="all">All Complexity</option>
+                            <option value="easy">Easy (1-3 lines)</option>
+                            <option value="medium">Medium (4-8 lines)</option>
+                            <option value="hard">Hard (9+ lines)</option>
+                        </select>
+                        
+                        <select id="filterOwner" class="form-control" style="width: auto; padding: 0.5rem 0.75rem; font-size: 0.9rem;">
+                            <option value="all">All Templates</option>
+                            <option value="builtin">Built-in Only</option>
+                            <option value="community">Community Only</option>
+                            <option value="yours">Your Templates</option>
+                        </select>
+                        
+                        <!-- Sort -->
+                        <select id="sortBy" class="form-control" style="width: auto; padding: 0.5rem 0.75rem; font-size: 0.9rem;">
+                            <option value="name">Sort by Name</option>
+                            <option value="date">Sort by Date</option>
+                            <option value="lines">Sort by Lines</option>
+                            <option value="category">Sort by Category</option>
+                        </select>
+                        
+                        <button id="sortOrder" class="btn btn-secondary btn-icon" title="Toggle sort order" style="padding: 0.5rem 0.75rem;">
+                            <i class="fas fa-sort-alpha-down"></i>
+                        </button>
+                    </div>
+                    
                     <!-- Tabs -->
                     <div class="category-tabs" id="templateTabs">
                         <!-- Tabs will be rendered here -->
                     </div>
                     
                     <!-- Content Area -->
-                    <div class="condition-browser-body">
+                    <div class="condition-browser-body" style="position: relative;">
                         <div class="condition-list" id="templateList">
                             <!-- Templates will be rendered here -->
                         </div>
@@ -140,6 +213,267 @@ class TemplateSelector {
         const temp = document.createElement('div');
         temp.innerHTML = modalHTML;
         document.body.appendChild(temp.firstElementChild);
+        
+        // Inject grid styles
+        this.injectStyles();
+    }
+    
+    /**
+     * Inject CSS styles for grid layout and animations
+     */
+    injectStyles() {
+        if (document.getElementById('templateSelectorStyles')) return;
+        
+        const styles = `
+            <style id="templateSelectorStyles">
+                /* === Grid & List Layouts === */
+                .template-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                    gap: 1rem;
+                    padding: 0.5rem 0;
+                    animation: view-fade-in 0.3s ease-out;
+                }
+                
+                .template-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1rem;
+                    animation: view-fade-in 0.3s ease-out;
+                }
+                
+                /* === Responsive Grid Breakpoints === */
+                @media (max-width: 1200px) {
+                    .template-grid {
+                        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+                    }
+                }
+                
+                @media (max-width: 900px) {
+                    .template-grid {
+                        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                    }
+                }
+                
+                /* === Card Micro-Interactions === */
+                .template-grid-card {
+                    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+                                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                                border-color 0.2s;
+                }
+                
+                .template-grid-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    border-color: var(--primary-color);
+                }
+                
+                .template-grid-card:active {
+                    transform: translateY(0) scale(0.98);
+                }
+                
+                .template-grid-card .btn {
+                    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                
+                .template-grid-card .btn:hover {
+                    transform: scale(1.05);
+                }
+                
+                .template-grid-card .btn:active {
+                    transform: scale(0.95);
+                }
+                
+                /* === Badge Animations === */
+                .template-badge {
+                    animation: badge-appear 0.3s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+                }
+                
+                .template-badge:nth-child(1) { animation-delay: 0.05s; }
+                .template-badge:nth-child(2) { animation-delay: 0.1s; }
+                .template-badge:nth-child(3) { animation-delay: 0.15s; }
+                
+                @keyframes badge-appear {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-8px);
+                    }
+                }
+                
+                /* === Card Appearance Animations === */
+                .template-grid-card, .template-list-card {
+                    animation: card-appear 0.3s ease-out backwards;
+                }
+                
+                .template-grid-card:nth-child(1) { animation-delay: 0.03s; }
+                .template-grid-card:nth-child(2) { animation-delay: 0.06s; }
+                .template-grid-card:nth-child(3) { animation-delay: 0.09s; }
+                .template-grid-card:nth-child(4) { animation-delay: 0.12s; }
+                .template-grid-card:nth-child(5) { animation-delay: 0.15s; }
+                .template-grid-card:nth-child(6) { animation-delay: 0.18s; }
+                .template-grid-card:nth-child(7) { animation-delay: 0.21s; }
+                .template-grid-card:nth-child(8) { animation-delay: 0.24s; }
+                .template-grid-card:nth-child(9) { animation-delay: 0.27s; }
+                
+                @keyframes card-appear {
+                    from {
+                        opacity: 0;
+                        transform: translateY(12px);
+                    }
+                }
+                
+                /* === View Toggle Animation === */
+                @keyframes view-fade-in {
+                    from {
+                        opacity: 0;
+                        transform: translateY(8px);
+                    }
+                }
+                
+                /* === Enhanced Skeleton Loading === */
+                .skeleton-card {
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border-color);
+                    border-radius: 8px;
+                    padding: 1rem;
+                    height: 280px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 0.75rem;
+                }
+                
+                .skeleton-icon {
+                    width: 60px;
+                    height: 60px;
+                    border-radius: 50%;
+                    background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%);
+                    background-size: 200% 100%;
+                    animation: skeleton-loading 1.5s ease-in-out infinite;
+                }
+                
+                .skeleton-title {
+                    width: 80%;
+                    height: 20px;
+                    border-radius: 4px;
+                    background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%);
+                    background-size: 200% 100%;
+                    animation: skeleton-loading 1.5s ease-in-out infinite;
+                }
+                
+                .skeleton-badges {
+                    display: flex;
+                    gap: 0.5rem;
+                    width: 100%;
+                    justify-content: center;
+                }
+                
+                .skeleton-badge {
+                    width: 60px;
+                    height: 22px;
+                    border-radius: 12px;
+                    background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%);
+                    background-size: 200% 100%;
+                    animation: skeleton-loading 1.5s ease-in-out infinite;
+                }
+                
+                .skeleton-text {
+                    width: 100%;
+                    height: 14px;
+                    border-radius: 4px;
+                    background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%);
+                    background-size: 200% 100%;
+                    animation: skeleton-loading 1.5s ease-in-out infinite;
+                }
+                
+                .skeleton-text:last-of-type {
+                    width: 70%;
+                }
+                
+                .skeleton-buttons {
+                    width: 100%;
+                    height: 36px;
+                    border-radius: 4px;
+                    margin-top: auto;
+                    background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%);
+                    background-size: 200% 100%;
+                    animation: skeleton-loading 1.5s ease-in-out infinite;
+                }
+                
+                @keyframes skeleton-loading {
+                    0% { background-position: 200% 0; }
+                    100% { background-position: -200% 0; }
+                }
+                
+                /* === Enhanced Empty States === */
+                .empty-state {
+                    animation: empty-appear 0.4s ease-out;
+                }
+                
+                @keyframes empty-appear {
+                    from {
+                        opacity: 0;
+                        transform: scale(0.95);
+                    }
+                }
+                
+                .empty-state i {
+                    animation: icon-float 3s ease-in-out infinite;
+                }
+                
+                @keyframes icon-float {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-8px); }
+                }
+                
+                /* === Favorite Button === */
+                .template-grid-card .favorite-btn {
+                    opacity: 0;
+                    transition: opacity 0.2s, transform 0.15s;
+                }
+                
+                .template-grid-card:hover .favorite-btn,
+                .template-grid-card .favorite-btn.favorited {
+                    opacity: 1;
+                }
+                
+                .template-grid-card .favorite-btn:hover {
+                    transform: scale(1.15);
+                }
+                
+                .template-grid-card .favorite-btn:active {
+                    transform: scale(0.9);
+                }
+                
+                /* === Focus States for Accessibility === */
+                .template-grid-card:focus-within {
+                    outline: 2px solid var(--primary-color);
+                    outline-offset: 2px;
+                }
+                
+                .view-btn:focus,
+                .btn:focus {
+                    outline: 2px solid var(--primary-color);
+                    outline-offset: 2px;
+                }
+                
+                .template-grid-card .btn:focus {
+                    outline-offset: -2px;
+                }
+            </style>
+        `;
+        
+        document.head.insertAdjacentHTML('beforeend', styles);
+    }
+    
+    /**
+     * Destroy the modal and remove from DOM
+     */
+    destroy() {
+        const overlay = document.getElementById('templateSelectorOverlay');
+        if (overlay) {
+            overlay.remove();
+        }
     }
 
     /**
@@ -171,13 +505,57 @@ class TemplateSelector {
                 this.close();
             }
         });
+        
+        // Create button
+        document.getElementById('templateSelectorCreate')?.addEventListener('click', () => {
+            this.handleCreateTemplate();
+        });
+        
+        // Refresh button
+        document.getElementById('templateSelectorRefresh')?.addEventListener('click', () => {
+            this.refresh();
+        });
+        
+        // View toggle
+        document.getElementById('viewGrid')?.addEventListener('click', () => {
+            this.setViewMode('grid');
+        });
+        document.getElementById('viewList')?.addEventListener('click', () => {
+            this.setViewMode('list');
+        });
+        
+        // Filters
+        document.getElementById('filterComplexity')?.addEventListener('change', (e) => {
+            this.filterComplexity = e.target.value;
+            this.renderTemplates();
+        });
+        document.getElementById('filterOwner')?.addEventListener('change', (e) => {
+            this.filterOwner = e.target.value;
+            this.renderTemplates();
+        });
+        
+        // Sort
+        document.getElementById('sortBy')?.addEventListener('change', (e) => {
+            this.sortBy = e.target.value;
+            localStorage.setItem('templateSelector_sortBy', this.sortBy);
+            this.renderTemplates();
+        });
+        document.getElementById('sortOrder')?.addEventListener('click', () => {
+            this.toggleSortOrder();
+        });
 
-        // Search input
+        // Search input (Phase 2: Debounced for performance)
         const searchInput = document.getElementById('templateSearchInput');
         searchInput.addEventListener('input', (e) => {
-            this.searchQuery = e.target.value.toLowerCase();
-            document.getElementById('templateSearchClear').style.display = this.searchQuery ? 'block' : 'none';
-            this.renderTemplates();
+            const query = e.target.value.toLowerCase();
+            document.getElementById('templateSearchClear').style.display = query ? 'block' : 'none';
+            
+            // Debounce search to avoid excessive re-renders (300ms delay)
+            clearTimeout(this.searchDebounceTimer);
+            this.searchDebounceTimer = setTimeout(() => {
+                this.searchQuery = query;
+                this.renderTemplates();
+            }, 300);
         });
 
         // Clear search
@@ -200,15 +578,36 @@ class TemplateSelector {
     }
 
     /**
+     * Show notification message
+     */
+    showNotification(message, type = 'info') {
+        if (window.editor && typeof window.editor.showToast === 'function') {
+            window.editor.showToast(message, type);
+        } else {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            // Fallback to alert for important messages
+            if (type === 'error' || type === 'warning') {
+                alert(message);
+            }
+        }
+    }
+
+    /**
      * Open the template selector
      */
-    open(options = {}) {
-        console.log('🎁 Opening Template Selector (Modern Design)');
+    async open(options = {}) {
+        console.log('🎁 Opening Template Selector (Hybrid Mode)');
         this.context = options.context || 'mob';
         this.onSelectCallback = options.onSelect || null;
         this.onBackCallback = options.onBack || null;
         this.searchQuery = '';
         this.selectedTemplate = null;
+        this.currentPage = 1;
+        
+        // Default to 'all' tab if favorites is empty
+        if (this.favorites.length === 0 && this.currentTab === 'favorites') {
+            this.currentTab = 'all';
+        }
         
         // Show/hide back button based on callback presence
         const backBtn = document.getElementById('templateSelectorBack');
@@ -216,15 +615,50 @@ class TemplateSelector {
             backBtn.style.display = this.onBackCallback ? 'inline-flex' : 'none';
         }
         
+        // Show/hide create button based on auth status
+        const createBtn = document.getElementById('templateSelectorCreate');
+        if (createBtn) {
+            const isAuthenticated = window.authManager?.isAuthenticated();
+            console.log('🔑 Auth status for Create Template button:', isAuthenticated);
+            createBtn.style.display = isAuthenticated ? 'inline-flex' : 'none';
+        }
+        
         // Reset search input
         document.getElementById('templateSearchInput').value = '';
         document.getElementById('templateSearchClear').style.display = 'none';
         
+        // Restore view mode UI
+        this.setViewMode(this.viewMode);
+        
+        // Restore sort UI
+        document.getElementById('sortBy').value = this.sortBy;
+        const sortOrderIcon = document.getElementById('sortOrder').querySelector('i');
+        sortOrderIcon.className = this.sortOrder === 'asc' ? 'fas fa-sort-alpha-down' : 'fas fa-sort-alpha-up';
+        
+        // Show modal
+        document.getElementById('templateSelectorOverlay').style.display = 'flex';
+        
+        // Show loading state
+        this.showLoading();
+        
+        // Issue #4: Safety timeout - force hide skeleton after 5 seconds
+        this.skeletonTimeout = setTimeout(() => {
+            if (this.isLoading) {
+                console.warn('⚠️ Skeleton loading timeout (5s) - forcing hide');
+                this.hideLoading();
+                this.renderTemplates();
+            }
+        }, 5000);
+        
+        // Load templates (hybrid: built-in + remote)
+        await this.loadAllTemplates();
+        
         // Render tabs and templates
         this.renderTabs();
         this.renderTemplates();
-
-        document.getElementById('templateSelectorOverlay').style.display = 'flex';
+        
+        // Hide loading AFTER rendering (fixes empty category infinite loading)
+        this.hideLoading();
         
         // Focus search input
         setTimeout(() => {
@@ -239,6 +673,144 @@ class TemplateSelector {
         document.getElementById('templateSelectorOverlay').style.display = 'none';
         this.onSelectCallback = null;
         this.selectedTemplate = null;
+        
+        // Phase 2: Clear any pending debounce timers
+        if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer);
+            this.searchDebounceTimer = null;
+        }
+        
+        // Issue #4: Clear skeleton timeout
+        if (this.skeletonTimeout) {
+            clearTimeout(this.skeletonTimeout);
+            this.skeletonTimeout = null;
+        }
+        
+        console.log('🧹 Template selector cleanup completed');
+    }
+    
+    /**
+     * Set view mode (grid or list)
+     */
+    setViewMode(mode) {
+        this.viewMode = mode;
+        localStorage.setItem('templateSelector_viewMode', mode);
+        
+        // Update UI
+        const gridBtn = document.getElementById('viewGrid');
+        const listBtn = document.getElementById('viewList');
+        
+        if (mode === 'grid') {
+            gridBtn.style.background = 'var(--primary-color)';
+            gridBtn.style.color = 'white';
+            listBtn.style.background = 'transparent';
+            listBtn.style.color = 'var(--text-secondary)';
+        } else {
+            listBtn.style.background = 'var(--primary-color)';
+            listBtn.style.color = 'white';
+            gridBtn.style.background = 'transparent';
+            gridBtn.style.color = 'var(--text-secondary)';
+        }
+        
+        this.renderTemplates();
+    }
+    
+    /**
+     * Toggle sort order
+     */
+    toggleSortOrder() {
+        this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+        localStorage.setItem('templateSelector_sortOrder', this.sortOrder);
+        
+        const btn = document.getElementById('sortOrder');
+        const icon = btn.querySelector('i');
+        icon.className = this.sortOrder === 'asc' ? 'fas fa-sort-alpha-down' : 'fas fa-sort-alpha-up';
+        
+        this.renderTemplates();
+    }
+    
+    /**
+     * Sort templates based on current sort settings
+     */
+    sortTemplates(templates) {
+        const sorted = [...templates];
+        
+        sorted.sort((a, b) => {
+            let aVal, bVal;
+            
+            switch (this.sortBy) {
+                case 'name':
+                    aVal = a.name.toLowerCase();
+                    bVal = b.name.toLowerCase();
+                    break;
+                case 'date':
+                    aVal = a.created_at || a.id;
+                    bVal = b.created_at || b.id;
+                    break;
+                case 'lines':
+                    aVal = this.getLineCount(a);
+                    bVal = this.getLineCount(b);
+                    break;
+                case 'category':
+                    aVal = a.category || '';
+                    bVal = b.category || '';
+                    break;
+                default:
+                    return 0;
+            }
+            
+            if (aVal < bVal) return this.sortOrder === 'asc' ? -1 : 1;
+            if (aVal > bVal) return this.sortOrder === 'asc' ? 1 : -1;
+            return 0;
+        });
+        
+        return sorted;
+    }
+    
+    /**
+     * Get line count for a template
+     */
+    getLineCount(template) {
+        if (Array.isArray(template.skillLines)) {
+            return template.skillLines.length;
+        } else if (template.skillLine) {
+            return this.extractSkillLines(template.skillLine).length;
+        }
+        return 1;
+    }
+    
+    /**
+     * Apply filters to templates
+     */
+    applyFilters(templates) {
+        let filtered = [...templates];
+        
+        // Complexity filter
+        if (this.filterComplexity !== 'all') {
+            filtered = filtered.filter(t => {
+                const lineCount = this.getLineCount(t);
+                switch (this.filterComplexity) {
+                    case 'easy': return lineCount <= 3;
+                    case 'medium': return lineCount >= 4 && lineCount <= 8;
+                    case 'hard': return lineCount >= 9;
+                    default: return true;
+                }
+            });
+        }
+        
+        // Owner filter
+        if (this.filterOwner !== 'all') {
+            filtered = filtered.filter(t => {
+                switch (this.filterOwner) {
+                    case 'builtin': return t.isBuiltIn;
+                    case 'community': return !t.isBuiltIn && !this.isOwner(t);
+                    case 'yours': return this.isOwner(t);
+                    default: return true;
+                }
+            });
+        }
+        
+        return filtered;
     }
 
     /**
@@ -246,7 +818,7 @@ class TemplateSelector {
      */
     renderTabs() {
         const container = document.getElementById('templateTabs');
-        const contextTemplates = SKILL_TEMPLATES.getAll(this.context);
+        const contextTemplates = this.context === 'skill' ? SKILL_TEMPLATES.getAll('skill') : SKILL_TEMPLATES.getAll('mob');
         const categories = SKILL_TEMPLATES.getAllCategories(this.context);
         
         const favoriteCount = this.getFavoriteTemplates().length;
@@ -307,36 +879,89 @@ class TemplateSelector {
     }
 
     /**
+     * Get appropriate empty state message based on context
+     */
+    getEmptyStateMessage() {
+        // Search query takes priority
+        if (this.searchQuery) {
+            return {
+                title: 'No templates found matching your search',
+                subtitle: 'Try a different search term or clear filters'
+            };
+        }
+        
+        // Special tabs
+        switch(this.currentTab) {
+            case 'favorites':
+                return {
+                    title: 'No favorite templates yet',
+                    subtitle: 'Click the star icon on templates to add them to favorites'
+                };
+            
+            case 'recent':
+                return {
+                    title: 'No recent templates',
+                    subtitle: 'Templates you use will appear here'
+                };
+            
+            case 'all':
+                return {
+                    title: 'No templates available',
+                    subtitle: 'Create your own template to get started'
+                };
+            
+            default:
+                // Category tab
+                const categoryName = SKILL_TEMPLATES.getCategoryDisplayName(this.currentTab) || this.currentTab;
+                return {
+                    title: `No templates in ${categoryName}`,
+                    subtitle: 'This category is currently empty'
+                };
+        }
+    }
+    
+    /**
      * Get total template count for current context
      */
     getTotalTemplateCount() {
-        const contextTemplates = SKILL_TEMPLATES.getAll(this.context);
-        return contextTemplates.length;
+        return this.allTemplates.length;
     }
 
     /**
      * Get favorite templates
      */
     getFavoriteTemplates() {
-        const allTemplates = SKILL_TEMPLATES.getAll(this.context);
-        return allTemplates.filter(t => this.isFavorite(t.id));
+        return this.allTemplates.filter(t => this.isFavorite(t.id));
     }
 
     /**
      * Get recent templates
      */
     getRecentTemplates() {
-        const allTemplates = SKILL_TEMPLATES.getAll(this.context);
         return this.recentTemplates
-            .map(id => allTemplates.find(t => t.id === id))
+            .map(id => this.allTemplates.find(t => t.id === id))
             .filter(t => t !== undefined);
     }
 
     /**
-     * Render template list
+     * Render template list with sections
      */
     renderTemplates() {
         const container = document.getElementById('templateList');
+        
+        // PHASE 1 FIX: Clear container to remove skeleton cards before rendering
+        container.innerHTML = '';
+        
+        // Issue #4: Don't render if still loading or templates not loaded yet
+        if (this.isLoading) {
+            console.log('⏳ Still loading, skipping render');
+            return;
+        }
+        
+        if (!this.allTemplates || this.allTemplates.length === 0) {
+            console.log('📭 No templates loaded yet, showing empty state');
+        }
+        
         let templates = [];
         
         // Get templates based on current tab
@@ -345,100 +970,386 @@ class TemplateSelector {
         } else if (this.currentTab === 'recent') {
             templates = this.getRecentTemplates();
         } else if (this.currentTab === 'all') {
-            templates = SKILL_TEMPLATES.getAll(this.context);
+            templates = this.allTemplates;
         } else {
             // Specific category
-            templates = SKILL_TEMPLATES.getByCategory(this.context, this.currentTab);
+            templates = this.allTemplates.filter(t => t.category === this.currentTab);
+        }
+        
+        // Filter out incompatible templates when in skill context
+        if (this.context === 'skill') {
+            templates = templates.filter(t => !t.requiresMobFile && !this.hasTriggers(t));
         }
         
         // Filter by search query
         if (this.searchQuery) {
-            templates = templates.filter(t => 
-                t.name.toLowerCase().includes(this.searchQuery) ||
-                t.description.toLowerCase().includes(this.searchQuery) ||
-                t.skillLine.toLowerCase().includes(this.searchQuery) ||
-                t.category.toLowerCase().includes(this.searchQuery)
-            );
+            templates = templates.filter(t => {
+                const skillLines = Array.isArray(t.skillLines) ? t.skillLines.join(' ') : (t.skillLine || '');
+                return t.name.toLowerCase().includes(this.searchQuery) ||
+                    t.description.toLowerCase().includes(this.searchQuery) ||
+                    skillLines.toLowerCase().includes(this.searchQuery) ||
+                    t.category.toLowerCase().includes(this.searchQuery);
+            });
         }
+        
+        // Apply filters
+        templates = this.applyFilters(templates);
+        
+        // Sort templates
+        templates = this.sortTemplates(templates);
         
         // Update count
         document.getElementById('templateCount').textContent = `${templates.length} template${templates.length !== 1 ? 's' : ''}`;
         
-        // Render templates
+        // Render templates with sections
         if (templates.length === 0) {
+            const emptyMessage = this.getEmptyStateMessage();
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-layer-group" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
-                    <p>${this.searchQuery ? 'No templates found matching your search' : this.currentTab === 'favorites' ? 'No favorite templates yet' : this.currentTab === 'recent' ? 'No recent templates' : 'No templates available'}</p>
-                    ${this.searchQuery ? '<small>Try a different search term</small>' : this.currentTab === 'favorites' ? '<small>Click the star icon on templates to add them to favorites</small>' : ''}
+                    <p>${emptyMessage.title}</p>
+                    ${emptyMessage.subtitle ? `<small>${emptyMessage.subtitle}</small>` : ''}
                 </div>
             `;
             return;
         }
         
+        // Group templates into sections
+        const builtIn = templates.filter(t => t.isBuiltIn);
+        const yours = templates.filter(t => !t.isBuiltIn && this.isOwner(t));
+        const community = templates.filter(t => !t.isBuiltIn && !this.isOwner(t));
+        
         let html = '';
-        templates.forEach(template => {
-            const isFav = this.isFavorite(template.id);
-            const categoryName = SKILL_TEMPLATES.getCategoryDisplayName(template.category);
-            const categoryIcon = SKILL_TEMPLATES.getCategoryIcon(template.category);
-            
-            // Extract skill lines for display
-            const extractedLines = this.extractSkillLines(template.skillLine);
-            const lineCount = Array.isArray(extractedLines) ? extractedLines.length : 1;
-            const displayLines = Array.isArray(extractedLines) 
-                ? extractedLines.slice(0, 3).join('\n') + (extractedLines.length > 3 ? '\n...' : '')
-                : extractedLines;
-            
-            // Get complexity badge
-            const complexity = this.getComplexity(lineCount, extractedLines);
-            const complexityClass = complexity === 'Easy' ? 'success' : complexity === 'Medium' ? 'warning' : 'danger';
-            
+        
+        // Set container class based on view mode
+        const gridClass = this.viewMode === 'grid' ? 'template-grid' : 'template-list';
+        
+        // Built-in Templates Section
+        if (builtIn.length > 0) {
             html += `
-                <div class="condition-item template-card" data-template-id="${template.id}">
-                    <div class="condition-item-header">
-                        <div class="condition-item-icon">${template.icon}</div>
-                        <div class="condition-item-title">
-                            <h3>${template.name}</h3>
-                            <div class="template-meta">
-                                <span class="template-badge category-badge">${categoryIcon} ${categoryName}</span>
-                                <span class="template-badge complexity-badge badge-${complexityClass}">${complexity}</span>
-                                ${lineCount > 1 ? `<span class="template-badge lines-badge">${lineCount} lines</span>` : ''}
-                            </div>
-                        </div>
-                        <button class="favorite-btn ${isFav ? 'favorited' : ''}" 
-                                data-template-id="${template.id}" 
-                                title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
-                            <i class="fas fa-star"></i>
-                        </button>
-                    </div>
-                    <div class="condition-item-description">${template.description}</div>
-                    <div class="template-preview">
-                        <div class="preview-label">Preview:</div>
-                        <pre><code>${this.escapeHtml(displayLines)}</code></pre>
-                    </div>
-                    <div class="condition-item-footer">
-                        <button class="btn btn-primary btn-sm template-use-btn" data-template-id="${template.id}">
-                            <i class="fas fa-plus"></i>
-                            Use Template
-                        </button>
-                        ${lineCount > 3 ? `<button class="btn btn-secondary btn-sm template-preview-btn" data-template-id="${template.id}">
-                            <i class="fas fa-eye"></i>
-                            View All Lines
-                        </button>` : ''}
+                <div class="template-section" style="margin-bottom: 2rem;">
+                    <h3 class="section-header" style="font-size: 1.2rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border-color);">📦 Built-in Templates (${builtIn.length})</h3>
+                    <div class="${gridClass}">
+                        ${this.renderTemplateCards(builtIn)}
                     </div>
                 </div>
             `;
-        });
+        }
+        
+        // Community Templates Section
+        if (community.length > 0) {
+            html += `
+                <div class="template-section" style="margin-bottom: 2rem;">
+                    <h3 class="section-header" style="font-size: 1.2rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border-color);">👥 Community Templates (${community.length})</h3>
+                    <div class="${gridClass}">
+                        ${this.renderTemplateCards(community)}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Your Templates Section
+        if (yours.length > 0) {
+            html += `
+                <div class="template-section" style="margin-bottom: 2rem;">
+                    <h3 class="section-header" style="font-size: 1.2rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border-color);">✏️ Your Templates (${yours.length})</h3>
+                    <div class="${gridClass}">
+                        ${this.renderTemplateCards(yours)}
+                    </div>
+                </div>
+            `;
+        }
         
         container.innerHTML = html;
         
         // Attach event handlers
-        container.querySelectorAll('.template-use-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
+        this.attachTemplateCardEvents();
+    }
+    
+    /**
+     * Check if template has triggers
+     */
+    hasTriggers(template) {
+        if (template.requiresMobFile) return true;
+        if (template.type === 'mob') return true;
+        
+        const skillLines = Array.isArray(template.skillLines) 
+            ? template.skillLines 
+            : (template.skillLine ? [template.skillLine] : []);
+        
+        return skillLines.some(line => typeof line === 'string' && line.includes('~on'));
+    }
+    
+    /**
+     * Render template cards based on current view mode
+     */
+    renderTemplateCards(templates) {
+        if (this.viewMode === 'grid') {
+            return templates.map(template => this.renderGridCard(template)).join('');
+        } else {
+            return templates.map(template => this.renderListCard(template)).join('');
+        }
+    }
+    
+    /**
+     * Render compact grid card
+     */
+    renderGridCard(template) {
+        const isFav = this.isFavorite(template.id);
+        const categoryName = template.category ? 
+            (SKILL_TEMPLATES.getCategoryDisplayName(template.category) || template.category) : 'Utility';
+        const categoryIcon = template.icon || SKILL_TEMPLATES.getCategoryIcon(template.category) || '📦';
+        const lineCount = this.getLineCount(template);
+        const complexity = this.getComplexity(lineCount, []);
+        const complexityClass = complexity === 'Easy' ? 'success' : complexity === 'Medium' ? 'warning' : 'danger';
+        
+        const ownerBadge = template.isBuiltIn 
+            ? '<span class="owner-badge built-in" style="font-size: 0.7rem; padding: 0.15rem 0.4rem;">Built-in</span>'
+            : this.isOwner(template)
+                ? '<span class="owner-badge owner-you" style="font-size: 0.7rem; padding: 0.15rem 0.4rem;">You</span>'
+                : '';
+        
+        return `
+            <div class="template-grid-card" data-template-id="${template.id}" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; cursor: pointer; transition: all 0.2s; position: relative;">
+                <button class="favorite-btn ${isFav ? 'favorited' : ''}" 
+                        data-template-id="${template.id}" 
+                        title="${isFav ? 'Remove from favorites' : 'Add to favorites'}"
+                        style="position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; color: ${isFav ? 'var(--warning-color)' : 'var(--text-secondary)'}; cursor: pointer; font-size: 1.2rem; padding: 0.25rem;">
+                    <i class="fas fa-star"></i>
+                </button>
+                
+                <div style="text-align: center; margin-bottom: 0.75rem;">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${categoryIcon}</div>
+                    <h4 style="font-size: 0.95rem; margin: 0 0 0.5rem 0; font-weight: 600; line-height: 1.3; min-height: 2.6rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                        ${this.escapeHtml(template.name)}
+                    </h4>
+                    ${ownerBadge}
+                </div>
+                
+                <div style="display: flex; gap: 0.25rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.75rem; font-size: 0.75rem;">
+                    <span class="template-badge category-badge" title="Category: ${categoryName}" style="background: var(--primary-color-transparent); color: var(--primary-color); padding: 0.2rem 0.5rem; border-radius: 12px; white-space: nowrap;">${categoryName}</span>
+                    <span class="template-badge lines-badge" title="${lineCount} skill ${lineCount === 1 ? 'line' : 'lines'}" style="background: var(--bg-tertiary); color: var(--text-secondary); padding: 0.2rem 0.5rem; border-radius: 12px; white-space: nowrap;">${lineCount} lines</span>
+                </div>
+                
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0 0 1rem 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.4rem;">
+                    ${this.escapeHtml(template.description)}
+                </p>
+                
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary btn-sm template-use-btn" data-template-id="${template.id}" style="flex: 1; min-width: 60px; font-size: 0.85rem; padding: 0.5rem;">
+                        <i class="fas fa-plus"></i> Use
+                    </button>
+                    <button class="btn btn-secondary btn-sm template-preview-btn" data-template-id="${template.id}" title="View details" style="font-size: 0.85rem; padding: 0.5rem;">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    ${this.canEdit(template) ? `
+                        <button class="btn btn-warning btn-sm template-edit-btn" data-template-id="${template.id}" title="Edit template" style="font-size: 0.85rem; padding: 0.5rem;">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    ` : ''}
+                    ${this.canDelete(template) ? `
+                        <button class="btn btn-danger btn-sm template-delete-btn" data-template-id="${template.id}" title="Delete template" style="font-size: 0.85rem; padding: 0.5rem;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Render full list card (original style)
+     */
+    renderListCard(template) {
+        const isFav = this.isFavorite(template.id);
+        const categoryName = template.category ? 
+            (SKILL_TEMPLATES.getCategoryDisplayName(template.category) || template.category) : 'Utility';
+        const categoryIcon = template.icon || SKILL_TEMPLATES.getCategoryIcon(template.category) || '📦';
+        
+        // Get skill lines
+        const skillLines = Array.isArray(template.skillLines) 
+            ? template.skillLines 
+            : (template.skillLine ? this.extractSkillLines(template.skillLine) : []);
+        
+        const lineCount = Array.isArray(skillLines) ? skillLines.length : 1;
+        const displayLines = Array.isArray(skillLines)
+            ? skillLines.slice(0, 3).join('\n') + (skillLines.length > 3 ? '\n...' : '')
+            : skillLines;
+        
+        // Get complexity badge
+        const complexity = this.getComplexity(lineCount, skillLines);
+        const complexityClass = complexity === 'Easy' ? 'success' : complexity === 'Medium' ? 'warning' : 'danger';
+        
+        // Check if template requires mob file
+        const requiresMobFile = this.hasTriggers(template);
+        const isIncompatible = this.context === 'skill' && requiresMobFile;
+        
+        // Owner badge
+        const ownerBadge = template.isBuiltIn 
+            ? '<span class="owner-badge built-in">Built-in</span>'
+            : this.isOwner(template)
+                ? '<span class="owner-badge owner-you">You</span>'
+                : `<span class="owner-badge">${this.escapeHtml(template.ownerName || 'Community')}</span>`;
+        
+        return `
+            <div class="condition-item template-card ${isIncompatible ? 'template-incompatible' : ''}" data-template-id="${template.id}" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+                <div class="condition-item-header" style="margin-bottom: 1rem;">
+                    <div class="condition-item-icon">${categoryIcon}</div>
+                    <div class="condition-item-title">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">${this.escapeHtml(template.name)} ${ownerBadge}</h3>
+                        <div class="template-meta" style="gap: 0.5rem;">
+                            <span class="template-badge category-badge" title="Category: ${categoryName}">${categoryIcon} ${categoryName}</span>
+                            <span class="template-badge complexity-badge badge-${complexityClass}" title="Complexity: ${complexity}">${complexity}</span>
+                            ${lineCount > 1 ? `<span class="template-badge lines-badge" title="${lineCount} skill lines">${lineCount} lines</span>` : ''}
+                            ${requiresMobFile ? `<span class="template-badge mob-only-badge" title="This template uses triggers and only works in mob files">🔒 Mob Only</span>` : ''}
+                            ${isIncompatible ? `<span class="template-badge incompatible-badge" title="This template contains triggers and cannot be used in skill files">⚠️ Incompatible</span>` : ''}
+                        </div>
+                    </div>
+                    <button class="favorite-btn ${isFav ? 'favorited' : ''}" 
+                            data-template-id="${template.id}" 
+                            title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
+                        <i class="fas fa-star"></i>
+                    </button>
+                </div>
+                <div class="condition-item-description" style="margin: 0.75rem 0; line-height: 1.5;">${this.escapeHtml(template.description)}</div>
+                <div class="template-preview" style="margin: 1rem 0;">
+                    <div class="preview-label">Preview:</div>
+                    <pre><code>${this.escapeHtml(displayLines)}</code></pre>
+                </div>
+                <div class="condition-item-footer">
+                    <button class="btn btn-primary btn-sm template-use-btn" data-template-id="${template.id}">
+                        <i class="fas fa-plus"></i>
+                        Use Template
+                    </button>
+                    <button class="btn btn-secondary btn-sm template-duplicate-btn" data-template-id="${template.id}">
+                        <i class="fas fa-copy"></i>
+                        Duplicate
+                    </button>
+                    ${this.canEdit(template) ? `
+                        <button class="btn btn-warning btn-sm template-edit-btn" data-template-id="${template.id}">
+                            <i class="fas fa-edit"></i>
+                            Edit
+                        </button>
+                    ` : ''}
+                    ${this.canDelete(template) ? `
+                        <button class="btn btn-danger btn-sm template-delete-btn" data-template-id="${template.id}">
+                            <i class="fas fa-trash"></i>
+                            Delete
+                        </button>
+                    ` : ''}
+                    ${lineCount > 3 ? `
+                        <button class="btn btn-secondary btn-sm template-preview-btn" data-template-id="${template.id}">
+                            <i class="fas fa-eye"></i>
+                            View All
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Attach event handlers to template cards
+     */
+    attachTemplateCardEvents() {
+        const container = document.getElementById('templateList');
+        
+        // Grid card click - open preview
+        container.querySelectorAll('.template-grid-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                // Don't trigger if clicking a button
+                if (e.target.closest('button')) return;
                 const templateId = e.currentTarget.dataset.templateId;
-                this.selectTemplate(templateId);
+                this.showFullPreview(templateId);
+            });
+        });
+        
+        // Use event delegation for buttons
+        container.querySelectorAll('.template-use-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const templateId = e.currentTarget.dataset.templateId;
+                
+                // Add loading state
+                const originalHTML = e.currentTarget.innerHTML;
+                e.currentTarget.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+                e.currentTarget.disabled = true;
+                
+                try {
+                    await this.selectTemplate(templateId);
+                } finally {
+                    // Restore button state (if still in DOM)
+                    if (e.currentTarget && e.currentTarget.parentElement) {
+                        e.currentTarget.innerHTML = originalHTML;
+                        e.currentTarget.disabled = false;
+                    }
+                }
+            });
+        });
+        
+        container.querySelectorAll('.template-duplicate-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const templateId = e.currentTarget.dataset.templateId;
+                
+                // Add loading state
+                const originalHTML = e.currentTarget.innerHTML;
+                e.currentTarget.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                e.currentTarget.disabled = true;
+                
+                try {
+                    await this.handleDuplicateTemplate(templateId);
+                } finally {
+                    // Restore button state
+                    if (e.currentTarget && e.currentTarget.parentElement) {
+                        e.currentTarget.innerHTML = originalHTML;
+                        e.currentTarget.disabled = false;
+                    }
+                }
+            });
+        });
+        
+        container.querySelectorAll('.template-edit-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const templateId = e.currentTarget.dataset.templateId;
+                
+                // Add loading state
+                const originalHTML = e.currentTarget.innerHTML;
+                e.currentTarget.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                e.currentTarget.disabled = true;
+                
+                try {
+                    await this.handleEditTemplate(templateId);
+                } finally {
+                    // Restore button state
+                    if (e.currentTarget && e.currentTarget.parentElement) {
+                        e.currentTarget.innerHTML = originalHTML;
+                        e.currentTarget.disabled = false;
+                    }
+                }
+            });
+        });
+        
+        container.querySelectorAll('.template-delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const templateId = e.currentTarget.dataset.templateId;
+                
+                // Add loading state
+                const originalHTML = e.currentTarget.innerHTML;
+                e.currentTarget.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                e.currentTarget.disabled = true;
+                
+                try {
+                    await this.handleDeleteTemplate(templateId);
+                } finally {
+                    // Restore button state
+                    if (e.currentTarget && e.currentTarget.parentElement) {
+                        e.currentTarget.innerHTML = originalHTML;
+                        e.currentTarget.disabled = false;
+                    }
+                }
             });
         });
         
@@ -446,6 +1357,7 @@ class TemplateSelector {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const templateId = e.currentTarget.dataset.templateId;
+                console.log('👁️ View All clicked for template:', templateId);
                 this.showFullPreview(templateId);
             });
         });
@@ -474,30 +1386,50 @@ class TemplateSelector {
      * Show full preview of template
      */
     showFullPreview(templateId) {
-        const template = SKILL_TEMPLATES.getById(templateId);
-        if (!template) return;
+        console.log('👁️ showFullPreview called for:', templateId);
+        const template = this.allTemplates.find(t => t.id === templateId);
+        if (!template) {
+            console.error('Template not found:', templateId);
+            return;
+        }
         
-        const extractedLines = this.extractSkillLines(template.skillLine);
+        console.log('📄 Template found:', template);
+        
+        let extractedLines;
+        if (template.skillLine) {
+            // Built-in template
+            extractedLines = this.extractSkillLines(template.skillLine);
+            console.log('📝 Extracted from skillLine:', extractedLines);
+        } else if (template.skillLines) {
+            // User template
+            extractedLines = template.skillLines;
+            console.log('📝 Using skillLines:', extractedLines);
+        } else {
+            console.error('Template has no skill lines:', template);
+            return;
+        }
+        
         const displayLines = Array.isArray(extractedLines) ? extractedLines.join('\n') : extractedLines;
         
         const modal = document.createElement('div');
         modal.className = 'condition-modal-overlay active';
+        modal.style.cssText = 'display: flex !important; z-index: 10000 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.8) !important; align-items: center !important; justify-content: center !important;';
         modal.innerHTML = `
-            <div class="condition-modal" style="max-width: 800px;">
-                <div class="condition-header">
-                    <h2>${template.icon} ${template.name}</h2>
-                    <button class="close-modal preview-close">
+            <div class="condition-modal" style="max-width: 900px; max-height: 80vh; background: var(--bg-primary); border-radius: 8px; display: flex; flex-direction: column; position: relative;">
+                <div class="condition-header" style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="margin: 0;">${template.icon} ${template.name}</h2>
+                    <button class="close-modal preview-close" style="background: none; border: none; color: var(--text-primary); font-size: 1.5rem; cursor: pointer; padding: 0.5rem;">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div class="condition-content" style="padding: 1.5rem;">
+                <div class="condition-content" style="padding: 1.5rem; overflow-y: auto; flex: 1;">
                     <p style="margin-bottom: 1rem; color: var(--text-secondary);">${template.description}</p>
                     <div class="template-preview" style="margin: 0;">
-                        <div class="preview-label">Full Template (${Array.isArray(extractedLines) ? extractedLines.length : 1} lines):</div>
-                        <pre style="max-height: 400px; overflow-y: auto;"><code>${this.escapeHtml(displayLines)}</code></pre>
+                        <div class="preview-label" style="font-weight: 600; margin-bottom: 0.5rem;">Full Template (${Array.isArray(extractedLines) ? extractedLines.length : 1} lines):</div>
+                        <pre style="max-height: 400px; overflow-y: auto; background: var(--bg-secondary); padding: 1rem; border-radius: 4px; border: 1px solid var(--border-color);"><code>${this.escapeHtml(displayLines)}</code></pre>
                     </div>
                 </div>
-                <div class="condition-footer">
+                <div class="condition-footer" style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; gap: 0.75rem; justify-content: flex-end;">
                     <button class="btn btn-secondary preview-cancel">Close</button>
                     <button class="btn btn-primary preview-use" data-template-id="${templateId}">
                         <i class="fas fa-plus"></i>
@@ -508,6 +1440,7 @@ class TemplateSelector {
         `;
         
         document.body.appendChild(modal);
+        console.log('✅ Modal appended to body:', modal);
         
         // Event handlers
         modal.querySelector('.preview-close').addEventListener('click', () => modal.remove());
@@ -525,7 +1458,8 @@ class TemplateSelector {
      * Select a template
      */
     selectTemplate(templateId) {
-        const template = SKILL_TEMPLATES.getById(templateId);
+        // Find template in merged list (built-in or user-created)
+        const template = this.allTemplates.find(t => t.id === templateId);
         
         if (!template) {
             console.error('Template not found:', templateId);
@@ -538,8 +1472,19 @@ class TemplateSelector {
         this.addToRecent(templateId);
         
         if (this.onSelectCallback) {
-            // Extract skill lines without internal names
-            const skillLines = this.extractSkillLines(template.skillLine);
+            let skillLines;
+            
+            // Built-in templates have skillLine (string), user templates have skillLines (array)
+            if (template.skillLine) {
+                // Built-in template - extract from skillLine string
+                skillLines = this.extractSkillLines(template.skillLine);
+            } else if (template.skillLines) {
+                // User template - already an array
+                skillLines = template.skillLines;
+            } else {
+                console.error('Template has no skill lines:', template);
+                return;
+            }
             
             // Pass the extracted lines (array or single string)
             this.onSelectCallback(skillLines);
@@ -618,6 +1563,349 @@ class TemplateSelector {
         div.textContent = text;
         return div.innerHTML;
     }
+    
+    // ========================================
+    // NEW: HYBRID LOADING METHODS
+    // ========================================
+    
+    /**
+     * Load all templates (built-in + remote)
+     */
+    async loadAllTemplates() {
+        // Load built-in templates (instant)
+        this.builtInTemplates = SKILL_TEMPLATES.getAll(this.context).map(t => ({
+            ...t,
+            isBuiltIn: true
+        }));
+        
+        // Load remote templates (async)
+        await this.loadRemoteTemplates();
+        
+        // Merge templates
+        this.mergeTemplates();
+    }
+    
+    /**
+     * Load remote templates from Supabase
+     */
+    async loadRemoteTemplates() {
+        if (!this.templateManager) {
+            console.log('⚠️ TemplateManager not available, using built-in only');
+            this.userTemplates = [];
+            return;
+        }
+        
+        try {
+            const remote = await this.templateManager.getAllTemplates(this.context);
+            this.userTemplates = remote;
+            console.log(`✅ Loaded ${remote.length} remote templates`);
+        } catch (error) {
+            console.error('❌ Failed to load remote templates:', error);
+            this.userTemplates = [];
+        }
+    }
+    
+    /**
+     * Merge built-in and user templates
+     */
+    mergeTemplates() {
+        this.allTemplates = [
+            ...this.builtInTemplates,
+            ...this.userTemplates
+        ];
+    }
+    
+    /**
+     * Refresh templates (force reload)
+     */
+    async refresh() {
+        console.log('🔄 Refreshing templates...');
+        
+        const refreshBtn = document.getElementById('templateSelectorRefresh');
+        const originalHTML = refreshBtn?.innerHTML;
+        
+        if (refreshBtn) {
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            refreshBtn.disabled = true;
+        }
+        
+        // Invalidate cache
+        if (this.templateManager) {
+            this.templateManager.invalidateCache();
+        }
+        
+        // Reload
+        await this.loadAllTemplates();
+        
+        // Re-render
+        this.renderTabs();
+        this.renderTemplates();
+        
+        if (refreshBtn) {
+            refreshBtn.innerHTML = originalHTML;
+            refreshBtn.disabled = false;
+        }
+        
+        if (window.app) {
+            this.showNotification('Templates refreshed!', 'success');
+        }
+    }
+    
+    /**
+     * Show loading state with skeleton cards
+     */
+    showLoading() {
+        this.isLoading = true;
+        const container = document.getElementById('templateList');
+        if (container) {
+            const skeletonCount = this.viewMode === 'grid' ? 12 : 6;
+            const gridClass = this.viewMode === 'grid' ? 'template-grid' : 'template-list';
+            
+            let html = `<div class="${gridClass}">`;
+            for (let i = 0; i < skeletonCount; i++) {
+                html += `
+                    <div class="skeleton-card">
+                        <div class="skeleton-icon"></div>
+                        <div class="skeleton-title"></div>
+                        <div class="skeleton-badges">
+                            <div class="skeleton-badge"></div>
+                            <div class="skeleton-badge"></div>
+                        </div>
+                        <div class="skeleton-text"></div>
+                        <div class="skeleton-text"></div>
+                        <div class="skeleton-buttons"></div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            
+            container.innerHTML = html;
+        }
+    }
+    
+    /**
+     * Hide loading state
+     */
+    hideLoading() {
+        this.isLoading = false;
+        
+        // Issue #4: Clear skeleton timeout when successfully loaded
+        if (this.skeletonTimeout) {
+            clearTimeout(this.skeletonTimeout);
+            this.skeletonTimeout = null;
+        }
+    }
+    
+    /**
+     * Check if user owns a template
+     */
+    isOwner(template) {
+        console.log('[TemplateSelector] isOwner() check:', {
+            templateId: template.id,
+            templateName: template.name,
+            isBuiltIn: template.isBuiltIn,
+            templateOwnerId: template.owner_id,
+            templateOwnerIdType: typeof template.owner_id,
+            isAuthenticated: window.authManager?.isAuthenticated()
+        });
+        
+        if (template.isBuiltIn) {
+            console.log('[TemplateSelector] Template is built-in, cannot edit');
+            return false;
+        }
+        
+        if (!window.authManager?.isAuthenticated()) {
+            console.log('[TemplateSelector] User not authenticated');
+            return false;
+        }
+        
+        const currentUser = window.authManager.getCurrentUser();
+        console.log('[TemplateSelector] Current user:', {
+            userId: currentUser?.id,
+            userIdType: typeof currentUser?.id,
+            email: currentUser?.email
+        });
+        
+        const isOwner = currentUser && template.owner_id === currentUser.id;
+        console.log('[TemplateSelector] Ownership check result:', isOwner);
+        
+        return isOwner;
+    }
+    
+    /**
+     * Check if user can edit template
+     */
+    canEdit(template) {
+        return this.isOwner(template);
+    }
+    
+    /**
+     * Check if user can delete template
+     */
+    canDelete(template) {
+        return this.isOwner(template);
+    }
+    
+    /**
+     * Handle edit template action
+     */
+    async handleEditTemplate(templateId) {
+        if (!this.templateEditor) {
+            console.error('TemplateEditor not available');
+            return;
+        }
+        
+        try {
+            const template = this.allTemplates.find(t => t.id === templateId);
+            if (!template) {
+                throw new Error('Template not found');
+            }
+            
+            if (!this.canEdit(template)) {
+                this.showNotification('You can only edit your own templates. Try duplicating instead!', 'warning');
+                return;
+            }
+            
+            this.templateEditor.open({
+                mode: 'edit',
+                template: template,
+                onSave: async () => {
+                    await this.refresh();
+                }
+            });
+            
+        } catch (error) {
+            console.error('Failed to edit template:', error);
+            this.showNotification('Failed to open template editor', 'error');
+        }
+    }
+    
+    /**
+     * Handle delete template action
+     */
+    async handleDeleteTemplate(templateId) {
+        if (!this.templateManager) return;
+        
+        const template = this.allTemplates.find(t => t.id === templateId);
+        if (!template) return;
+        
+        if (!this.canDelete(template)) {
+            this.showNotification('You can only delete your own templates', 'warning');
+            return;
+        }
+        
+        const confirmed = await window.notificationModal.confirm(
+            `Delete template "${template.name}"?\n\nThis action cannot be undone.`,
+            'Delete Template',
+            {
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                confirmClass: 'danger',
+                icon: '🗑️',
+                type: 'warning'
+            }
+        );
+        
+        if (!confirmed) return;
+        
+        try {
+            await this.templateManager.deleteTemplate(templateId);
+            await this.refresh();
+            this.showNotification('Template deleted successfully', 'success');
+        } catch (error) {
+            console.error('Failed to delete template:', error);
+            this.showNotification(error.message || 'Failed to delete template', 'error');
+        }
+    }
+    
+    /**
+     * Handle duplicate template action
+     */
+    async handleDuplicateTemplate(templateId) {
+        console.log('🔄 Duplicating template:', templateId);
+        
+        if (!window.authManager?.isAuthenticated()) {
+            this.showNotification('Sign in to save custom templates', 'warning');
+            return;
+        }
+        
+        if (!this.templateManager || !this.templateEditor) {
+            console.error('Template manager or editor not available');
+            return;
+        }
+        
+        try {
+            const template = this.allTemplates.find(t => t.id === templateId);
+            if (!template) {
+                throw new Error('Template not found');
+            }
+            
+            console.log('📋 Template to duplicate:', template);
+            
+            // Extract skill lines based on format
+            let skillLines = [];
+            if (template.skillLine) {
+                // Built-in template
+                skillLines = this.extractSkillLines(template.skillLine);
+            } else if (template.skillLines) {
+                // User template
+                skillLines = template.skillLines;
+            }
+            
+            // Open editor with cloned data
+            this.templateEditor.open({
+                mode: 'create',
+                skillLines: skillLines,
+                template: {
+                    name: `${template.name} (Copy)`,
+                    description: template.description,
+                    category: template.category || template.data?.category,
+                    icon: template.icon || template.data?.icon,
+                    tags: template.tags || []
+                },
+                onSave: async () => {
+                    await this.refresh();
+                }
+            });
+            
+        } catch (error) {
+            console.error('Failed to duplicate template:', error);
+            this.showNotification('Failed to duplicate template', 'error');
+        }
+    }
+    
+    /**
+     * Handle create new template action
+     */
+    async handleCreateTemplate() {
+        console.log('➕ Creating new template');
+        
+        if (!window.authManager?.isAuthenticated()) {
+            this.showNotification('Please sign in to create templates', 'warning');
+            return;
+        }
+        
+        if (!window.templateWizard) {
+            console.error('Template wizard not available');
+            return;
+        }
+        
+        try {
+            // Open wizard instead of direct editor
+            // Issue #4: Pass 'this' reference to wizard for auto-refresh
+            window.templateWizard.open({
+                context: this.context,
+                skillLines: [],
+                templateSelector: this, // Pass selector reference for auto-refresh
+                onComplete: async () => {
+                    await this.refresh();
+                }
+            });
+        } catch (error) {
+            console.error('Failed to open template wizard:', error);
+            this.showNotification('Failed to open template wizard', 'error');
+        }
+    }
 }
 
 // Export for use in other modules
@@ -626,3 +1914,4 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 // Loaded silently
+

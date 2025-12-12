@@ -104,9 +104,11 @@ class FileManager {
     }
     
     createItem(name, fileName = null) {
+        // Sanitize the name
+        const sanitizedName = name ? this.editor.sanitizeInternalName(name) : `item_${this.itemCounter++}`;
         const item = {
             id: Date.now().toString() + '_item',
-            internalName: name || `item_${this.itemCounter++}`,
+            internalName: sanitizedName,
             Id: 'DIAMOND_SWORD',
             Display: '&bCustom Item',
             Amount: 1,

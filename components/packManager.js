@@ -992,7 +992,10 @@ class PackManager {
         // Initialize material dropdown with items
         const materialItems = (typeof MINECRAFT_ITEMS !== 'undefined' ? MINECRAFT_ITEMS : []).map(item => item.toUpperCase());
         window.packinfoMaterialDropdown = new SearchableDropdown('packinfo-material-dropdown', {
-            items: materialItems,
+            categories: window.getCombinedItemCategories ? window.getCombinedItemCategories(true) : (window.MINECRAFT_ITEM_CATEGORIES || null),
+            items: !window.getCombinedItemCategories && !window.MINECRAFT_ITEM_CATEGORIES ? materialItems : null,
+            useIcons: true,
+            storageKey: 'packinfo-material',
             placeholder: 'Search materials...',
             value: packinfo.Icon?.Material || '',
             onSelect: (value) => {

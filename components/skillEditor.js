@@ -72,6 +72,7 @@ class SkillEditor {
                                 <label class="form-label">Skill Name <span class="required">*</span></label>
                                 <input type="text" class="form-input" id="skill-name" value="${skill.name}">
                                 <small class="form-hint">Internal identifier (no spaces). This is how you reference this skill.</small>
+                                <small class="form-hint" id="skill-name-sanitized" style="color: var(--accent-primary); display: none;"></small>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Cooldown (seconds)</label>
@@ -448,8 +449,9 @@ class SkillEditor {
     /**
      * Remove condition from a section
      */
-    removeCondition(sectionType, index) {
-        if (!confirm('Remove this condition?')) return;
+    async removeCondition(sectionType, index) {
+        const confirmed = await this.editor.showConfirmDialog('Remove Condition', 'Remove this condition?', 'Remove', 'Cancel');
+        if (!confirmed) return;
         
         if (!this.currentSkill[sectionType]) return;
         
@@ -464,7 +466,7 @@ class SkillEditor {
     /**
      * Edit existing condition
      */
-    editCondition(sectionType, index) {
+    async editCondition(sectionType, index) {
         const targetObj = this.getConditionStorageObject();
         if (!targetObj[sectionType] || !targetObj[sectionType][index]) return;
         
@@ -473,7 +475,8 @@ class SkillEditor {
         
         // TODO: Parse condition string to prefill browser form
         // For now, just remove and let user add again
-        if (confirm('Edit mode: This will remove the condition. Add it again with new settings.')) {
+        const confirmed = await this.editor.showConfirmDialog('Edit Condition', 'Edit mode: This will remove the condition. Add it again with new settings.', 'OK', 'Cancel');
+        if (confirmed) {
             targetObj[sectionType].splice(index, 1);
             this.refreshConditionList(sectionType);
             this.syncToFile();
@@ -523,8 +526,21 @@ class SkillEditor {
         document.getElementById('skill-name')?.addEventListener('input', (e) => {
             if (this.currentSkill) {
                 console.log('✏️ Skill name changed:', e.target.value);
-                const newName = e.target.value;
+                let newName = e.target.value;
                 const oldName = this.currentSkill.name;
+                
+                // Show sanitization preview if needed
+                const sanitizedName = this.editor.sanitizeInternalName(newName);
+                const sanitizedHint = document.getElementById('skill-name-sanitized');
+                if (sanitizedHint && sanitizedName !== newName && newName.trim()) {
+                    sanitizedHint.textContent = `Will be saved as: ${sanitizedName}`;
+                    sanitizedHint.style.display = 'block';
+                } else if (sanitizedHint) {
+                    sanitizedHint.style.display = 'none';
+                }
+                
+                // Apply sanitization
+                newName = sanitizedName;
                 
                 // Update the skill name
                 this.currentSkill.name = newName;
@@ -690,8 +706,11 @@ class SkillEditor {
      * Add a new skill section to the current file
      */
     async addNewSection() {
-        const newName = await this.editor.showPrompt('New Skill', 'Enter name for new skill:');
+        let newName = await this.editor.showPrompt('New Skill', 'Enter name for new skill:');
         if (!newName || newName.trim() === '') return;
+        
+        // Sanitize the name
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Find the parent file for the current skill
         const parentFile = this.findParentFile();
@@ -735,8 +754,11 @@ class SkillEditor {
      * Duplicate the current skill within the same file
      */
     async duplicateSkill() {
-        const newName = await this.editor.showPrompt('Duplicate Skill', 'Enter name for duplicated skill:', this.currentSkill.name + '_copy');
+        let newName = await this.editor.showPrompt('Duplicate Skill', 'Enter name for duplicated skill:', this.currentSkill.name + '_copy');
         if (!newName || newName.trim() === '') return;
+        
+        // Sanitize the name
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Find the parent file for the current skill
         const parentFile = this.findParentFile();
@@ -810,8 +832,11 @@ class SkillEditor {
      * Rename the current skill
      */
     async renameSkill() {
-        const newName = await this.editor.showPrompt('Rename Skill', 'Enter new name for skill:', this.currentSkill.name);
+        let newName = await this.editor.showPrompt('Rename Skill', 'Enter new name for skill:', this.currentSkill.name);
         if (!newName || newName.trim() === '' || newName.trim() === this.currentSkill.name) return;
+        
+        // Sanitize the name
+        newName = this.editor.sanitizeInternalName(newName);
         
         // Check if name already exists
         const pack = this.editor.state.currentPack;
@@ -961,7 +986,10 @@ class SkillEditor {
                 skillLinesContainer,
                 this.targeterBrowser,
                 this.mechanicBrowser,
-                null  // No trigger browser for skill files
+                null,  // No trigger browser for skill files
+                null,  // No condition editor
+                window.templateManager,
+                window.templateEditor
             );
             
             // Load the skills object into the editor BEFORE setting context

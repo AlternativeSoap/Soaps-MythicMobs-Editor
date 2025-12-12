@@ -1491,24 +1491,29 @@ kbd {
 
 .searchable-dropdown-list {
     position: fixed;
-    max-height: 300px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
     overflow-y: auto;
     background: var(--bg-elevated);
     border: 1px solid var(--border-primary);
     border-radius: 0.5rem;
     box-shadow: var(--shadow-lg);
     z-index: 10000;
-    animation: slideDown 0.2s ease;
+    animation: modalFadeIn 0.2s ease;
 }
 
-@keyframes slideDown {
+@keyframes modalFadeIn {
     from {
         opacity: 0;
-        transform: translateY(-0.5rem);
+        transform: translate(-50%, -50%) scale(0.95);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translate(-50%, -50%) scale(1);
     }
 }
 
@@ -1564,6 +1569,392 @@ kbd {
 
 .searchable-dropdown-list::-webkit-scrollbar-thumb:hover {
     background: var(--accent-hover);
+}
+
+/* Categorized Dropdown Styles */
+.searchable-dropdown-category {
+    background: var(--bg-tertiary);
+    padding: 0.5rem 0.75rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.2s;
+}
+
+.searchable-dropdown-category:hover {
+    background: var(--bg-hover);
+}
+
+.searchable-dropdown-category-icon {
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.2rem;
+    margin-right: 0.5rem;
+}
+
+.searchable-dropdown-category-icon .mc-category-icon {
+    width: 20px;
+    height: 20px;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+.searchable-dropdown-category-icon .emoji-icon {
+    font-size: 1rem;
+}
+
+.searchable-dropdown-category-name {
+    flex: 1;
+}
+
+.searchable-dropdown-category-count {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    font-weight: normal;
+}
+
+.searchable-dropdown-category-chevron {
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+}
+
+.searchable-dropdown-category.collapsed .searchable-dropdown-category-chevron {
+    transform: rotate(-90deg);
+}
+
+.searchable-dropdown-category-items {
+    max-height: 300px;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+
+.searchable-dropdown-category-items.collapsed {
+    max-height: 0;
+}
+
+/* Minecraft Item Icons */
+.mc-item-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 0.5rem;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    vertical-align: middle;
+}
+
+.mc-item-icon-fallback {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 0.5rem;
+    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+    border-radius: 2px;
+    text-align: center;
+    line-height: 16px;
+    font-size: 10px;
+    font-weight: bold;
+    color: white;
+    vertical-align: middle;
+}
+
+/* Enhanced Dropdown Item with Icon */
+.searchable-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.searchable-dropdown-item-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.searchable-dropdown-item-name {
+    flex: 1;
+}
+
+.searchable-dropdown-item-favorite {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: color 0.2s, transform 0.2s;
+}
+
+.searchable-dropdown-item-favorite:hover {
+    color: #FFD700;
+    transform: scale(1.2);
+}
+
+.searchable-dropdown-item-favorite.active {
+    color: #FFD700;
+}
+
+.searchable-dropdown-item-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.searchable-dropdown-item-badge.recent {
+    background: rgba(74, 144, 226, 0.2);
+    color: #4A90E2;
+}
+
+.searchable-dropdown-item-badge.favorite {
+    background: rgba(255, 215, 0, 0.2);
+    color: #FFD700;
+}
+
+/* Category Card Grid */
+.searchable-dropdown-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+    padding: 0.75rem;
+    max-height: 550px;
+    overflow-y: auto;
+}
+
+.searchable-dropdown-card {
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.5rem;
+    min-height: 100px;
+    position: relative;
+    overflow: hidden;
+}
+
+.searchable-dropdown-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--category-color, var(--accent-primary));
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.searchable-dropdown-card:hover {
+    border-color: var(--category-color, var(--accent-primary));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.searchable-dropdown-card:hover::before {
+    opacity: 1;
+}
+
+.searchable-dropdown-card-icon {
+    font-size: 2rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.searchable-dropdown-card-icon .mc-category-icon {
+    width: 32px;
+    height: 32px;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+.searchable-dropdown-card-icon .emoji-icon {
+    font-size: 2rem;
+}
+
+.searchable-dropdown-card-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.searchable-dropdown-card-count {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
+/* Special Cards */
+.searchable-dropdown-card.special-favorites {
+    border-color: rgba(255, 215, 0, 0.3);
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.05) 0%, var(--bg-secondary) 100%);
+}
+
+.searchable-dropdown-card.special-favorites:hover {
+    border-color: #FFD700;
+}
+
+.searchable-dropdown-card.special-recent {
+    border-color: rgba(74, 144, 226, 0.3);
+    background: linear-gradient(135deg, rgba(74, 144, 226, 0.05) 0%, var(--bg-secondary) 100%);
+}
+
+.searchable-dropdown-card.special-recent:hover {
+    border-color: #4A90E2;
+}
+
+/* Expanded Category View */
+.searchable-dropdown-expanded-header {
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--border-color);
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.searchable-dropdown-back-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    padding: 0.4rem 0.75rem;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.searchable-dropdown-back-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.searchable-dropdown-expanded-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.searchable-dropdown-expanded-icon {
+    font-size: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.5rem;
+}
+
+.searchable-dropdown-expanded-icon .mc-category-icon {
+    width: 24px;
+    height: 24px;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+.searchable-dropdown-expanded-icon .emoji-icon {
+    font-size: 1.5rem;
+}
+
+.searchable-dropdown-expanded-count {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: normal;
+}
+
+.searchable-dropdown-expanded-items {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+/* Special Sections */
+.searchable-dropdown-special-section {
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 0.25rem;
+}
+
+.searchable-dropdown-section-header {
+    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+    color: white;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.searchable-dropdown-section-header i {
+    font-size: 0.9rem;
+}
+
+/* MythicMobs Items Category Styling */
+.searchable-dropdown-card[data-category="MythicMobs Items"] {
+    background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
+    border-color: #9C27B0;
+}
+
+.searchable-dropdown-card[data-category="MythicMobs Items"]:hover {
+    background: linear-gradient(135deg, #AB47BC 0%, #8E24AA 100%);
+    border-color: #AB47BC;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
+}
+
+.searchable-dropdown-card[data-category="MythicMobs Items"] .searchable-dropdown-card-name {
+    color: white;
+}
+
+.searchable-dropdown-card[data-category="MythicMobs Items"] .searchable-dropdown-card-count {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+/* MythicMobs item in list */
+.searchable-dropdown-item[data-mythicmobs="true"] {
+    background: rgba(156, 39, 176, 0.05);
+    border-left: 3px solid #9C27B0;
+    padding-left: calc(0.75rem - 3px);
+}
+
+.searchable-dropdown-item[data-mythicmobs="true"]:hover {
+    background: rgba(156, 39, 176, 0.15);
+}
+
+.searchable-dropdown-item[data-mythicmobs="true"].selected {
+    background: rgba(156, 39, 176, 0.25);
+    border-left-color: #7B1FA2;
 }
 
 /* === Phase 1: Advanced Mob Features Styles === */
@@ -2846,7 +3237,14 @@ kbd {
     width: 90%;
     max-width: 600px;
     max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.drop-editor-modal .modal-body {
     overflow-y: auto;
+    flex: 1;
+    min-height: 0;
 }
 
 .drop-editor-modal.large-modal {
@@ -4355,6 +4753,39 @@ kbd {
 .template-badge.lines-badge {
     background: rgba(59, 130, 246, 0.15);
     color: #3b82f6;
+}
+
+.template-badge.mob-only-badge {
+    background: rgba(168, 85, 247, 0.15);
+    color: #a855f7;
+    font-weight: 700;
+}
+
+.template-badge.incompatible-badge {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    font-weight: 700;
+    animation: pulse-warning 2s ease-in-out infinite;
+}
+
+@keyframes pulse-warning {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+.template-incompatible {
+    opacity: 0.6;
+    pointer-events: none;
+    filter: grayscale(0.5);
+}
+
+.template-incompatible .template-use-btn {
+    background: var(--danger, #ef4444);
+    cursor: not-allowed;
 }
 
 /* Template preview section */
