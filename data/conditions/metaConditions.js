@@ -8,7 +8,7 @@ const META_CONDITIONS = [
     {
         id: 'chance',
         name: 'Chance',
-        category: 'Meta',
+        category: 'Logic & Meta',
         type: 'meta',
         description: 'Sets the probability of the metaskill being executed. Chance can range between 0 and 1, with 0 being a 0% chance and 1 being a 100% chance',
         aliases: [],
@@ -32,7 +32,7 @@ const META_CONDITIONS = [
     {
         id: 'compareValues',
         name: 'Compare Values',
-        category: 'Meta',
+        category: 'Logic & Meta',
         type: 'meta',
         description: 'Compares two values based on a specified operation. Supports Integers, Floats, Doubles, and Strings (lexicographically). The comparison is made from value1 against value2',
         aliases: ['comparevalue'],
@@ -84,7 +84,7 @@ const META_CONDITIONS = [
     {
         id: 'damageAmount',
         name: 'Damage Amount',
-        category: 'Meta',
+        category: 'Combat',
         type: 'meta',
         description: 'Checks for a range of damage the entity took, if the skilltree originated from a onDamaged Trigger or an onDamaged Aura',
         aliases: [],
@@ -107,7 +107,7 @@ const META_CONDITIONS = [
     {
         id: 'damageCause',
         name: 'Damage Cause',
-        category: 'Meta',
+        category: 'Combat',
         type: 'meta',
         description: 'Checks the cause of the damage the entity took, if the skilltree originated from a onDamaged Trigger or an onDamaged Aura',
         aliases: [],
@@ -131,7 +131,7 @@ const META_CONDITIONS = [
     {
         id: 'damageTag',
         name: 'Damage Tag',
-        category: 'Meta',
+        category: 'Combat',
         type: 'meta',
         description: 'Checks whether the damage that caused the current skill tree has a specific tag',
         aliases: ['damagehastag'],
@@ -162,7 +162,7 @@ const META_CONDITIONS = [
     {
         id: 'directionalVelocity',
         name: 'Directional Velocity',
-        category: 'Meta',
+        category: 'Entity State',
         type: 'meta',
         description: 'Checks if the target has a velocity matching the given parameters along X, Y, or Z axis',
         aliases: ['dvelocity'],
@@ -241,7 +241,7 @@ const META_CONDITIONS = [
     {
         id: 'enchantingExperience',
         name: 'Enchanting Experience',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks the experience points progress (0-1) towards next level for the target player',
         aliases: ['enchantingExp', 'enchantExperience', 'enchantExp'],
@@ -264,7 +264,7 @@ const META_CONDITIONS = [
     {
         id: 'enchantingLevel',
         name: 'Enchanting Level',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks the target player\'s experience level',
         aliases: [],
@@ -287,7 +287,7 @@ const META_CONDITIONS = [
     {
         id: 'enderDragonAlive',
         name: 'Ender Dragon Alive',
-        category: 'Meta',
+        category: 'Time & Weather',
         type: 'meta',
         description: 'Checks if there is at least one EnderDragon alive in the world of the targeted location',
         aliases: ['isdragonalive', 'dragonalive'],
@@ -299,7 +299,7 @@ const META_CONDITIONS = [
     {
         id: 'enderDragonPhase',
         name: 'Ender Dragon Phase',
-        category: 'Meta',
+        category: 'Entity Type',
         type: 'meta',
         description: 'Checks the phase of the target Ender Dragon entity',
         aliases: ['edragonPhase'],
@@ -323,7 +323,7 @@ const META_CONDITIONS = [
     {
         id: 'entityItemIsSimilar',
         name: 'Entity Item Is Similar',
-        category: 'Meta',
+        category: 'Entity Type',
         type: 'meta',
         description: 'Tests if the item entity is similar to an itemstack',
         aliases: [],
@@ -346,7 +346,7 @@ const META_CONDITIONS = [
     {
         id: 'entityItemType',
         name: 'Entity Item Type',
-        category: 'Meta',
+        category: 'Entity Type',
         type: 'meta',
         description: 'Tests the type of the targeted entity item',
         aliases: [],
@@ -368,7 +368,7 @@ const META_CONDITIONS = [
     {
         id: 'entityMaterialType',
         name: 'Entity Material Type',
-        category: 'Meta',
+        category: 'Entity Type',
         type: 'meta',
         description: 'Tests the material of the targeted entity item',
         aliases: [],
@@ -390,7 +390,7 @@ const META_CONDITIONS = [
     {
         id: 'foodLevel',
         name: 'Food Level',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks the food amount of the target',
         aliases: ['hunger', 'food', 'hungerlevel'],
@@ -413,7 +413,7 @@ const META_CONDITIONS = [
     {
         id: 'foodSaturation',
         name: 'Food Saturation',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks the food saturation amount of the target',
         aliases: ['hungerSaturation'],
@@ -436,7 +436,7 @@ const META_CONDITIONS = [
     {
         id: 'gameMode',
         name: 'Game Mode',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Matches the target player\'s gamemode',
         aliases: ['gm'],
@@ -460,7 +460,7 @@ const META_CONDITIONS = [
     {
         id: 'hasFreeInventorySlot',
         name: 'Has Free Inventory Slot',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks if the evaluated entity has a free inventory slot (at all)',
         aliases: [],
@@ -472,7 +472,7 @@ const META_CONDITIONS = [
     {
         id: 'inClaim',
         name: 'In Claim',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks if the target location is inside a claim from supported plugins (GriefPrevention, Lands, CrashClaim)',
         aliases: ['nearClaim', 'nearClaims'],
@@ -495,7 +495,7 @@ const META_CONDITIONS = [
     {
         id: 'isSkill',
         name: 'Is Skill',
-        category: 'Meta',
+        category: 'Logic & Meta',
         type: 'meta',
         description: 'Checks whether the specified metaskill exists',
         aliases: ['skillexists'],
@@ -517,7 +517,7 @@ const META_CONDITIONS = [
     {
         id: 'isUsingSpyglass',
         name: 'Is Using Spyglass',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'If the target player is using a spyglass',
         aliases: ['isScoping'],
@@ -529,7 +529,7 @@ const META_CONDITIONS = [
     {
         id: 'itemGroupOnCooldown',
         name: 'Item Group On Cooldown',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks whether the target player has the specified item group on cooldown',
         aliases: [],
@@ -551,7 +551,7 @@ const META_CONDITIONS = [
     {
         id: 'itemIsSimilar',
         name: 'Item Is Similar',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks if the target player\'s inventory slot holds an item similar to the specified one',
         aliases: ['issimilar', 'similarto'],
@@ -584,7 +584,7 @@ const META_CONDITIONS = [
     {
         id: 'itemRecharging',
         name: 'Item Recharging',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks if the weapon of the target entity is recharging',
         aliases: [],
@@ -596,7 +596,7 @@ const META_CONDITIONS = [
     {
         id: 'itemType',
         name: 'Item Type',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks against the material of the item that triggered the skill. Uses the Item Matcher',
         aliases: [],
@@ -632,6 +632,43 @@ const META_CONDITIONS = [
         ],
         examples: [
             'itemType{types=STONE,STONE_SWORD} true'
+        ]
+    },
+    {
+        id: 'bowTension',
+        name: 'Bow Tension',
+        category: 'Player',
+        type: 'meta',
+        description: 'Checks the bow tension of when an entity shoots from a bow',
+        aliases: ['bowshoottension'],
+        attributes: [
+            {
+                name: 'force',
+                aliases: ['f', 'value', 'v', 'val'],
+                type: 'range',
+                required: false,
+                default: '>0',
+                description: 'The value of the force/tension to check for. Accepts ranged float values from 0 to 1',
+                placeholder: '>0.5',
+                validation: 'number_range'
+            }
+        ],
+        examples: [
+            'bowtension{value=>0.5} true',
+            'bowshoottension{f=>0.8} true'
+        ]
+    },
+    {
+        id: 'isInSurvivalMode',
+        name: 'Is In Survival Mode',
+        category: 'Player',
+        type: 'meta',
+        description: 'Checks if the target player is in survival mode',
+        aliases: ['insurvivalmode'],
+        attributes: [],
+        examples: [
+            'isinsurvivalmode true',
+            'insurvivalmode true'
         ]
     }
 ];

@@ -315,7 +315,6 @@ class AuthUI {
     }
     
     async handleManualSync() {
-        console.log('🔄 Manual sync triggered...');
         this.setSyncStatus('syncing');
         
         // Show a loading message
@@ -329,7 +328,6 @@ class AuthUI {
             if (this.storageManager?.db?.syncToCloud) {
                 await this.storageManager.db.syncToCloud();
                 this.showSyncSuccess();
-                console.log('✅ Manual sync completed');
                 
                 // Show success message
                 if (window.editor && window.editor.showToast) {
@@ -356,14 +354,12 @@ class AuthUI {
     async handleLogout() {
         // Save any pending changes to cloud before logging out
         if (this.storageManager?.db?.syncToCloud) {
-            console.log('💾 Saving data before logout...');
             await this.storageManager.db.syncToCloud();
         }
         
         const result = await this.authManager.logout();
         
         if (result.success) {
-            console.log('🔓 Logged out successfully');
             
             // Clear localStorage to separate user data
             const keysToKeep = ['mythicmobs_anon_id']; // Keep old anonymous ID if it exists
@@ -388,7 +384,6 @@ class AuthUI {
                 await this.storageManager.db.updateUserId(anonId);
                 
                 // Try to load old anonymous data from cloud if it exists
-                console.log('🔄 Loading anonymous user data...');
                 await this.storageManager.db.syncFromCloud();
             }
             

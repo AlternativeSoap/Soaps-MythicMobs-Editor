@@ -13,7 +13,6 @@ class ItemEditor {
      */
     render(item) {
         this.currentItem = item;
-        console.log('📦 Rendering item:', item?.internalName || 'New Item');
 
         const container = document.getElementById('item-editor-view');
         if (!container) {

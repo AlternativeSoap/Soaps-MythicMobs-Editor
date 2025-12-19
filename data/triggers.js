@@ -361,6 +361,19 @@ const TRIGGERS_DATA = {
             mobTypeRestrictions: [],
             autoEnable: null
         },
+        {
+            name: 'onDismounted',
+            aliases: ['onUnmounted'],
+            category: 'special',
+            description: 'Executes the skill when the mob is dismounted from (and dismounts the mob).',
+            hasTarget: true,
+            targetDescription: 'The entity that dismounted the caster',
+            placeholders: [],
+            requirements: [],
+            parameters: null,
+            mobTypeRestrictions: [],
+            autoEnable: null
+        },
 
         // SPECIAL EVENTS CATEGORY
         {
@@ -520,6 +533,9 @@ const TRIGGERS_DATA = {
         };
     }
 };
+
+// Export to window for browser usage
+window.TRIGGERS_DATA = TRIGGERS_DATA;
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {

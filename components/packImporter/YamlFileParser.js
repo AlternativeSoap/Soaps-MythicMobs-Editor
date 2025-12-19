@@ -109,14 +109,12 @@ class YamlFileParser {
     parseYamlContent(content) {
         // Try using js-yaml if available
         if (typeof jsyaml !== 'undefined') {
-            console.log('🔧 Using js-yaml parser');
             const parsed = jsyaml.load(content);
             console.log('   Parsed result type:', typeof parsed, 'Keys:', parsed ? Object.keys(parsed).length : 0);
             return parsed;
         }
         
         // Fallback to simple YAML parser
-        console.log('🔧 Using fallback simple YAML parser');
         return this.simpleYamlParse(content);
     }
 

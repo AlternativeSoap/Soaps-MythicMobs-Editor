@@ -8,7 +8,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'altitude',
         name: 'Altitude',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Tests how far above the ground the target entity is',
         aliases: ['heightfromsurface'],
@@ -40,7 +40,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'blocking',
         name: 'Blocking',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Tests if the target player is blocking with a shield',
         aliases: ['isblocking'],
@@ -53,7 +53,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'burning',
         name: 'Burning',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target entity is burning/on fire',
         aliases: ['isburning', 'isonfire'],
@@ -66,7 +66,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'charged',
         name: 'Charged',
-        category: 'Entity',
+        category: 'Entity Type',
         type: 'entity',
         description: 'Checks if the target creeper is charged',
         aliases: ['ischarged', 'creepercharged'],
@@ -79,7 +79,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'children',
         name: 'Children',
-        category: 'Entity',
+        category: 'Entity Type',
         type: 'entity',
         description: 'Tests how many children the caster has',
         aliases: [],
@@ -103,7 +103,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'color',
         name: 'Color',
-        category: 'Entity',
+        category: 'Entity Type',
         type: 'entity',
         description: 'Checks the color of Sheeps, Shulkers, Cats, Parrots, Horses, Llamas, and TraderLlamas',
         aliases: ['clr'],
@@ -127,7 +127,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'crouching',
         name: 'Crouching',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target player is crouching/sneaking',
         aliases: ['iscrouching', 'sneaking', 'issneaking'],
@@ -140,7 +140,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'entityType',
         name: 'Entity Type',
-        category: 'Entity',
+        category: 'Entity Type',
         type: 'entity',
         description: 'Tests if the entity type of the target is the specified one. Accepts Spigot entity types',
         aliases: ['mobtype'],
@@ -164,7 +164,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'fallSpeed',
         name: 'Fall Speed',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the fall speed of the target is within the given range',
         aliases: ['fallingspeed'],
@@ -187,7 +187,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'faction',
         name: 'Faction',
-        category: 'Entity',
+        category: 'Entity Type',
         type: 'entity',
         description: 'Tests for the target\'s faction',
         aliases: [],
@@ -210,7 +210,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'gliding',
         name: 'Gliding',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target entity is gliding with elytra',
         aliases: ['isgliding'],
@@ -223,7 +223,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'globalScore',
         name: 'Global Score',
-        category: 'Entity',
+        category: 'Variables & Data',
         type: 'entity',
         description: 'Checks a global scoreboard value (the value associated with the fake player GLOBAL)',
         aliases: ['scoreglobal'],
@@ -255,7 +255,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasAI',
         name: 'Has AI',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target entity has its AI enabled',
         aliases: [],
@@ -268,7 +268,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasAura',
         name: 'Has Aura',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target entity has the given aura',
         aliases: ['hasbuff', 'hasdebuff'],
@@ -291,7 +291,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasAuraStacks',
         name: 'Has Aura Stacks',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Tests if the target has the given range of stacks from an aura',
         aliases: ['hasbuffstacks', 'hasdebuffstacks', 'aurastacks', 'buffstacks', 'debuffstacks'],
@@ -324,7 +324,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasAuraType',
         name: 'Has Aura Type',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target entity has the given aura type/group',
         aliases: ['hasbufftype', 'hasdebufftype'],
@@ -347,7 +347,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasCurrency',
         name: 'Has Currency',
-        category: 'Entity',
+        category: 'Player',
         type: 'entity',
         description: 'Checks if the target has the given amount of Vault currency/money',
         aliases: ['hasmoney'],
@@ -370,7 +370,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasEnchantment',
         name: 'Has Enchantment',
-        category: 'Entity',
+        category: 'Player',
         type: 'entity',
         description: 'Checks if the target entity\'s equipped item has an enchantment',
         aliases: ['hasEnchant'],
@@ -404,7 +404,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasGravity',
         name: 'Has Gravity',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Tests if the target mob has gravity enabled',
         aliases: ['gravity'],
@@ -417,7 +417,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasItem',
         name: 'Has Item',
-        category: 'Entity',
+        category: 'Player',
         type: 'entity',
         description: 'Tests if the target player has the given number of given material in inventory',
         aliases: [],
@@ -468,7 +468,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasOffhand',
         name: 'Has Offhand',
-        category: 'Entity',
+        category: 'Player',
         type: 'entity',
         description: 'Checks if the target entity has something in the offhand',
         aliases: ['offhand'],
@@ -481,7 +481,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasOwner',
         name: 'Has Owner',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target mob has an owner (Player ownership is cleared on logout)',
         aliases: [],
@@ -494,7 +494,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasParent',
         name: 'Has Parent',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target mob has a parent',
         aliases: [],
@@ -507,7 +507,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasPassenger',
         name: 'Has Passenger',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target entity has a passenger riding it',
         aliases: [],
@@ -520,7 +520,7 @@ const ENTITY_CONDITIONS = [
     {
         id: 'hasPermission',
         name: 'Has Permission',
-        category: 'Entity',
+        category: 'Player',
         type: 'entity',
         description: 'Tests if the target player has a permission',
         aliases: ['permission'],

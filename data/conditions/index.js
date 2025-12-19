@@ -16,10 +16,15 @@ const ALL_CONDITIONS = [
 
 // Create category groups
 const CONDITION_CATEGORIES = {
-    'Entity': [],
+    'Entity State': [],
+    'Entity Type': [],
+    'Player': [],
     'Location': [],
-    'Compare': [],
-    'Meta': []
+    'Time & Weather': [],
+    'Combat': [],
+    'Variables & Data': [],
+    'Server & World': [],
+    'Logic & Meta': []
 };
 
 // Populate categories
@@ -348,17 +353,22 @@ const ConditionHelpers = {
 // Export everything
 window.ALL_CONDITIONS = ALL_CONDITIONS;
 window.CONDITION_CATEGORIES = CONDITION_CATEGORIES;
+window.CONDITIONS_DATA = CONDITION_CATEGORIES; // For DataOptimizer compatibility
 window.CONDITIONS_BY_ID = CONDITIONS_BY_ID;
 window.CONDITIONS_BY_ALIAS = CONDITIONS_BY_ALIAS;
 window.ConditionHelpers = ConditionHelpers;
 
 // Log summary (debug mode only)
 if (window.DEBUG_MODE) {
-    console.log('📦 Conditions System Loaded:');
     console.log('  - Total Conditions:', ALL_CONDITIONS.length);
-    console.log('  - Entity Conditions:', CONDITION_CATEGORIES['Entity'].length);
-    console.log('  - Location Conditions:', CONDITION_CATEGORIES['Location'].length);
-    console.log('  - Compare Conditions:', CONDITION_CATEGORIES['Compare'].length);
-    console.log('  - Meta Conditions:', CONDITION_CATEGORIES['Meta'].length);
+    console.log('  - Entity State:', CONDITION_CATEGORIES['Entity State']?.length || 0);
+    console.log('  - Entity Type:', CONDITION_CATEGORIES['Entity Type']?.length || 0);
+    console.log('  - Player:', CONDITION_CATEGORIES['Player']?.length || 0);
+    console.log('  - Location:', CONDITION_CATEGORIES['Location']?.length || 0);
+    console.log('  - Time & Weather:', CONDITION_CATEGORIES['Time & Weather']?.length || 0);
+    console.log('  - Combat:', CONDITION_CATEGORIES['Combat']?.length || 0);
+    console.log('  - Variables & Data:', CONDITION_CATEGORIES['Variables & Data']?.length || 0);
+    console.log('  - Server & World:', CONDITION_CATEGORIES['Server & World']?.length || 0);
+    console.log('  - Logic & Meta:', CONDITION_CATEGORIES['Logic & Meta']?.length || 0);
     console.log('  - Condition Actions:', (window.CONDITION_ACTIONS || []).length);
 }

@@ -49,9 +49,7 @@ class DatabaseStorageManager {
             const { data: { session } } = await this.supabase.auth.getSession();
             if (session) {
                 this.userId = session.user.id;
-                if (window.DEBUG_MODE) console.log('✅ User authenticated:', this.userId);
             } else {
-                console.log('ℹ️ No active session, using anonymous mode');
                 // Generate a unique anonymous ID
                 this.userId = this.getOrCreateAnonymousId();
             }
@@ -77,9 +75,6 @@ class DatabaseStorageManager {
      * Get data from cloud or localStorage
      */
     async get(key) {
-        if (window.DEBUG_MODE) {
-            console.log(`📖 Storage GET: ${key}`, { userId: this.userId, useCloud: this.useCloud });
-        }
         
         // Try cloud storage first
         if (this.useCloud && this.userId) {
@@ -94,14 +89,9 @@ class DatabaseStorageManager {
                 if (error) {
                     if (error.code === 'PGRST116') {
                         // No rows returned, key doesn't exist
-                        if (window.DEBUG_MODE) console.log(`   ℹ️ No cloud data for ${key}`);
                         return null;
                     }
                     throw error;
-                }
-                
-                if (window.DEBUG_MODE) {
-                    console.log(`   ✅ Retrieved from cloud: ${key}`, { dataSize: JSON.stringify(data?.value || null).length });
                 }
                 return data?.value || null;
             } catch (error) {
@@ -112,11 +102,16 @@ class DatabaseStorageManager {
         // Fallback to localStorage
         try {
             const value = localStorage.getItem(this.prefix + key);
-            const parsed = value ? JSON.parse(value) : null;
-            if (window.DEBUG_MODE) {
-                console.log(`   📱 Retrieved from localStorage: ${key}`, { found: !!parsed });
+            if (!value) return null;
+            
+            // Try to parse as JSON
+            try {
+                const parsed = JSON.parse(value);
+                return parsed;
+            } catch (parseError) {
+                // If it's not JSON, return the raw value
+                return value;
             }
-            return parsed;
         } catch (error) {
             console.error(`   ❌ Failed to get ${key}:`, error);
             return null;
@@ -138,7 +133,6 @@ class DatabaseStorageManager {
         // Save to localStorage first (always available)
         try {
             localStorage.setItem(this.prefix + key, JSON.stringify(value));
-            if (window.DEBUG_MODE) console.log(`   ✅ Saved to localStorage: ${key}`);
         } catch (error) {
             console.error(`   ❌ Failed to save to localStorage:`, error);
         }
@@ -158,8 +152,6 @@ class DatabaseStorageManager {
                     });
                 
                 if (error) throw error;
-                
-                if (window.DEBUG_MODE) console.log(`   ☁️ Saved to cloud: ${key}`);
                 return true;
             } catch (error) {
                 console.warn(`   ⚠️ Cloud save failed for ${key}:`, error);
@@ -225,8 +217,6 @@ class DatabaseStorageManager {
                     .eq('user_id', this.userId);
                 
                 if (error) throw error;
-                
-                console.log('✅ Cleared cloud data');
             } catch (error) {
                 console.warn('Cloud clear failed:', error);
             }
@@ -269,8 +259,6 @@ class DatabaseStorageManager {
             return;
         }
         
-        console.log('☁️ Starting cloud sync...', { userId: this.userId });
-        
         const keys = Object.keys(localStorage).filter(key => key.startsWith(this.prefix));
         console.log(`📦 Found ${keys.length} items to sync:`, keys.map(k => k.replace(this.prefix, '')));
         
@@ -280,7 +268,17 @@ class DatabaseStorageManager {
         for (const fullKey of keys) {
             const key = fullKey.replace(this.prefix, '');
             try {
-                const value = JSON.parse(localStorage.getItem(fullKey));
+                const rawValue = localStorage.getItem(fullKey);
+                let value;
+                
+                // Try to parse as JSON, if it fails, use as-is
+                try {
+                    value = JSON.parse(rawValue);
+                } catch (parseError) {
+                    // If it's not JSON, store the raw string
+                    value = rawValue;
+                }
+                
                 console.log(`  ↗️ Syncing ${key}...`);
                 await this.set(key, value);
                 synced++;
@@ -299,7 +297,6 @@ class DatabaseStorageManager {
     async updateUserId(userId) {
         this.userId = userId;
         if (userId) {
-            if (window.DEBUG_MODE) console.log('✅ User ID updated:', userId);
         }
     }
     

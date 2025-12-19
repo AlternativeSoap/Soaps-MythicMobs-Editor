@@ -8,7 +8,7 @@ class SkillLineTooltip {
         this.tooltip = null;
         this.currentTarget = null;
         this.isPinned = false;
-        this.showDelay = 500; // ms
+        this.showDelay = 800; // ms - Increased from 500ms for more comfortable hover delay
         this.hideDelay = 100; // ms
         this.showTimeout = null;
         this.hideTimeout = null;

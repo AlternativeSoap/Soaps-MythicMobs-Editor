@@ -1,128 +1,150 @@
 # 🎮 Soaps MythicMobs Editor
 
-A powerful, browser-based editor for creating and managing MythicMobs configurations. No installation required - just open and start creating!
+Create custom mobs, skills, and items for MythicMobs right in your browser. No downloads, no setup - just open and start building!
 
 **🌐 [Try it now!](https://alternativesoap.github.io/Soaps-MythicMobs-Editor/)**
 
-![Version](https://img.shields.io/badge/version-2.0.0-purple)
-![License](https://img.shields.io/badge/license-MIT-blue)
+---
 
-## ✨ Features
+## What is this?
 
-### 📦 Pack System
-- **Multiple Packs**: Organize your mobs, skills, and items into separate packs
-- **File Tree**: Visual file browser with folder structure
-- **Quick Actions**: Create new mobs, skills, and items with one click
-- **Auto-save**: Your work is automatically saved to browser storage
+This is a free tool that helps you create custom mobs and skills for Minecraft servers using the MythicMobs plugin. Instead of writing complicated YAML code by hand, you can use simple forms and buttons to build everything visually.
 
-### 🧟 Mob Editor
-- **Visual Form**: Edit mob properties with user-friendly inputs
-- **Entity Types**: Choose from all Minecraft entity types
-- **Combat Stats**: Configure health, damage, armor, speed, and range
-- **Skills & Drops**: Attach skills and configure drop tables
-- **Live Preview**: See YAML output in real-time
+Think of it like a character creator for your Minecraft server - but for mobs!
 
-### ⚔️ Skill Editor
-- **Mechanic Tree**: Visual representation of skill mechanics
-- **Triggers**: Configure when skills activate (~onAttack, ~onTimer, etc.)
-- **Conditions**: Add conditions for skill execution
-- **Cooldowns**: Set skill cooldown times
+## What can I do with it?
 
-### 💎 Item Editor
-- **Material Selector**: Choose from all Minecraft materials
-- **Display & Lore**: Customize item appearance
-- **Enchantments**: Add and configure enchantments
-- **Options**: Set unbreakable, hide flags, and more
+### 🧟 Create Custom Mobs
+Make your own monsters with custom health, damage, and abilities. Want a skeleton that shoots fireballs? A zombie that summons minions? You can do that!
 
-### 🎨 User Interface
-- **Dark Purple Theme**: Easy on the eyes with glassmorphism effects
-- **Three-Panel Layout**: File tree | Editor | YAML Preview
-- **Responsive Design**: Works on desktop and tablet screens
-- **Keyboard Shortcuts**: Speed up your workflow
+### ⚔️ Design Skills
+Build special abilities for your mobs. Make them teleport, shoot projectiles, create explosions, heal themselves - the possibilities are endless.
 
-### 💾 Export & Import
-- **YAML Export**: Export individual files or entire packs
-- **Pack Export**: Download packs as ZIP files (coming soon)
-- **Validation**: Automatic validation with warnings and errors
+### 💎 Make Custom Items
+Create unique weapons and tools with custom names, descriptions, and enchantments. Perfect for boss drops or quest rewards.
 
-## 🚀 Quick Start
+### 📦 Organize Everything
+Keep your creations organized in different packs. You can have one pack for boss mobs, another for regular enemies, and another for custom items.
 
-1. **Open the editor** - [Click here to launch](https://alternativesoap.github.io/Soaps-MythicMobs-Editor/)
-2. **Create a Pack** - Click "New Pack" button
-3. **Create Mobs, Skills & Items** - Use the "+ New" buttons in each folder
-4. **Export** - Copy the YAML output to your MythicMobs folder
+### 📝 Get the Code
+When you're done, just copy the generated YAML code and paste it into your MythicMobs folder. It's that simple!
 
-That's it! No installation, no setup, just start creating.
+### 🌟 Share with the Community (NEW!)
+Create an account and save your best creations as templates! Other users can browse and use your templates, and you can use theirs too. It's like a library of awesome mobs and skills made by the community.
 
-### 📱 Supported Browsers
-✅ Chrome • Firefox • Edge • Safari (latest versions)
+**How it works:**
+- Make something cool (a mob or skill)
+- Click "Save as Template" 
+- Give it a name and description
+- Others can find and use it!
+- Browse templates made by other people for inspiration
 
-## ⌨️ Keyboard Shortcuts
+No account needed to use the editor, but you'll need one to save and share templates.
 
-`Ctrl+K` Command Palette • `Ctrl+S` Save • `Ctrl+N` New Mob • `Ctrl+E` Export
+## What makes this tool special?
 
-## 🎨 Color Codes
+**No installation needed** - Works right in your browser  
+**Saves automatically** - Don't worry about losing your work  
+**Visual editing** - Click buttons instead of writing code  
+**Live preview** - See the YAML code update as you work  
+**Community templates** - Save and share your creations with others  
+**Built-in help** - Tooltips and examples guide you along the way  
+**Free to use** - Always free, no payments or subscriptions
 
-Use `&` codes for colored names: `&4&lFire &6Golem` = **Fire Golem** (red + gold)
+## How do I use it?
 
-**Colors**: `&0-9` and `&a-f` • **Formats**: `&l` Bold, `&o` Italic, `&n` Underline
+### Getting Started (Super Easy!)
 
-## 📚 Example Configuration
+1. **Click the "Try it now!" button** at the top of this page
+2. **Create your first pack** - Click the "New Pack" button
+3. **Add a mob** - Click "+ New Mob" and fill out the form
+4. **See the code** - Watch the YAML appear in the right panel
+5. **Copy and paste** - Copy the code and put it in your MythicMobs folder
 
-```yaml
-# Mob Example
-SkeletonKing:
-  Type: SKELETON
-  Display: '&6&lSkeleton King'
-  Health: 200
-  Damage: 15
-  Armor: 10
-  Skills:
-  - skill{s=SummonMinions} ~onCombat
-  - skill{s=Fireball} ~onTimer:60
+That's literally it! You don't need to download anything or install anything.
 
-# Skill Example
-SummonMinions:
-  Cooldown: 10
-  Skills:
-  - summon{type=SKELETON;amount=3;radius=5} @self
-  - effect:particles{p=FLAME;a=20;hs=0.5;vs=0.5} @self
-  - sound{s=entity.evoker.prepare_summon} @self
+### A Quick Example
 
-# Item Example
-MagicSword:
-  Id: DIAMOND_SWORD
-  Display: '&b&lMagic Sword'
-  Lore:
-  - '&7A blade forged with ancient magic'
-  - '&8Grants bonus damage'
-  Enchantments:
-  - SHARPNESS 5
-  - UNBREAKING 3
-```
+Let's say you want to make a fire skeleton boss:
 
-## 💡 Pro Tips
+1. Create a new mob, name it "FireSkeleton"
+2. Set the health to 200 (normal skeleton has 20)
+3. Set the display name to something cool like "Flame Lord"
+4. Add some skills like "shootFireball" 
+5. Done! The code is ready to copy
 
-- **Drag packs** up/down to reorder them in the file tree
-- **Auto-save** keeps your work safe - look for toast notifications
-- **Export often** as backups (data is stored in browser only)
-- **Use validation** - check for warnings before exporting
-- **Test in-game** on a test server first
+## Can I use this on my phone?
 
-## ⚠️ Important
+The editor works best on computers and tablets. Phones might feel a bit cramped, but it'll work in a pinch!
 
-Your data is saved in browser storage. Clearing browser data will delete your packs! Export regularly as backups.
+## Is my work saved?
 
-## 📞 Support & Resources
+Yes! Everything saves automatically to your browser. But here's the important part: **if you clear your browser history or cache, your packs will be deleted**. So make sure to export your work regularly as a backup!
 
-- 📖 [MythicMobs Wiki](https://git.mythiccraft.io/mythiccraft/MythicMobs/-/wikis/home) - Official documentation
-- 🐛 [Report Issues](https://github.com/AlternativeSoap/Soaps-MythicMobs-Editor/issues) - Bug reports & suggestions
-- 💬 Join the MythicMobs Discord community
+**What about templates?** If you create an account, any templates you save are stored in the cloud, so you can access them from any computer!
 
-## 📄 License
+## Do I need an account?
 
-MIT License • Free to use and modify
+Nope! You can use the entire editor without an account. The only thing you need an account for is:
+- Saving templates to share with others
+- Accessing your saved templates from different computers
+- Browsing the community template library
+
+Everything else works without logging in!
+
+## Do I need to know how to code?
+
+Nope! That's the whole point of this tool. You just fill out forms, click buttons, and the code writes itself. If you DO know YAML code, you can edit it directly too.
+
+## What is YAML anyway?
+
+YAML is just a way to organize information that the MythicMobs plugin can understand. Think of it like a recipe - you're telling the plugin what ingredients (settings) to use for your mob. This tool writes the recipe for you!
+
+## Tips and Tricks
+
+**Make colorful names** - Use `&` codes for colors! For example: `&4Fire &6Golem` makes red "Fire" and gold "Golem"
+- Colors: `&0` through `&9` and `&a` through `&f`
+- Bold: `&l` • Italic: `&o` • Underline: `&n`
+
+**Save your work often** - Click the export button to download backups of your packs
+
+**Start simple** - Don't try to make a super complicated boss right away. Start with a basic mob and add things one at a time
+
+**Test in-game** - Always test your mobs on a test server first before using them on your main server
+
+**Use the examples** - The tool has built-in examples you can learn from
+
+## Example: What You Can Make
+
+Here's a simple fire skeleton boss you could create:
+
+**FireKing Skeleton**
+- 200 health (10x normal!)
+- Shoots fireballs every 5 seconds
+- Summons 3 helper skeletons when below 50% health
+- Drops a special flaming sword
+
+All of that would take about 2 minutes to set up in this tool. Without the tool, you'd be writing 30+ lines of code by hand!
+
+## Need Help?
+
+**Having trouble?** Check out the [MythicMobs Wiki](https://git.mythiccraft.io/mythiccraft/MythicMobs/-/wikis/home) for detailed information about what each setting does
+
+**Found a bug?** Let me know on [GitHub Issues](https://github.com/AlternativeSoap/Soaps-MythicMobs-Editor/issues)
+
+**Want to chat?** Join the MythicMobs community Discord server
+
+## Important Reminder
+
+Your creations are saved in your browser's storage. If you:
+- Clear your browser data
+- Use a different browser
+- Use incognito mode
+
+Your packs won't be there! Always export backups to be safe.
 
 ---
 
-**Made with 💜 for the MythicMobs community** • *Happy mob creating!*
+**Made with 💜 for everyone who wants to make cool Minecraft mobs**
+
+Questions? Suggestions? Just want to show off what you made? Feel free to reach out!

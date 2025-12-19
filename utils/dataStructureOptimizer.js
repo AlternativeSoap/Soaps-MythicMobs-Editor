@@ -21,7 +21,6 @@ class DataStructureOptimizer {
      * Initialize all optimized data structures
      */
     initialize() {
-        if (window.DEBUG_MODE) console.log('🚀 Initializing optimized data structures...');
         
         // Convert arrays to Maps
         this.mechanicsMap = this.arrayToMap(window.MECHANICS_DATA?.mechanics || [], 'id');
@@ -42,12 +41,6 @@ class DataStructureOptimizer {
         );
         
         if (window.DEBUG_MODE) {
-            console.log('✅ Data structures optimized:', {
-                mechanics: this.mechanicsMap.size,
-                conditions: this.conditionsMap.size,
-                targeters: this.targetersMap.size,
-                triggers: this.triggersMap.size
-            });
         }
     }
 
@@ -74,32 +67,32 @@ class DataStructureOptimizer {
      */
     buildConditionsMap() {
         const map = new Map();
+        
+        // Try CONDITIONS_DATA first (category-keyed object), fallback to ALL_CONDITIONS (flat array)
         const conditionsData = window.CONDITIONS_DATA || {};
+        const allConditions = window.ALL_CONDITIONS || [];
         
-        if (window.DEBUG_MODE) {
-            console.log('🔨 Building conditions map from CONDITIONS_DATA:', Object.keys(conditionsData));
-        }
-        
-        for (const category in conditionsData) {
-            const conditions = conditionsData[category];
-            if (Array.isArray(conditions)) {
-                if (window.DEBUG_MODE) {
-                    console.log(`  📁 Category ${category}: ${conditions.length} conditions`);
-                }
-                for (const condition of conditions) {
-                    if (condition.name) {
-                        // Add category to condition for filtering
-                        map.set(condition.name, {
-                            ...condition,
-                            category: category
-                        });
+        // If CONDITIONS_DATA is available (category-keyed), use it
+        if (Object.keys(conditionsData).length > 0) {
+            for (const category in conditionsData) {
+                const conditions = conditionsData[category];
+                if (Array.isArray(conditions)) {
+                    for (const condition of conditions) {
+                        if (condition.name) {
+                            // Category is already set in condition.category
+                            map.set(condition.name, condition);
+                        }
                     }
                 }
             }
-        }
-        
-        if (window.DEBUG_MODE) {
-            console.log(`✅ Conditions map built: ${map.size} total conditions`);
+        } 
+        // Fallback to ALL_CONDITIONS if no CONDITIONS_DATA
+        else if (allConditions.length > 0) {
+            for (const condition of allConditions) {
+                if (condition.name) {
+                    map.set(condition.name, condition);
+                }
+            }
         }
         return map;
     }

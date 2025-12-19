@@ -143,3 +143,268 @@
 .condition-attribute-btn.confirm:hover {
     background: var(--accent-primary-hover, #2980b9);
 }
+
+/* ============================================
+   ENTITY PICKER STYLES
+   ============================================ */
+
+/* Container */
+.entity-picker-container {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Selected Chips Container */
+.entity-chips-container {
+    padding: 12px;
+    background: var(--bg-secondary, #16213e);
+    border-radius: 6px;
+    border: 1px solid var(--border-primary, #2a2a40);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.entity-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 30px;
+}
+
+.entity-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: white;
+    font-size: 0.9em;
+    font-weight: 500;
+    animation: chipFadeIn 0.2s ease-in;
+    transition: all 0.2s;
+}
+
+.entity-chip.vanilla {
+    background: var(--accent-primary, #3498db);
+}
+
+.entity-chip.custom {
+    background: var(--accent-purple, #9b59b6);
+}
+
+.entity-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.entity-chip-name {
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.entity-chip-badge {
+    opacity: 0.8;
+    font-size: 0.85em;
+    font-style: italic;
+}
+
+.btn-remove-chip {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 1.2em;
+    line-height: 1;
+    transition: background 0.2s;
+}
+
+.btn-remove-chip:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.btn-clear-entities {
+    align-self: flex-start;
+    padding: 6px 12px;
+    font-size: 0.85em;
+    color: var(--danger, #e74c3c);
+    background: none;
+    border: 1px solid var(--danger, #e74c3c);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-clear-entities:hover {
+    background: var(--danger, #e74c3c);
+    color: white;
+}
+
+@keyframes chipFadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Search Container */
+.entity-search-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.entity-search-input {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--bg-secondary, #16213e);
+    border: 2px solid var(--border-primary, #2a2a40);
+    border-radius: 6px;
+    color: var(--text-primary, #ecf0f1);
+    font-size: 0.95em;
+    transition: all 0.2s;
+}
+
+.entity-search-input:focus {
+    outline: none;
+    border-color: var(--accent-primary, #3498db);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.entity-search-input::placeholder {
+    color: var(--text-tertiary, #7f8c8d);
+}
+
+.entity-search-hint {
+    color: var(--text-secondary, #95a5a6);
+    font-size: 0.85em;
+    font-style: italic;
+}
+
+.entity-search-hint kbd {
+    background: var(--bg-tertiary, #2c3e50);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Consolas', monospace;
+    font-size: 0.9em;
+    border: 1px solid var(--border-primary, #34495e);
+}
+
+/* Entity Browser */
+.entity-browser {
+    max-height: 300px;
+    overflow-y: auto;
+    background: var(--bg-tertiary, #34495e);
+    border-radius: 8px;
+    padding: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-primary, #3498db) var(--bg-secondary, #2c3e50);
+}
+
+.entity-browser::-webkit-scrollbar {
+    width: 10px;
+}
+
+.entity-browser::-webkit-scrollbar-track {
+    background: var(--bg-secondary, #2c3e50);
+    border-radius: 5px;
+}
+
+.entity-browser::-webkit-scrollbar-thumb {
+    background: var(--accent-primary, #3498db);
+    border-radius: 5px;
+}
+
+.entity-browser::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary-hover, #2980b9);
+}
+
+/* Entity Categories */
+.entity-category {
+    margin-bottom: 16px;
+    animation: categorySlideIn 0.3s ease-out;
+}
+
+.entity-category:last-child {
+    margin-bottom: 0;
+}
+
+.entity-category-header {
+    font-weight: 600;
+    color: var(--accent-primary, #3498db);
+    margin-bottom: 10px;
+    font-size: 0.95em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.entity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+}
+
+/* Entity Items */
+.entity-item {
+    padding: 8px 12px;
+    background: var(--bg-primary, #2c3e50);
+    border: 2px solid var(--border-primary, #34495e);
+    border-radius: 6px;
+    color: var(--text-primary, #ecf0f1);
+    cursor: pointer;
+    font-size: 0.85em;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-weight: 500;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.entity-item:hover {
+    background: var(--accent-primary, #3498db);
+    border-color: var(--accent-primary-hover, #2980b9);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+}
+
+.entity-item:active {
+    transform: translateY(0);
+}
+
+.entity-item.selected {
+    background: var(--accent-primary, #3498db);
+    border-color: var(--accent-primary-hover, #2980b9);
+    color: white;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
+}
+
+/* MythicMobs Items - Special styling */
+.entity-item.mythicmob-item {
+    background: var(--bg-primary, #2c3e50);
+    border-color: var(--accent-purple, #9b59b6);
+    position: relative;
+}
+
+.entity-item.mythicmob-item:hover {
+    background: var(--accent-purple, #9b59b6);
+    border-color: #8e44ad;
+    box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+}
+
+.entity-item.mythicmob-item.selected {
+    background: var(--accent-purple, #9b59b6);
+    border-color: #8e44ad;
+    box-shadow: 0 0 0 2px rgba(155, 89, 182, 0.3);
+}
+
+@keyframes categorySlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

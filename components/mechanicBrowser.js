@@ -14,7 +14,6 @@
 class MechanicBrowser {
     constructor(targeterBrowser, triggerBrowser, conditionEditor) {
         if (window.DEBUG_MODE) {
-            console.log('🏗️ Creating MechanicBrowser instance (Enhanced Version)');
         }
         this.targeterBrowser = targeterBrowser;
         this.triggerBrowser = triggerBrowser;
@@ -23,6 +22,12 @@ class MechanicBrowser {
         this.onSelectCallback = null;
         this.searchCache = new LRUCache(10);
         this.virtualScroller = null;
+        
+        // Initialize browser data merger
+        if (window.supabase && typeof BrowserDataMerger !== 'undefined') {
+            this.browserDataMerger = new BrowserDataMerger(window.supabase);
+        }
+        this.mechanicsData = MECHANICS_DATA; // Default to built-in, will be replaced with merged data
         
         // Current configuration state
         this.currentMechanic = null;
@@ -45,7 +50,6 @@ class MechanicBrowser {
         this.createModal();
         this.attachEventListeners();
         if (window.DEBUG_MODE) {
-            console.log('✅ MechanicBrowser (Enhanced) ready with', this.getMechanicsCount(), 'mechanics');
         }
     }
     
@@ -53,7 +57,33 @@ class MechanicBrowser {
      * Get total mechanics count
      */
     getMechanicsCount() {
-        return MECHANICS_DATA.mechanics ? MECHANICS_DATA.mechanics.length : 0;
+        return this.mechanicsData.mechanics ? this.mechanicsData.mechanics.length : 0;
+    }
+    
+    /**
+     * Load merged data from database
+     */
+    /**
+     * Preload mechanics data in background (called during initialization)
+     */
+    async preloadData() {
+        if (this.browserDataMerger) {
+            try {
+                this.mechanicsData = await this.browserDataMerger.getMergedMechanics();
+                if (window.DEBUG_MODE) {
+                }
+            } catch (error) {
+                console.error('Error preloading merged mechanics:', error);
+                this.mechanicsData = MECHANICS_DATA; // Fallback to built-in
+            }
+        }
+    }
+    
+    async loadMergedData() {
+        // Data should already be preloaded, but load if not
+        if (!this.mechanicsData || !this.mechanicsData.mechanics) {
+            await this.preloadData();
+        }
     }
     
     /**
@@ -324,27 +354,13 @@ class MechanicBrowser {
     /**
      * Open the mechanic browser
      */
-    open(options = {}) {
-        console.log('🎯 MechanicBrowser.open called with:', options);
+    async open(options = {}) {
         this.context = options.context || 'mob';
         this.currentValue = options.currentValue || null;
         this.onSelectCallback = options.onSelect || null;
 
-        // Reset state
-        this.currentMechanic = null;
-        
-        this.currentCategory = 'all';
-        this.searchQuery = '';
-
-        // Parse currentValue if editing
-        if (this.currentValue) {
-            this.parseSkillLine(this.currentValue);
-        }
-
-        this.showMechanicSelection();
-        this.updateCategoryCounts();
+        // OPTIMIZATION: Show overlay immediately for better perceived performance
         const overlay = document.getElementById('mechanicBrowserOverlay');
-        console.log('🎭 Showing overlay, element found:', !!overlay);
         if (overlay) {
             // Apply higher z-index if opened from another modal
             if (options.parentZIndex) {
@@ -355,7 +371,27 @@ class MechanicBrowser {
             overlay.style.display = 'flex';
         } else {
             console.error('❌ mechanicBrowserOverlay element not found!');
+            return;
         }
+
+        // Show skeleton loading immediately
+        this.showSkeletonLoading();
+
+        // Load data async without blocking (should already be preloaded)
+        await this.loadMergedData();
+
+        // Reset state
+        this.currentMechanic = null;
+        this.currentCategory = 'all';
+        this.searchQuery = '';
+
+        // Parse currentValue if editing
+        if (this.currentValue) {
+            this.parseSkillLine(this.currentValue);
+        }
+
+        this.showMechanicSelection();
+        this.updateCategoryCounts();
     }
 
     /**
@@ -400,7 +436,6 @@ class MechanicBrowser {
         this.domCache = {};
         
         if (window.DEBUG_MODE) {
-            console.log('🧹 MechanicBrowser cleanup complete');
         }
     }
     
@@ -430,10 +465,11 @@ class MechanicBrowser {
         this.currentCategory = 'All';
         this.searchQuery = '';
         
-        // Show skeleton loading first, then render with requestAnimationFrame
-        this.showSkeletonLoading();
+        // OPTIMIZATION: Use double RAF to ensure smooth rendering after layout
         requestAnimationFrame(() => {
-            this.renderMechanics();
+            requestAnimationFrame(() => {
+                this.renderMechanics();
+            });
         });
     }
     
@@ -817,7 +853,22 @@ class MechanicBrowser {
             `.trim();
             
             let inputHTML = '';
-            if (attr.type === 'boolean') {
+            // Check if this attribute should use entity picker
+            const shouldUseEntityPicker = this.shouldUseEntityPicker(attr);
+            
+            if (shouldUseEntityPicker) {
+                // Entity type picker for summon/mount/particle mob attributes
+                const inputId = `mechanic-entity-${attr.name}-${Math.random().toString(36).substr(2, 9)}`;
+                inputHTML = `
+                    <input type="hidden" 
+                           id="${inputId}"
+                           class="mechanic-attribute-input mechanic-entity-input" 
+                           data-attr="${attr.name}"
+                           data-modified="false"
+                           value="">
+                    ${this.createEntityPickerHTML(inputId)}
+                `;
+            } else if (attr.type === 'boolean') {
                 // Checkbox for boolean with dynamic true/false label
                 const defaultChecked = attr.default === true || attr.default === 'true';
                 inputHTML = `
@@ -901,6 +952,9 @@ class MechanicBrowser {
 
         // Attach input listeners
         this.attachAttributeListeners(formContainer);
+        
+        // Setup entity pickers for type/mob attributes
+        this.setupEntityPickers(formContainer);
         
         // Setup inherited attributes toggle if section exists
         if (this.currentMechanic.inheritedParticleAttributes) {
@@ -1361,9 +1415,22 @@ class MechanicBrowser {
 
                 setTimeout(() => {
                     document.addEventListener('click', closeDropdown);
-                    window.addEventListener('scroll', scrollClose, true);
+                    window.addEventListener('scroll', scrollClose, { passive: true, capture: true });
                 }, 10);
             });
+        });
+    }
+
+    /**
+     * Setup entity pickers for all entity-type inputs
+     */
+    setupEntityPickers(formContainer) {
+        const entityInputs = formContainer.querySelectorAll('.mechanic-entity-input');
+        entityInputs.forEach(input => {
+            const inputId = input.id;
+            if (inputId) {
+                this.setupEntityPickerHandlers(inputId);
+            }
         });
     }
 
@@ -1544,7 +1611,7 @@ class MechanicBrowser {
                 document.querySelectorAll('.particle-dropdown-menu').forEach(menu => {
                     menu.remove();
                 });
-            });
+            }, { passive: true });
         }
     }
 
@@ -1684,7 +1751,7 @@ class MechanicBrowser {
     /**
      * Confirm configuration and return skill line
      */
-    confirmConfiguration() {
+    async confirmConfiguration() {
         if (!this.currentMechanic) {
             // Silently return if no mechanic selected
             return;
@@ -1708,9 +1775,9 @@ class MechanicBrowser {
             result.valid = false;
         }
 
-        // Validate mechanic arguments (if MECHANICS_DATA is available)
-        if (typeof MECHANICS_DATA !== 'undefined' && parsed.mechanic) {
-            const mechanicDef = MECHANICS_DATA.getMechanic(parsed.mechanic);
+        // Validate mechanic arguments (if mechanicsData is available)
+        if (this.mechanicsData && parsed.mechanic) {
+            const mechanicDef = this.mechanicsData.getMechanic(parsed.mechanic);
             if (!mechanicDef) {
                 result.warnings.push(`Unknown mechanic: ${parsed.mechanic}`);
             } else {
@@ -1736,33 +1803,40 @@ class MechanicBrowser {
         
         // Warn about warnings but allow to continue
         if (result.warnings.length > 0) {
-            const proceed = confirm(
+            const proceed = await window.notificationModal?.confirm(
                 'Validation Warnings:\n\n' + 
                 result.warnings.join('\n') + 
-                '\n\nDo you want to continue anyway?'
+                '\n\nDo you want to continue anyway?',
+                'Validation Warnings',
+                { confirmText: 'Continue', cancelText: 'Cancel' }
             );
             if (!proceed) return;
         }
         
-        // Hide overlay and reset state manually (don't call close which would trigger null callback)
+        // Store callback and skill line for immediate execution
+        const callback = this.onSelectCallback;
+        const lineToInsert = skillLine;
+        
+        // Hide overlay immediately for instant feedback
         const overlay = document.getElementById('mechanicBrowserOverlay');
         if (overlay) {
             overlay.style.display = 'none';
         }
         
-        // Reset to selection step for next time
-        this.showMechanicSelection();
-        
-        // Clear state
-        this.currentMechanic = null;
-        
-        // Call callback with the successful skill line
-        const callback = this.onSelectCallback;
-        this.onSelectCallback = null;
-        
+        // Call callback immediately before cleanup (prevents lag)
         if (callback) {
-            callback(skillLine);
+            callback(lineToInsert);
         }
+        
+        // Defer non-critical cleanup operations with RAF to prevent blocking
+        requestAnimationFrame(() => {
+            // Reset to selection step for next time
+            this.showMechanicSelection();
+            
+            // Clear state
+            this.currentMechanic = null;
+            this.onSelectCallback = null;
+        });
     }
 
     /**
@@ -1779,7 +1853,7 @@ class MechanicBrowser {
         
         // Set mechanic
         if (parsed.mechanic) {
-            this.currentMechanic = MECHANICS_DATA.getMechanic(parsed.mechanic);
+            this.currentMechanic = this.mechanicsData.getMechanic(parsed.mechanic);
         }
         
         // Set targeter
@@ -1825,6 +1899,338 @@ class MechanicBrowser {
      */
     static hasEffectPrefix(mechanic) {
         return mechanic && mechanic.aliases && mechanic.aliases.some(alias => alias.startsWith('effect:') || alias.startsWith('e:'));
+    }
+
+    /**
+     * Check if attribute should use entity picker
+     */
+    shouldUseEntityPicker(attr) {
+        // Check for 'type' attribute in summon/mount mechanics
+        if (attr.name === 'type' && this.currentMechanic) {
+            const mechanicId = this.currentMechanic.id?.toLowerCase();
+            if (mechanicId === 'summon' || mechanicId === 'mount') {
+                return true;
+            }
+        }
+        
+        // Check for 'mob' attribute in particle mechanics (Premium Only)
+        if (attr.name === 'mob' && attr.type === 'text') {
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Create entity picker HTML (same as condition browser)
+     */
+    createEntityPickerHTML(inputId) {
+        // Get entity types from DataValidatorHelpers
+        const entityTypes = window.DataValidator?.prototype?.VALID_ENTITY_TYPES || [];
+        
+        // Get custom MythicMobs from mob editor
+        const customMobs = this.getCustomMythicMobs();
+        
+        // Categorize entities
+        const categories = {
+            'Hostile': ['ZOMBIE', 'SKELETON', 'SPIDER', 'CAVE_SPIDER', 'CREEPER', 'ENDERMAN', 'WITCH', 'SLIME', 
+                       'MAGMA_CUBE', 'BLAZE', 'GHAST', 'ZOMBIFIED_PIGLIN', 'HOGLIN', 'PIGLIN', 'PIGLIN_BRUTE',
+                       'WITHER_SKELETON', 'STRAY', 'HUSK', 'DROWNED', 'PHANTOM', 'SILVERFISH', 'ENDERMITE',
+                       'VINDICATOR', 'EVOKER', 'VEX', 'PILLAGER', 'RAVAGER', 'GUARDIAN', 'ELDER_GUARDIAN',
+                       'SHULKER', 'ZOGLIN', 'WARDEN', 'BOGGED', 'BREEZE'],
+            'Passive': ['PIG', 'COW', 'SHEEP', 'CHICKEN', 'RABBIT', 'HORSE', 'DONKEY', 'MULE', 'LLAMA',
+                       'TRADER_LLAMA', 'CAT', 'OCELOT', 'WOLF', 'PARROT', 'BAT', 'VILLAGER', 'WANDERING_TRADER',
+                       'COD', 'SALMON', 'TROPICAL_FISH', 'PUFFERFISH', 'SQUID', 'GLOW_SQUID', 'DOLPHIN',
+                       'TURTLE', 'POLAR_BEAR', 'PANDA', 'FOX', 'BEE', 'MOOSHROOM', 'STRIDER', 'AXOLOTL',
+                       'GOAT', 'FROG', 'TADPOLE', 'CAMEL', 'SNIFFER', 'ARMADILLO', 'ALLAY'],
+            'Utility': ['IRON_GOLEM', 'SNOW_GOLEM', 'ARMOR_STAND', 'ITEM_DISPLAY', 'BLOCK_DISPLAY',
+                       'TEXT_DISPLAY', 'INTERACTION', 'MARKER'],
+            'Bosses': ['ENDER_DRAGON', 'WITHER']
+        };
+        
+        // Add MythicMobs category if we have custom mobs
+        if (customMobs.length > 0) {
+            categories['MythicMobs'] = customMobs;
+        }
+
+        return `
+            <div class="entity-picker-container" data-input-id="${inputId}">
+                <!-- Selected Entities Chips -->
+                <div class="entity-chips-container" style="display: none;">
+                    <div class="entity-chips"></div>
+                    <button type="button" class="btn-clear-entities">
+                        Clear All
+                    </button>
+                </div>
+
+                <!-- Entity Search -->
+                <div class="entity-search-container">
+                    <input type="text" 
+                           class="entity-search-input" 
+                           placeholder="🔍 Search vanilla entities or type custom mob name and press Enter...">
+                    <small class="entity-search-hint">Type any entity name and press <kbd>Enter</kbd> to add</small>
+                </div>
+
+                <!-- Entity Browser -->
+                <div class="entity-browser">
+                    ${Object.entries(categories).map(([category, entities]) => `
+                        <div class="entity-category" data-category="${category}">
+                            <div class="entity-category-header">
+                                ${category === 'MythicMobs' ? '🔮 ' : ''}${category} (${entities.length})
+                            </div>
+                            <div class="entity-grid">
+                                ${entities.map(entity => `
+                                    <button type="button" 
+                                            class="entity-item ${category === 'MythicMobs' ? 'mythicmob-item' : ''}" 
+                                            data-entity="${entity}">
+                                        ${entity}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Setup entity picker event handlers (same as condition browser)
+     */
+    setupEntityPickerHandlers(inputId) {
+        const container = document.querySelector(`.entity-picker-container[data-input-id="${inputId}"]`);
+        if (!container) return;
+
+        const input = document.getElementById(inputId);
+        const searchInput = container.querySelector('.entity-search-input');
+        const entityBrowser = container.querySelector('.entity-browser');
+        const chipsContainer = container.querySelector('.entity-chips');
+        const chipsWrapper = container.querySelector('.entity-chips-container');
+        const clearBtn = container.querySelector('.btn-clear-entities');
+
+        // Track selected entities
+        let selectedEntities = [];
+
+        // Initialize from existing input value
+        const initValue = input.value.trim();
+        if (initValue) {
+            selectedEntities = initValue.split(',').map(e => e.trim()).filter(e => e);
+            this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
+        }
+
+        // Entity item click handler
+        container.addEventListener('click', (e) => {
+            const entityBtn = e.target.closest('.entity-item');
+            if (entityBtn) {
+                const entity = entityBtn.dataset.entity;
+                this.toggleEntity(entity, selectedEntities, input, chipsContainer, chipsWrapper);
+                this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
+            }
+        });
+
+        // Clear all button
+        clearBtn.addEventListener('click', () => {
+            selectedEntities = [];
+            input.value = '';
+            this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
+            this.updateSkillLinePreview();
+        });
+
+        // Enter key to add custom entity
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const customName = searchInput.value.trim();
+                if (customName && !selectedEntities.includes(customName)) {
+                    selectedEntities.push(customName);
+                    input.value = selectedEntities.join(',');
+                    this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
+                    searchInput.value = '';
+                    // Reset search filter
+                    const categories = container.querySelectorAll('.entity-category');
+                    categories.forEach(cat => cat.style.display = '');
+                    container.querySelectorAll('.entity-item').forEach(item => item.style.display = '');
+                    this.updateSkillLinePreview();
+                }
+            }
+        });
+
+        // Search functionality
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const categories = container.querySelectorAll('.entity-category');
+            
+            categories.forEach(category => {
+                const items = category.querySelectorAll('.entity-item');
+                let visibleCount = 0;
+                
+                items.forEach(item => {
+                    const entityName = item.dataset.entity.toLowerCase();
+                    if (entityName.includes(query)) {
+                        item.style.display = '';
+                        visibleCount++;
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+                
+                // Hide category if no visible items
+                category.style.display = visibleCount > 0 ? '' : 'none';
+            });
+        });
+
+        // Sync input changes back to chips
+        input.addEventListener('input', () => {
+            const value = input.value.trim();
+            selectedEntities = value ? value.split(',').map(e => e.trim()).filter(e => e) : [];
+            this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
+        });
+    }
+
+    /**
+     * Toggle entity selection
+     */
+    toggleEntity(entity, selectedEntities, input, chipsContainer, chipsWrapper) {
+        const index = selectedEntities.indexOf(entity);
+        if (index > -1) {
+            selectedEntities.splice(index, 1);
+        } else {
+            selectedEntities.push(entity);
+        }
+        
+        input.value = selectedEntities.join(',');
+        this.updateSkillLinePreview();
+    }
+
+    /**
+     * Update entity chips display
+     */
+    updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input) {
+        // Show/hide chips container
+        if (selectedEntities.length > 0) {
+            chipsWrapper.style.display = 'block';
+        } else {
+            chipsWrapper.style.display = 'none';
+            return;
+        }
+
+        // Check if entities are vanilla or custom
+        const vanillaTypes = window.DataValidator?.prototype?.VALID_ENTITY_TYPES || [];
+        
+        // Render chips
+        chipsContainer.innerHTML = selectedEntities.map(entity => {
+            const isVanilla = vanillaTypes.includes(entity.toUpperCase());
+            
+            return `
+                <div class="entity-chip ${isVanilla ? 'vanilla' : 'custom'}" data-entity="${entity}">
+                    <span class="entity-chip-name">${entity}</span>
+                    ${!isVanilla ? '<span class="entity-chip-badge">(custom)</span>' : ''}
+                    <button type="button" class="btn-remove-chip" data-entity="${entity}">
+                        ×
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        // Add remove handlers
+        chipsContainer.querySelectorAll('.btn-remove-chip').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const entity = btn.dataset.entity;
+                const index = selectedEntities.indexOf(entity);
+                if (index > -1) {
+                    selectedEntities.splice(index, 1);
+                    input.value = selectedEntities.join(',');
+                    this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
+                    this.updateSkillLinePreview();
+                }
+            });
+        });
+
+        // Highlight selected entities in browser
+        const container = chipsContainer.closest('.entity-picker-container');
+        container.querySelectorAll('.entity-item').forEach(item => {
+            const entity = item.dataset.entity;
+            if (selectedEntities.includes(entity)) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    /**
+     * Get custom MythicMobs from the current pack
+     */
+    getCustomMythicMobs() {
+        try {
+            
+            // Try multiple paths to access packManager
+            let packManager = null;
+            
+            // Path 1: this.editor.packManager (when browser is created with editor reference)
+            if (this.editor?.packManager) {
+                packManager = this.editor.packManager;
+            }
+            // Path 2: window.editor.packManager (global editor instance)
+            else if (window.editor?.packManager) {
+                packManager = window.editor.packManager;
+            }
+            // Path 3: window.app.packManager (fallback)
+            else if (window.app?.packManager) {
+                packManager = window.app.packManager;
+            }
+            
+            if (!packManager) {
+                console.log('❌ No packManager found through any path');
+                return [];
+            }
+            
+            const activePack = packManager.activePack;
+            console.log('Active pack:', activePack ? activePack.name : 'None');
+            
+            if (!activePack || !activePack.mobs) {
+                console.log('❌ No activePack or mobs array');
+                return [];
+            }
+            
+            console.log('Mobs array length:', activePack.mobs.length);
+            
+            const customMobs = [];
+            
+            // Check if using new file-based structure
+            if (Array.isArray(activePack.mobs) && activePack.mobs.length > 0) {
+                console.log('First mob structure check:', activePack.mobs[0].entries !== undefined ? 'File-based' : 'Legacy');
+                
+                if (activePack.mobs[0].entries !== undefined) {
+                    // New structure: iterate through files and their entries
+                    activePack.mobs.forEach(file => {
+                        if (file.entries && Array.isArray(file.entries)) {
+                            console.log(`File: ${file.fileName}, entries: ${file.entries.length}`);
+                            file.entries.forEach(mob => {
+                                if (mob.internalName || mob.name) {
+                                    customMobs.push(mob.internalName || mob.name);
+                                }
+                            });
+                        }
+                    });
+                } else {
+                    // Legacy flat structure
+                    activePack.mobs.forEach(mob => {
+                        if (mob.internalName || mob.name) {
+                            customMobs.push(mob.internalName || mob.name);
+                        }
+                    });
+                }
+            }
+            
+            console.log(`✅ Returning ${customMobs.length} custom mobs:`, customMobs);
+            // Sort alphabetically and remove duplicates
+            return [...new Set(customMobs)].sort((a, b) => a.localeCompare(b));
+        } catch (error) {
+            console.warn('Could not load custom MythicMobs:', error);
+            return [];
+        }
     }
 }
 

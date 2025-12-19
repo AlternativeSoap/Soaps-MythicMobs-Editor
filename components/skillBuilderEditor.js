@@ -16,7 +16,8 @@ class SkillBuilderEditor {
         this.context = 'mob'; // 'mob' or 'skill'
         this.changeCallback = null;
         
-        // Browser components
+        // Browser components - Log what we received
+        
         this.targeterBrowser = targeterBrowser;
         this.mechanicBrowser = mechanicBrowser;
         this.triggerBrowser = triggerBrowser;
@@ -29,7 +30,13 @@ class SkillBuilderEditor {
         // Creation Mode Selector & Template Selector & Skill Line Builder
         this.creationModeSelector = new CreationModeSelector();
         this.templateSelector = new TemplateSelector(templateManager, templateEditor);
-        this.skillLineBuilder = new SkillLineBuilder(templateManager, templateEditor);
+        
+        // CRITICAL: Reuse global singleton to prevent multiple instances fighting over same DOM
+        // Creating multiple SkillLineBuilder instances causes event listener conflicts
+        this.skillLineBuilder = window.skillLineBuilder || new SkillLineBuilder(templateManager, templateEditor);
+        if (!window.skillLineBuilder) {
+            window.skillLineBuilder = this.skillLineBuilder;
+        }
         
         // Group detection
         this.groupDetector = new SkillLineGroupDetector();
@@ -1291,7 +1298,6 @@ class SkillBuilderEditor {
         this.container.querySelectorAll('.delete-skill-line-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const index = parseInt(e.target.closest('button').dataset.index);
-                console.log('🗑️ Deleting skill line at index:', index);
                 
                 if (this.context === 'mob') {
                     console.log('Before delete:', this.skillLines.length, 'lines');
@@ -1427,13 +1433,11 @@ class SkillBuilderEditor {
     
     // Add new skill line
     addSkillLine() {
-        console.log('🔧 addSkillLine called - Opening Creation Mode Selector');
         
         // Open creation mode selector
         this.creationModeSelector.open({
             context: this.context,
             onSelect: (mode) => {
-                console.log('✅ Mode selected:', mode);
                 this.handleModeSelection(mode);
             }
         });
@@ -1458,12 +1462,41 @@ class SkillBuilderEditor {
     
     // Show template selector (quick templates)
     showTemplateSelector() {
-        console.log('🎁 Opening Template Selector');
         
         this.templateSelector.open({
             context: this.context,
-            onSelect: (skillLines) => {
-                this.handleMultipleSkillLines(Array.isArray(skillLines) ? skillLines : [skillLines]);
+            onSelect: (template) => {
+                
+                // Handle different template formats
+                let skillLines = [];
+                
+                // Priority 1: New format with sections array
+                if (template.sections && Array.isArray(template.sections) && template.sections.length > 0) {
+                    if (template.sections.length > 1) {
+                        // Multi-section template - show prompt or flatten
+                        this.handleMultipleSections(template);
+                        return;
+                    } else {
+                        // Single section - extract lines
+                        skillLines = template.sections[0].lines || [];
+                    }
+                }
+                // Priority 2: Flattened skillLines array (from processTemplate)
+                else if (template.skillLines && Array.isArray(template.skillLines) && template.skillLines.length > 0) {
+                    skillLines = template.skillLines;
+                }
+                // Priority 3: Built-in template with skillLine string
+                else if (template.skillLine && typeof template.skillLine === 'string') {
+                    // Built-in template format - split by newlines
+                    skillLines = template.skillLine.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+                }
+                
+                // Add the skill lines if we found any
+                if (skillLines.length > 0) {
+                    this.handleMultipleSkillLines(skillLines);
+                } else {
+                    console.warn('⚠️ Template has no skill lines to add', template);
+                }
             },
             onBack: () => {
                 // Reopen creation mode selector
@@ -1474,7 +1507,15 @@ class SkillBuilderEditor {
     
     // Show skill line builder (unified builder with all tabs)
     showSkillLineBuilder() {
-        console.log('🛠️ Opening Skill Line Builder');
+        
+        if (!this.targeterBrowser || !this.mechanicBrowser) {
+            console.error('❌ Missing required browsers!', {
+                targeterBrowser: this.targeterBrowser,
+                mechanicBrowser: this.mechanicBrowser
+            });
+            alert('Browser components not properly initialized. Please refresh the page.');
+            return;
+        }
         
         this.skillLineBuilder.open({
             context: this.context,
@@ -1500,7 +1541,6 @@ class SkillBuilderEditor {
     
     // Show manual entry editor (direct YAML input)
     showManualEntry() {
-        console.log('📝 Opening Manual Entry Editor');
         
         // Create a simple modal for manual YAML entry
         const modal = document.createElement('div');
@@ -1570,7 +1610,11 @@ class SkillBuilderEditor {
                 .filter(line => line.length > 0);
             
             if (lines.length === 0) {
-                alert('Please enter at least one skill line');
+                window.notificationModal?.alert(
+                    'Please enter at least one skill line.',
+                    'warning',
+                    'No Skill Lines'
+                );
                 return;
             }
             
@@ -1592,6 +1636,211 @@ class SkillBuilderEditor {
         document.addEventListener('keydown', escapeHandler);
     }
     
+    /**
+     * Handle multi-section template insertion
+     * Shows prompt asking user how to insert the sections
+     */
+    handleMultipleSections(template) {
+        
+        const sectionCount = template.sections.length;
+        const totalLines = template.sections.reduce((sum, section) => sum + (section.lines?.length || 0), 0);
+        
+        // If in skill context, allow separate sections
+        // If in mob context, force merge (mob files are flat arrays)
+        const allowSeparate = this.context === 'skill';
+        
+        // Create modal for user choice
+        const modal = document.createElement('div');
+        modal.className = 'condition-modal';
+        modal.style.display = 'flex';
+        modal.style.zIndex = '10001';
+        modal.innerHTML = `
+            <div class="modal-content" style="width: 600px; max-width: 90vw;">
+                <div class="modal-header">
+                    <h2><i class="fas fa-layer-group"></i> Multi-Section Template</h2>
+                    <button class="btn-close">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: var(--spacing-lg);">
+                    <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--primary-color);">
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">${this.escapeHtml(template.name)}</h3>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+                            ${this.escapeHtml(template.description)}
+                        </p>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; font-size: 0.85rem;">
+                            <span style="background: var(--primary-color); color: white; padding: 0.2rem 0.6rem; border-radius: 12px; font-weight: 600;">
+                                📚 ${sectionCount} sections
+                            </span>
+                            <span style="background: var(--info-color); color: white; padding: 0.2rem 0.6rem; border-radius: 12px;">
+                                📋 ${totalLines} lines total
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <h4 style="margin: 0 0 0.75rem 0; font-size: 0.95rem; color: var(--text-secondary);">Sections in this template:</h4>
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            ${template.sections.map((section, idx) => `
+                                <div style="background: var(--bg-tertiary); padding: 0.75rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong style="color: var(--primary-color);">${this.escapeHtml(section.name)}</strong>
+                                        <span style="color: var(--text-secondary); font-size: 0.85rem; margin-left: 0.5rem;">
+                                            (${section.lines?.length || 0} ${section.lines?.length === 1 ? 'line' : 'lines'})
+                                        </span>
+                                    </div>
+                                    <span style="background: var(--bg-secondary); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; color: var(--text-secondary);">
+                                        #${idx + 1}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 1.5rem;">
+                        <h4 style="margin: 0 0 1rem 0;">How would you like to insert this template?</h4>
+                        
+                        ${allowSeparate ? `
+                            <button class="btn btn-primary btn-block multi-section-choice" data-mode="separate" style="margin-bottom: 0.75rem; padding: 1rem; text-align: left; display: flex; align-items: start; gap: 1rem;">
+                                <i class="fas fa-layer-group" style="font-size: 1.5rem; margin-top: 0.2rem;"></i>
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; margin-bottom: 0.25rem;">Insert as Separate Sections</div>
+                                    <div style="font-size: 0.85rem; opacity: 0.9;">
+                                        Create ${sectionCount} new skill sections (${template.sections.map(s => s.name).join(', ')})
+                                    </div>
+                                </div>
+                            </button>
+                        ` : ''}
+                        
+                        <button class="btn btn-secondary btn-block multi-section-choice" data-mode="merge" style="padding: 1rem; text-align: left; display: flex; align-items: start; gap: 1rem;">
+                            <i class="fas fa-compress-alt" style="font-size: 1.5rem; margin-top: 0.2rem;"></i>
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; margin-bottom: 0.25rem;">Merge Into ${allowSeparate ? 'Current Section' : 'Skill Lines'}</div>
+                                <div style="font-size: 0.85rem; opacity: 0.9;">
+                                    Add all ${totalLines} lines ${allowSeparate ? 'to the current section' : 'as a flat list'}${allowSeparate ? '' : ' (mob files require flat structure)'}
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="multiSectionCancel">Cancel</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        const closeBtn = modal.querySelector('.btn-close');
+        const cancelBtn = modal.querySelector('#multiSectionCancel');
+        const choiceBtns = modal.querySelectorAll('.multi-section-choice');
+        
+        const closeModal = () => {
+            modal.remove();
+        };
+        
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        
+        choiceBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.mode;
+                closeModal();
+                
+                if (mode === 'separate' && allowSeparate) {
+                    // Create separate skill sections
+                    this.insertSectionsAsSeparate(template.sections);
+                } else {
+                    // Merge all lines into one
+                    this.insertSectionsAsMerged(template.sections);
+                }
+            });
+        });
+        
+        // Close on escape
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+    }
+    
+    /**
+     * Insert sections as separate skill entries (skill context only)
+     */
+    insertSectionsAsSeparate(sections) {
+        if (this.context !== 'skill') {
+            console.error('Cannot insert separate sections in mob context');
+            return;
+        }
+        
+        console.log('📚 Inserting sections as separate skills:', sections.map(s => s.name));
+        
+        // Create new skill entries for each section
+        sections.forEach(section => {
+            const skillName = section.name;
+            const lines = section.lines || [];
+            
+            // Ensure unique skill name
+            let finalName = skillName;
+            let counter = 1;
+            while (this.skills[finalName]) {
+                finalName = `${skillName}_${counter}`;
+                counter++;
+            }
+            
+            this.skills[finalName] = { lines: [...lines] };
+            console.log(`✅ Created skill section: ${finalName} with ${lines.length} lines`);
+        });
+        
+        // Switch to the first new section
+        const firstSectionName = sections[0].name;
+        this.currentSkill = firstSectionName;
+        
+        this.render();
+        this.triggerChange();
+        
+        const message = `Added ${sections.length} skill section${sections.length > 1 ? 's' : ''}: ${sections.map(s => s.name).join(', ')}`;
+        if (this.editor && typeof this.editor.showToast === 'function') {
+            this.editor.showToast(message, 'success');
+        } else {
+        }
+    }
+    
+    /**
+     * Insert sections merged into current context
+     */
+    insertSectionsAsMerged(sections) {
+        
+        // Collect all lines from all sections
+        const allLines = [];
+        sections.forEach(section => {
+            if (section.lines && Array.isArray(section.lines)) {
+                allLines.push(...section.lines);
+            }
+        });
+        
+        console.log(`📋 Total lines to merge: ${allLines.length}`);
+        
+        // Use existing handleMultipleSkillLines method
+        this.handleMultipleSkillLines(allLines);
+        
+        const message = `Merged ${sections.length} sections (${allLines.length} lines total)`;
+        if (this.editor && typeof this.editor.showToast === 'function') {
+            this.editor.showToast(message, 'success');
+        } else {
+        }
+    }
+    
+    /**
+     * Escape HTML for safe display
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     // Handle adding multiple skill lines at once
     handleMultipleSkillLines(skillLines) {
         if (!Array.isArray(skillLines) || skillLines.length === 0) {
@@ -1599,16 +1848,18 @@ class SkillBuilderEditor {
             return;
         }
         
-        console.log('📥 Adding skill lines:', skillLines);
-        console.log('📥 Type check - Is array?', Array.isArray(skillLines));
-        console.log('📥 Each item:', skillLines.map((line, i) => `[${i}]: ${typeof line} = ${JSON.stringify(line)}`));
+        if (window.DEBUG_MODE) {
+            console.log('📥 Type check - Is array?', Array.isArray(skillLines));
+            console.log('📥 Each item:', skillLines.map((line, i) => `[${i}]: ${typeof line} = ${JSON.stringify(line)}`));
+        }
         
         if (this.context === 'mob') {
             // Mob context: add to flat array
             const beforeCount = this.skillLines.length;
             this.skillLines.push(...skillLines);
-            console.log(`📊 Before: ${beforeCount}, After: ${this.skillLines.length}`);
-            console.log('📊 skillLines array after push:', this.skillLines);
+            if (window.DEBUG_MODE) {
+                console.log(`📊 Before: ${beforeCount}, After: ${this.skillLines.length}`);
+            }
         } else {
             // Skill context: add to current skill
             if (!this.skills[this.currentSkill]) {
@@ -1616,7 +1867,9 @@ class SkillBuilderEditor {
             }
             const beforeCount = this.skills[this.currentSkill].lines.length;
             this.skills[this.currentSkill].lines.push(...skillLines);
-            console.log(`📊 Before: ${beforeCount}, After: ${this.skills[this.currentSkill].lines.length}`);
+            if (window.DEBUG_MODE) {
+                console.log(`📊 Before: ${beforeCount}, After: ${this.skills[this.currentSkill].lines.length}`);
+            }
         }
         
         this.render(); // render() already calls attachEventListeners()
@@ -2096,7 +2349,6 @@ class SkillBuilderEditor {
      * Update template system dependencies (called when they become available)
      */
     updateTemplateDependencies(templateManager, templateEditor) {
-        console.log('🔄 Updating template dependencies in SkillBuilderEditor');
         this.templateManager = templateManager;
         this.templateEditor = templateEditor;
         

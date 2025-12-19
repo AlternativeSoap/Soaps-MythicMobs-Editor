@@ -16,7 +16,6 @@ class PackFolderScanner {
      * @returns {Promise<Object>} Scan results
      */
     async scan(dirHandle) {
-        console.log('📂 Starting folder scan:', dirHandle.name);
         
         const result = {
             type: null, // 'packs-folder' or 'single-pack'

@@ -81,8 +81,7 @@ class Logger {
         if (this.context) {
             console.log(`%c✅ [${this.context}]`, 'color: #27ae60', ...args);
         } else {
-            console.log('%c✅', 'color: #27ae60', ...args);
-        }
+                    }
     }
 
     /**
@@ -94,8 +93,7 @@ class Logger {
         if (this.context) {
             console.log(`%c🔍 [${this.context}]`, 'color: #f39c12', ...args);
         } else {
-            console.log('%c🔍', 'color: #f39c12', ...args);
-        }
+                    }
     }
 }
 
@@ -116,8 +114,7 @@ if (DEBUG) {
 } else {
     // One-time hint about debug mode (only show once per session)
     if (!sessionStorage.getItem('debugHintShown')) {
-        console.log('%cℹ️ Debug Mode: To enable verbose logging, run: localStorage.setItem("debugMode", "true") and refresh', 'color: #95a5a6; font-size: 11px;');
-        sessionStorage.setItem('debugHintShown', 'true');
+                sessionStorage.setItem('debugHintShown', 'true');
     }
 }
 
@@ -126,5 +123,3 @@ window.Logger = Logger;
 window.createLogger = createLogger;
 window.logger = logger;
 window.DEBUG_MODE = DEBUG;
-
-console.log('✅ Logger utility loaded');

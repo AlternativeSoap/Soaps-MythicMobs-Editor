@@ -40,6 +40,10 @@ class TemplateSelector {
         this.cachedElements = {};
         this.skeletonTimeout = null; // Issue #4: Timeout to force hide skeleton
         
+        // Render cache for performance
+        this.renderCache = new Map(); // Cache rendered HTML by filter state key
+        this.lastRenderKey = null; // Track last render to detect changes
+        
         this.createModal();
         this.attachEventListeners();
     }
@@ -121,9 +125,9 @@ class TemplateSelector {
                         </button>
                         <h2>
                             <i class="fas fa-layer-group"></i>
-                            Skill Templates
+                            Quick Templates
                         </h2>
-                        <button class="btn btn-success" id="templateSelectorCreate" title="Create new template" style="margin-right: 8px; display: none;">
+                        <button class="btn btn-primary" id="templateSelectorCreate" title="Create new template" style="margin-right: 8px; display: none;">
                             <i class="fas fa-plus"></i>
                             Create Template
                         </button>
@@ -583,12 +587,10 @@ class TemplateSelector {
     showNotification(message, type = 'info') {
         if (window.editor && typeof window.editor.showToast === 'function') {
             window.editor.showToast(message, type);
+        } else if (window.notificationModal) {
+            window.notificationModal.alert(message, type);
         } else {
             console.log(`[${type.toUpperCase()}] ${message}`);
-            // Fallback to alert for important messages
-            if (type === 'error' || type === 'warning') {
-                alert(message);
-            }
         }
     }
 
@@ -596,7 +598,6 @@ class TemplateSelector {
      * Open the template selector
      */
     async open(options = {}) {
-        console.log('🎁 Opening Template Selector (Hybrid Mode)');
         this.context = options.context || 'mob';
         this.onSelectCallback = options.onSelect || null;
         this.onBackCallback = options.onBack || null;
@@ -619,7 +620,6 @@ class TemplateSelector {
         const createBtn = document.getElementById('templateSelectorCreate');
         if (createBtn) {
             const isAuthenticated = window.authManager?.isAuthenticated();
-            console.log('🔑 Auth status for Create Template button:', isAuthenticated);
             createBtn.style.display = isAuthenticated ? 'inline-flex' : 'none';
         }
         
@@ -653,12 +653,12 @@ class TemplateSelector {
         // Load templates (hybrid: built-in + remote)
         await this.loadAllTemplates();
         
+        // Hide loading BEFORE rendering (fixes empty state infinite loading)
+        this.hideLoading();
+        
         // Render tabs and templates
         this.renderTabs();
         this.renderTemplates();
-        
-        // Hide loading AFTER rendering (fixes empty category infinite loading)
-        this.hideLoading();
         
         // Focus search input
         setTimeout(() => {
@@ -685,8 +685,6 @@ class TemplateSelector {
             clearTimeout(this.skeletonTimeout);
             this.skeletonTimeout = null;
         }
-        
-        console.log('🧹 Template selector cleanup completed');
     }
     
     /**
@@ -771,6 +769,18 @@ class TemplateSelector {
      * Get line count for a template
      */
     getLineCount(template) {
+        // Check for sections array (new multi-section format)
+        if (template.sections && Array.isArray(template.sections)) {
+            let totalLines = 0;
+            template.sections.forEach(section => {
+                if (Array.isArray(section.lines)) {
+                    totalLines += section.lines.length;
+                }
+            });
+            return totalLines || 1;
+        }
+        
+        // Fallback to old format
         if (Array.isArray(template.skillLines)) {
             return template.skillLines.length;
         } else if (template.skillLine) {
@@ -818,8 +828,8 @@ class TemplateSelector {
      */
     renderTabs() {
         const container = document.getElementById('templateTabs');
-        const contextTemplates = this.context === 'skill' ? SKILL_TEMPLATES.getAll('skill') : SKILL_TEMPLATES.getAll('mob');
-        const categories = SKILL_TEMPLATES.getAllCategories(this.context);
+        const contextTemplates = this.allTemplates.filter(t => t.type === this.context);
+        const categories = this.getAllCategories();
         
         const favoriteCount = this.getFavoriteTemplates().length;
         const recentCount = this.getRecentTemplates().length;
@@ -844,9 +854,9 @@ class TemplateSelector {
         
         // Add category tabs
         categories.forEach(category => {
-            const templates = SKILL_TEMPLATES.getByCategory(this.context, category);
-            const icon = SKILL_TEMPLATES.getCategoryIcon(category);
-            const name = SKILL_TEMPLATES.getCategoryDisplayName(category);
+            const templates = this.getByCategory(category);
+            const icon = this.getCategoryIcon(category);
+            const name = this.getCategoryDisplayName(category);
             const isActive = this.currentTab === category;
             
             html += `
@@ -912,7 +922,7 @@ class TemplateSelector {
             
             default:
                 // Category tab
-                const categoryName = SKILL_TEMPLATES.getCategoryDisplayName(this.currentTab) || this.currentTab;
+                const categoryName = this.getCategoryDisplayName(this.currentTab) || this.currentTab;
                 return {
                     title: `No templates in ${categoryName}`,
                     subtitle: 'This category is currently empty'
@@ -944,22 +954,35 @@ class TemplateSelector {
     }
 
     /**
-     * Render template list with sections
+     * Generate cache key based on current filter state
+     */
+    getCacheKey() {
+        return `${this.currentTab}_${this.context}_${this.searchQuery}_${this.filterCategory}_${this.filterComplexity}_${this.filterOwner}_${this.sortBy}_${this.sortOrder}_${this.viewMode}_${this.favorites.join(',')}_${this.allTemplates?.length || 0}`;
+    }
+    
+    /**
+     * Render template list with sections (with caching)
      */
     renderTemplates() {
         const container = document.getElementById('templateList');
         
-        // PHASE 1 FIX: Clear container to remove skeleton cards before rendering
-        container.innerHTML = '';
-        
         // Issue #4: Don't render if still loading or templates not loaded yet
         if (this.isLoading) {
-            console.log('⏳ Still loading, skipping render');
             return;
         }
         
+        // Generate cache key based on current filter state
+        const cacheKey = this.getCacheKey();
+        
+        // Check if we can use cached render
+        if (this.lastRenderKey === cacheKey && this.renderCache.has(cacheKey)) {
+            return; // Already rendered with same state
+        }
+        
+        // PHASE 1 FIX: Clear container to remove skeleton cards before rendering
+        container.innerHTML = '';
+        
         if (!this.allTemplates || this.allTemplates.length === 0) {
-            console.log('📭 No templates loaded yet, showing empty state');
         }
         
         let templates = [];
@@ -1062,8 +1085,86 @@ class TemplateSelector {
         
         container.innerHTML = html;
         
+        // Store cache key to track current render state
+        this.lastRenderKey = cacheKey;
+        this.renderCache.set(cacheKey, true); // Just store that we've rendered this state
+        
+        // Limit cache size to prevent memory bloat (keep last 20 states)
+        if (this.renderCache.size > 20) {
+            const firstKey = this.renderCache.keys().next().value;
+            this.renderCache.delete(firstKey);
+        }
+        
         // Attach event handlers
         this.attachTemplateCardEvents();
+    }
+    
+    /**
+     * Get structure type information for badge display
+     */
+    getStructureInfo(template) {
+        // Check if structure_type is explicitly set
+        const structureType = template.structure_type || template.data?.structure_type;
+        
+        if (structureType) {
+            // Use explicit structure type
+            switch (structureType) {
+                case 'single':
+                    return {
+                        icon: '🎯',
+                        label: 'Single Line',
+                        color: '#10b981',
+                        description: 'Single skill line'
+                    };
+                case 'multi-section':
+                    const sectionCount = template.sections?.length || 0;
+                    const totalLines = this.getLineCount(template);
+                    return {
+                        icon: '📚',
+                        label: `${sectionCount} sections`,
+                        color: '#8b5cf6',
+                        description: `${sectionCount} section${sectionCount !== 1 ? 's' : ''}, ${totalLines} line${totalLines !== 1 ? 's' : ''}`
+                    };
+                case 'multi-line':
+                default:
+                    const lineCount = this.getLineCount(template);
+                    return {
+                        icon: '📋',
+                        label: `${lineCount} lines`,
+                        color: '#3b82f6',
+                        description: `Multiple lines in one section (${lineCount} total)`
+                    };
+            }
+        }
+        
+        // Fallback: detect from template data
+        if (template.sections && template.sections.length > 1) {
+            const sectionCount = template.sections.length;
+            const totalLines = this.getLineCount(template);
+            return {
+                icon: '📚',
+                label: `${sectionCount} sections`,
+                color: '#8b5cf6',
+                description: `${sectionCount} sections, ${totalLines} lines`
+            };
+        }
+        
+        const lineCount = this.getLineCount(template);
+        if (lineCount === 1) {
+            return {
+                icon: '🎯',
+                label: 'Single Line',
+                color: '#10b981',
+                description: 'Single skill line'
+            };
+        }
+        
+        return {
+            icon: '📋',
+            label: `${lineCount} lines`,
+            color: '#3b82f6',
+            description: `Multiple lines (${lineCount} total)`
+        };
     }
     
     /**
@@ -1097,11 +1198,18 @@ class TemplateSelector {
     renderGridCard(template) {
         const isFav = this.isFavorite(template.id);
         const categoryName = template.category ? 
-            (SKILL_TEMPLATES.getCategoryDisplayName(template.category) || template.category) : 'Utility';
-        const categoryIcon = template.icon || SKILL_TEMPLATES.getCategoryIcon(template.category) || '📦';
+            (this.getCategoryDisplayName(template.category) || template.category) : 'Utility';
+        const categoryIcon = template.icon || this.getCategoryIcon(template.category) || '📦';
         const lineCount = this.getLineCount(template);
         const complexity = this.getComplexity(lineCount, []);
         const complexityClass = complexity === 'Easy' ? 'success' : complexity === 'Medium' ? 'warning' : 'danger';
+        
+        // Get structure type info
+        const structureInfo = this.getStructureInfo(template);
+        
+        // Official badge
+        const isOfficial = template.is_official || template.data?.is_official || false;
+        const officialBadge = isOfficial ? '<span class="official-badge" style="font-size: 0.7rem; padding: 0.15rem 0.4rem; background: linear-gradient(135deg, #ffd700, #ffed4e); color: #000; border-radius: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 0.2rem;"><i class="fas fa-crown"></i> Official</span>' : '';
         
         const ownerBadge = template.isBuiltIn 
             ? '<span class="owner-badge built-in" style="font-size: 0.7rem; padding: 0.15rem 0.4rem;">Built-in</span>'
@@ -1123,12 +1231,15 @@ class TemplateSelector {
                     <h4 style="font-size: 0.95rem; margin: 0 0 0.5rem 0; font-weight: 600; line-height: 1.3; min-height: 2.6rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                         ${this.escapeHtml(template.name)}
                     </h4>
-                    ${ownerBadge}
+                    <div style="display: flex; gap: 0.3rem; justify-content: center; flex-wrap: wrap; margin-top: 0.3rem;">
+                        ${officialBadge}
+                        ${ownerBadge}
+                    </div>
                 </div>
                 
                 <div style="display: flex; gap: 0.25rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.75rem; font-size: 0.75rem;">
                     <span class="template-badge category-badge" title="Category: ${categoryName}" style="background: var(--primary-color-transparent); color: var(--primary-color); padding: 0.2rem 0.5rem; border-radius: 12px; white-space: nowrap;">${categoryName}</span>
-                    <span class="template-badge lines-badge" title="${lineCount} skill ${lineCount === 1 ? 'line' : 'lines'}" style="background: var(--bg-tertiary); color: var(--text-secondary); padding: 0.2rem 0.5rem; border-radius: 12px; white-space: nowrap;">${lineCount} lines</span>
+                    <span class="template-badge structure-badge" title="${structureInfo.description}" style="background: ${structureInfo.color}; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; white-space: nowrap; font-weight: 600;">${structureInfo.icon} ${structureInfo.label}</span>
                 </div>
                 
                 <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0 0 1rem 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.4rem;">
@@ -1163,8 +1274,8 @@ class TemplateSelector {
     renderListCard(template) {
         const isFav = this.isFavorite(template.id);
         const categoryName = template.category ? 
-            (SKILL_TEMPLATES.getCategoryDisplayName(template.category) || template.category) : 'Utility';
-        const categoryIcon = template.icon || SKILL_TEMPLATES.getCategoryIcon(template.category) || '📦';
+            (this.getCategoryDisplayName(template.category) || template.category) : 'Utility';
+        const categoryIcon = template.icon || this.getCategoryIcon(template.category) || '📦';
         
         // Get skill lines
         const skillLines = Array.isArray(template.skillLines) 
@@ -1184,6 +1295,13 @@ class TemplateSelector {
         const requiresMobFile = this.hasTriggers(template);
         const isIncompatible = this.context === 'skill' && requiresMobFile;
         
+        // Get structure type info
+        const structureInfo = this.getStructureInfo(template);
+        
+        // Official badge
+        const isOfficial = template.is_official || template.data?.is_official || false;
+        const officialBadge = isOfficial ? '<span class="official-badge"><i class="fas fa-crown"></i> Official</span>' : '';
+        
         // Owner badge
         const ownerBadge = template.isBuiltIn 
             ? '<span class="owner-badge built-in">Built-in</span>'
@@ -1196,8 +1314,11 @@ class TemplateSelector {
                 <div class="condition-item-header" style="margin-bottom: 1rem;">
                     <div class="condition-item-icon">${categoryIcon}</div>
                     <div class="condition-item-title">
-                        <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">${this.escapeHtml(template.name)} ${ownerBadge}</h3>
+                        <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">${this.escapeHtml(template.name)} ${officialBadge} ${ownerBadge}</h3>
                         <div class="template-meta" style="gap: 0.5rem;">
+                            <span class="meta-badge structure-badge" style="background: ${structureInfo.color}; color: white; padding: 0.25rem 0.6rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600;" title="${structureInfo.description}">
+                                ${structureInfo.icon} ${structureInfo.label}
+                            </span>
                             <span class="template-badge category-badge" title="Category: ${categoryName}">${categoryIcon} ${categoryName}</span>
                             <span class="template-badge complexity-badge badge-${complexityClass}" title="Complexity: ${complexity}">${complexity}</span>
                             ${lineCount > 1 ? `<span class="template-badge lines-badge" title="${lineCount} skill lines">${lineCount} lines</span>` : ''}
@@ -1249,128 +1370,105 @@ class TemplateSelector {
     }
     
     /**
-     * Attach event handlers to template cards
+     * Attach event handlers to template cards using event delegation
      */
     attachTemplateCardEvents() {
         const container = document.getElementById('templateList');
         
-        // Grid card click - open preview
-        container.querySelectorAll('.template-grid-card').forEach(card => {
-            card.addEventListener('click', (e) => {
-                // Don't trigger if clicking a button
-                if (e.target.closest('button')) return;
-                const templateId = e.currentTarget.dataset.templateId;
+        // Remove existing click handler if any
+        if (this.templateListClickHandler) {
+            container.removeEventListener('click', this.templateListClickHandler);
+        }
+        
+        // Single event delegation handler for all buttons and cards
+        this.templateListClickHandler = async (e) => {
+            const target = e.target;
+            const button = target.closest('button');
+            const card = target.closest('.template-grid-card');
+            
+            // Handle button clicks
+            if (button) {
+                e.stopPropagation();
+                const templateId = button.dataset.templateId;
+                
+                // Use button
+                if (button.classList.contains('template-use-btn')) {
+                    const originalHTML = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+                    button.disabled = true;
+                    try {
+                        await this.selectTemplate(templateId);
+                    } finally {
+                        if (button && button.parentElement) {
+                            button.innerHTML = originalHTML;
+                            button.disabled = false;
+                        }
+                    }
+                }
+                // Duplicate button
+                else if (button.classList.contains('template-duplicate-btn')) {
+                    const originalHTML = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    button.disabled = true;
+                    try {
+                        await this.handleDuplicateTemplate(templateId);
+                    } finally {
+                        if (button && button.parentElement) {
+                            button.innerHTML = originalHTML;
+                            button.disabled = false;
+                        }
+                    }
+                }
+                // Edit button
+                else if (button.classList.contains('template-edit-btn')) {
+                    const originalHTML = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    button.disabled = true;
+                    try {
+                        await this.handleEditTemplate(templateId);
+                    } finally {
+                        if (button && button.parentElement) {
+                            button.innerHTML = originalHTML;
+                            button.disabled = false;
+                        }
+                    }
+                }
+                // Delete button
+                else if (button.classList.contains('template-delete-btn')) {
+                    const originalHTML = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    button.disabled = true;
+                    try {
+                        await this.handleDeleteTemplate(templateId);
+                    } finally {
+                        if (button && button.parentElement) {
+                            button.innerHTML = originalHTML;
+                            button.disabled = false;
+                        }
+                    }
+                }
+                // Preview button
+                else if (button.classList.contains('template-preview-btn')) {
+                    const templateId = button.dataset.templateId;
+                    this.showFullPreview(templateId);
+                }
+                // Favorite button
+                else if (button.classList.contains('favorite-btn')) {
+                    const templateId = button.dataset.templateId;
+                    this.toggleFavorite(templateId);
+                    this.renderTabs();
+                    this.renderTemplates();
+                }
+            }
+            // Handle card click (open preview) - only if not clicking a button
+            else if (card && !target.closest('button')) {
+                const templateId = card.dataset.templateId;
                 this.showFullPreview(templateId);
-            });
-        });
+            }
+        };
         
-        // Use event delegation for buttons
-        container.querySelectorAll('.template-use-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const templateId = e.currentTarget.dataset.templateId;
-                
-                // Add loading state
-                const originalHTML = e.currentTarget.innerHTML;
-                e.currentTarget.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
-                e.currentTarget.disabled = true;
-                
-                try {
-                    await this.selectTemplate(templateId);
-                } finally {
-                    // Restore button state (if still in DOM)
-                    if (e.currentTarget && e.currentTarget.parentElement) {
-                        e.currentTarget.innerHTML = originalHTML;
-                        e.currentTarget.disabled = false;
-                    }
-                }
-            });
-        });
-        
-        container.querySelectorAll('.template-duplicate-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const templateId = e.currentTarget.dataset.templateId;
-                
-                // Add loading state
-                const originalHTML = e.currentTarget.innerHTML;
-                e.currentTarget.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                e.currentTarget.disabled = true;
-                
-                try {
-                    await this.handleDuplicateTemplate(templateId);
-                } finally {
-                    // Restore button state
-                    if (e.currentTarget && e.currentTarget.parentElement) {
-                        e.currentTarget.innerHTML = originalHTML;
-                        e.currentTarget.disabled = false;
-                    }
-                }
-            });
-        });
-        
-        container.querySelectorAll('.template-edit-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const templateId = e.currentTarget.dataset.templateId;
-                
-                // Add loading state
-                const originalHTML = e.currentTarget.innerHTML;
-                e.currentTarget.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                e.currentTarget.disabled = true;
-                
-                try {
-                    await this.handleEditTemplate(templateId);
-                } finally {
-                    // Restore button state
-                    if (e.currentTarget && e.currentTarget.parentElement) {
-                        e.currentTarget.innerHTML = originalHTML;
-                        e.currentTarget.disabled = false;
-                    }
-                }
-            });
-        });
-        
-        container.querySelectorAll('.template-delete-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const templateId = e.currentTarget.dataset.templateId;
-                
-                // Add loading state
-                const originalHTML = e.currentTarget.innerHTML;
-                e.currentTarget.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                e.currentTarget.disabled = true;
-                
-                try {
-                    await this.handleDeleteTemplate(templateId);
-                } finally {
-                    // Restore button state
-                    if (e.currentTarget && e.currentTarget.parentElement) {
-                        e.currentTarget.innerHTML = originalHTML;
-                        e.currentTarget.disabled = false;
-                    }
-                }
-            });
-        });
-        
-        container.querySelectorAll('.template-preview-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const templateId = e.currentTarget.dataset.templateId;
-                console.log('👁️ View All clicked for template:', templateId);
-                this.showFullPreview(templateId);
-            });
-        });
-        
-        container.querySelectorAll('.favorite-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const templateId = e.currentTarget.dataset.templateId;
-                this.toggleFavorite(templateId);
-                this.renderTabs();
-                this.renderTemplates();
-            });
-        });
+        // Attach single delegated event handler
+        container.addEventListener('click', this.templateListClickHandler);
     }
 
     /**
@@ -1386,24 +1484,19 @@ class TemplateSelector {
      * Show full preview of template
      */
     showFullPreview(templateId) {
-        console.log('👁️ showFullPreview called for:', templateId);
         const template = this.allTemplates.find(t => t.id === templateId);
         if (!template) {
             console.error('Template not found:', templateId);
             return;
         }
         
-        console.log('📄 Template found:', template);
-        
         let extractedLines;
         if (template.skillLine) {
             // Built-in template
             extractedLines = this.extractSkillLines(template.skillLine);
-            console.log('📝 Extracted from skillLine:', extractedLines);
         } else if (template.skillLines) {
             // User template
             extractedLines = template.skillLines;
-            console.log('📝 Using skillLines:', extractedLines);
         } else {
             console.error('Template has no skill lines:', template);
             return;
@@ -1440,7 +1533,6 @@ class TemplateSelector {
         `;
         
         document.body.appendChild(modal);
-        console.log('✅ Modal appended to body:', modal);
         
         // Event handlers
         modal.querySelector('.preview-close').addEventListener('click', () => modal.remove());
@@ -1466,28 +1558,13 @@ class TemplateSelector {
             return;
         }
         
-        console.log('✅ Template selected:', template.name);
-        
         // Add to recent
         this.addToRecent(templateId);
         
         if (this.onSelectCallback) {
-            let skillLines;
-            
-            // Built-in templates have skillLine (string), user templates have skillLines (array)
-            if (template.skillLine) {
-                // Built-in template - extract from skillLine string
-                skillLines = this.extractSkillLines(template.skillLine);
-            } else if (template.skillLines) {
-                // User template - already an array
-                skillLines = template.skillLines;
-            } else {
-                console.error('Template has no skill lines:', template);
-                return;
-            }
-            
-            // Pass the extracted lines (array or single string)
-            this.onSelectCallback(skillLines);
+            // Pass the full template object so receiving code can access sections, skillLines, etc.
+            // This supports both old format (built-in with skillLine string) and new format (with sections array)
+            this.onSelectCallback(template);
         }
         
         this.close();
@@ -1572,11 +1649,8 @@ class TemplateSelector {
      * Load all templates (built-in + remote)
      */
     async loadAllTemplates() {
-        // Load built-in templates (instant)
-        this.builtInTemplates = SKILL_TEMPLATES.getAll(this.context).map(t => ({
-            ...t,
-            isBuiltIn: true
-        }));
+        // No built-in templates - database only
+        this.builtInTemplates = [];
         
         // Load remote templates (async)
         await this.loadRemoteTemplates();
@@ -1598,7 +1672,7 @@ class TemplateSelector {
         try {
             const remote = await this.templateManager.getAllTemplates(this.context);
             this.userTemplates = remote;
-            console.log(`✅ Loaded ${remote.length} remote templates`);
+            console.log(`✅ Loaded ${remote.length} remote templates:`, remote);
         } catch (error) {
             console.error('❌ Failed to load remote templates:', error);
             this.userTemplates = [];
@@ -1613,13 +1687,16 @@ class TemplateSelector {
             ...this.builtInTemplates,
             ...this.userTemplates
         ];
+        
+        // Clear render cache when templates change
+        this.renderCache.clear();
+        this.lastRenderKey = null;
     }
     
     /**
      * Refresh templates (force reload)
      */
     async refresh() {
-        console.log('🔄 Refreshing templates...');
         
         const refreshBtn = document.getElementById('templateSelectorRefresh');
         const originalHTML = refreshBtn?.innerHTML;
@@ -1822,7 +1899,6 @@ class TemplateSelector {
      * Handle duplicate template action
      */
     async handleDuplicateTemplate(templateId) {
-        console.log('🔄 Duplicating template:', templateId);
         
         if (!window.authManager?.isAuthenticated()) {
             this.showNotification('Sign in to save custom templates', 'warning');
@@ -1839,8 +1915,6 @@ class TemplateSelector {
             if (!template) {
                 throw new Error('Template not found');
             }
-            
-            console.log('📋 Template to duplicate:', template);
             
             // Extract skill lines based on format
             let skillLines = [];
@@ -1878,7 +1952,6 @@ class TemplateSelector {
      * Handle create new template action
      */
     async handleCreateTemplate() {
-        console.log('➕ Creating new template');
         
         if (!window.authManager?.isAuthenticated()) {
             this.showNotification('Please sign in to create templates', 'warning');
@@ -1886,25 +1959,78 @@ class TemplateSelector {
         }
         
         if (!window.templateWizard) {
-            console.error('Template wizard not available');
+            console.error('❌ Template wizard not available');
             return;
         }
         
         try {
-            // Open wizard instead of direct editor
-            // Issue #4: Pass 'this' reference to wizard for auto-refresh
-            window.templateWizard.open({
-                context: this.context,
-                skillLines: [],
-                templateSelector: this, // Pass selector reference for auto-refresh
-                onComplete: async () => {
-                    await this.refresh();
-                }
-            });
+            // Open new 2-step wizard with callback to refresh
+            // Pass context so wizard can auto-select correct type (skill vs mob)
+            await window.templateWizard.open(null, false, async (newTemplate) => {
+                await this.refresh();
+            }, this.context); // Pass context for auto-selection
         } catch (error) {
             console.error('Failed to open template wizard:', error);
             this.showNotification('Failed to open template wizard', 'error');
         }
+    }
+
+    /**
+     * Get all categories from loaded templates
+     */
+    getAllCategories() {
+        const categories = new Set();
+        this.allTemplates
+            .filter(t => t.type === this.context)
+            .forEach(t => {
+                if (t.category) categories.add(t.category);
+            });
+        return Array.from(categories).sort();
+    }
+
+    /**
+     * Get templates by category
+     */
+    getByCategory(category) {
+        return this.allTemplates.filter(t => 
+            t.type === this.context && t.category === category
+        );
+    }
+
+    /**
+     * Get category icon
+     */
+    getCategoryIcon(category) {
+        const icons = {
+            'combat': '⚔️',
+            'effects': '✨',
+            'movement': '🏃',
+            'utility': '🔧',
+            'defense': '🛡️',
+            'summons': '👥',
+            'projectiles': '🏹',
+            'auras': '💫',
+            'teleport': '🌀'
+        };
+        return icons[category?.toLowerCase()] || '📦';
+    }
+
+    /**
+     * Get category display name
+     */
+    getCategoryDisplayName(category) {
+        const names = {
+            'combat': 'Combat',
+            'effects': 'Effects',
+            'movement': 'Movement',
+            'utility': 'Utility',
+            'defense': 'Defense',
+            'summons': 'Summons',
+            'projectiles': 'Projectiles',
+            'auras': 'Auras',
+            'teleport': 'Teleport'
+        };
+        return names[category?.toLowerCase()] || category;
     }
 }
 

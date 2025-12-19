@@ -15,6 +15,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Soaps MythicMobs Editor - by AlternativeSoap</title>
     
+    <!-- Favicon (Dragon Icon) -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'%3E%3Cpath fill='%238b5cf6' d='M352 124.5l-51.9-13c-6.5-1.6-11.3-7.1-12-13.8s2.8-13.1 8.7-16.1l40.8-20.4L294.4 28.8c-5.5-4.1-7.8-11.3-5.6-17.9S297.1 0 304 0H416h32 16c30.2 0 58.7 14.2 76.8 38.4l57.6 76.8c6.2 8.3 9.6 18.4 9.6 28.8c0 26.5-21.5 48-48 48H538.5c-17 0-33.3-6.7-45.3-18.7L480 160H448v21.5c0 24.8 12.8 47.9 33.8 61.1l106.6 66.6c32.1 20.1 51.6 55.2 51.6 93.1C640 462.9 590.9 512 530.2 512H496 432 32.3c-3.3 0-6.6-.4-9.6-1.4C13.5 507.8 6 501 2.4 492.1C1 488.7 .2 485.2 0 481.4c-.2-3.7 .3-7.3 1.3-10.7c2.8-9.2 9.6-16.7 18.6-20.4c3-1.2 6.2-2 9.5-2.2L433.3 412c8.3-.7 14.7-7.7 14.7-16.1c0-4.3-1.7-8.4-4.7-11.4l-44.4-44.4c-30-30-46.9-70.7-46.9-113.1V181.5v-57zM512 72.3c0-.1 0-.2 0-.3s0-.2 0-.3v.6zm-1.3 7.4L464.3 68.1c-.2 1.3-.3 2.6-.3 3.9c0 13.3 10.7 24 24 24c10.6 0 19.5-6.8 22.7-16.3zM130.9 116.5c16.3-14.5 40.4-16.2 58.5-4.1l130.6 87V227c0 32.8 8.4 64.8 24 93H112c-6.7 0-12.7-4.2-15-10.4s-.5-13.3 4.6-17.7L171 232.3 18.4 255.8c-7 1.1-13.9-2.6-16.9-9s-1.5-14.1 3.8-18.8L130.9 116.5z'/%3E%3C/svg%3E">
+    
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,12 +30,16 @@
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/components.css">
     <link rel="stylesheet" href="styles/editor.css">
-    <link rel="stylesheet" href="styles/conditionEditor.css">
+    <link rel="stylesheet" href="styles/browser-modal.css">
     <link rel="stylesheet" href="styles/conditionBrowser.css">
     <link rel="stylesheet" href="styles/triggerBrowser.css">
     <link rel="stylesheet" href="styles/packImporter.css">
     <link rel="stylesheet" href="styles/skillLineBuilder.css">
     <link rel="stylesheet" href="styles/mechanicBrowser.css">
+    <link rel="stylesheet" href="styles/adminPanel.css">
+    <link rel="stylesheet" href="styles/adminPanelEnhanced.css">
+    <link rel="stylesheet" href="styles/templateWizard.css">
+    <link rel="stylesheet" href="styles/browser-management.css">
 </head>
 <body>
     <!-- Main Container -->
@@ -665,7 +672,6 @@
     <script src="data/targeters.js"></script>
     <script src="data/particleTypes.js"></script>
     <script src="data/mechanics.js"></script>
-    <script src="data/skillTemplates.js"></script>
 
     <!-- Utility Files -->
     <script src="utils/logger.js"></script>
@@ -703,6 +709,11 @@
     <script src="components/documentationHelper.js"></script>
     <script src="components/mobEditor/EntityFieldManager.js"></script>
     
+    <!-- Core Systems -->
+    <script src="utils/errorLogger.js"></script>
+    <script src="utils/permissionSystem.js"></script>
+    <script src="components/userProfileManager.js"></script>
+    
     <!-- Enhanced Dropdown with Categories & Icons -->
     <script src="data/minecraftItemCategories.js"></script>
     <script src="data/minecraftItemIcons.js"></script>
@@ -713,7 +724,6 @@
     <script src="components/aiEditor.js"></script>
     <script src="components/vanillaOverridesEditor.js"></script>
     <script src="components/powerSystemEditor.js"></script>
-    <script src="components/conditionEditor.js"></script> <!-- LEGACY: Kept for droptable/randomspawn/inline editing -->
     <script src="components/conditionBrowser.js?v=3.7"></script>
     <script src="components/inlineConditionBuilder.js"></script>
     <script src="components/triggerBrowser.js"></script>
@@ -722,8 +732,16 @@
     <script src="components/creationModeSelector.js"></script>
     <script src="components/notificationModal.js"></script>
     <script src="components/templateManager.js"></script>
+    <script src="components/templateImportExport.js"></script>
+    <script src="components/templateMigration.js"></script>
+    <script src="components/yamlPreviewModal.js"></script>
+    <script src="components/browserDataMerger.js"></script>
+    <script src="components/browserAdminManager.js"></script>
+    <script src="components/attributeBuilder.js"></script>
+    <script src="components/adminManager.js"></script>
+    <script src="components/adminPanel.js"></script>
+    <script src="components/templateWizard.js"></script>
     <script src="components/templateEditor.js"></script>
-    <script src="components/templateCreationWizard.js"></script>
     <script src="components/templateSelector.js"></script>
     <script src="components/skillLineBuilder.js?v=3.9"></script>
     <script src="components/mechanicReference.js"></script>
@@ -754,6 +772,7 @@
     <script src="components/yamlEditor.js"></script>
     <script src="components/displayNameBuilder.js"></script>
     <script src="components/commandPalette.js"></script>
+    <script src="components/adminPanelEnhanced.js"></script>
 
     <!-- Pack Importer System -->
     <script src="components/packImporter/PackFolderScanner.js"></script>
@@ -779,6 +798,12 @@
             // Initialize onboarding tour
             window.onboardingTour = new OnboardingTour();
             
+            // Initialize global notification modal
+            window.notificationModal = new NotificationModal();
+            
+            // Initialize global skill line builder (will be updated with dependencies later)
+            window.skillLineBuilder = new SkillLineBuilder();
+            
             window.editor = new MythicMobsEditor();
             window.editor.init();
             
@@ -789,10 +814,78 @@
                     window.authManager = window.editor.authManager;
                     
                     window.templateManager = new TemplateManager(window.supabaseClient, window.authManager);
-                    window.templateEditor = new TemplateEditor(window.templateManager);
-                    window.templateWizard = new TemplateCreationWizard(window.templateManager, window.templateEditor);
+                    window.templateImportExport = new TemplateImportExport(window.templateManager);
+                    window.templateMigration = new TemplateMigration(window.supabaseClient, window.authManager, window.templateManager);
+                    window.yamlPreviewModal = new YamlPreviewModal();
+                    window.templateEditor = new TemplateEditor(window.templateManager, window.authManager, window.templateImportExport);
+                    window.templateWizard = new TemplateWizard(window.templateManager, window.authManager, window.templateImportExport);
                     
-                    console.log('✅ Template system initialized (Manager, Editor, Wizard)');
+                    // Update global SkillLineBuilder with template dependencies
+                    if (window.skillLineBuilder) {
+                        window.skillLineBuilder.templateManager = window.templateManager;
+                        window.skillLineBuilder.templateEditor = window.templateEditor;
+                    }
+                    
+                    // Make templateWizard globally accessible for onclick handlers
+                    window.templateWizard = window.templateWizard;
+                    
+                    // Initialize admin system
+                    window.adminManager = new AdminManager(window.supabaseClient, window.authManager);
+                    window.adminManager.initialize().then(() => {
+                        // Create admin panel if user is admin
+                        if (window.adminManager.isAdmin) {
+                            window.adminPanel = new AdminPanel(window.adminManager, window.templateManager, window.authManager);
+                            
+                            // Initialize enhanced admin panel features
+                            window.adminPanelEnhanced = new AdminPanelEnhanced(window.adminPanel);
+                            
+                            // Add admin role label to user-type (replaces email badge to avoid duplication)
+                            const userType = document.getElementById('user-type');
+                            if (userType) {
+                                const role = window.adminManager.getCurrentRole();
+                                const roleDisplay = role ? role.replace('_', ' ').toUpperCase() : 'ADMIN';
+                                userType.innerHTML = `<i class="fas fa-shield-alt" style="color: #ffd700;"></i> ${roleDisplay}`;
+                            }
+                            
+                            // Add admin panel button to user dropdown
+                            const userDropdown = document.getElementById('user-dropdown');
+                            const loginBtn = document.getElementById('loginBtn');
+                            if (userDropdown && loginBtn) {
+                                // Add Profile button
+                                const profileBtn = document.createElement('button');
+                                profileBtn.className = 'btn btn-secondary';
+                                profileBtn.style.marginBottom = '10px';
+                                profileBtn.innerHTML = `<i class="fas fa-user"></i> Edit Profile`;
+                                profileBtn.onclick = () => window.userProfileManager?.showProfileEditor();
+                                userDropdown.insertBefore(profileBtn, loginBtn);
+                                
+                                // Add Admin Panel button
+                                const adminBtn = document.createElement('button');
+                                adminBtn.className = 'btn btn-primary';
+                                adminBtn.style.marginBottom = '10px';
+                                adminBtn.innerHTML = `<i class="fas fa-shield-alt"></i> Admin Panel`;
+                                adminBtn.onclick = () => window.adminPanel.open();
+                                
+                                // Insert before login button
+                                userDropdown.insertBefore(adminBtn, loginBtn);
+                            }
+                        } else {
+                            
+                            // Add profile button for non-admin users too
+                            const userDropdown = document.getElementById('user-dropdown');
+                            const loginBtn = document.getElementById('loginBtn');
+                            if (userDropdown && loginBtn) {
+                                const profileBtn = document.createElement('button');
+                                profileBtn.className = 'btn btn-secondary';
+                                profileBtn.style.marginBottom = '10px';
+                                profileBtn.innerHTML = `<i class="fas fa-user"></i> Edit Profile`;
+                                profileBtn.onclick = () => window.userProfileManager?.showProfileEditor();
+                                userDropdown.insertBefore(profileBtn, loginBtn);
+                            }
+                        }
+                    }).catch(error => {
+                        console.error('❌ Admin system initialization failed:', error);
+                    });
                     
                     // Update any existing SkillBuilderEditor instances with the new dependencies
                     if (window.editor.skillEditor?.skillBuilderEditor) {
@@ -810,7 +903,7 @@
                 } else {
                     console.warn('⚠️ Template system not initialized: supabaseClient or authManager missing');
                 }
-            }, 100);
+            }, 500);
             
             // Auto-start tour for new users after a short delay
             setTimeout(() => {

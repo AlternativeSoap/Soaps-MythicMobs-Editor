@@ -17,8 +17,28 @@ class ConditionBrowser {
         this.usageMode = 'yaml';  // 'inline' or 'yaml'
         this.conditionType = 'caster';  // for inline: 'caster' or 'trigger'
         
+        // Initialize browser data merger
+        if (window.supabase && typeof BrowserDataMerger !== 'undefined') {
+            this.browserDataMerger = new BrowserDataMerger(window.supabase);
+        }
+        this.conditionsData = window.CONDITIONS_DATA || []; // Default to built-in
+        
         this.createModal();
         this.attachEventListeners();
+    }
+
+    /**
+     * Load merged data from database
+     */
+    async loadMergedData() {
+        if (this.browserDataMerger) {
+            try {
+                this.conditionsData = await this.browserDataMerger.getMergedConditions();
+            } catch (error) {
+                console.error('Error loading merged conditions:', error);
+                this.conditionsData = window.CONDITIONS_DATA || []; // Fallback
+            }
+        }
     }
 
     /**
@@ -65,12 +85,15 @@ class ConditionBrowser {
                                 <i class="fas fa-star"></i> Favorites (0)
                             </button>
                             <button class="category-tab active" data-category="all">All (0)</button>
-                            <button class="category-tab" data-category="ENTITY">🧍 Entity (0)</button>
-                            <button class="category-tab" data-category="LOCATION">📍 Location (0)</button>
-                            <button class="category-tab" data-category="WORLD">🌍 World (0)</button>
-                            <button class="category-tab" data-category="PLAYER">👤 Player (0)</button>
-                            <button class="category-tab" data-category="FACTION">⚔️ Faction (0)</button>
-                            <button class="category-tab" data-category="SCORE">📊 Score (0)</button>
+                            <button class="category-tab" data-category="Entity State">💚 Entity State (0)</button>
+                            <button class="category-tab" data-category="Entity Type">🔍 Entity Type (0)</button>
+                            <button class="category-tab" data-category="Player">👤 Player (0)</button>
+                            <button class="category-tab" data-category="Location">📍 Location (0)</button>
+                            <button class="category-tab" data-category="Time & Weather">🌤️ Time & Weather (0)</button>
+                            <button class="category-tab" data-category="Combat">⚔️ Combat (0)</button>
+                            <button class="category-tab" data-category="Variables & Data">📊 Variables & Data (0)</button>
+                            <button class="category-tab" data-category="Server & World">🌍 Server & World (0)</button>
+                            <button class="category-tab" data-category="Logic & Meta">🎲 Logic & Meta (0)</button>
                         </div>
                         
                         <!-- Condition Grid -->
@@ -268,7 +291,10 @@ class ConditionBrowser {
     /**
      * Open the condition browser
      */
-    open(options = {}) {
+    async open(options = {}) {
+        // Load merged data if available
+        await this.loadMergedData();
+        
         this.currentValue = options.currentValue || null;
         this.onSelectCallback = options.onSelect || null;
         this.callbackInvoked = false;  // Reset flag
@@ -326,10 +352,8 @@ class ConditionBrowser {
         
         // Only notify parent if callback wasn't already called
         if (this.onSelectCallback && !this.callbackInvoked) {
-            console.log('🚪 Browser closed without selection, sending null');
             this.onSelectCallback(null);
         } else if (this.callbackInvoked) {
-            console.log('🚪 Browser closed after successful selection, skipping null callback');
         }
         
         this.onSelectCallback = null;
@@ -350,12 +374,15 @@ class ConditionBrowser {
             counts = {
                 all: dataOptimizer.getCategoryCount('conditions', 'all'),
                 favorites: this.favoritesManager.getCount(),
-                ENTITY: dataOptimizer.getCategoryCount('conditions', 'ENTITY'),
-                LOCATION: dataOptimizer.getCategoryCount('conditions', 'LOCATION'),
-                WORLD: dataOptimizer.getCategoryCount('conditions', 'WORLD'),
-                PLAYER: dataOptimizer.getCategoryCount('conditions', 'PLAYER'),
-                FACTION: dataOptimizer.getCategoryCount('conditions', 'FACTION'),
-                SCORE: dataOptimizer.getCategoryCount('conditions', 'SCORE')
+                'Entity State': dataOptimizer.getCategoryCount('conditions', 'Entity State'),
+                'Entity Type': dataOptimizer.getCategoryCount('conditions', 'Entity Type'),
+                'Player': dataOptimizer.getCategoryCount('conditions', 'Player'),
+                'Location': dataOptimizer.getCategoryCount('conditions', 'Location'),
+                'Time & Weather': dataOptimizer.getCategoryCount('conditions', 'Time & Weather'),
+                'Combat': dataOptimizer.getCategoryCount('conditions', 'Combat'),
+                'Variables & Data': dataOptimizer.getCategoryCount('conditions', 'Variables & Data'),
+                'Server & World': dataOptimizer.getCategoryCount('conditions', 'Server & World'),
+                'Logic & Meta': dataOptimizer.getCategoryCount('conditions', 'Logic & Meta')
             };
         } else {
             // Fallback: manually count from window.ALL_CONDITIONS
@@ -363,12 +390,15 @@ class ConditionBrowser {
             counts = {
                 all: allConditions.length,
                 favorites: this.favoritesManager.getCount(),
-                ENTITY: allConditions.filter(c => c.category === 'ENTITY').length,
-                LOCATION: allConditions.filter(c => c.category === 'LOCATION').length,
-                WORLD: allConditions.filter(c => c.category === 'WORLD').length,
-                PLAYER: allConditions.filter(c => c.category === 'PLAYER').length,
-                FACTION: allConditions.filter(c => c.category === 'FACTION').length,
-                SCORE: allConditions.filter(c => c.category === 'SCORE').length
+                'Entity State': allConditions.filter(c => c.category === 'Entity State').length,
+                'Entity Type': allConditions.filter(c => c.category === 'Entity Type').length,
+                'Player': allConditions.filter(c => c.category === 'Player').length,
+                'Location': allConditions.filter(c => c.category === 'Location').length,
+                'Time & Weather': allConditions.filter(c => c.category === 'Time & Weather').length,
+                'Combat': allConditions.filter(c => c.category === 'Combat').length,
+                'Variables & Data': allConditions.filter(c => c.category === 'Variables & Data').length,
+                'Server & World': allConditions.filter(c => c.category === 'Server & World').length,
+                'Logic & Meta': allConditions.filter(c => c.category === 'Logic & Meta').length
             };
         }
 
@@ -395,8 +425,6 @@ class ConditionBrowser {
             console.error('❌ conditionList container not found');
             return;
         }
-
-        console.log('🎨 renderConditions called:', { category: this.currentCategory, search: this.searchQuery });
 
         // Add CSS optimizations on first render
         if (!listContainer.dataset.optimized) {
@@ -436,7 +464,6 @@ class ConditionBrowser {
                 // Fallback to window.ALL_CONDITIONS
                 console.warn('⚠️ Using fallback data source');
                 const allConditions = window.ALL_CONDITIONS || [];
-                console.log('📦 ALL_CONDITIONS available:', allConditions.length, 'conditions');
                 
                 filteredConditions = allConditions;
                 
@@ -461,8 +488,6 @@ class ConditionBrowser {
             // Cache the result
             this.searchCache.set(cacheKey, filteredConditions);
         }
-        
-        console.log('✅ Filtered conditions:', filteredConditions.length);
 
         // Render cards
         if (filteredConditions.length === 0) {
@@ -612,6 +637,12 @@ class ConditionBrowser {
                     `;
                 }
 
+                // Add entity picker for entity_type validation
+                let entityPickerHTML = '';
+                if (attr.validation === 'entity_type') {
+                    entityPickerHTML = this.createEntityPickerHTML(inputId);
+                }
+
                 return `
                     <div class="form-group">
                         <label for="${inputId}">
@@ -620,6 +651,7 @@ class ConditionBrowser {
                         </label>
                         ${inputHTML}
                         <small style="color: #95a5a6; display: block; margin-top: 5px;">${attr.description}</small>
+                        ${entityPickerHTML}
                     </div>
                 `;
             }).join('');
@@ -629,6 +661,15 @@ class ConditionBrowser {
                 input.addEventListener('input', () => this.updateConditionPreview());
                 input.addEventListener('change', () => this.updateConditionPreview());
             });
+
+            // Setup entity pickers for entity_type validation
+            condition.attributes.forEach(attr => {
+                if (attr.validation === 'entity_type') {
+                    const inputId = `attr_${attr.name}`;
+                    // Use setTimeout to ensure DOM is fully rendered
+                    setTimeout(() => this.setupEntityPickerHandlers(inputId), 0);
+                }
+            });
         } else {
             form.innerHTML = '<p style="color: #95a5a6;">No attributes required for this condition.</p>';
         }
@@ -637,27 +678,20 @@ class ConditionBrowser {
         const yamlActionSection = document.getElementById('yamlActionSection');
         const inlinePrefixSection = document.getElementById('inlinePrefixSection');
         
-        console.log('🎨 Configuring UI for mode:', this.usageMode);
-        
         if (this.usageMode === 'inline') {
             // Inline mode: show prefix selector, hide action selector
             if (yamlActionSection) yamlActionSection.style.display = 'none';
             if (inlinePrefixSection) inlinePrefixSection.style.display = 'block';
             
-            console.log('✅ Inline mode UI: Prefix selector shown, Action selector hidden');
-            
             // Set default prefix based on condition type
             const prefixSelect = document.getElementById('inlinePrefixSelect');
             if (prefixSelect) {
                 prefixSelect.value = this.conditionType === 'trigger' ? '?~' : '?';
-                console.log('🔧 Default prefix set to:', prefixSelect.value);
             }
         } else {
             // YAML mode: show action selector, hide prefix selector
             if (yamlActionSection) yamlActionSection.style.display = 'block';
             if (inlinePrefixSection) inlinePrefixSection.style.display = 'none';
-            
-            console.log('✅ YAML mode UI: Action selector shown, Prefix selector hidden');
             
             // Reset action selector
             document.getElementById('conditionActionSelect').value = 'true';
@@ -756,8 +790,6 @@ class ConditionBrowser {
             conditionString += `{${attributes.join(';')}}`;
         }
 
-        console.log('🎯 confirmConfiguration called - Mode:', this.usageMode, 'Condition:', conditionString);
-
         // Callback with result based on usage mode (BEFORE closing!)
         if (this.onSelectCallback) {
             if (this.usageMode === 'inline') {
@@ -774,9 +806,6 @@ class ConditionBrowser {
                     condition: this.currentCondition
                 };
                 
-                console.log('✅ Inline condition confirmed:', result);
-                console.log('📤 Calling callback with inline result');
-                
                 this.callbackInvoked = true;  // Mark as invoked
                 this.onSelectCallback(result);
             } else {
@@ -787,8 +816,6 @@ class ConditionBrowser {
                 const actionParam = actionParamInput && actionParamInput.style.display !== 'none' 
                     ? actionParamInput.value.trim() 
                     : '';
-                
-                console.log('✅ YAML condition confirmed:', conditionString, action, actionParam);
                 
                 this.callbackInvoked = true;  // Mark as invoked
                 this.onSelectCallback({
@@ -804,6 +831,318 @@ class ConditionBrowser {
         // Close modals AFTER callback
         this.closeAttributeModal();
         this.close();
+    }
+
+    /**
+     * Create entity picker HTML
+     */
+    createEntityPickerHTML(inputId) {
+        // Get entity types from DataValidatorHelpers
+        const entityTypes = window.DataValidator?.prototype?.VALID_ENTITY_TYPES || [];
+        
+        // Get custom MythicMobs from mob editor
+        const customMobs = this.getCustomMythicMobs();
+        
+        // Categorize entities
+        const categories = {
+            'Hostile': ['ZOMBIE', 'SKELETON', 'SPIDER', 'CAVE_SPIDER', 'CREEPER', 'ENDERMAN', 'WITCH', 'SLIME', 
+                       'MAGMA_CUBE', 'BLAZE', 'GHAST', 'ZOMBIFIED_PIGLIN', 'HOGLIN', 'PIGLIN', 'PIGLIN_BRUTE',
+                       'WITHER_SKELETON', 'STRAY', 'HUSK', 'DROWNED', 'PHANTOM', 'SILVERFISH', 'ENDERMITE',
+                       'VINDICATOR', 'EVOKER', 'VEX', 'PILLAGER', 'RAVAGER', 'GUARDIAN', 'ELDER_GUARDIAN',
+                       'SHULKER', 'ZOGLIN', 'WARDEN', 'BOGGED', 'BREEZE'],
+            'Passive': ['PIG', 'COW', 'SHEEP', 'CHICKEN', 'RABBIT', 'HORSE', 'DONKEY', 'MULE', 'LLAMA',
+                       'TRADER_LLAMA', 'CAT', 'OCELOT', 'WOLF', 'PARROT', 'BAT', 'VILLAGER', 'WANDERING_TRADER',
+                       'COD', 'SALMON', 'TROPICAL_FISH', 'PUFFERFISH', 'SQUID', 'GLOW_SQUID', 'DOLPHIN',
+                       'TURTLE', 'POLAR_BEAR', 'PANDA', 'FOX', 'BEE', 'MOOSHROOM', 'STRIDER', 'AXOLOTL',
+                       'GOAT', 'FROG', 'TADPOLE', 'CAMEL', 'SNIFFER', 'ARMADILLO', 'ALLAY'],
+            'Utility': ['IRON_GOLEM', 'SNOW_GOLEM', 'ARMOR_STAND', 'ITEM_DISPLAY', 'BLOCK_DISPLAY',
+                       'TEXT_DISPLAY', 'INTERACTION', 'MARKER'],
+            'Bosses': ['ENDER_DRAGON', 'WITHER']
+        };
+        
+        // Add MythicMobs category if we have custom mobs
+        if (customMobs.length > 0) {
+            categories['MythicMobs'] = customMobs;
+        }
+
+        return `
+            <div class="entity-picker-container" data-input-id="${inputId}">
+                <!-- Selected Entities Chips -->
+                <div class="entity-chips-container" style="display: none;">
+                    <div class="entity-chips"></div>
+                    <button type="button" class="btn-clear-entities">
+                        Clear All
+                    </button>
+                </div>
+
+                <!-- Entity Search -->
+                <div class="entity-search-container">
+                    <input type="text" 
+                           class="entity-search-input" 
+                           placeholder="🔍 Search vanilla entities or type custom mob name and press Enter...">
+                    <small class="entity-search-hint">Type any entity name and press <kbd>Enter</kbd> to add</small>
+                </div>
+
+                <!-- Entity Browser -->
+                <div class="entity-browser">
+                    ${Object.entries(categories).map(([category, entities]) => `
+                        <div class="entity-category" data-category="${category}">
+                            <div class="entity-category-header">
+                                ${category === 'MythicMobs' ? '🔮 ' : ''}${category} (${entities.length})
+                            </div>
+                            <div class="entity-grid">
+                                ${entities.map(entity => `
+                                    <button type="button" 
+                                            class="entity-item ${category === 'MythicMobs' ? 'mythicmob-item' : ''}" 
+                                            data-entity="${entity}">
+                                        ${entity}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Setup entity picker event handlers
+     */
+    setupEntityPickerHandlers(inputId) {
+        const container = document.querySelector(`.entity-picker-container[data-input-id="${inputId}"]`);
+        if (!container) return;
+
+        const input = document.getElementById(inputId);
+        const searchInput = container.querySelector('.entity-search-input');
+        const entityBrowser = container.querySelector('.entity-browser');
+        const chipsContainer = container.querySelector('.entity-chips');
+        const chipsWrapper = container.querySelector('.entity-chips-container');
+        const clearBtn = container.querySelector('.btn-clear-entities');
+
+        // Track selected entities
+        let selectedEntities = [];
+
+        // Initialize from existing input value
+        const initValue = input.value.trim();
+        if (initValue) {
+            selectedEntities = initValue.split(',').map(e => e.trim()).filter(e => e);
+            this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
+        }
+
+        // Entity item click handler
+        container.addEventListener('click', (e) => {
+            const entityBtn = e.target.closest('.entity-item');
+            if (entityBtn) {
+                const entity = entityBtn.dataset.entity;
+                this.toggleEntity(entity, selectedEntities, input, chipsContainer, chipsWrapper);
+                this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
+            }
+        });
+
+        // Clear all button
+        clearBtn.addEventListener('click', () => {
+            selectedEntities = [];
+            input.value = '';
+            this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
+            this.updateConditionPreview();
+        });
+
+        // Enter key to add custom entity
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const customName = searchInput.value.trim();
+                if (customName && !selectedEntities.includes(customName)) {
+                    selectedEntities.push(customName);
+                    input.value = selectedEntities.join(',');
+                    this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
+                    searchInput.value = '';
+                    // Reset search filter
+                    const categories = container.querySelectorAll('.entity-category');
+                    categories.forEach(cat => cat.style.display = '');
+                    container.querySelectorAll('.entity-item').forEach(item => item.style.display = '');
+                    this.updateConditionPreview();
+                }
+            }
+        });
+
+        // Search functionality
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const categories = container.querySelectorAll('.entity-category');
+            
+            categories.forEach(category => {
+                const items = category.querySelectorAll('.entity-item');
+                let visibleCount = 0;
+                
+                items.forEach(item => {
+                    const entityName = item.dataset.entity.toLowerCase();
+                    if (entityName.includes(query)) {
+                        item.style.display = '';
+                        visibleCount++;
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+                
+                // Hide category if no visible items
+                category.style.display = visibleCount > 0 ? '' : 'none';
+            });
+        });
+
+        // Sync input changes back to chips
+        input.addEventListener('input', () => {
+            const value = input.value.trim();
+            selectedEntities = value ? value.split(',').map(e => e.trim()).filter(e => e) : [];
+            this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
+        });
+    }
+
+    /**
+     * Toggle entity selection
+     */
+    toggleEntity(entity, selectedEntities, input, chipsContainer, chipsWrapper) {
+        const index = selectedEntities.indexOf(entity);
+        if (index > -1) {
+            selectedEntities.splice(index, 1);
+        } else {
+            selectedEntities.push(entity);
+        }
+        
+        input.value = selectedEntities.join(',');
+        this.updateConditionPreview();
+    }
+
+    /**
+     * Update entity chips display
+     */
+    updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input) {
+        // Show/hide chips container
+        if (selectedEntities.length > 0) {
+            chipsWrapper.style.display = 'block';
+        } else {
+            chipsWrapper.style.display = 'none';
+            return;
+        }
+
+        // Check if entities are vanilla or custom
+        const vanillaTypes = window.DataValidator?.prototype?.VALID_ENTITY_TYPES || [];
+        
+        // Render chips
+        chipsContainer.innerHTML = selectedEntities.map(entity => {
+            const isVanilla = vanillaTypes.includes(entity.toUpperCase());
+            
+            return `
+                <div class="entity-chip ${isVanilla ? 'vanilla' : 'custom'}" data-entity="${entity}">
+                    <span class="entity-chip-name">${entity}</span>
+                    ${!isVanilla ? '<span class="entity-chip-badge">(custom)</span>' : ''}
+                    <button type="button" class="btn-remove-chip" data-entity="${entity}">
+                        ×
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        // Add remove handlers
+        chipsContainer.querySelectorAll('.btn-remove-chip').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const entity = btn.dataset.entity;
+                const index = selectedEntities.indexOf(entity);
+                if (index > -1) {
+                    selectedEntities.splice(index, 1);
+                    input.value = selectedEntities.join(',');
+                    this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
+                    this.updateConditionPreview();
+                }
+            });
+        });
+
+        // Highlight selected entities in browser
+        const container = chipsContainer.closest('.entity-picker-container');
+        container.querySelectorAll('.entity-item').forEach(item => {
+            const entity = item.dataset.entity;
+            if (selectedEntities.includes(entity)) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    /**
+     * Get custom MythicMobs from the current pack
+     */
+    getCustomMythicMobs() {
+        try {
+            
+            // Try multiple paths to access packManager
+            let packManager = null;
+            
+            // Path 1: this.editor.packManager (when browser is created with editor reference)
+            if (this.editor?.packManager) {
+                packManager = this.editor.packManager;
+            }
+            // Path 2: window.editor.packManager (global editor instance)
+            else if (window.editor?.packManager) {
+                packManager = window.editor.packManager;
+            }
+            // Path 3: window.app.packManager (fallback)
+            else if (window.app?.packManager) {
+                packManager = window.app.packManager;
+            }
+            
+            if (!packManager) {
+                console.log('❌ No packManager found through any path');
+                return [];
+            }
+            
+            const activePack = packManager.activePack;
+            console.log('Active pack:', activePack ? activePack.name : 'None');
+            
+            if (!activePack || !activePack.mobs) {
+                console.log('❌ No activePack or mobs array');
+                return [];
+            }
+            
+            console.log('Mobs array length:', activePack.mobs.length);
+            
+            const customMobs = [];
+            
+            // Check if using new file-based structure
+            if (Array.isArray(activePack.mobs) && activePack.mobs.length > 0) {
+                console.log('First mob structure check:', activePack.mobs[0].entries !== undefined ? 'File-based' : 'Legacy');
+                
+                if (activePack.mobs[0].entries !== undefined) {
+                    // New structure: iterate through files and their entries
+                    activePack.mobs.forEach(file => {
+                        if (file.entries && Array.isArray(file.entries)) {
+                            console.log(`File: ${file.fileName}, entries: ${file.entries.length}`);
+                            file.entries.forEach(mob => {
+                                if (mob.internalName || mob.name) {
+                                    customMobs.push(mob.internalName || mob.name);
+                                }
+                            });
+                        }
+                    });
+                } else {
+                    // Legacy flat structure
+                    activePack.mobs.forEach(mob => {
+                        if (mob.internalName || mob.name) {
+                            customMobs.push(mob.internalName || mob.name);
+                        }
+                    });
+                }
+            }
+            
+            console.log(`✅ Returning ${customMobs.length} custom mobs:`, customMobs);
+            // Sort alphabetically and remove duplicates
+            return [...new Set(customMobs)].sort((a, b) => a.localeCompare(b));
+        } catch (error) {
+            console.warn('Could not load custom MythicMobs:', error);
+            return [];
+        }
     }
 }
 

@@ -4,6 +4,24 @@
  * Parsed from official MythicMobs documentation (8386 lines)
  */
 
+// Universal Attributes - Apply to ALL mechanics
+const UNIVERSAL_ATTRIBUTES = [
+    { name: 'cooldown', alias: ['cd'], type: 'number', default: 0, description: 'Cooldown in seconds (allows decimals)' },
+    { name: 'delay', alias: [], type: 'number', default: 0, description: 'Delays execution by set number of ticks' },
+    { name: 'repeat', alias: [], type: 'number', default: 0, description: 'How many times to repeat (with repeatInterval=0, becomes executions)' },
+    { name: 'repeatInterval', alias: ['repeatI'], type: 'number', default: 0, description: 'Ticks between repetitions' },
+    { name: 'targetInterval', alias: ['targetI'], type: 'number', default: 0, description: 'Ticks between target selection' },
+    { name: 'origin', alias: [], type: 'targeter', default: '', description: 'Change origin to targeter (Premium)' },
+    { name: 'power', alias: [], type: 'number', default: 1, description: 'Power multiplier' },
+    { name: 'fromorigin', alias: ['fo', 'sourceisorigin', 'castfromorigin'], type: 'boolean', default: false, description: 'Cast from origin (select mechanics only)' },
+    { name: 'targetisorigin', alias: [], type: 'boolean', default: false, description: 'Set target as origin' },
+    { name: 'targetcreative', alias: [], type: 'boolean', default: false, description: 'Whether to target creative players' },
+    { name: 'splitPower', alias: ['powersplit', 'powersplitbetweentargets'], type: 'boolean', default: false, description: 'Split power between targets' },
+    { name: 'faulty', alias: [], type: 'boolean', default: true, description: 'Use old vector formula' },
+    { name: 'chance', alias: [], type: 'number', default: 1, description: 'Chance of execution (0.1 = 10%)' },
+    { name: 'forcesync', alias: ['sync'], type: 'boolean', default: false, description: 'Force synchronous execution (needed for some mechanics like CancelEvent)' }
+];
+
 // Inherited Particle Attributes - Shared by all particle mechanics except base Particle
 const INHERITED_PARTICLE_ATTRIBUTES = [
     { name: 'mob', alias: ['m', 't'], type: 'text', default: '', description: 'Entity to spawn as particle (Premium Only)' },
@@ -41,7 +59,8 @@ const MECHANICS_DATA = {
         control: { name: 'Control', color: '#f59e0b', icon: '🎮' },
         utility: { name: 'Utility', color: '#06b6d4', icon: '🔧' },
         aura: { name: 'Auras', color: '#8b5cf6', icon: '🔮' },
-        projectile: { name: 'Projectiles', color: '#ec4899', icon: '🎯' }
+        projectile: { name: 'Projectiles', color: '#ec4899', icon: '🎯' },
+        meta: { name: 'Meta Mechanics', color: '#9333ea', icon: '⚡' }
     },
 
     // All mechanics with complete metadata (180+ mechanics)
@@ -270,7 +289,7 @@ const MECHANICS_DATA = {
             id: 'skill',
             name: 'skill',
             aliases: ['metaskill', 'meta', 's', '$', '()', 'm', 'mechanics', 'spell'],
-            category: 'utility',
+            category: 'meta',
             description: 'Executes another MetaSkill. The executed skill will inherit any targets if no targeter is specified.',
             attributes: [
                 { name: 'skill', alias: ['s', '$', '()', 'm', 'mechanics', 'meta', 'spell'], type: 'string', default: '', required: true, description: 'The metaskill to execute' },
@@ -284,7 +303,7 @@ const MECHANICS_DATA = {
             id: 'delay',
             name: 'delay',
             aliases: [],
-            category: 'utility',
+            category: 'meta',
             description: 'Delays the current skilltree by X ticks. 20 ticks = 1 second.',
             attributes: [
                 { name: 'ticks', alias: ['t'], type: 'number', default: 20, description: 'Number of ticks to delay' }
@@ -353,6 +372,40 @@ const MECHANICS_DATA = {
             ],
             defaultTargeter: '@Self',
             examples: ['- signal{s=ATTACK} ']
+        },
+        {
+            id: 'globalcooldown',
+            name: 'GlobalCooldown',
+            aliases: ['gcd', 'setgcd', 'setglobalcooldown'],
+            category: 'utility',
+            description: 'Sets caster\'s global cooldown. Use with offgcd condition for shared cooldown across multiple skills.',
+            attributes: [
+                { name: 'ticks', alias: ['t'], type: 'number', default: 20, description: 'Cooldown duration in ticks' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- gcd{ticks=40}',
+                '- globalcooldown{t=100}'
+            ]
+        },
+        {
+            id: 'stataura',
+            name: 'StatAura',
+            aliases: ['statbuff', 'statdebuff'],
+            category: 'utility',
+            description: 'Applies aura that applies stat to target. Buff multiplied by aura stacks. Inherits all aura attributes.',
+            attributes: [
+                { name: 'auraName', alias: ['n', 'name'], type: 'string', default: '', description: 'Aura identifier' },
+                { name: 'duration', alias: ['d'], type: 'number', default: 200, description: 'Duration in ticks' },
+                { name: 'stat', alias: ['s'], type: 'string', default: '', required: true, description: 'Stat to apply (e.g., CRITICAL_STRIKE_CHANCE)' },
+                { name: 'type', alias: ['t', 'modifier', 'mod', 'm'], type: 'string', default: 'ADDITIVE', description: 'Modifier type: ADDITIVE or COMPOUND_MULTIPLIER' },
+                { name: 'value', alias: ['val', 'v'], type: 'number', default: 0, description: 'Value for stat' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- stataura{auraName=critbuff;d=100;stat=CRITICAL_STRIKE_CHANCE;type=COMPOUND_MULTIPLIER;val=2} @self',
+                '- statbuff{stat=MOVEMENT_SPEED;type=ADDITIVE;val=0.5;d=200} @self'
+            ]
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -545,47 +598,94 @@ const MECHANICS_DATA = {
             id: 'aura',
             name: 'aura',
             aliases: ['buff', 'debuff'],
-            category: 'aura',
-            description: 'Acts as a status effect on the target entity, can trigger other skills over its duration.',
+            category: 'meta',
+            description: 'Acts as a status effect on the target entity, can trigger other skills over its duration. Auras allow you to create custom status effects (buffs/debuffs).',
             attributes: [
-                { name: 'auraname', alias: ['aura', 'b', 'buff', 'buffname', 'debuff', 'debuffname', 'n', 'name'], type: 'string', default: 'UUID', description: 'Optional name for aura' },
+                { name: 'auraname', alias: ['aura', 'b', 'buff', 'buffname', 'debuff', 'debuffname', 'n', 'name'], type: 'string', default: 'UUID', description: 'Optional name, required for aura mechanics & conditions' },
+                { name: 'auratype', alias: ['auragroup', 'group', 'type', 'g'], type: 'string', default: '', description: 'The type/group of the aura' },
+                { name: 'attachmenttype', alias: ['attachment', 'attach'], type: 'string', default: 'NONE', description: 'Attachment to apply (NONE, MODELENGINE)' },
+                { name: 'onstartskill', alias: ['onstart', 'os'], type: 'string', default: '', description: 'Metaskill executed when aura starts' },
+                { name: 'ontickskill', alias: ['ontick', 'ot'], type: 'string', default: '', description: 'Metaskill executed every interval' },
+                { name: 'onendskill', alias: ['onend', 'oe'], type: 'string', default: '', description: 'Metaskill executed when aura ends' },
+                { name: 'showbartimer', alias: ['bartimer', 'bt'], type: 'boolean', default: false, description: 'Display boss bar timer for caster' },
+                { name: 'bartimerdisplay', alias: ['bartimertext'], type: 'string', default: '', description: 'Boss bar text (if showBarTimer=true)' },
+                { name: 'bartimercolor', alias: [], type: 'string', default: 'RED', description: 'Boss bar color' },
+                { name: 'bartimerstyle', alias: [], type: 'string', default: 'SOLID', description: 'Boss bar style' },
+                { name: 'charges', alias: ['c'], type: 'number', default: 0, description: 'Charges before fade' },
                 { name: 'duration', alias: ['ticks', 't', 'd', 'time'], type: 'number', default: 200, description: 'Duration in ticks' },
-                { name: 'interval', alias: ['i'], type: 'number', default: 1, description: 'Tick interval' },
-                { name: 'ontick', alias: ['ot', 'ontickskill'], type: 'string', default: '', description: 'Skill executed each interval' },
-                { name: 'onstart', alias: ['os', 'onstartskill'], type: 'string', default: '', description: 'Skill executed on start' },
-                { name: 'onend', alias: ['oe', 'onendskill'], type: 'string', default: '', description: 'Skill executed on end' },
-                { name: 'charges', alias: ['c'], type: 'number', default: 0, description: 'Charges before fade' }
+                { name: 'interval', alias: ['i'], type: 'number', default: 1, description: 'Tick interval for onTick' },
+                { name: 'maxstacks', alias: ['ms'], type: 'number', default: 1, description: 'Max times aura stacks on same entity' },
+                { name: 'refreshduration', alias: ['rd'], type: 'boolean', default: true, description: 'Refresh duration when reapplied' },
+                { name: 'mergesamecaster', alias: ['msc', 'mc'], type: 'boolean', default: false, description: 'Merge auras from same caster' },
+                { name: 'mergeall', alias: ['ma'], type: 'boolean', default: false, description: 'Merge all auras of same name' },
+                { name: 'overwritesamecaster', alias: ['osc', 'oc'], type: 'boolean', default: false, description: 'Overwrite auras from same caster' },
+                { name: 'overwriteall', alias: ['overwrite', 'ow'], type: 'boolean', default: false, description: 'Overwrite all auras of same name' },
+                { name: 'cancelongivedamage', alias: ['cogd'], type: 'boolean', default: false, description: 'Cancel if entity deals damage' },
+                { name: 'cancelontakedamage', alias: ['cotd'], type: 'boolean', default: false, description: 'Cancel if entity takes damage' },
+                { name: 'cancelondeath', alias: ['cod'], type: 'boolean', default: true, description: 'Cancel if entity dies' },
+                { name: 'canceloncasterdeath', alias: ['cocd'], type: 'boolean', default: false, description: 'Cancel if caster dies' },
+                { name: 'cancelonteleport', alias: ['cot'], type: 'boolean', default: false, description: 'Cancel if entity teleports' },
+                { name: 'cancelonchangeworld', alias: ['cocw'], type: 'boolean', default: false, description: 'Cancel if entity changes worlds' },
+                { name: 'cancelonskilluse', alias: ['cosu'], type: 'boolean', default: false, description: 'Cancel if entity uses skill' },
+                { name: 'cancelonquit', alias: ['coq'], type: 'boolean', default: true, description: 'Cancel if player logs out' },
+                { name: 'doendskillonterminate', alias: ['desot', 'alwaysrunendskill', 'ares'], type: 'boolean', default: true, description: 'Run onEnd when removed by auraremove' },
+                { name: 'attachmentmodel', alias: ['attachmodel', 'model'], type: 'string', default: '', description: 'ModelEngine model (if attachmentType=MODELENGINE)' },
+                { name: 'attachmentstate', alias: ['attachstate', 'state'], type: 'string', default: '', description: 'ModelEngine state' },
+                { name: 'attachmentcolor', alias: ['attachcolor'], type: 'color', default: '', description: 'ModelEngine color' },
+                { name: 'attachmentscale', alias: ['attachscale'], type: 'number', default: 1, description: 'ModelEngine scale' },
+                { name: 'attachmentviewradius', alias: ['attackviewradius'], type: 'number', default: -1, description: 'ModelEngine view radius' },
+                { name: 'attachmentenchanted', alias: ['enchanted'], type: 'boolean', default: false, description: 'ModelEngine enchantment glint' },
+                { name: 'attachmentglowing', alias: ['glowing'], type: 'boolean', default: false, description: 'ModelEngine glowing' },
+                { name: 'attachmentglowcolor', alias: ['attachglowcolor'], type: 'color', default: '', description: 'ModelEngine glow color' },
+                { name: 'attachmentculling', alias: ['culling'], type: 'boolean', default: true, description: 'ModelEngine culling enabled' },
+                { name: 'attachmentoffset', alias: ['attachoffset'], type: 'string', default: '0,0,0,0,0', description: 'ModelEngine offset (x,y,z,yaw,pitch)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- aura{auraName=Retributing_Light;onTick=Damage;interval=10;duration=240} ']
+            examples: [
+                '- aura{auraName=Retributing_Light;onTick=RetributingLightDamage;interval=10;duration=240} @self',
+                '- aura{auraName=fire_shield;onTick=ParticleEffect;charges=5;cancelOnDeath=true}'
+            ]
         },
         {
             id: 'ondamaged',
             name: 'ondamaged',
             aliases: [],
-            category: 'aura',
-            description: 'Applies an aura that triggers a skill when target takes damage.',
+            category: 'meta',
+            description: 'Applies an aura that triggers a skill when target takes damage. Inherits all aura attributes.',
             attributes: [
-                { name: 'onhit', alias: ['ondamagedskill', 'ondamaged', 'od', 'onhitskill', 'oh'], type: 'string', default: '', description: 'Skill to execute on damage' },
+                { name: 'onhit', alias: ['ondamagedskill', 'ondamaged', 'od', 'onhitskill', 'oh'], type: 'string', default: '', description: 'Metaskill to execute when damaged' },
                 { name: 'cancelevent', alias: ['ce', 'canceldamage'], type: 'boolean', default: false, description: 'Cancel damage event' },
-                { name: 'damagemultiplier', alias: ['multiplier', 'm'], type: 'number', default: 1, description: 'Damage multiplier' }
+                { name: 'damagesub', alias: ['sub', 's'], type: 'number', default: 0, description: 'Static decrease to damage taken' },
+                { name: 'damagemultiplier', alias: ['multiplier', 'm'], type: 'number', default: 1, description: 'Damage multiplier' },
+                { name: 'damagemodifiers', alias: ['damagemods', 'damagemod'], type: 'string', default: '', description: 'Damage modifiers (e.g., "FIRE 0.5, MAGIC 0.3")' },
+                { name: 'deflectprojectiles', alias: ['deflect', 'reflect'], type: 'boolean', default: false, description: 'Deflect projectiles' },
+                { name: 'deflectconditions', alias: ['dconditions'], type: 'string', default: '', description: 'Conditions for projectile deflection' },
+                { name: 'moddamagetype', alias: ['damagetype'], type: 'string', default: '', description: 'Damage type filter' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- onDamaged{auraName=damageResist;d=200;onTick=Effects;m=0.5}']
+            examples: [
+                '- onDamaged{auraName=damageResist;d=200;onHit=Effects;m=0.5}',
+                '- onDamaged{auraName=fire_shield;onHit=FireShield;duration=200;charges=5;multiplier=0.5} @self'
+            ]
         },
         {
             id: 'onattack',
             name: 'onattack',
             aliases: ['onhit'],
-            category: 'aura',
-            description: 'Applies an aura that triggers a skill when they damage something.',
+            category: 'meta',
+            description: 'Applies an aura that triggers a skill when they damage something. Inherits all aura attributes.',
             attributes: [
-                { name: 'onattackskill', alias: ['onattack', 'oa', 'onmelee', 'onhitskill', 'onhit', 'oh'], type: 'string', default: '', description: 'Skill to execute on attack' },
+                { name: 'onattackskill', alias: ['onattack', 'oa', 'onmelee', 'onhitskill', 'onhit', 'oh'], type: 'string', default: '', description: 'Metaskill to execute on attack' },
                 { name: 'cancelevent', alias: ['ce', 'canceldamage', 'cd'], type: 'boolean', default: false, description: 'Cancel attack event' },
-                { name: 'damagemultiplier', alias: ['multiplier', 'm'], type: 'number', default: 1, description: 'Damage multiplier' }
+                { name: 'damageadd', alias: ['add', 'a'], type: 'number', default: 0, description: 'Static increase to damage dealt' },
+                { name: 'damagemultiplier', alias: ['multiplier', 'm'], type: 'number', default: 1, description: 'Damage multiplier' },
+                { name: 'moddamagetype', alias: ['damagetype'], type: 'string', default: '', description: 'Damage type to inflict' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- onAttack{oH=SuperPunch;cE=true;auraname=MyAura}']
+            examples: [
+                '- onAttack{oH=SuperPunch;cE=true;auraname=MyAura}',
+                '- onAttack{auraName=fiery_strikes;onHit=FireStrike;duration=200;charges=5;multiplier=2} @self'
+            ]
         },
         
         // ═══════════════════════════════════════════════════════════
@@ -596,47 +696,251 @@ const MECHANICS_DATA = {
             name: 'projectile',
             aliases: ['p'],
             category: 'projectile',
-            description: 'Fires a meta-projectile decorated with particle and sound effects.',
+            description: 'Fires a meta-projectile that can be decorated with particle/sound effects. Has the most attributes of any mechanic. Other mechanics (Missile, Totem, Orbital) inherit from this. Type can be NORMAL or METEOR.',
             attributes: [
-                { name: 'ontick', alias: ['ot', 'ontickskill', 'm', 'meta', 's', 'skill'], type: 'string', default: '', description: 'Skill executed each tick' },
-                { name: 'onhit', alias: ['oh', 'onhitskill'], type: 'string', default: '', description: 'Skill executed on hit' },
-                { name: 'onend', alias: ['oe', 'onendskill'], type: 'string', default: '', description: 'Skill executed on end' },
-                { name: 'interval', alias: ['int', 'i'], type: 'number', default: 1, description: 'Update interval (ticks)' },
-                { name: 'velocity', alias: ['v'], type: 'number', default: 5, description: 'Velocity (blocks/second)' },
-                { name: 'horizontalradius', alias: ['hradius', 'hr', 'r'], type: 'number', default: 1.25, description: 'Horizontal hit radius' },
-                { name: 'verticalradius', alias: ['vradius', 'vr'], type: 'number', default: 1.25, description: 'Vertical hit radius' }
+                // Multi-Skill Attributes (Inheritable)
+                { name: 'onStartSkill', alias: ['onStart', 'oS'], type: 'string', default: '', description: 'Metaskill executed when projectile starts at origin' },
+                { name: 'onTickSkill', alias: ['onTick', 'oT', 'm', 'meta', 's', 'skill'], type: 'string', default: '', description: 'Metaskill executed every [interval] ticks at origin' },
+                { name: 'onHitSkill', alias: ['onHit', 'oH'], type: 'string', default: '', description: 'Metaskill executed when hitting entities. Targets inherited.' },
+                { name: 'onEndSkill', alias: ['onEnd', 'oE'], type: 'string', default: '', description: 'Metaskill executed when projectile ends' },
+                { name: 'onBounceSkill', alias: ['onBounce'], type: 'string', default: '', description: 'Metaskill executed on bounce (Premium)' },
+                { name: 'onHitBlockSkill', alias: ['onHitBlock', 'ohb'], type: 'string', default: '', description: 'Metaskill executed when hitting a block' },
+                { name: 'onInteractSkill', alias: ['onInteract'], type: 'string', default: '', description: 'Metaskill executed when projectile is interacted with' },
+                
+                // Core Inheritable Attributes
+                { name: 'BulletType', alias: ['bullet', 'b'], type: 'select', default: '', description: 'Bullet type determines visual representation',
+                    options: [
+                        { value: '', label: 'None (Invisible)' },
+                        { value: 'ARROW', label: 'Arrow' },
+                        { value: 'BLOCK', label: 'Block' },
+                        { value: 'SMALLBLOCK', label: 'Small Block' },
+                        { value: 'ITEM', label: 'Item/MythicItem' },
+                        { value: 'MOB', label: 'Mob' },
+                        { value: 'TRACKING', label: 'Tracking (Armor Stand)' },
+                        { value: 'REALTRACKING', label: 'Real Tracking (Real Armor Stand)' },
+                        { value: 'DISPLAY', label: 'Display Entity' },
+                        { value: 'ME', label: 'ME (ModelEngine)' },
+                        { value: 'TEXT', label: 'Text' }
+                    ]
+                },
+                { name: 'Interval', alias: ['int', 'i'], type: 'number', default: 1, description: 'How often projectile updates position (ticks)' },
+                { name: 'HorizontalRadius', alias: ['hRadius', 'hR', 'r'], type: 'number', default: 1.25, description: 'Horizontal hit detection radius' },
+                { name: 'VerticalRadius', alias: ['vRadius', 'vR'], type: 'number', default: 1.25, description: 'Vertical hit detection radius' },
+                { name: 'Duration', alias: ['maxDuration', 'md', 'd'], type: 'number', default: 400, description: 'Max duration projectile persists (ticks)' },
+                { name: 'MaxRange', alias: ['mr'], type: 'number', default: 40, description: 'Max range projectile travels (blocks)' },
+                { name: 'Velocity', alias: ['v'], type: 'number', default: 5, description: 'Projectile velocity (blocks/second)' },
+                { name: 'DeathDelay', alias: ['death', 'dd'], type: 'number', default: 2, description: 'Delay before removing bullet on termination' },
+                { name: 'StartYOffset', alias: ['syo'], type: 'number', default: 1, description: 'Y offset from caster spawn point' },
+                { name: 'StartFOffset', alias: ['forwardoffset', 'sfo'], type: 'number', default: 1, description: 'Forward offset from caster' },
+                { name: 'TargetYOffset', alias: ['tyo', 'targety'], type: 'number', default: 0, description: 'Y offset on target' },
+                { name: 'SideOffset', alias: ['soffset', 'so'], type: 'number', default: 0, description: 'Inherited by Start/EndSideOffset' },
+                { name: 'StartSideOffset', alias: ['ssoffset', 'sso'], type: 'number', default: 0, description: 'Side offset from caster (uses SideOffset if not set)' },
+                { name: 'EndSideOffset', alias: ['endoffset', 'esoffset', 'eso'], type: 'number', default: 0, description: 'Side offset at target (uses SideOffset if not set)' },
+                { name: 'startingdirection', alias: ['startingdir', 'startdir', 'sdir'], type: 'string', default: '@Targeted', description: 'Start direction of projectile' },
+                { name: 'HorizontalOffset', alias: ['hO'], type: 'number', default: 0, description: 'Rotates horizontal starting velocity 360° axis' },
+                { name: 'VerticalOffset', alias: ['vO'], type: 'number', default: 0, description: 'Adds slope to starting direction' },
+                { name: 'Accuracy', alias: ['ac', 'a'], type: 'number', default: 1, description: 'Projectile accuracy (1=perfect)' },
+                { name: 'HorizontalNoise', alias: ['hn'], type: 'number', default: 0, description: 'Horizontal randomness (default: (1-ac)*45)' },
+                { name: 'VerticalNoise', alias: ['vn'], type: 'number', default: 0, description: 'Vertical randomness (default: (1-ac)*4.5)' },
+                { name: 'StopAtEntity', alias: ['sE'], type: 'boolean', default: true, description: 'Stop upon hitting targetable entity' },
+                { name: 'StopAtBlock', alias: ['sB'], type: 'boolean', default: true, description: 'Stop upon hitting opaque block' },
+                { name: 'PowerAffectsRange', alias: ['par'], type: 'boolean', default: true, description: 'Mob power affects range' },
+                { name: 'PowerAffectsVelocity', alias: ['pav'], type: 'boolean', default: true, description: 'Mob power affects velocity' },
+                { name: 'Interactable', alias: [], type: 'boolean', default: false, description: 'Projectile is interactable' },
+                { name: 'HitSelf', alias: [], type: 'boolean', default: false, description: 'Can hit caster' },
+                { name: 'HitPlayers', alias: ['hp'], type: 'boolean', default: true, description: 'Can hit players' },
+                { name: 'HitNonPlayers', alias: ['hnp'], type: 'boolean', default: false, description: 'Can hit non-player entities' },
+                { name: 'HitTarget', alias: ['ht'], type: 'boolean', default: true, description: 'Can hit mechanic target' },
+                { name: 'HitTargetOnly', alias: ['hto'], type: 'boolean', default: false, description: 'Can only hit mechanic target' },
+                { name: 'ImmuneDelay', alias: ['immune', 'id'], type: 'number', default: 2000, description: 'Hit immunity delay (ticks)' },
+                { name: 'hitConditions', alias: ['conditions', 'cond', 'c'], type: 'string', default: '', description: 'Inline conditions for hit detection (Premium)' },
+                { name: 'stopconditions', alias: ['stpcond'], type: 'string', default: '', description: 'Conditions to stop projectile on hit' },
+                { name: 'doEndSkillOnHit', alias: ['esoh'], type: 'boolean', default: true, description: 'Run onEnd when ending by hitting entity' },
+                { name: 'fromorigin', alias: ['fo'], type: 'boolean', default: false, description: 'Start from origin of mechanic' },
+                { name: 'requireLineOfSight', alias: ['rlos', 'los', 'requirelos'], type: 'string', default: 'PLAYERS_ONLY', description: 'Require line-of-sight (true/false/PLAYERS_ONLY)' },
+                { name: 'drawHitbox', alias: [], type: 'boolean', default: false, description: 'Draw hitbox for debugging' },
+                { name: 'tickinterpolation', alias: ['interpolation', 'ti'], type: 'number', default: 0, description: 'Additional interpolated points between ticks' },
+                { name: 'shareSubHitboxCooldown', alias: ['shcd'], type: 'boolean', default: true, description: 'All sub-hitboxes share immune delay' },
+                { name: 'hitTargeter', alias: ['htr'], type: 'string', default: '', description: 'Entity targeter for hit targeting' },
+                
+                // Projectile-Specific Attributes
+                { name: 'Type', alias: [], type: 'select', default: 'NORMAL', description: 'Projectile spawn behavior',
+                    options: [
+                        { value: 'NORMAL', label: 'Normal (from caster)' },
+                        { value: 'METEOR', label: 'Meteor (from sky)' }
+                    ]
+                },
+                { name: 'gravity', alias: ['g'], type: 'number', default: 0, description: 'Gravity (use fractions 0.1-0.2 for low gravity)' },
+                { name: 'Bounces', alias: ['bounce'], type: 'boolean', default: false, description: 'Should projectile bounce (Premium)' },
+                { name: 'BounceVelocity', alias: ['bv'], type: 'number', default: 0.9, description: 'Velocity multiplier on bounce (Premium)' },
+                { name: 'HugSurface', alias: ['hs'], type: 'boolean', default: false, description: 'Move along ground' },
+                { name: 'HugLiquid', alias: ['hugwater', 'huglava'], type: 'boolean', default: false, description: 'Move on liquids when hugSurface=true' },
+                { name: 'HeightFromSurface', alias: ['hfs'], type: 'number', default: 0.5, description: 'Height above surface when hugging' },
+                { name: 'MaxClimbHeight', alias: ['mch'], type: 'number', default: 3, description: 'Max climb height attempts when hugging' },
+                { name: 'MaxDropHeight', alias: ['mdh'], type: 'number', default: 10, description: 'Max drop height attempts when hugging' },
+                { name: 'highAccuracyMode', alias: ['ham'], type: 'string', default: 'PLAYERS_ONLY', description: 'High accuracy raytracing (true/false/PLAYERS_ONLY)' },
+                
+                // Universal Bullet Attributes
+                { name: 'bulletforwardoffset', alias: ['bulletfo', 'bulletoffset', 'bfo'], type: 'number', default: 1.8, description: 'Bullet forward offset' },
+                { name: 'bulletYOffset', alias: ['byo'], type: 'number', default: 0, description: 'Bullet Y offset' },
+                
+                // ARROW Bullet Attributes (when bulletType=ARROW)
+                { name: 'arrowtype', alias: ['bulletarrowtype'], type: 'string', default: 'NORMAL', description: 'Arrow type: NORMAL, SPECTRAL, TRIDENT' },
+                
+                // BLOCK/SMALLBLOCK Bullet Attributes (when bulletType=BLOCK or SMALLBLOCK)
+                { name: 'bulletmaterial', alias: ['material', 'mat'], type: 'string', default: 'STONE', description: 'Bullet material (block/item type or MythicItem)' },
+                { name: 'bulletspin', alias: ['bspin'], type: 'number', default: 0, description: 'Bullet spin rotation' },
+                { name: 'audience', alias: [], type: 'string', default: 'world', description: 'Bullet audience visibility' },
+                
+                // ITEM Bullet Attributes (when bulletType=ITEM)
+                { name: 'bulletModel', alias: ['model'], type: 'number', default: 0, description: 'CustomModelData integer (or define on MythicItem)' },
+                { name: 'bulletColor', alias: [], type: 'string', default: '', description: 'Bullet color if applicable' },
+                { name: 'bulletmatchdirection', alias: ['bmd', 'bulletsmall'], type: 'boolean', default: false, description: 'Bullet faces projectile direction' },
+                { name: 'bulletEnchanted', alias: ['enchanted'], type: 'boolean', default: false, description: 'Bullet has enchanted glint' },
+                
+                // MOB Bullet Attributes (when bulletType=MOB)
+                { name: 'mob', alias: ['mobType', 'mm'], type: 'string', default: 'SkeletalKnight', description: 'Mob type for bullet' },
+                { name: 'bulletKillable', alias: ['bk'], type: 'boolean', default: false, description: 'Allow entities to damage bullet' },
+                { name: 'bulletForwardOffset', alias: ['bfo'], type: 'number', default: 1.35, description: 'Mob bullet forward offset' },
+                
+                // TRACKING Bullet Attributes (when bulletType=TRACKING)
+                { name: 'pitch', alias: [], type: 'number', default: 0, description: 'Pitch rotation (radians)' },
+                { name: 'yaw', alias: [], type: 'number', default: 0, description: 'Yaw rotation (radians)' },
+                { name: 'roll', alias: [], type: 'number', default: 0, description: 'Roll rotation (radians)' },
+                { name: 'rotation', alias: ['rot'], type: 'string', default: '0,0,0', description: 'Rotation in x,y,z format (radians)' },
+                { name: 'pitchspeed', alias: ['ps'], type: 'number', default: 0, description: 'Pitch rotation speed' },
+                { name: 'yawspeed', alias: ['ys'], type: 'number', default: 0, description: 'Yaw rotation speed' },
+                { name: 'rollspeed', alias: ['rs'], type: 'number', default: 0, description: 'Roll rotation speed' },
+                { name: 'rotationspeed', alias: ['rotspeed', 'rots'], type: 'string', default: '0,0,0', description: 'Rotation speed in x,y,z format' },
+                
+                // DISPLAY Bullet Attributes (when bulletType=DISPLAY)
+                { name: 'bulletscale', alias: ['scale'], type: 'string', default: '0.5,0.5,0.5', description: 'Bullet scale in x,y,z format' },
+                { name: 'bulletyoffset', alias: ['byoffset'], type: 'number', default: 0.2, description: 'Display bullet Y offset' },
+                { name: 'bulletBillboarding', alias: ['bulletBillboard'], type: 'string', default: 'FIXED', description: 'Billboard type for display bullet' },
+                { name: 'bulletbrightness', alias: ['bulletbrightnessblock'], type: 'number', default: -1, description: 'Bullet brightness' },
+                { name: 'bulletbrightnesssky', alias: [], type: 'number', default: -1, description: 'Bullet sky light brightness' },
+                { name: 'bulletCullingDistance', alias: ['bulletViewDistance', 'bulletViewRange'], type: 'number', default: 50, description: 'Visibility range' },
+                { name: 'bulletCullingHeight', alias: ['cullHeight'], type: 'number', default: 0, description: 'Display culling height' },
+                { name: 'bulletCullingWidth', alias: ['cullWidth'], type: 'number', default: 0, description: 'Display culling width' },
+                { name: 'tx', alias: [], type: 'number', default: 0, description: 'Translation on X axis' },
+                { name: 'ty', alias: [], type: 'number', default: 0, description: 'Translation on Y axis' },
+                { name: 'tz', alias: [], type: 'number', default: 0, description: 'Translation on Z axis' },
+                { name: 'translation', alias: ['pos', 'offset'], type: 'string', default: '0,0,0', description: 'Translations in x,y,z format' },
+                { name: 'hideFirstTick', alias: ['hft'], type: 'boolean', default: false, description: 'Hide item on first tick' },
+                { name: 'bulletgen', alias: ['generation', 'bulletgeneration'], type: 'string', default: '', description: 'MythicCrucible generation option' },
+                
+                // ME (ModelEngine) Bullet Attributes (when bulletType=ME)
+                { name: 'bulletstate', alias: ['state'], type: 'string', default: '', description: 'MEG model state to play' },
+                { name: 'bulletcolor', alias: [], type: 'string', default: '', description: 'Tint of bullet model' },
+                { name: 'bulletGlowing', alias: ['glowing'], type: 'boolean', default: false, description: 'Bullet model glowing' },
+                { name: 'bulletglowcolor', alias: [], type: 'string', default: '', description: 'Glow color if bulletGlowing=true' },
+                { name: 'bulletCulling', alias: ['culling'], type: 'boolean', default: true, description: 'Apply culling to bullet model' },
+                { name: 'bulletViewRadius', alias: [], type: 'number', default: -1, description: 'View distance for bullet (if >0)' },
+                
+                // TEXT Bullet Attributes (when bulletType=TEXT)
+                { name: 'bulletText', alias: ['text'], type: 'string', default: '*', description: 'Text to display' },
+                { name: 'bulletBillboard', alias: ['billboard'], type: 'string', default: 'CENTER', description: 'Billboard type for text' },
+                { name: 'forcedBulletRotation', alias: ['forcedRotation'], type: 'string', default: '', description: 'Forced rotation (pitch,yaw,roll format)' },
+                { name: 'bulletRotatesBasedOnDirection', alias: [], type: 'boolean', default: false, description: 'Text rotates with movement' },
+                { name: 'backgroundcolor', alias: ['color'], type: 'string', default: '64,0,0,0', description: 'Background color (ARGB format)' },
+                { name: 'bulletBrightness', alias: ['bulletBrightnessBlock'], type: 'number', default: -1, description: 'Text bullet brightness' },
+                { name: 'bulletBrightnessSky', alias: [], type: 'number', default: -1, description: 'Text bullet sky brightness' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- projectile{oT=Tick;oH=Hit;v=8;i=1;hR=1;vR=1;hnp=true}']
+            examples: [
+                '- projectile{oT=Tick;oH=Hit;v=8;i=1;hR=1;vR=1;hnp=true}',
+                '- projectile{bulletType=ARROW;arrowType=TRIDENT;v=10;d=200}',
+                '- projectile{bulletType=BLOCK;material=STONE;bulletspin=5}',
+                '- projectile{bulletType=ITEM;material=DIAMOND;bulletEnchanted=true}',
+                '- projectile{bulletType=MOB;mob=SkeletonKing;bulletKillable=false}',
+                '- projectile{bulletType=DISPLAY;bulletscale=1,1,1;bulletBillboarding=CENTER}',
+                '- projectile{bulletType=TEXT;bulletText=BOOM;backgroundcolor=255,255,0,0}',
+                '- projectile{Type=METEOR;gravity=0.1;HeightFromSurface=20}',
+                '- projectile{onTick=Particles;onHit=Explosion;Bounces=true;BounceVelocity=0.8}',
+                '- projectile{HugSurface=true;HugLiquid=true;HeightFromSurface=1}',
+                '- projectile{hitConditions=[ - isMonster true - isFrozen false ]}'
+            ]
         },
         {
             id: 'missile',
             name: 'missile',
             aliases: ['mi'],
-            category: 'projectile',
-            description: 'Similar to projectile but homing - tracks down targets.',
+            category: 'meta',
+            description: 'Homing projectile that tracks targets. Inherits ALL projectile attributes including BulletType, offsets, hit detection, and all bullet-specific attributes (ARROW, BLOCK, ITEM, MOB, TRACKING, DISPLAY, ME, TEXT).',
             attributes: [
-                { name: 'inertia', alias: ['in'], type: 'number', default: 1.5, description: 'Turning rate (lower = faster turns)' },
-                { name: 'ontick', alias: ['ot'], type: 'string', default: '', description: 'Skill on tick' },
-                { name: 'onhit', alias: ['oh'], type: 'string', default: '', description: 'Skill on hit' },
-                { name: 'velocity', alias: ['v'], type: 'number', default: 5, description: 'Velocity' }
+                { name: 'inertia', alias: ['in', 'intertia'], type: 'number', default: 1.5, description: 'Turning rate (lower = faster turns)' },
+                { name: 'ontickskill', alias: ['ontick', 'ot'], type: 'string', default: '', description: 'Metaskill executed each tick' },
+                { name: 'onhitskill', alias: ['onhit', 'oh'], type: 'string', default: '', description: 'Metaskill executed on hit' },
+                { name: 'onendskill', alias: ['onend', 'oe'], type: 'string', default: '', description: 'Metaskill executed when missile ends' },
+                { name: 'onstartskill', alias: ['onstart', 'os'], type: 'string', default: '', description: 'Metaskill executed when missile starts' },
+                { name: 'velocity', alias: ['v'], type: 'number', default: 5, description: 'Velocity (blocks/second)' },
+                { name: 'interval', alias: ['i'], type: 'number', default: 1, description: 'Update interval (ticks)' },
+                { name: 'bounces', alias: ['bounce'], type: 'boolean', default: false, description: 'Should projectile bounce (Premium)' },
+                { name: 'bouncevelocity', alias: ['bv'], type: 'number', default: 0.9, description: 'Velocity multiplier on bounce (Premium)' },
+                { name: 'startwithparentvelocity', alias: ['swpv', 'spv'], type: 'boolean', default: false, description: 'Start with parent projectile velocity' },
+                { name: 'hugsurface', alias: ['hs'], type: 'boolean', default: false, description: 'Move along ground' },
+                { name: 'hugliquid', alias: ['hugwater', 'huglava'], type: 'boolean', default: false, description: 'Move on liquids when hugging' },
+                { name: 'heightfromsurface', alias: ['hfs'], type: 'number', default: 0.5, description: 'Height above surface when hugging' },
+                { name: 'maxclimbheight', alias: ['mch'], type: 'number', default: 3, description: 'Max climb height when hugging' },
+                { name: 'maxdropheight', alias: ['mdh'], type: 'number', default: 10, description: 'Max drop height when hugging' },
+                { name: 'highaccuracymode', alias: ['ham'], type: 'string', default: 'PLAYERS_ONLY', description: 'High accuracy mode (true/false/PLAYERS_ONLY)' },
+                { name: 'hitnonplayers', alias: ['hnp'], type: 'boolean', default: true, description: 'Hit non-player entities' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- missile{ot=Tick;oh=Hit;v=4;i=1;in=0.75}']
+            examples: [
+                '- missile{ot=Tick;oh=Hit;v=4;i=1;in=0.75}',
+                '- missile{ot=Homer_TICK;oh=Homer_HIT;v=4;i=1;hR=1;vR=1;in=0.75}'
+            ]
         },
         {
             id: 'shoot',
             name: 'shoot',
             aliases: ['shootprojectile'],
-            category: 'projectile',
-            description: 'Shoots an arrow or item-projectile that deals damage.',
+            category: 'meta',
+            description: 'Shoots a projectile from the caster with multi-skill support. Inherits damage mechanic attributes.',
             attributes: [
-                { name: 'type', alias: ['t'], type: 'string', default: 'arrow', description: 'Projectile type (ARROW, SNOWBALL, EGG, etc)' },
-                { name: 'damage', alias: ['d', 'amount'], type: 'number', default: 5, description: 'Damage dealt' },
-                { name: 'velocity', alias: ['v'], type: 'number', default: 1, description: 'Projectile velocity' }
+                { name: 'type', alias: ['t'], type: 'string', default: 'arrow', description: 'Projectile type (arrow, trident, splash_potion, etc)' },
+                { name: 'damage', alias: ['d', 'amount'], type: 'number', default: 5, description: 'Damage dealt by projectile' },
+                { name: 'velocity', alias: ['v'], type: 'number', default: 1, description: 'Projectile velocity multiplier' },
+                { name: 'onTickSkill', alias: ['onTick', 'ot'], type: 'string', default: '', description: 'Metaskill to execute each tick' },
+                { name: 'onHitSkill', alias: ['onHit', 'oh'], type: 'string', default: '', description: 'Metaskill to execute on hit' },
+                { name: 'onEndSkill', alias: ['onEnd', 'oe'], type: 'string', default: '', description: 'Metaskill to execute when projectile ends' },
+                { name: 'interval', alias: ['i'], type: 'number', default: 1, description: 'Tick interval for onTick skill' },
+                { name: 'bounce', alias: ['b'], type: 'boolean', default: false, description: 'Can projectile bounce' },
+                { name: 'pickup', alias: ['pu'], type: 'boolean', default: false, description: 'Can players pick up projectile' },
+                { name: 'expiration', alias: ['exp', 'e'], type: 'number', default: 0, description: 'Ticks until projectile expires' },
+                { name: 'accuracy', alias: ['ac'], type: 'number', default: 0, description: 'Accuracy spread (0=perfect)' },
+                { name: 'knockback', alias: ['kb'], type: 'number', default: 0, description: 'Knockback amount' },
+                { name: 'pierceLevel', alias: ['pierce', 'pl'], type: 'number', default: 0, description: 'Number of entities to pierce' },
+                { name: 'verticalOffset', alias: ['vo', 'yoffset'], type: 'number', default: 0, description: 'Vertical spawn offset' },
+                { name: 'horizontalOffset', alias: ['ho', 'hOffset'], type: 'number', default: 0, description: 'Horizontal spawn offset' },
+                { name: 'forwardOffset', alias: ['fo', 'fOffset'], type: 'number', default: 0, description: 'Forward spawn offset' },
+                { name: 'sideOffset', alias: ['so', 'sOffset'], type: 'number', default: 0, description: 'Side spawn offset' },
+                { name: 'startSideOffset', alias: ['sso'], type: 'number', default: 0, description: 'Starting side offset' },
+                { name: 'startYOffset', alias: ['syo'], type: 'number', default: 0, description: 'Starting Y offset' },
+                { name: 'gravity', alias: ['g'], type: 'boolean', default: true, description: 'Projectile affected by gravity' },
+                { name: 'adjustVelocity', alias: ['av'], type: 'boolean', default: false, description: 'Adjust velocity toward target' },
+                { name: 'calculateFiringAngle', alias: ['cfa'], type: 'boolean', default: false, description: 'Calculate arc angle' },
+                { name: 'verticalNoise', alias: ['vn'], type: 'number', default: 0, description: 'Vertical randomness' },
+                { name: 'horizontalNoise', alias: ['hn'], type: 'number', default: 0, description: 'Horizontal randomness' },
+                { name: 'fromOrigin', alias: ['fo'], type: 'boolean', default: false, description: 'Shoot from origin location' },
+                { name: 'potionType', alias: ['pt', 'potion'], type: 'string', default: '', description: 'Potion effect type (for splash potions)' },
+                { name: 'potionDuration', alias: ['pd'], type: 'number', default: 100, description: 'Potion effect duration (ticks)' },
+                { name: 'potionLevel', alias: ['pl', 'level'], type: 'number', default: 1, description: 'Potion effect level' },
+                { name: 'force', alias: ['f'], type: 'boolean', default: false, description: 'Force potion effect' },
+                { name: 'potionColor', alias: ['pc', 'color'], type: 'string', default: '', description: 'Potion color (hex)' },
+                { name: 'hasParticles', alias: ['particles'], type: 'boolean', default: true, description: 'Show potion particles' },
+                { name: 'hasIcon', alias: ['icon'], type: 'boolean', default: true, description: 'Show potion icon' },
+                { name: 'ambientParticles', alias: ['ambient', 'ap'], type: 'boolean', default: false, description: 'Ambient potion particles' },
+                { name: 'tridentItem', alias: ['ti'], type: 'string', default: '', description: 'Custom trident item' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- shoot{type=ARROW;velocity=5;damage=10}']
+            examples: [
+                '- shoot{type=ARROW;velocity=5;damage=10}',
+                '- shoot{t=arrow;v=4;onTick=Particles;onHit=Explosion;interval=2}',
+                '- shoot{type=splash_potion;potionType=poison;potionDuration=200;potionLevel=2}',
+                '- shoot{t=trident;d=15;v=3;pierceLevel=3;expiration=200}'
+            ]
         },
         {
             id: 'shootfireball',
@@ -656,7 +960,7 @@ const MECHANICS_DATA = {
             id: 'volley',
             name: 'volley',
             aliases: [],
-            category: 'projectile',
+            category: 'meta',
             description: 'Launches multiple projectiles in a spread pattern.',
             attributes: [
                 { name: 'type', alias: ['t'], type: 'string', default: 'arrow', description: 'Projectile type' },
@@ -666,6 +970,180 @@ const MECHANICS_DATA = {
             defaultTargeter: '@Target',
             examples: ['- volley{type=arrow;amount=9;spread=45}']
         },
+        {
+            id: 'beam',
+            name: 'beam',
+            aliases: [],
+            category: 'meta',
+            description: 'Creates a beam of material between the caster and the target that executes skills.',
+            attributes: [
+                { name: 'onhitskill', alias: ['onhit', 'oh'], type: 'string', default: '', description: 'Metaskill when beam hits entity (not yet supported)' },
+                { name: 'ontickskill', alias: ['ontick', 'ot'], type: 'string', default: '', description: 'Metaskill executed each tick' },
+                { name: 'duration', alias: ['d'], type: 'number', default: 20, description: 'Duration in ticks' },
+                { name: 'tickinterval', alias: ['interval', 'i'], type: 'number', default: 1, description: 'Tick interval' },
+                { name: 'material', alias: ['m'], type: 'materialSelect', default: 'END_ROD', description: 'Material of the beam' },
+                { name: 'rotationspeed', alias: ['rs'], type: 'number', default: 0, description: 'Rotation speed (degrees/tick)' },
+                { name: 'hitradius', alias: ['radius', 'r'], type: 'number', default: 1.0, description: 'Hit radius of beam' },
+                { name: 'startyoffset', alias: ['syo'], type: 'number', default: 0, description: 'Starting Y offset from caster' },
+                { name: 'endyoffset', alias: ['eyo'], type: 'number', default: 0, description: 'End Y offset from target' }
+            ],
+            defaultTargeter: '@Target',
+            examples: [
+                '- beam{d=100;rs=2;syo=100} @selflocation',
+                '- beam{ontick=BeamTick;duration=60;material=LIGHTNING_ROD;rotationspeed=5}'
+            ]
+        },
+        {
+            id: 'chainmissile',
+            name: 'chainmissile',
+            aliases: ['cmi'],
+            category: 'meta',
+            description: 'Shoots a chaining homing missile at the target. Premium-Only mechanic! Inherits all Missile attributes.',
+            attributes: [
+                { name: 'bounces', alias: ['b'], type: 'number', default: 2, description: 'How many times the chain bounces' },
+                { name: 'bounceradius', alias: ['bouncerange', 'radius', 'range', 'r'], type: 'number', default: 5, description: 'Bounce range to next target' },
+                { name: 'returntocaster', alias: ['return', 'rtc'], type: 'boolean', default: false, description: 'Missile returns to caster' },
+                { name: 'bounceconditions', alias: ['conditions', 'cond', 'c'], type: 'string', default: '', description: 'Conditions for bounce target' },
+                { name: 'inertia', alias: ['in'], type: 'number', default: 1.5, description: 'Turning rate (lower = faster)' },
+                { name: 'ontickskill', alias: ['ontick', 'ot'], type: 'string', default: '', description: 'Metaskill each tick' },
+                { name: 'onhitskill', alias: ['onhit', 'oh'], type: 'string', default: '', description: 'Metaskill on hit' },
+                { name: 'velocity', alias: ['v'], type: 'number', default: 5, description: 'Velocity' },
+                { name: 'interval', alias: ['i'], type: 'number', default: 1, description: 'Update interval' }
+            ],
+            defaultTargeter: '@Target',
+            examples: [
+                '- chainmissile{bounces=10;r=10;in=1.25;oT=CM_oT;oH=CM_oH;i=1;v=5;hnp=true}',
+                '- chainmissile{bounces=5;bounceRadius=8;returnToCaster=true;onTick=ParticleTrail;onHit=Explosion}'
+            ]
+        },
+        {
+            id: 'onshoot',
+            name: 'onshoot',
+            aliases: ['onbowshoot'],
+            category: 'meta',
+            description: 'Applies an aura that triggers a skill when they shoot with a bow. Inherits all aura attributes.',
+            attributes: [
+                { name: 'onshootskill', alias: ['onshoot', 'osh', 'onbowshoot', 'onbowshootskill'], type: 'string', default: '', description: 'Metaskill to execute when shooting' },
+                { name: 'cancelevent', alias: ['ce'], type: 'boolean', default: false, description: 'Cancel bow shot event' },
+                { name: 'forceaspower', alias: ['fap'], type: 'boolean', default: true, description: 'Pass bow force as skill power' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- onShoot{auraName=fireball_bow;onShoot=[shootfireball];duration=200;charges=5;cancelEvent=true} @self',
+                '- onShoot{onShoot=CustomArrow;d=300;cancelEvent=false}'
+            ]
+        },
+        {
+            id: 'onblockbreak',
+            name: 'onblockbreak',
+            aliases: ['onbreakblock'],
+            category: 'meta',
+            description: 'Applies an aura that triggers a skill when they break a block. Inherits all aura attributes.',
+            attributes: [
+                { name: 'onbreakskill', alias: ['onbreak', 'ob'], type: 'string', default: '', description: 'Metaskill to execute when breaking block' },
+                { name: 'cancelevent', alias: ['cancel', 'ce'], type: 'boolean', default: false, description: 'Cancel block break event' },
+                { name: 'dropitem', alias: ['drop', 'allowdrop'], type: 'boolean', default: true, description: 'Whether broken item drops' },
+                { name: 'blocktypes', alias: ['bt', 't', 'material', 'materials', 'm', 'blocks', 'block', 'b'], type: 'string', default: '', description: 'Block types that trigger (use * prefix for tags)' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- onBlockBreak{oB=FlameParticlesAtBlock;cE=false;auraname=Fire;d=300;i=1} @self',
+                '- onBlockBreak{onBreak=AreaMining;blockTypes=STONE,COBBLESTONE;duration=200}',
+                '- onBlockBreak{d=99999;bt=#TORCH,#LIGHT;oB=[addVar{var=caster.lightsBroken;a=1}]}'
+            ]
+        },
+        {
+            id: 'onblockplace',
+            name: 'onblockplace',
+            aliases: ['onplaceblock'],
+            category: 'meta',
+            description: 'Applies an aura that triggers a skill when they place a block. Inherits all aura attributes.',
+            attributes: [
+                { name: 'onplaceskill', alias: ['onplace', 'op'], type: 'string', default: '', description: 'Metaskill to execute when placing block' },
+                { name: 'cancelevent', alias: ['cancel', 'ce'], type: 'boolean', default: false, description: 'Cancel block place event' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- onBlockPlace{op=MidasTouch;auraname=Golden;d=300;i=1} @self',
+                '- onBlockPlace{onPlace=ConvertBlocks;duration=200;cancelEvent=false}'
+            ]
+        },
+        {
+            id: 'onchat',
+            name: 'onchat',
+            aliases: ['chatprompt'],
+            category: 'meta',
+            description: 'Applies an aura on target player that triggers when they chat. Sets <skill.var.input> placeholder. Inherits all aura attributes.',
+            attributes: [
+                { name: 'onchatskill', alias: ['onchat', 'oc', 'then'], type: 'string', default: '', description: 'Metaskill to execute when player chats' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- onChat{onChat=ExampleSkill2;d=200} @PIR{r=20}',
+                '- onChat{onChat=ChatResponse;duration=100;auraName=ChatListener} @trigger'
+            ]
+        },
+        {
+            id: 'onswing',
+            name: 'onswing',
+            aliases: ['onleftclick'],
+            category: 'meta',
+            description: 'Applies an aura that triggers a skill when they swing (left click). Inherits all aura attributes.',
+            attributes: [
+                { name: 'onswingskill', alias: ['onswing', 'osw'], type: 'string', default: '', description: 'Metaskill to execute on swing/left click' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- onSwing{osw=CatchOnFire;auraname=Ignite;d=300;i=1} @self',
+                '- onSwing{onSwing=ShootProjectile;duration=200;charges=10}'
+            ]
+        },
+        {
+            id: 'oninteract',
+            name: 'oninteract',
+            aliases: ['onrightclick'],
+            category: 'meta',
+            description: 'Applies an aura that triggers a skill when right-clicking or interacting with entities. Inherits all aura attributes.',
+            attributes: [
+                { name: 'oninteractskill', alias: ['oninteract', 'oi', 'onrightclick', 'onrightclickskill'], type: 'string', default: '', description: 'Metaskill to execute on interact/right-click' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- onInteract{oi=OpenCustomGUI;auraname=Merchant;d=300} @self',
+                '- onInteract{onInteract=InteractSkill;duration=200;charges=5}'
+            ]
+        },
+        {
+            id: 'onjump',
+            name: 'onjump',
+            aliases: [],
+            category: 'meta',
+            description: 'Applies an aura that triggers a skill when they jump. Paper-only mechanic. Inherits all aura attributes.',
+            attributes: [
+                { name: 'onjumpskill', alias: ['onjump', 'oj'], type: 'string', default: '', description: 'Metaskill to execute on jump' },
+                { name: 'cancelevent', alias: ['cancel', 'ce'], type: 'boolean', default: false, description: 'Cancel jump event' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- onJump{oj=DoubleJump;auraname=Bouncy;d=300} @self',
+                '- onJump{onJump=JumpBoost;duration=200;cancelEvent=false}'
+            ]
+        },
+        {
+            id: 'ondeath',
+            name: 'ondeath',
+            aliases: [],
+            category: 'meta',
+            description: 'Applies an aura that triggers a skill when the target dies. Inherits all aura attributes.',
+            attributes: [
+                { name: 'ondeathskill', alias: ['ondeath', 'od'], type: 'string', default: '', description: 'Metaskill to execute on death' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- onDeath{od=Explosion;auraname=Explosive;d=9999} @self',
+                '- onDeath{onDeath=ReviveEffect;duration=600}'
+            ]
+        },
         
         // ═══════════════════════════════════════════════════════════
         // ADDITIONAL UTILITY MECHANICS
@@ -674,7 +1152,7 @@ const MECHANICS_DATA = {
             id: 'randomskill',
             name: 'randomskill',
             aliases: ['rskill', 'randskill'],
-            category: 'utility',
+            category: 'meta',
             description: 'Executes a random metaskill from the list.',
             attributes: [
                 { name: 'skills', alias: ['s'], type: 'string', default: '', required: true, description: 'Comma-separated list of skills' }
@@ -686,7 +1164,7 @@ const MECHANICS_DATA = {
             id: 'variableskill',
             name: 'variableskill',
             aliases: ['varskill'],
-            category: 'utility',
+            category: 'meta',
             description: 'Executes a skill stored in a variable.',
             attributes: [
                 { name: 'var', alias: ['v', 'variable'], type: 'string', default: '', required: true, description: 'Variable containing skill name' }
@@ -698,7 +1176,7 @@ const MECHANICS_DATA = {
             id: 'sudoskill',
             name: 'sudoskill',
             aliases: ['sudo'],
-            category: 'utility',
+            category: 'meta',
             description: 'Forces the target entity to execute a metaskill as if it\'s the caster.',
             attributes: [
                 { name: 'skill', alias: ['s'], type: 'string', default: '', required: true, description: 'Metaskill to execute' }
@@ -707,10 +1185,294 @@ const MECHANICS_DATA = {
             examples: ['- sudoskill{s=FireballSkill} ']
         },
         {
+            id: 'foreach',
+            name: 'ForEach',
+            aliases: [],
+            category: 'meta',
+            description: 'Executes specified metaskill once for each target separately. Each execution inherits single entity/location as target.',
+            attributes: [
+                { name: 'skill', alias: ['s', 'm', 'meta'], type: 'string', default: '', required: true, description: 'Metaskill to execute for each target' },
+                { name: 'targettype', alias: ['targett', 'tt'], type: 'string', default: 'ALL', description: 'Target type: ALL, ENTITY, or LOCATION' }
+            ],
+            defaultTargeter: '@Target',
+            examples: [
+                '- foreach{skill=DamageSkill} @PIR{r=10}',
+                '- foreach{s=ProcessEntity;tt=ENTITY} @EIR{r=20}'
+            ]
+        },
+        {
+            id: 'foreachvalue',
+            name: 'ForEachValue',
+            aliases: [],
+            category: 'meta',
+            description: 'Executes metaskill for each value in list/map. Sets <skill.value>, <skill.index>, and <skill.key> (maps only) parameters.',
+            attributes: [
+                { name: 'skill', alias: ['s', 'm', 'meta'], type: 'string', default: '', required: true, description: 'Metaskill to execute' },
+                { name: 'values', alias: ['val', 'v'], type: 'string', default: '', required: true, description: 'List or map formatted string to iterate' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- foreachvalue{skill=ProcessPlayer;values="Steve,Alex,Notch"} @self',
+                '- foreachvalue{s=ProcessData;val="key1=val1;key2=val2"} @self'
+            ]
+        },
+        {
+            id: 'switch',
+            name: 'Switch',
+            aliases: [],
+            category: 'meta',
+            description: 'Tests condition against list of cases. Each case executes different skill based on condition result.',
+            attributes: [
+                { name: 'uniqueresult', alias: ['unique', 'first'], type: 'boolean', default: true, description: 'Stop after first match' },
+                { name: 'condition', alias: [], type: 'string', default: '', required: true, description: 'Condition to test' },
+                { name: 'cases', alias: [], type: 'string', default: '', required: true, description: 'List of cases to evaluate' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- switch{condition=entitytype{t=<case>};cases=case SKELETON=[- message{m="Skeleton!"} @Server] case DEFAULT=[- message{m="Other!"} @Server]} @trigger'
+            ]
+        },
+        {
+            id: 'wait',
+            name: 'Wait',
+            aliases: [],
+            category: 'meta',
+            description: 'Pauses metaskill execution until conditions are met or timeout occurs.',
+            attributes: [
+                { name: 'conditions', alias: ['cond', 'c', 'until'], type: 'string', default: '', required: true, description: 'Conditions to wait for' },
+                { name: 'interval', alias: ['i'], type: 'number', default: 1, description: 'Check interval in ticks' },
+                { name: 'timeout', alias: ['timeouttime', 'tt'], type: 'number', default: 200, description: 'Max ticks to wait' },
+                { name: 'cancelSkill', alias: ['cancel', 'cs'], type: 'boolean', default: false, description: 'Cancel skill on timeout' },
+                { name: 'cancelConditions', alias: ['cc', 'unless'], type: 'string', default: '', description: 'Conditions that cancel wait immediately' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- wait{cond=[- onground];i=1;tt=200}',
+                '- wait{cond=[- haspotioneffect{type=REGENERATION}];i=10;tt=600;cs=true}',
+                '- wait{cond=[- health{h=>50}];unless=[- stance{stance=combat}];tt=100}'
+            ]
+        },
+        {
+            id: 'terminable',
+            name: 'Terminable',
+            aliases: ['stoppable', 'cancelable', 'exit', 'terminatable'],
+            category: 'meta',
+            description: 'Creates aura that checks conditions each tick. If met, immediately cancels onStart skill execution.',
+            attributes: [
+                { name: 'auraName', alias: ['n', 'name'], type: 'string', default: '', description: 'Aura identifier' },
+                { name: 'duration', alias: ['d'], type: 'number', default: 200, description: 'Duration in ticks' },
+                { name: 'terminateconditions', alias: ['conditions', 'cond', 'c'], type: 'string', default: '', required: true, description: 'Conditions to check for termination' },
+                { name: 'deep', alias: [], type: 'boolean', default: false, description: 'Also stop parent metaskill' },
+                { name: 'onterminate', alias: ['ox'], type: 'string', default: '', description: 'Metaskill on termination' },
+                { name: 'onStart', alias: ['os'], type: 'string', default: '', description: 'Metaskill to start' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- terminable{auraName=stun;d=100;conditions=[- health{h=<50}];onStart=[- damage{a=20}];onTerminate=[- message{m="Stopped!"}]} @self'
+            ]
+        },
+        {
+            id: 'cancelskill',
+            name: 'CancelSkill',
+            aliases: ['cancel', 'return'],
+            category: 'meta',
+            description: 'Cancels execution of the metaskill when triggered. Use with conditions to create conditional exits.',
+            attributes: [],
+            defaultTargeter: '@Self',
+            examples: [
+                '- message{m="Hello"} @server',
+                '- cancelSkill ?isMonster',
+                '- message{m="Not a monster!"} @server'
+            ]
+        },
+        {
+            id: 'determinecondition',
+            name: 'DetermineCondition',
+            aliases: ['detCond'],
+            category: 'meta',
+            description: 'Determines outcome of metaskill used as condition via MetaskillCondition. Sets boolean return value.',
+            attributes: [
+                { name: 'determination', alias: ['det'], type: 'boolean', default: true, description: 'Whether condition returns true/false' },
+                { name: 'mode', alias: [], type: 'string', default: 'SET', description: 'Operation: SET, OR, AND, NOT' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- determinecondition{determination=true} @self',
+                '- detCond{det=false;mode=AND} @self'
+            ]
+        },
+        {
+            id: 'followpath',
+            name: 'followpath',
+            aliases: [],
+            category: 'meta',
+            description: 'Applies an aura that makes the mob follow a path. Inherits all aura attributes.',
+            attributes: [
+                { name: 'path', alias: ['p'], type: 'string', default: '', required: true, description: 'Path name to follow' },
+                { name: 'onGoalSkill', alias: ['onGoal', 'og'], type: 'string', default: '', description: 'Metaskill to execute on reaching goal' },
+                { name: 'tolerance', alias: ['t'], type: 'number', default: 1, description: 'Distance tolerance for waypoint' },
+                { name: 'speed', alias: ['s'], type: 'number', default: 1, description: 'Movement speed multiplier' },
+                { name: 'duration', alias: ['d'], type: 'number', default: 200, description: 'Duration in ticks' },
+                { name: 'timeoutDistance', alias: ['td'], type: 'number', default: 20, description: 'Max distance from path before timeout' },
+                { name: 'timeoutTime', alias: ['tt'], type: 'number', default: 100, description: 'Ticks before timeout' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- followPath{path=PatrolRoute;onGoal=ReachedEnd;duration=9999} @self',
+                '- followPath{p=CirclePath;speed=1.5;tolerance=2}'
+            ]
+        },
+        {
+            id: 'formline',
+            name: 'formline',
+            aliases: [],
+            category: 'meta',
+            description: 'Applies an aura that moves the mob in a line. Inherits all aura attributes.',
+            attributes: [
+                { name: 'path', alias: ['p'], type: 'string', default: '', required: true, description: 'Linear path to follow' },
+                { name: 'onGoalSkill', alias: ['onGoal', 'og'], type: 'string', default: '', description: 'Metaskill to execute on reaching goal' },
+                { name: 'tolerance', alias: ['t'], type: 'number', default: 1, description: 'Distance tolerance for waypoint' },
+                { name: 'speed', alias: ['s'], type: 'number', default: 1, description: 'Movement speed multiplier' },
+                { name: 'duration', alias: ['d'], type: 'number', default: 200, description: 'Duration in ticks' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- formLine{path=StraightLine;onGoal=Finish;duration=200} @self',
+                '- formLine{p=LinearPath;speed=2;tolerance=0.5}'
+            ]
+        },
+        {
+            id: 'polygon',
+            name: 'polygon',
+            aliases: [],
+            category: 'meta',
+            description: 'Executes skills in a polygon pattern around the caster.',
+            attributes: [
+                { name: 'onPointSkill', alias: ['onPoint', 'op'], type: 'string', default: '', description: 'Metaskill to execute at each point' },
+                { name: 'onStarSkill', alias: ['onStar', 'os'], type: 'string', default: '', description: 'Metaskill for star pattern points' },
+                { name: 'onEdgeSkill', alias: ['onEdge', 'oe'], type: 'string', default: '', description: 'Metaskill for edge points' },
+                { name: 'onHitEntitySkill', alias: ['onHit', 'oh'], type: 'string', default: '', description: 'Metaskill on entity hit' },
+                { name: 'points', alias: ['p'], type: 'number', default: 32, description: 'Number of polygon points' },
+                { name: 'duration', alias: ['d'], type: 'number', default: 20, description: 'Duration in ticks' },
+                { name: 'distanceBetween', alias: ['db'], type: 'number', default: 0.5, description: 'Distance between edge points' },
+                { name: 'scale', alias: ['sc'], type: 'number', default: 1, description: 'Size scale multiplier' },
+                { name: 'skip', alias: ['sk'], type: 'number', default: 0, description: 'Points to skip for star pattern' },
+                { name: 'xOffset', alias: ['xo'], type: 'number', default: 0, description: 'X offset' },
+                { name: 'yOffset', alias: ['yo'], type: 'number', default: 0, description: 'Y offset' },
+                { name: 'zOffset', alias: ['zo'], type: 'number', default: 0, description: 'Z offset' },
+                { name: 'targetXOffset', alias: ['txo'], type: 'number', default: 0, description: 'Target X offset' },
+                { name: 'targetYOffset', alias: ['tyo'], type: 'number', default: 0, description: 'Target Y offset' },
+                { name: 'targetZOffset', alias: ['tzo'], type: 'number', default: 0, description: 'Target Z offset' },
+                { name: 'forwardOffset', alias: ['fo'], type: 'number', default: 0, description: 'Forward offset' },
+                { name: 'pitch', alias: ['pi'], type: 'number', default: 0, description: 'Pitch rotation (degrees)' },
+                { name: 'yaw', alias: ['ya'], type: 'number', default: 0, description: 'Yaw rotation (degrees)' },
+                { name: 'roll', alias: ['ro'], type: 'number', default: 0, description: 'Roll rotation (degrees)' },
+                { name: 'rotation', alias: ['rot'], type: 'number', default: 0, description: 'General rotation (degrees)' },
+                { name: 'matchCasterDirection', alias: ['mcd'], type: 'boolean', default: false, description: 'Match caster facing direction' },
+                { name: 'directionTowardsTarget', alias: ['dtt'], type: 'boolean', default: false, description: 'Face towards target' },
+                { name: 'radius', alias: ['r'], type: 'number', default: 5, description: 'Polygon radius' },
+                { name: 'fromOrigin', alias: ['from'], type: 'boolean', default: false, description: 'Use origin location' },
+                { name: 'hitConditions', alias: ['hc', 'c'], type: 'string', default: '', description: 'Inline hit conditions' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- polygon{onPoint=Particles;points=6;radius=5;duration=40} @self',
+                '- polygon{onStar=FireEffect;points=5;skip=2;scale=2}',
+                '- polygon{onEdge=LightningBolt;onHit=Damage;distanceBetween=0.3}'
+            ]
+        },
+        {
+            id: 'slash',
+            name: 'slash',
+            aliases: [],
+            category: 'meta',
+            description: 'Executes skills in a slash/arc pattern.',
+            attributes: [
+                { name: 'onStartSkill', alias: ['onStart', 'os'], type: 'string', default: '', description: 'Metaskill at slash start' },
+                { name: 'onEndSkill', alias: ['onEnd', 'oe'], type: 'string', default: '', description: 'Metaskill at slash end' },
+                { name: 'onPointSkill', alias: ['onPoint', 'op'], type: 'string', default: '', description: 'Metaskill at each point' },
+                { name: 'onHitEntitySkill', alias: ['onHit', 'oh'], type: 'string', default: '', description: 'Metaskill on entity hit' },
+                { name: 'points', alias: ['p'], type: 'number', default: 32, description: 'Number of slash points' },
+                { name: 'specificStep', alias: ['ss'], type: 'number', default: 0, description: 'Specific slash step' },
+                { name: 'duration', alias: ['d'], type: 'number', default: 20, description: 'Duration in ticks' },
+                { name: 'width', alias: ['w'], type: 'number', default: 1, description: 'Slash width' },
+                { name: 'height', alias: ['h'], type: 'number', default: 1, description: 'Slash height' },
+                { name: 'angle', alias: ['a'], type: 'number', default: 180, description: 'Slash arc angle (degrees)' },
+                { name: 'xOffset', alias: ['xo'], type: 'number', default: 0, description: 'X offset' },
+                { name: 'yOffset', alias: ['yo'], type: 'number', default: 0, description: 'Y offset' },
+                { name: 'zOffset', alias: ['zo'], type: 'number', default: 0, description: 'Z offset' },
+                { name: 'forwardOffset', alias: ['fo'], type: 'number', default: 0, description: 'Forward offset' },
+                { name: 'targetXOffset', alias: ['txo'], type: 'number', default: 0, description: 'Target X offset' },
+                { name: 'targetYOffset', alias: ['tyo'], type: 'number', default: 0, description: 'Target Y offset' },
+                { name: 'targetZOffset', alias: ['tzo'], type: 'number', default: 0, description: 'Target Z offset' },
+                { name: 'pitch', alias: ['pi'], type: 'number', default: 0, description: 'Pitch rotation (degrees)' },
+                { name: 'yaw', alias: ['ya'], type: 'number', default: 0, description: 'Yaw rotation (degrees)' },
+                { name: 'roll', alias: ['ro'], type: 'number', default: 0, description: 'Roll rotation (degrees)' },
+                { name: 'rotation', alias: ['rot'], type: 'number', default: 0, description: 'General rotation (degrees)' },
+                { name: 'matchCasterDirection', alias: ['mcd'], type: 'boolean', default: false, description: 'Match caster facing direction' },
+                { name: 'directionTowardsTarget', alias: ['dtt'], type: 'boolean', default: false, description: 'Face towards target' },
+                { name: 'radius', alias: ['r'], type: 'number', default: 5, description: 'Slash radius' },
+                { name: 'fromOrigin', alias: ['from'], type: 'boolean', default: false, description: 'Use origin location' },
+                { name: 'hitConditions', alias: ['hc', 'c'], type: 'string', default: '', description: 'Inline hit conditions' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- slash{onPoint=Particles;angle=90;radius=3;duration=20} @self',
+                '- slash{onStart=Sound;onEnd=Explosion;onHit=Damage;width=2;height=1}',
+                '- slash{op=FireEffect;angle=180;points=64;r=5}'
+            ]
+        },
+        {
+            id: 'setskillcooldown',
+            name: 'setskillcooldown',
+            aliases: ['ssc', 'setcooldown'],
+            category: 'meta',
+            description: 'Sets a cooldown on a specific metaskill. Target metaskill needs Cooldown option (can be 0). Use delay 0 if setting cooldown of calling metaskill.',
+            attributes: [
+                { name: 'skill', alias: ['s'], type: 'string', default: '', required: true, description: 'Metaskill to set cooldown for' },
+                { name: 'seconds', alias: ['sec', 'cooldown', 'cd'], type: 'number', default: 0, required: true, description: 'Cooldown duration in seconds' }
+            ],
+            defaultTargeter: '@Trigger',
+            examples: [
+                '- setSkillCooldown{s=PowerfulAttack;seconds=30} @trigger',
+                '- setSkillCooldown{skill=UltimateAbility;cooldown=60} @self',
+                '- delay 0',
+                '- setSkillCooldown{s=ThisMetaskill;seconds=10} @trigger'
+            ]
+        },
+        {
+            id: 'totem',
+            name: 'totem',
+            aliases: [],
+            category: 'projectile',
+            description: 'Static totem projectile that pulses onHit skill on targets within radius. Inherits ALL projectile attributes including BulletType (dropdown), offsets, velocity, hit detection, conditions, and all bullet-specific attributes (ARROW, BLOCK, ITEM, MOB, TRACKING, DISPLAY, ME, TEXT).',
+            attributes: [
+                { name: 'onTick', alias: ['ot'], type: 'string', default: '', description: 'Metaskill to execute each tick' },
+                { name: 'onHit', alias: ['oh'], type: 'string', default: '', description: 'Metaskill to pulse on nearby entities' },
+                { name: 'onEnd', alias: ['oe'], type: 'string', default: '', description: 'Metaskill when totem ends' },
+                { name: 'charges', alias: ['c'], type: 'number', default: 1, description: 'Number of uses before ending' },
+                { name: 'duration', alias: ['d'], type: 'number', default: 100, description: 'Duration in ticks' },
+                { name: 'interval', alias: ['i'], type: 'number', default: 1, description: 'Tick interval for onTick skill' },
+                { name: 'radius', alias: ['r'], type: 'number', default: 5, description: 'Effect radius' },
+                { name: 'yOffset', alias: ['yo'], type: 'number', default: 0, description: 'Vertical offset' },
+                { name: 'stopAtEntity', alias: ['sae'], type: 'boolean', default: false, description: 'Stop at entity collision' },
+                { name: 'hugSurface', alias: ['hs'], type: 'boolean', default: false, description: 'Hug solid surfaces' },
+                { name: 'hugLiquid', alias: ['hl'], type: 'boolean', default: false, description: 'Hug liquid surfaces' },
+                { name: 'heightFromSurface', alias: ['hfs'], type: 'number', default: 0.5, description: 'Height above surface' },
+                { name: 'faceAwayFromCaster', alias: ['fafc'], type: 'boolean', default: false, description: 'Face away from caster' }
+            ],
+            defaultTargeter: '@Target',
+            examples: [
+                '- totem{onHit=HealingPulse;charges=10;duration=200;radius=6} @self',
+                '- totem{oh=DamageNearby;onTick=Particles;interval=5;r=8;d=300}',
+                '- totem{onHit=BuffAllies;hugSurface=true;yOffset=1;charges=5}'
+            ]
+        },
+        {
             id: 'cancelevent',
             name: 'cancelevent',
             aliases: [],
-            category: 'utility',
+            category: 'meta',
             description: 'Cancels the event that triggered the skill (e.g., block damage from).',
             attributes: [],
             defaultTargeter: '',
@@ -944,6 +1706,21 @@ const MECHANICS_DATA = {
             examples: ['- particletornado{p=flame;mr=1;h=3;d=100}', '- particletornado{p=dust;color=#8800FF;mr=2}']
         },
         {
+            id: 'particleequation',
+            name: 'ParticleEquation',
+            aliases: ['effect:particleequation', 'e:peq', 'peq'],
+            category: 'effects',
+            description: 'Generates a particle effect based on an equation. DISCLAIMER: This mechanic is a Work In Progress. As such, it is not yet functional, examples are not available, and is not intended to be used.',
+            attributes: [
+                { name: 'equation', alias: [], type: 'string', default: '0', description: 'The equation to use. Allows the x,y,z variables' },
+                { name: 'precision', alias: [], type: 'number', default: 1, description: 'The distance between individual particles' },
+                { name: 'tolerance', alias: [], type: 'number', default: 0.1, description: 'Tolerance for floating points errors' },
+                { name: 'variables', alias: [], type: 'string', default: '', description: 'A map of variables for the equation expression, like x/y/z are, separated by ; (e.g., variables="h=1;t=2")' }
+            ],
+            defaultTargeter: '@Self',
+            examples: ['- particleequation{equation=x*y;precision=1}']
+        },
+        {
             id: 'atom',
             name: 'Atom',
             aliases: ['effect:atom', 'e:atom'],
@@ -967,20 +1744,6 @@ const MECHANICS_DATA = {
         // ═══════════════════════════════════════════════════════════
         // ADDITIONAL EFFECTS
         // ═══════════════════════════════════════════════════════════
-        {
-            id: 'blockwave',
-            name: 'blockwave',
-            aliases: [],
-            category: 'effects',
-            description: 'Creates a wave of temporary block changes.',
-            attributes: [
-                { name: 'material', alias: ['m', 'type', 't'], type: 'string', default: 'STONE', description: 'Block type' },
-                { name: 'radius', alias: ['r'], type: 'number', default: 5, description: 'Wave radius' },
-                { name: 'duration', alias: ['d'], type: 'number', default: 100, description: 'Duration in ticks' }
-            ],
-            defaultTargeter: '@Self',
-            examples: ['- blockwave{material=GOLD_BLOCK;r=8;d=60}']
-        },
         {
             id: 'hologram',
             name: 'hologram',
@@ -1115,18 +1878,6 @@ const MECHANICS_DATA = {
             examples: ['- setBlock{type=GOLD_BLOCK;d=100} ']
         },
         {
-            id: 'breakblock',
-            name: 'breakblock',
-            aliases: [],
-            category: 'utility',
-            description: 'Breaks blocks at the target location.',
-            attributes: [
-                { name: 'drop', alias: ['d'], type: 'boolean', default: true, description: 'Whether to drop items' }
-            ],
-            defaultTargeter: '@Target',
-            examples: ['- breakBlock{drop=false} ']
-        },
-        {
             id: 'fillchest',
             name: 'fillchest',
             aliases: [],
@@ -1173,18 +1924,54 @@ const MECHANICS_DATA = {
             id: 'orbital',
             name: 'orbital',
             aliases: [],
-            category: 'aura',
-            description: 'Creates an orbiting entity around the target.',
+            category: 'meta',
+            description: 'Creates projectiles orbiting around the target. Inherits ALL projectile attributes including BulletType (dropdown), offsets, velocity, hit detection conditions, and all bullet-specific attributes (ARROW, BLOCK, ITEM, MOB, TRACKING, DISPLAY, ME, TEXT).',
             attributes: [
-                { name: 'onTick', alias: ['ot'], type: 'string', default: '', description: 'Skill executed each tick' },
-                { name: 'onHit', alias: ['oh'], type: 'string', default: '', description: 'Skill executed on hit' },
-                { name: 'onEnd', alias: ['oe'], type: 'string', default: '', description: 'Skill executed on end' },
+                { name: 'onTick', alias: ['ot'], type: 'string', default: '', description: 'Metaskill to execute each tick' },
+                { name: 'onHit', alias: ['oh'], type: 'string', default: '', description: 'Metaskill to execute on entity hit' },
+                { name: 'onEnd', alias: ['oe'], type: 'string', default: '', description: 'Metaskill to execute when orbital ends' },
                 { name: 'duration', alias: ['d'], type: 'number', default: 200, description: 'Duration in ticks' },
                 { name: 'radius', alias: ['r'], type: 'number', default: 4, description: 'Orbit radius' },
-                { name: 'points', alias: ['p'], type: 'number', default: 1, description: 'Number of orbitals' }
+                { name: 'points', alias: ['p'], type: 'number', default: 32, description: 'Number of orbital points' },
+                { name: 'hitRadius', alias: ['hr'], type: 'number', default: 1, description: 'Horizontal hit detection radius' },
+                { name: 'verticalHitRadius', alias: ['vhr'], type: 'number', default: 1, description: 'Vertical hit detection radius' },
+                { name: 'interval', alias: ['i'], type: 'number', default: 1, description: 'Tick interval for onTick skill' },
+                { name: 'startingPoint', alias: ['sp'], type: 'number', default: 0, description: 'Starting point index' },
+                { name: 'tickInterpolation', alias: ['ti'], type: 'boolean', default: true, description: 'Smooth interpolation between ticks' },
+                { name: 'rotationX', alias: ['rx', 'rotx'], type: 'number', default: 0, description: 'X-axis rotation in degrees' },
+                { name: 'rotationY', alias: ['ry', 'roty'], type: 'number', default: 0, description: 'Y-axis rotation in degrees' },
+                { name: 'rotationZ', alias: ['rz', 'rotz'], type: 'number', default: 0, description: 'Z-axis rotation in degrees' },
+                { name: 'angularVelocityX', alias: ['avx'], type: 'number', default: 0, description: 'X-axis angular velocity (degrees/tick)' },
+                { name: 'angularVelocityY', alias: ['avy'], type: 'number', default: 0, description: 'Y-axis angular velocity (degrees/tick)' },
+                { name: 'angularVelocityZ', alias: ['avz'], type: 'number', default: 0, description: 'Z-axis angular velocity (degrees/tick)' },
+                { name: 'rotate', alias: ['rot'], type: 'boolean', default: false, description: 'Enable rotation' },
+                { name: 'reversed', alias: ['rev'], type: 'boolean', default: false, description: 'Reverse orbital direction' },
+                { name: 'offsetX', alias: ['ox'], type: 'number', default: 0, description: 'X offset from caster' },
+                { name: 'offsetY', alias: ['oy'], type: 'number', default: 0, description: 'Y offset from caster' },
+                { name: 'offsetZ', alias: ['oz'], type: 'number', default: 0, description: 'Z offset from caster' },
+                { name: 'hugSurface', alias: ['hs'], type: 'boolean', default: false, description: 'Hug solid surfaces' },
+                { name: 'hugLiquid', alias: ['hl'], type: 'boolean', default: false, description: 'Hug liquid surfaces' },
+                { name: 'heightFromSurface', alias: ['hfs'], type: 'number', default: 0.5, description: 'Height above surface when hugging' },
+                { name: 'maxClimbHeight', alias: ['mch'], type: 'number', default: 0.5, description: 'Max climb height for surface hugging' },
+                { name: 'maxDropHeight', alias: ['mdh'], type: 'number', default: 99, description: 'Max drop height for surface hugging' },
+                { name: 'bulletType', alias: ['bt'], type: 'string', default: '', description: 'Custom projectile model (ModelEngine)' },
+                { name: 'castAsOrbital', alias: ['cao'], type: 'boolean', default: true, description: 'Cast orbital from center or individual points' },
+                { name: 'immuneDelay', alias: ['id'], type: 'number', default: 0, description: 'Hit immunity delay in ticks' },
+                { name: 'hitPlayers', alias: ['hp'], type: 'boolean', default: true, description: 'Can hit players' },
+                { name: 'hitNonPlayers', alias: ['hnp'], type: 'boolean', default: true, description: 'Can hit non-players' },
+                { name: 'hitSelf', alias: ['hitself'], type: 'boolean', default: false, description: 'Can hit caster' },
+                { name: 'hitConditions', alias: ['hc', 'c'], type: 'string', default: '', description: 'Inline conditions for hit detection' },
+                { name: 'stopConditions', alias: ['sc', 'stop'], type: 'string', default: '', description: 'Conditions to stop orbital' },
+                { name: 'hitTargeter', alias: ['ht'], type: 'string', default: '', description: 'Targeter for hit detection' },
+                { name: 'drawHitbox', alias: ['dh'], type: 'boolean', default: false, description: 'Draw hitbox for debugging' },
+                { name: 'shareSubHitboxCooldown', alias: ['sshc'], type: 'boolean', default: true, description: 'Share hit cooldown across orbital points' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- orbital{onTick=ParticleSkill;onHit=DamageSkill;r=4;p=3;d=200}']
+            examples: [
+                '- orbital{onTick=ParticleSkill;onHit=DamageSkill;r=4;p=3;d=200}',
+                '- orbital{ot=Particles;oh=Damage;r=6;points=8;avx=5;avy=10;rotate=true}',
+                '- orbital{onHit=Lightning;radius=5;hitRadius=1.5;hugSurface=true}'
+            ]
         },
         {
             id: 'auraremove',
@@ -1206,30 +1993,49 @@ const MECHANICS_DATA = {
             id: 'chain',
             name: 'chain',
             aliases: [],
-            category: 'utility',
-            description: 'Chains a skill between multiple targets.',
+            category: 'meta',
+            description: 'Chains a skill between multiple targets. Each bounce the origin entity becomes the bouncing-from entity.',
             attributes: [
-                { name: 'skill', alias: ['s'], type: 'string', default: '', required: true, description: 'Skill to execute' },
-                { name: 'jumps', alias: ['j'], type: 'number', default: 5, description: 'Max number of bounces' },
-                { name: 'radius', alias: ['r'], type: 'number', default: 5, description: 'Range to next target' }
+                { name: 'onbounce', alias: ['ob', 'm', 'meta', 'onbounceskill', 'ontick', 'ontickskill', 'ot', 's', 'skill'], type: 'string', default: '', required: true, description: 'Metaskill that bounces between targets' },
+                { name: 'bounces', alias: ['b', 'jumps', 'j'], type: 'number', default: 5, description: 'Max number of bounces' },
+                { name: 'delay', alias: ['d', 'bd', 'bouncedelay', 'i', 'interval'], type: 'number', default: 1, description: 'Delay between bounces (ticks)' },
+                { name: 'radius', alias: ['r', 'bounceradius', 'bouncerange', 'range'], type: 'number', default: 5, description: 'Bounce range to next target' },
+                { name: 'hitself', alias: ['hs'], type: 'boolean', default: false, description: 'Whether chain affects caster' },
+                { name: 'hittarget', alias: ['ht'], type: 'boolean', default: true, description: 'Whether to hit initial target' },
+                { name: 'hitplayers', alias: ['hp'], type: 'boolean', default: true, description: 'Whether to bounce to players' },
+                { name: 'hitnonplayers', alias: ['hnp'], type: 'boolean', default: false, description: 'Whether to bounce to non-players' },
+                { name: 'bounceconditions', alias: ['conditions', 'cond', 'c'], type: 'string', default: '', description: 'Conditions for bounce target' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- chain{skill=LightningStrike;jumps=5;radius=8} ']
+            examples: [
+                '- chain{onBounce=LightningStrike;bounces=5;radius=8}',
+                '- chain{bounces=5;bounceRadius=10;bounceDelay=1;hitSelf=false;onBounce=[effect:particleline{p=flame;fromOrigin=true}];bounceConditions=[- inlineofsight]}'
+            ]
         },
         {
             id: 'cast',
             name: 'cast',
             aliases: [],
-            category: 'aura',
-            description: 'Similar to aura, but immediately casts at current targets instead of following caster.',
+            category: 'meta',
+            description: 'Cast executes a skill like an RPG spell with casting time. Can be interrupted. Inherits all aura attributes.',
             attributes: [
-                { name: 'ontick', alias: ['ot'], type: 'string', default: '', description: 'Skill on tick' },
-                { name: 'onstart', alias: ['os'], type: 'string', default: '', description: 'Skill on start' },
-                { name: 'onend', alias: ['oe'], type: 'string', default: '', description: 'Skill on end' },
-                { name: 'duration', alias: ['d'], type: 'number', default: 200, description: 'Duration in ticks' }
+                { name: 'oncastskill', alias: ['oncast', 'oc'], type: 'string', default: '', description: 'Metaskill if cast finishes successfully' },
+                { name: 'oninterruptedskill', alias: ['oninterrupted', 'oninterrupt', 'oi'], type: 'string', default: '', description: 'Metaskill if cast is interrupted' },
+                { name: 'onnotargetsskill', alias: ['onnotargets', 'onnotarget', 'ont'], type: 'string', default: '', description: 'Metaskill if no target found' },
+                { name: 'ontickskill', alias: ['ontick', 'ot'], type: 'string', default: '', description: 'Metaskill executed each tick during cast' },
+                { name: 'onstartskill', alias: ['onstart', 'os'], type: 'string', default: '', description: 'Metaskill when cast starts' },
+                { name: 'onendskill', alias: ['onend', 'oe'], type: 'string', default: '', description: 'Metaskill when cast ends (any way)' },
+                { name: 'skillname', alias: ['spellname', 'sn'], type: 'string', default: '', description: 'Display name in cast bar' },
+                { name: 'showcastbar', alias: ['castbar', 'cb'], type: 'boolean', default: true, description: 'Show cast bar' },
+                { name: 'cancelonmove', alias: ['com'], type: 'boolean', default: false, description: 'Cancel if caster moves' },
+                { name: 'duration', alias: ['d', 'ticks', 't'], type: 'number', default: 200, description: 'Cast duration in ticks' },
+                { name: 'interval', alias: ['i'], type: 'number', default: 1, description: 'Tick interval' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- cast{onTick=DamageEffect;d=200;interval=20} ']
+            examples: [
+                '- cast{skillName="&aFrost Blast";duration=40;onCast=FrostBlast-Cast;onTick=FrostBlast-Tick;onInterrupted=FrostBlast-Interrupted} @target',
+                '- cast{onTick=DamageEffect;d=200;interval=20}'
+            ]
         },
         {
             id: 'raytrace',
@@ -1319,6 +2125,16 @@ const MECHANICS_DATA = {
             ],
             defaultTargeter: '@target',
             examples: ['- prison{material=IRON_BLOCK;duration=200;breakable=true} ', '- prison{m=ICE;d=100} ']
+        },
+        {
+            id: 'printparenttree',
+            name: 'PrintParentTree',
+            aliases: [],
+            category: 'utility',
+            description: 'Prints debug information regarding the Metaskill executing the mechanic and its SkillTree',
+            attributes: [],
+            defaultTargeter: '',
+            examples: ['- printParentTree']
         },
         {
             id: 'swap',
@@ -1758,18 +2574,6 @@ const MECHANICS_DATA = {
             examples: ['- attributemodifier{attribute=GENERIC_ATTACK_DAMAGE;name=strength_buff;amount=5} ']
         },
         {
-            id: 'auraremove',
-            name: 'auraRemove',
-            aliases: ['removeaura'],
-            category: 'aura',
-            description: 'Removes an aura from the target.',
-            attributes: [
-                { name: 'aura', alias: ['a', 'auraname'], type: 'string', default: '', description: 'Aura name to remove' }
-            ],
-            defaultTargeter: '@Self',
-            examples: ['- auraremove{aura=poisonAura} ']
-        },
-        {
             id: 'barcreate',
             name: 'barCreate',
             aliases: ['createbar', 'bossbar'],
@@ -1868,7 +2672,7 @@ const MECHANICS_DATA = {
             name: 'BlockWave',
             aliases: ['wave'],
             category: 'effects',
-            description: 'Creates a wave of blocks that damages entities.',
+            description: 'Creates a wave of blocks that can damage entities. Can be used visually or with velocity for damage effects.',
             attributes: [
                 { name: 'material', alias: ['m'], type: 'material', default: 'DIRT', description: 'Block material' },
                 { name: 'duration', alias: ['d'], type: 'number', default: 20, description: 'Duration in ticks' },
@@ -2037,16 +2841,6 @@ const MECHANICS_DATA = {
             examples: ['- disguisemodify{property=baby;value=true} ']
         },
         {
-            id: 'undisguise',
-            name: 'undisguise',
-            aliases: ['removedisguise'],
-            category: 'effects',
-            description: 'Removes disguise from target.',
-            attributes: [],
-            defaultTargeter: '@Self',
-            examples: ['- undisguise ']
-        },
-        {
             id: 'enderbeam',
             name: 'EnderBeam',
             aliases: ['beam'],
@@ -2061,12 +2855,12 @@ const MECHANICS_DATA = {
         {
             id: 'enderdragonresetcrystals',
             name: 'EnderDragonResetCrystals',
-            aliases: ['resetcrystals'],
+            aliases: ['resetcrystals', 'resetEnderResetCrystals'],
             category: 'utility',
-            description: 'Resets ender dragon crystals.',
+            description: 'Generates the EnderDragon crystals if an enderdragon battle is going on in the target location\'s dimension',
             attributes: [],
             defaultTargeter: '@Self',
-            examples: ['- enderdragonresetcrystals ']
+            examples: ['- enderDragonResetCrystals @selflocation ~onDamaged =50%']
         },
         {
             id: 'enderdragonsetphase',
@@ -2095,12 +2889,14 @@ const MECHANICS_DATA = {
         {
             id: 'enderdragonspawnportal',
             name: 'EnderDragonSpawnPortal',
-            aliases: ['spawnportal'],
+            aliases: ['spawnportal', 'spawnEnderDragonPortal'],
             category: 'utility',
-            description: 'Spawns the end portal.',
-            attributes: [],
+            description: 'Generates the portal of the EnderDragon battle',
+            attributes: [
+                { name: 'withPortals', alias: ['wp', 'p'], type: 'boolean', default: false, description: 'Whether to generate the portal of the EnderDragon battle' }
+            ],
             defaultTargeter: '@Self',
-            examples: ['- enderdragonspawnportal ']
+            examples: ['- enderDragonSpawnPortal @selflocation']
         },
         {
             id: 'equipcopy',
@@ -2138,6 +2934,19 @@ const MECHANICS_DATA = {
             ],
             defaultTargeter: '@TargetLocation',
             examples: ['- fawepaste{schematic=castle;id=mycastle} ']
+        },
+        {
+            id: 'worldeditreplace',
+            name: 'WorldEditReplace',
+            aliases: ['weReplace'],
+            category: 'utility',
+            description: 'Replaces blocks in a region using WorldEdit. Needs a @region or similar targeter. Premium-Only mechanic!',
+            attributes: [
+                { name: 'from', alias: ['f'], type: 'material', default: 'AIR', description: 'The material to replace' },
+                { name: 'to', alias: ['t'], type: 'material', default: 'AIR', description: 'The material to set in place of the replaced one' }
+            ],
+            defaultTargeter: '@Self',
+            examples: ['- worldEditReplace{from=STONE;to=AIR} @Region{min=0,0,0;max=100,100,100;world=resources}']
         },
         {
             id: 'geyser',
@@ -2317,18 +3126,6 @@ const MECHANICS_DATA = {
             examples: ['- modifyscore{objective=points;operation=SET;value=100} ']
         },
         {
-            id: 'movepin',
-            name: 'MovePin',
-            aliases: [],
-            category: 'control',
-            description: 'Pins entity movement to location.',
-            attributes: [
-                { name: 'duration', alias: ['d'], type: 'number', default: 20, description: 'Duration in ticks' }
-            ],
-            defaultTargeter: '@Self',
-            examples: ['- movepin{duration=100} ']
-        },
-        {
             id: 'opentrades',
             name: 'OpenTrades',
             aliases: ['trade'],
@@ -2337,6 +3134,18 @@ const MECHANICS_DATA = {
             attributes: [],
             defaultTargeter: '@Trigger',
             examples: ['- opentrades ']
+        },
+        {
+            id: 'opencustommenu',
+            name: 'OpenCustomMenu',
+            aliases: ['openMenu'],
+            category: 'utility',
+            description: 'Opens a custom menu. Requires MythicMobs Premium or MythicRPG!',
+            attributes: [
+                { name: 'menu', alias: ['m'], type: 'string', default: 'default', description: 'The menu to open' }
+            ],
+            defaultTargeter: '@Trigger',
+            examples: ['- opencustommenu{m=ExampleMenu} @trigger ~onInteract']
         },
         {
             id: 'pickupitem',
@@ -2546,22 +3355,6 @@ const MECHANICS_DATA = {
             examples: ['- sendresourcepack{url="http://example.com/pack.zip"} ']
         },
         {
-            id: 'sendtitle',
-            name: 'sendTitle',
-            aliases: ['title'],
-            category: 'utility',
-            description: 'Sends title message to player.',
-            attributes: [
-                { name: 'title', alias: ['t'], type: 'string', default: '', description: 'Title text' },
-                { name: 'subtitle', alias: ['st'], type: 'string', default: '', description: 'Subtitle text' },
-                { name: 'fadeIn', alias: ['fi'], type: 'number', default: 10, description: 'Fade in time' },
-                { name: 'stay', alias: ['s'], type: 'number', default: 70, description: 'Stay time' },
-                { name: 'fadeOut', alias: ['fo'], type: 'number', default: 20, description: 'Fade out time' }
-            ],
-            defaultTargeter: '@Trigger',
-            examples: ['- sendtitle{title="<red>BOSS FIGHT";subtitle="Prepare yourself";stay=100} ']
-        },
-        {
             id: 'sendtoast',
             name: 'sendToast',
             aliases: ['toast'],
@@ -2759,14 +3552,14 @@ const MECHANICS_DATA = {
         {
             id: 'setraidercanjo inraid',
             name: 'SetRaiderCanJoinRaid',
-            aliases: ['raiderjoin'],
+            aliases: ['setCanJoinRaid'],
             category: 'control',
-            description: 'Sets if raider can join raids.',
+            description: 'Sets if the target raider entity can join a raid or not',
             attributes: [
-                { name: 'canJoin', alias: ['c'], type: 'boolean', default: true, description: 'Can join state' }
+                { name: 'bool', alias: ['b', 'can', 'c'], type: 'boolean', default: true, description: 'Whether the entity can join the raid' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setraidercanjo inraid{canJoin=true} ']
+            examples: ['- setraidercanjo inraid{c=false} @self']
         },
         {
             id: 'setraiderpatrolblock',
@@ -2943,18 +3736,6 @@ const MECHANICS_DATA = {
             ],
             defaultTargeter: '@Target',
             examples: ['- setscore{objective=points;value=100} ']
-        },
-        {
-            id: 'setstance',
-            name: 'SetStance',
-            aliases: ['stance'],
-            category: 'control',
-            description: 'Sets mob\'s AI stance.',
-            attributes: [
-                { name: 'stance', alias: ['s'], type: 'string', default: '', description: 'Stance name' }
-            ],
-            defaultTargeter: '@Self',
-            examples: ['- setstance{stance=aggressive} ']
         },
         {
             id: 'shieldbreak',
@@ -3236,7 +4017,7 @@ const MECHANICS_DATA = {
             id: 'variableadd',
             name: 'VariableAdd',
             aliases: ['varadd'],
-            category: 'utility',
+            category: 'meta',
             description: 'Adds to variable value.',
             attributes: [
                 { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' },
@@ -3249,7 +4030,7 @@ const MECHANICS_DATA = {
             id: 'variablesubtract',
             name: 'VariableSubtract',
             aliases: ['varsub'],
-            category: 'utility',
+            category: 'meta',
             description: 'Subtracts from variable value.',
             attributes: [
                 { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' },
@@ -3262,7 +4043,7 @@ const MECHANICS_DATA = {
             id: 'variablemath',
             name: 'VariableMath',
             aliases: ['varmath'],
-            category: 'utility',
+            category: 'meta',
             description: 'Performs math on variable.',
             attributes: [
                 { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' },
@@ -3275,7 +4056,7 @@ const MECHANICS_DATA = {
             id: 'setvariable',
             name: 'SetVariable',
             aliases: ['var'],
-            category: 'utility',
+            category: 'meta',
             description: 'Sets variable value.',
             attributes: [
                 { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' },
@@ -3288,7 +4069,7 @@ const MECHANICS_DATA = {
             id: 'setvariablelocation',
             name: 'SetVariableLocation',
             aliases: ['varloc'],
-            category: 'utility',
+            category: 'meta',
             description: 'Sets variable to location.',
             attributes: [
                 { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' }
@@ -3300,13 +4081,32 @@ const MECHANICS_DATA = {
             id: 'variableunset',
             name: 'VariableUnset',
             aliases: ['varunset'],
-            category: 'utility',
+            category: 'meta',
             description: 'Removes/unsets variable.',
             attributes: [
                 { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' }
             ],
             defaultTargeter: '@Self',
             examples: ['- variableunset{var=tempdata} ']
+        },
+        {
+            id: 'variablemove',
+            name: 'VariableMove',
+            aliases: ['moveVariable', 'moveVar', 'varMove'],
+            category: 'meta',
+            description: 'Moves an already created variable across names and/or registries. Can make two registries reference the same variable.',
+            attributes: [
+                { name: 'from', alias: [], type: 'string', default: '', required: true, description: 'Variable to move (scope.name format)' },
+                { name: 'to', alias: [], type: 'string', default: '', required: true, description: 'Target location (scope.name format)' },
+                { name: 'removeOld', alias: [], type: 'boolean', default: false, description: 'Remove from old registry' },
+                { name: 'createNew', alias: [], type: 'boolean', default: false, description: 'Create new variable at target' },
+                { name: 'inheritExpirationTime', alias: [], type: 'boolean', default: true, description: 'Inherit expiration time if createNew=true' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- setVar{name=caster.item;type=ITEM;value=slot:HAND} @self',
+                '- movevariable{from=caster.item;to=skill.item} @self'
+            ]
         },
         // Additional mechanics from user packs
         {
@@ -3334,19 +4134,6 @@ const MECHANICS_DATA = {
             examples: ['- setstance{stance=aggressive} ']
         },
         {
-            id: 'settargetscore',
-            name: 'SetTargetScore',
-            aliases: ['setscoretarget'],
-            category: 'utility',
-            description: 'Sets a scoreboard score on the target entity.',
-            attributes: [
-                { name: 'objective', alias: ['obj', 'o'], type: 'string', default: '', description: 'Scoreboard objective' },
-                { name: 'value', alias: ['v'], type: 'number', default: 0, description: 'Score value' }
-            ],
-            defaultTargeter: '@Target',
-            examples: ['- settargetscore{obj=kills;value=1} ']
-        },
-        {
             id: 'damagepercent',
             name: 'DamagePercent',
             aliases: ['percentdamage'],
@@ -3359,37 +4146,85 @@ const MECHANICS_DATA = {
             examples: ['- damagepercent{percent=25} ']
         },
         {
-            id: 'suicide',
-            name: 'Suicide',
-            aliases: ['kill', 'die'],
-            category: 'control',
-            description: 'Causes the caster to kill itself.',
-            attributes: [],
-            defaultTargeter: '@Self',
-            examples: ['- suicide ']
-        },
-        {
-            id: 'shieldbreak',
-            name: 'ShieldBreak',
-            aliases: ['breakshield'],
-            category: 'combat',
-            description: 'Breaks the target\'s shield and puts it on cooldown.',
-            attributes: [],
-            defaultTargeter: '@Target',
-            examples: ['- shieldbreak ']
-        },
-        {
             id: 'modifyprojectile',
             name: 'ModifyProjectile',
             aliases: ['projectilemodify'],
             category: 'projectile',
-            description: 'Modifies properties of the current projectile (used in projectile onTick skills).',
+            description: 'Modifies properties of the current projectile, missile, or orbital that activated the mechanic.',
             attributes: [
-                { name: 'velocity', alias: ['v'], type: 'number', default: 0, description: 'Velocity modification' },
-                { name: 'direction', alias: ['d'], type: 'string', default: '', description: 'Direction modification' }
+                { name: 'trait', alias: ['t'], type: 'string', default: 'VELOCITY', description: 'Trait to modify: INERTIA, POWER, VELOCITY, RADIUS, YOFFSET' },
+                { name: 'action', alias: ['a'], type: 'string', default: 'MULTIPLY', description: 'Action: ADD, SET, MULTIPLY' },
+                { name: 'value', alias: ['v'], type: 'number', default: 0, description: 'Value for modification' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- modifyprojectile{velocity=2} ']
+            examples: [
+                '- modifyProjectile{trait=VELOCITY;action=MULTIPLY;value=0.95}',
+                '- modifyProjectile{t=POWER;a=ADD;v=5}'
+            ]
+        },
+        {
+            id: 'projectilevelocity',
+            name: 'ProjectileVelocity',
+            aliases: ['pvelocity'],
+            category: 'projectile',
+            description: 'Modifies velocity of calling projectile or missile. Works like Velocity mechanic but for projectiles.',
+            attributes: [
+                { name: 'mode', alias: ['m'], type: 'string', default: 'SET', description: 'Operation: SET, ADD, REMOVE, DIVIDE, MULTIPLY' },
+                { name: 'velocityx', alias: ['vx', 'x'], type: 'number', default: 1, description: 'X-axis velocity (can be negative)' },
+                { name: 'velocityy', alias: ['vy', 'y'], type: 'number', default: 1, description: 'Y-axis velocity (can be negative)' },
+                { name: 'velocityz', alias: ['vz', 'z'], type: 'number', default: 1, description: 'Z-axis velocity (can be negative)' },
+                { name: 'relative', alias: ['r'], type: 'boolean', default: true, description: 'Relative to projectile facing (z=forward, y=up, x=left/right)' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- projectilevelocity{mode=ADD;vz=0.3}',
+                '- pvelocity{mode=MULTIPLY;vx=0.5;vy=0.5;vz=0.5}'
+            ]
+        },
+        {
+            id: 'setprojectiledirection',
+            name: 'SetProjectileDirection',
+            aliases: [],
+            category: 'projectile',
+            description: 'Sets calling projectile\'s movement direction to given target location.',
+            attributes: [
+                { name: 'magnitude', alias: ['m'], type: 'number', default: 1, description: 'Change magnitude (1=perfect, <1=interpolated)' }
+            ],
+            defaultTargeter: '@ProjectileForward',
+            examples: [
+                '- setprojectiledirection @ProjectileForward{f=10;rot=45}',
+                '- setprojectiledirection{m=0.5} @target'
+            ]
+        },
+        {
+            id: 'setprojectilebulletmodel',
+            name: 'SetProjectileBulletModel',
+            aliases: [],
+            category: 'projectile',
+            description: 'Sets CustomModelData on current projectile\'s bullet. DISPLAY bullet types only.',
+            attributes: [
+                { name: 'value', alias: ['v', 'model', 'm'], type: 'number', default: 0, description: 'Model number to set' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- setProjectileBulletModel{model=1234}',
+                '- setProjectileBulletModel{v=5000}'
+            ]
+        },
+        {
+            id: 'endprojectile',
+            name: 'EndProjectile',
+            aliases: ['terminateProjectile', 'terminateproj', 'endproj', 'stopprojectile', 'stopproj'],
+            category: 'projectile',
+            description: 'Terminates projectile this mechanic was called from, activating its onEnd skill.',
+            attributes: [
+                { name: 'conditions', alias: ['condition', 'cond', 'con'], type: 'string', default: '', description: 'Conditions to check before terminating' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- endprojectile',
+                '- endprojectile ?hasaura{auraName=explode}'
+            ]
         },
         {
             id: 'setcolor',
@@ -3402,19 +4237,6 @@ const MECHANICS_DATA = {
             ],
             defaultTargeter: '@Self',
             examples: ['- setcolor{color=RED} ']
-        },
-        {
-            id: 'spin',
-            name: 'Spin',
-            aliases: ['rotate'],
-            category: 'movement',
-            description: 'Makes the caster spin/rotate.',
-            attributes: [
-                { name: 'duration', alias: ['d'], type: 'number', default: 20, description: 'Duration in ticks' },
-                { name: 'speed', alias: ['s'], type: 'number', default: 1, description: 'Rotation speed' }
-            ],
-            defaultTargeter: '@Self',
-            examples: ['- spin{duration=40;speed=2} ']
         },
         {
             id: 'teleportto',

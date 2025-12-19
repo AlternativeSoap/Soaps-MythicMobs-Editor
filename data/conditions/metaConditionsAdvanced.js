@@ -8,7 +8,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'lastSignal',
         name: 'Last Signal',
-        category: 'Meta',
+        category: 'Logic & Meta',
         type: 'meta',
         description: 'Matches the last signal received by the target mob',
         aliases: [],
@@ -31,7 +31,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'lightLevelFromBlocks',
         name: 'Light Level From Blocks',
-        category: 'Meta',
+        category: 'Time & Weather',
         type: 'meta',
         description: 'Tests the light level originating from light-emitting blocks at the target location',
         aliases: ['blocklightlevel'],
@@ -56,7 +56,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'lineOfSightFromOrigin',
         name: 'Line Of Sight From Origin',
-        category: 'Meta',
+        category: 'Combat',
         type: 'meta',
         description: 'Tests if the target is within line of sight of the origin of the metaskill',
         aliases: ['inlineofsightfromorigin'],
@@ -68,7 +68,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'livingInRadius',
         name: 'Living In Radius',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Matches a range to how many living entities are in the given radius',
         aliases: [],
@@ -101,7 +101,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'localDifficulty',
         name: 'Local Difficulty',
-        category: 'Meta',
+        category: 'Time & Weather',
         type: 'meta',
         description: 'Tests the difficulty scale at the target location',
         aliases: [],
@@ -123,7 +123,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'lunarPhase',
         name: 'Lunar Phase',
-        category: 'Meta',
+        category: 'Time & Weather',
         type: 'meta',
         description: 'Checks for the current lunar phase (0=Full Moon, 1=Waning Gibbous, 2=Third Quarter, 3=Waning Crescent, 4=New Moon, 5=Waxing Crescent, 6=First Quarter, 7=Waxing Gibbous)',
         aliases: [],
@@ -148,7 +148,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'materialIsOnCooldown',
         name: 'Material Is On Cooldown',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks if the target player\'s specified material is on cooldown',
         aliases: ['materialCooldown', 'matCooldown'],
@@ -171,7 +171,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'metaskillCondition',
         name: 'Metaskill Condition',
-        category: 'Meta',
+        category: 'Logic & Meta',
         type: 'meta',
         description: 'Casts a Metaskill that will determine if the condition should check or not. The called Metaskill needs to use the DetermineCondition mechanic',
         aliases: ['skillcondition'],
@@ -193,7 +193,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'mobsInChunk',
         name: 'Mobs In Chunk',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Matches a range to how many mobs are in the target location\'s chunk',
         aliases: [],
@@ -217,7 +217,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'mobsInWorld',
         name: 'Mobs In World',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Matches a range to how many mobs are in the target world',
         aliases: [],
@@ -241,7 +241,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'mobsNearOrigin',
         name: 'Mobs Near Origin',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Matches a range to how many mobs are in the given radius around the origin',
         aliases: [],
@@ -284,7 +284,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'mobSize',
         name: 'Mob Size',
-        category: 'Meta',
+        category: 'Entity Type',
         type: 'meta',
         description: 'Checks the size of an entity that can have its size changed (Slimes, Magma Cubes, and Phantoms)',
         aliases: ['size'],
@@ -306,7 +306,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'moist',
         name: 'Moist',
-        category: 'Meta',
+        category: 'Location',
         type: 'meta',
         description: 'Checks if the target block of farmland is hydrated',
         aliases: ['ismoist'],
@@ -318,7 +318,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'moistureLevel',
         name: 'Moisture Level',
-        category: 'Meta',
+        category: 'Location',
         type: 'meta',
         description: 'Checks if the target farmland block has the specified level of hydration (0=not hydrated, 1-6=losing hydration, 7=fully hydrated)',
         aliases: ['moistureness', 'moistness'],
@@ -341,7 +341,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'motionX',
         name: 'Motion X',
-        category: 'Meta',
+        category: 'Entity State',
         type: 'meta',
         description: 'Checks the X motion of the target entity against a range',
         aliases: ['motx'],
@@ -363,7 +363,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'motionY',
         name: 'Motion Y',
-        category: 'Meta',
+        category: 'Entity State',
         type: 'meta',
         description: 'Checks the Y motion of the target entity against a range',
         aliases: ['moty'],
@@ -385,7 +385,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'motionZ',
         name: 'Motion Z',
-        category: 'Meta',
+        category: 'Entity State',
         type: 'meta',
         description: 'Checks the Z motion of the target entity against a range',
         aliases: ['motz'],
@@ -407,7 +407,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'moving',
         name: 'Moving',
-        category: 'Meta',
+        category: 'Entity State',
         type: 'meta',
         description: 'Checks if the target has a velocity greater than zero',
         aliases: ['ismoving'],
@@ -429,7 +429,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'mythicPack',
         name: 'MythicPack',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Check if a Pack with the specified id is present on the server',
         aliases: ['pack', 'haspack'],
@@ -451,7 +451,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'mythicPackVersion',
         name: 'MythicPack Version',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Check if a Pack with the specified id is present on the server with the specified version',
         aliases: ['packversion', 'packversionis'],
@@ -482,7 +482,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'mythicPackVersionGreater',
         name: 'MythicPack Version Greater',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Check if a Pack with the specified id is present on the server with a version that is either greater or equal to the specified one',
         aliases: ['packversiongreater', 'packversionisgreater'],
@@ -513,7 +513,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'name',
         name: 'Name',
-        category: 'Meta',
+        category: 'Entity Type',
         type: 'meta',
         description: 'Checks against the name of the target entity',
         aliases: ['castername'],
@@ -536,7 +536,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'offGCD',
         name: 'Off GCD',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks if the target mob has an active Global Cooldown',
         aliases: [],
@@ -546,40 +546,9 @@ const META_CONDITIONS_ADVANCED = [
         ]
     },
     {
-        id: 'originDistanceFromPin',
-        name: 'Origin Distance From Pin',
-        category: 'Meta',
-        type: 'meta',
-        description: 'Checks if the @origin is within a certain distance of a specified pin',
-        aliases: [],
-        attributes: [
-            {
-                name: 'pin',
-                aliases: ['p'],
-                type: 'text',
-                required: true,
-                description: 'The pin to check against',
-                placeholder: 'example_pin',
-                validation: 'text'
-            },
-            {
-                name: 'distance',
-                aliases: ['d'],
-                type: 'range',
-                required: true,
-                description: 'The distance to check against. Can be a range',
-                placeholder: '=>10',
-                validation: 'number_range'
-            }
-        ],
-        examples: [
-            'originDistanceFromPin{pin=example_pin;d=>10} true'
-        ]
-    },
-    {
         id: 'originLocation',
         name: 'Origin Location',
-        category: 'Meta',
+        category: 'Location',
         type: 'meta',
         description: 'Checks if the origin is at a given location',
         aliases: [],
@@ -641,7 +610,7 @@ const META_CONDITIONS_ADVANCED = [
     {
         id: 'outside',
         name: 'Outside',
-        category: 'Meta',
+        category: 'Location',
         type: 'meta',
         description: 'If the target has open sky above them',
         aliases: [],

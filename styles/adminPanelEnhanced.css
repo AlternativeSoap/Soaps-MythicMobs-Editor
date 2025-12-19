@@ -1,0 +1,328 @@
+/* Enhanced Admin Panel Styles */
+
+/* Error Console Styles */
+.error-count-badge {
+    background: var(--status-error);
+    color: white;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+.error-console-list {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.error-item {
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--status-error);
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 10px;
+}
+
+.error-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.error-type-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.error-type-badge.runtime {
+    background: rgba(255, 59, 48, 0.2);
+    color: #ff3b30;
+}
+
+.error-type-badge.promise {
+    background: rgba(255, 149, 0, 0.2);
+    color: #ff9500;
+}
+
+.error-type-badge.console {
+    background: rgba(255, 204, 0, 0.2);
+    color: #ffcc00;
+}
+
+.error-time {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.error-message {
+    color: var(--text-primary);
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.error-source {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.error-stack {
+    margin-top: 10px;
+}
+
+.error-stack summary {
+    cursor: pointer;
+    color: var(--accent-primary);
+    font-size: 13px;
+    padding: 5px 0;
+}
+
+.error-stack summary:hover {
+    color: var(--accent-secondary);
+}
+
+.error-stack pre {
+    background: var(--bg-primary);
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 5px;
+}
+
+.stat-card {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--accent-primary);
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* Permissions Editor Styles */
+.permissions-editor {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.role-list {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.role-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 8px;
+}
+
+.role-item:hover {
+    background: var(--bg-hover);
+}
+
+.role-item.active {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.role-item i {
+    width: 20px;
+    text-align: center;
+}
+
+.permission-list {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.permission-group {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 20px;
+}
+
+.permission-group:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.checkbox-label {
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Analytics Styles */
+.metric-card {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+}
+
+.metric-icon {
+    font-size: 32px;
+    color: var(--accent-primary);
+    margin-bottom: 15px;
+    opacity: 0.7;
+}
+
+.metric-value {
+    font-size: 36px;
+    font-weight: bold;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.metric-label {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.metric-change {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.metric-change.positive {
+    color: var(--status-success);
+}
+
+.metric-change.negative {
+    color: var(--status-error);
+}
+
+.chart-container {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.chart-container h4 {
+    margin-bottom: 15px;
+    color: var(--text-primary);
+}
+
+/* Settings Styles */
+.settings-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.settings-section {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.settings-section h4 {
+    color: var(--accent-primary);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.setting-item {
+    padding: 15px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-item small {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.toggle-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+/* Empty State */
+.empty-state {
+    color: var(--text-secondary);
+}
+
+.empty-state i {
+    color: var(--accent-primary);
+    opacity: 0.3;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .analytics-metrics,
+    .error-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .permissions-editor {
+        flex-direction: column;
+    }
+
+    .role-list {
+        width: 100%;
+    }
+}

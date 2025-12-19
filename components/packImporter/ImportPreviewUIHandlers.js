@@ -375,7 +375,6 @@ Object.assign(ImportPreviewUI.prototype, {
      * Start the import process
      */
     async startImport() {
-        console.log('🎯 ImportPreviewUI.startImport called');
         console.log('   selectedPacks:', Array.from(this.selectedPacks));
         console.log('   importOptions:', this.importOptions);
         console.log('   onImport callback:', !!this.onImport);
@@ -395,10 +394,8 @@ Object.assign(ImportPreviewUI.prototype, {
         
         // Trigger import via callback
         if (importCallback) {
-            console.log('📞 Calling onImport callback...');
             try {
                 await importCallback(selectedPacksArray, optionsCopy);
-                console.log('✅ onImport callback completed');
             } catch (error) {
                 console.error('❌ onImport callback error:', error);
             }

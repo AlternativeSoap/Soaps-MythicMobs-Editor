@@ -71,8 +71,6 @@ class AuthManager {
             });
             
             if (error) throw error;
-            
-            console.log('✅ User signed up:', data.user?.email);
             return { success: true, user: data.user, session: data.session };
         } catch (error) {
             console.error('Signup error:', error);
@@ -95,8 +93,6 @@ class AuthManager {
             });
             
             if (error) throw error;
-            
-            console.log('✅ User logged in:', data.user?.email);
             return { success: true, user: data.user, session: data.session };
         } catch (error) {
             console.error('Login error:', error);
@@ -118,7 +114,6 @@ class AuthManager {
             if (error) throw error;
             
             this.currentUser = null;
-            console.log('✅ User logged out');
             return { success: true };
         } catch (error) {
             console.error('Logout error:', error);
@@ -173,7 +168,6 @@ class AuthManager {
         }
         
         try {
-            console.log('🔄 Migrating anonymous data to authenticated user...');
             
             // Get all anonymous data
             const { data: anonData, error } = await this.supabase
@@ -241,8 +235,6 @@ class AuthManager {
             });
             
             if (error) throw error;
-            
-            console.log('✅ Password reset email sent');
             return { success: true };
         } catch (error) {
             console.error('Password reset error:', error);

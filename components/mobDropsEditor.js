@@ -172,7 +172,11 @@ class MobDropsEditor {
     showDropEditor(index = null) {
         // Check if DROP_TYPES is loaded
         if (!window.DROP_TYPES || window.DROP_TYPES.length === 0) {
-            alert('Drop types not loaded yet. Please wait a moment and try again.');
+            window.notificationModal?.alert(
+                'Drop types not loaded yet. Please wait a moment and try again.',
+                'warning',
+                'Loading Drop Types'
+            );
             console.error('DROP_TYPES not loaded:', window.DROP_TYPES);
             return;
         }

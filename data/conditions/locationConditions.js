@@ -141,7 +141,7 @@ const LOCATION_CONDITIONS = [
     {
         id: 'dawn',
         name: 'Dawn',
-        category: 'Location',
+        category: 'Time & Weather',
         type: 'location',
         description: 'Checks if the time in the world at the target location is dawn, from 22000 to 2000 in-game time',
         aliases: [],
@@ -153,7 +153,7 @@ const LOCATION_CONDITIONS = [
     {
         id: 'day',
         name: 'Day',
-        category: 'Location',
+        category: 'Time & Weather',
         type: 'location',
         description: 'Checks if the time in the world at the target location is day, from 2000 to 10000 in-game time',
         aliases: [],
@@ -189,7 +189,7 @@ const LOCATION_CONDITIONS = [
     {
         id: 'dusk',
         name: 'Dusk',
-        category: 'Location',
+        category: 'Time & Weather',
         type: 'location',
         description: 'Checks if the time in the world at the target location is dusk, from 14000 to 18000 in-game time',
         aliases: [],
@@ -201,7 +201,7 @@ const LOCATION_CONDITIONS = [
     {
         id: 'lightLevel',
         name: 'Light Level',
-        category: 'Location',
+        category: 'Time & Weather',
         type: 'location',
         description: 'Tests the light level at the target location',
         aliases: ['ll'],
@@ -224,7 +224,7 @@ const LOCATION_CONDITIONS = [
     {
         id: 'moonPhase',
         name: 'Moon Phase',
-        category: 'Location',
+        category: 'Time & Weather',
         type: 'location',
         description: 'Checks the moon phase in the target location\'s world',
         aliases: [],
@@ -247,7 +247,7 @@ const LOCATION_CONDITIONS = [
     {
         id: 'night',
         name: 'Night',
-        category: 'Location',
+        category: 'Time & Weather',
         type: 'location',
         description: 'Checks if the time in the world at the target location is night, from 14000 to 22000 in-game time',
         aliases: [],
@@ -259,7 +259,7 @@ const LOCATION_CONDITIONS = [
     {
         id: 'pitch',
         name: 'Pitch',
-        category: 'Location',
+        category: 'Combat',
         type: 'location',
         description: 'Checks the pitch of the target location',
         aliases: [],
@@ -281,7 +281,7 @@ const LOCATION_CONDITIONS = [
     {
         id: 'raining',
         name: 'Raining',
-        category: 'Location',
+        category: 'Time & Weather',
         type: 'location',
         description: 'Checks if it\'s raining in the target location\'s world',
         aliases: ['israining'],
@@ -317,7 +317,7 @@ const LOCATION_CONDITIONS = [
     {
         id: 'storm',
         name: 'Storm',
-        category: 'Location',
+        category: 'Time & Weather',
         type: 'location',
         description: 'Checks if there\'s a storm in the target location\'s world',
         aliases: ['thundering', 'isthundering'],
@@ -330,7 +330,7 @@ const LOCATION_CONDITIONS = [
     {
         id: 'sunny',
         name: 'Sunny',
-        category: 'Location',
+        category: 'Time & Weather',
         type: 'location',
         description: 'Checks if the weather is clear in the target location\'s world',
         aliases: ['clear'],
@@ -343,7 +343,7 @@ const LOCATION_CONDITIONS = [
     {
         id: 'worldTime',
         name: 'World Time',
-        category: 'Location',
+        category: 'Time & Weather',
         type: 'location',
         description: 'Checks the target location\'s world time',
         aliases: ['time'],
@@ -366,7 +366,7 @@ const LOCATION_CONDITIONS = [
     {
         id: 'yaw',
         name: 'Yaw',
-        category: 'Location',
+        category: 'Combat',
         type: 'location',
         description: 'Checks the yaw of the target location',
         aliases: [],
@@ -383,6 +383,75 @@ const LOCATION_CONDITIONS = [
         ],
         examples: [
             'yaw{y=>90} true'
+        ]
+    },
+    {
+        id: 'heightAbove',
+        name: 'Height Above',
+        category: 'Location',
+        type: 'location',
+        description: 'Checks if the target\'s Y location is above a value',
+        aliases: [],
+        attributes: [
+            {
+                name: 'height',
+                aliases: ['h'],
+                type: 'number',
+                required: true,
+                description: 'The height they must be above',
+                placeholder: '50',
+                validation: 'number'
+            }
+        ],
+        examples: [
+            'heightabove{h=50} true'
+        ]
+    },
+    {
+        id: 'heightBelow',
+        name: 'Height Below',
+        category: 'Location',
+        type: 'location',
+        description: 'Checks if the target\'s Y location is below a given value',
+        aliases: [],
+        attributes: [
+            {
+                name: 'height',
+                aliases: ['h'],
+                type: 'number',
+                required: true,
+                description: 'The height they must be below',
+                placeholder: '50',
+                validation: 'number'
+            }
+        ],
+        examples: [
+            'heightbelow{h=50} true'
+        ]
+    },
+    {
+        id: 'inside',
+        name: 'Inside',
+        category: 'Location',
+        type: 'location',
+        description: 'Checks if the target has a block over their head',
+        aliases: [],
+        attributes: [],
+        examples: [
+            'inside true'
+        ]
+    },
+    {
+        id: 'thundering',
+        name: 'Thundering',
+        category: 'Time & Weather',
+        type: 'location',
+        description: 'Checks if it\'s thundering in the target world',
+        aliases: ['stormy', 'isthundering', 'isstormy'],
+        attributes: [],
+        examples: [
+            'thundering true',
+            'stormy true'
         ]
     }
 ];

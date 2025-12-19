@@ -1,0 +1,1098 @@
+/**
+ * Browser Management Styles
+ * Custom styles for the enhanced Browser Management system in Admin Panel
+ */
+
+/* =================================================================
+   Custom Item Dialog - Wider and Tabbed
+   ================================================================= */
+
+.custom-item-dialog {
+    max-width: 900px !important;
+    width: 90vw !important;
+}
+
+.custom-item-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid rgba(138, 101, 204, 0.3);
+    flex-shrink: 0;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+}
+
+.tab-btn:hover {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(138, 101, 204, 0.1);
+}
+
+.tab-btn.active {
+    color: #a585d8;
+    border-bottom-color: #8a65cc;
+}
+
+.tab-btn i {
+    margin-right: 0.5rem;
+}
+
+.tab-content {
+    position: relative;
+    min-height: 400px;
+    padding-top: 1rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.tab-pane {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-pane.active {
+    display: flex !important;
+    flex-direction: column;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex: 1;
+    width: 100%;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =================================================================
+   Form Sections (inside tabs)
+   ================================================================= */
+
+.tab-pane .form-section:first-child {
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.form-section,
+.modal-body .form-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: block;
+    visibility: visible;
+}
+
+.form-section:last-child,
+.modal-body .form-section:last-child {
+    border-bottom: none;
+}
+
+.form-section h3,
+.modal-body .form-section h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    color: #fff;
+    font-weight: 600;
+}
+
+.section-description,
+.modal-body .section-description {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 1rem;
+    display: block;
+}
+
+/* =================================================================
+   Form Inputs inside Tabs
+   ================================================================= */
+
+.modal-body .form-input,
+.modal-body .form-select,
+.modal-body .form-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(138, 101, 204, 0.3);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    display: block;
+}
+
+.modal-body .form-input:focus,
+.modal-body .form-select:focus,
+.modal-body .form-textarea:focus {
+    outline: none;
+    border-color: #8a65cc;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 3px rgba(138, 101, 204, 0.15);
+}
+
+/* Dropdown/Select specific styling */
+.modal-body select,
+.modal-body .form-select {
+    background: rgba(255, 255, 255, 0.05);
+    background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path fill="%23a585d8" d="M6 9L1 4h10z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 12px;
+    padding-right: 2.5rem;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.modal-body select:hover {
+    border-color: rgba(138, 101, 204, 0.5);
+    background-color: rgba(255, 255, 255, 0.07);
+}
+
+.modal-body select:focus {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Dropdown options styling */
+.modal-body select option {
+    background: #2a2438;
+    color: #fff;
+    padding: 0.5rem;
+}
+
+.modal-body select option:hover {
+    background: rgba(138, 101, 204, 0.3);
+}
+
+.modal-body select option:checked {
+    background: rgba(138, 101, 204, 0.4);
+    color: #fff;
+}
+
+.modal-body .form-input::placeholder,
+.modal-body .form-textarea::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.modal-body .form-group {
+    margin-bottom: 1.25rem;
+    display: block;
+}
+
+.modal-body .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.modal-body .form-hint {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Input with button */
+.input-with-btn {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+.input-with-btn .form-input,
+.input-with-btn .form-textarea {
+    flex: 1;
+}
+
+.input-with-btn .btn {
+    white-space: nowrap;
+}
+
+/* =================================================================
+   Attribute Builder Styling
+   ================================================================= */
+
+.attribute-builder {
+    width: 100%;
+}
+
+.attribute-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.attribute-item {
+    background: rgba(138, 101, 204, 0.08);
+    border: 1px solid rgba(138, 101, 204, 0.25);
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.attribute-item:hover {
+    border-color: rgba(138, 101, 204, 0.4);
+    background: rgba(138, 101, 204, 0.12);
+}
+
+.attribute-header {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.attribute-header .attr-name {
+    flex: 1;
+    font-weight: 600;
+}
+
+.attribute-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.attribute-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+}
+
+.form-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.form-check label {
+    margin: 0;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Alias tags */
+.alias-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-height: 32px;
+    margin-bottom: 0.5rem;
+}
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.65rem;
+    background: rgba(138, 101, 204, 0.25);
+    border: 1px solid rgba(138, 101, 204, 0.4);
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #a585d8;
+}
+
+.tag-remove {
+    background: none;
+    border: none;
+    color: inherit;
+    padding: 0;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.tag-remove:hover {
+    opacity: 1;
+}
+
+/* Empty state */
+.attribute-empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.02);
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.attribute-empty-state i {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+
+.attribute-empty-state p {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.95rem;
+}
+
+/* Dropdown config */
+.dropdown-config {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dropdown-config h4 {
+    font-size: 0.95rem;
+    color: #a585d8;
+    margin-bottom: 0.75rem;
+}
+
+/* Examples */
+.examples-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.example-item {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+}
+
+.example-item pre {
+    margin: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.example-remove {
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+    color: #dc3545;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.example-remove:hover {
+    background: rgba(220, 53, 69, 0.2);
+    border-color: #dc3545;
+}
+
+.examples-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.suggestion-tag {
+    background: rgba(138, 101, 204, 0.15);
+    border: 1px solid rgba(138, 101, 204, 0.3);
+    color: #a585d8;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.suggestion-tag:hover {
+    background: rgba(138, 101, 204, 0.25);
+    border-color: #8a65cc;
+}
+
+/* Tags */
+.tag-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-height: 38px;
+    margin-bottom: 0.75rem;
+}
+
+/* =================================================================
+   Button Styling
+   ================================================================= */
+
+.custom-item-dialog .btn,
+.tab-pane .btn,
+.attribute-builder .btn,
+.modal-body .btn {
+    padding: 0.6rem 1.25rem;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: rgba(138, 101, 204, 0.2);
+    color: #a585d8;
+    border: 1px solid rgba(138, 101, 204, 0.4);
+}
+
+.custom-item-dialog .btn:hover,
+.tab-pane .btn:hover,
+.attribute-builder .btn:hover,
+.modal-body .btn:hover {
+    background: rgba(138, 101, 204, 0.35);
+    border-color: #8a65cc;
+    color: #fff;
+}
+
+.custom-item-dialog .btn-secondary,
+.tab-pane .btn-secondary,
+.attribute-builder .btn-secondary,
+.modal-body .btn-secondary {
+    background: rgba(138, 101, 204, 0.2);
+    color: #a585d8;
+    border: 1px solid rgba(138, 101, 204, 0.4);
+}
+
+.custom-item-dialog .btn-secondary:hover,
+.tab-pane .btn-secondary:hover,
+.attribute-builder .btn-secondary:hover,
+.modal-body .btn-secondary:hover {
+    background: rgba(138, 101, 204, 0.35);
+    border-color: #8a65cc;
+    color: #fff;
+}
+
+.custom-item-dialog .btn-sm,
+.tab-pane .btn-sm,
+.attribute-builder .btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+}
+
+.custom-item-dialog .btn i,
+.tab-pane .btn i,
+.attribute-builder .btn i {
+    font-size: 0.9em;
+}
+
+/* Add button specific styling */
+.attribute-builder #btnAddAttribute {
+    width: 100%;
+    margin-top: 0.5rem;
+    background: rgba(138, 101, 204, 0.15);
+    border: 2px dashed rgba(138, 101, 204, 0.4);
+}
+
+.attribute-builder #btnAddAttribute:hover {
+    background: rgba(138, 101, 204, 0.25);
+    border-color: #8a65cc;
+}
+
+/* =================================================================
+   Attribute Builder
+   ================================================================= */
+
+.attribute-builder {
+    width: 100%;
+}
+
+.attribute-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.attribute-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.attribute-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(138, 101, 204, 0.4);
+}
+
+.attribute-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 0.5rem;
+}
+
+.attribute-header .attr-name {
+    flex: 1;
+    font-weight: 500;
+    font-size: 1rem;
+}
+
+.attribute-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.attribute-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+/* Attribute tags (aliases) */
+.alias-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    min-height: 32px;
+}
+
+/* Dropdown configuration */
+.dropdown-config {
+    background: rgba(138, 101, 204, 0.1);
+    border: 1px solid rgba(138, 101, 204, 0.3);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+}
+
+.dropdown-config h4 {
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+    color: #a585d8;
+}
+
+/* =================================================================
+   Custom Item Cards
+   ================================================================= */
+
+.custom-item-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 3px solid #8a65cc;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.custom-item-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-left-color: #a585d8;
+    transform: translateX(2px);
+}
+
+.custom-item-card .item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.custom-item-card .item-title-section {
+    flex: 1;
+}
+
+.custom-item-card .item-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: #fff;
+}
+
+.custom-item-card .item-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.custom-item-card .item-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.custom-item-card .item-description {
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+.custom-item-card .item-meta {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 0.5rem;
+}
+
+.custom-item-card .item-meta strong {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.custom-item-card .item-meta code {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.custom-item-card .item-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+}
+
+.custom-item-card .item-footer {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* =================================================================
+   Tags and Badges
+   ================================================================= */
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    background: rgba(138, 101, 204, 0.2);
+    border: 1px solid rgba(138, 101, 204, 0.4);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    color: #fff;
+}
+
+.tag-small {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.tag-remove {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.tag-remove:hover {
+    opacity: 1;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-custom {
+    background: linear-gradient(135deg, #8a65cc, #a585d8);
+    color: #fff;
+}
+
+.badge-category {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* =================================================================
+   Input Components
+   ================================================================= */
+
+.input-with-btn {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.input-with-btn .form-input,
+.input-with-btn .form-textarea {
+    flex: 1;
+}
+
+.input-with-btn .btn-sm {
+    flex-shrink: 0;
+}
+
+.form-hint {
+    display: block;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 0.25rem;
+}
+
+.category-input-wrapper {
+    position: relative;
+}
+
+/* =================================================================
+   Examples Section
+   ================================================================= */
+
+.examples-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.example-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 0.75rem;
+}
+
+.example-item pre {
+    flex: 1;
+    margin: 0;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.examples-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.suggestion-tag {
+    padding: 0.4rem 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.suggestion-tag:hover {
+    background: rgba(138, 101, 204, 0.2);
+    border-color: rgba(138, 101, 204, 0.5);
+    color: #fff;
+}
+
+/* =================================================================
+   Tag Container
+   ================================================================= */
+
+.tag-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    min-height: 36px;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+}
+
+/* =================================================================
+   Empty States
+   ================================================================= */
+
+.empty-state-small {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.empty-state-small i {
+    margin-bottom: 1rem;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.empty-state-small p {
+    margin: 0.5rem 0;
+}
+
+.empty-state-small .text-muted {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* =================================================================
+   Button Variants
+   ================================================================= */
+
+.btn-icon {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.8);
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.btn-icon:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: #fff;
+}
+
+.btn-edit:hover {
+    background: rgba(138, 101, 204, 0.2);
+    border-color: #8a65cc;
+    color: #a585d8;
+}
+
+.btn-delete:hover,
+.btn-danger:hover {
+    background: rgba(231, 76, 60, 0.2);
+    border-color: #e74c3c;
+    color: #e74c3c;
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Action button styling for built-in items */
+.browser-item-card .btn-success {
+    background: rgba(40, 167, 69, 0.2);
+    border: 1px solid rgba(40, 167, 69, 0.4);
+    color: #28a745;
+}
+
+.browser-item-card .btn-success:hover {
+    background: rgba(40, 167, 69, 0.35);
+    border-color: #28a745;
+    color: #fff;
+}
+
+.browser-item-card .btn-warning {
+    background: rgba(255, 193, 7, 0.2);
+    border: 1px solid rgba(255, 193, 7, 0.4);
+    color: #ffc107;
+}
+
+.browser-item-card .btn-warning:hover {
+    background: rgba(255, 193, 7, 0.35);
+    border-color: #ffc107;
+    color: #fff;
+}
+
+.browser-item-card .btn-delete,
+.browser-item-card .btn-danger {
+    background: rgba(220, 53, 69, 0.2);
+    border: 1px solid rgba(220, 53, 69, 0.4);
+    color: #dc3545;
+}
+
+.browser-item-card .btn-delete:hover,
+.browser-item-card .btn-danger:hover {
+    background: rgba(220, 53, 69, 0.35);
+    border-color: #dc3545;
+    color: #fff;
+}
+
+/* =================================================================
+   Form Controls
+   ================================================================= */
+
+.form-checkbox {
+    width: 18px;
+    height: 18px;
+    margin-right: 0.5rem;
+    cursor: pointer;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.form-check label {
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Hidden item styling */
+.browser-item-card.hidden-item {
+    opacity: 0.6;
+    border-left-width: 4px;
+    border-left-style: dashed;
+}
+
+.hidden-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: rgba(255, 193, 7, 0.2);
+    border: 1px solid rgba(255, 193, 7, 0.4);
+    color: #ffc107;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+    font-weight: 500;
+}
+
+/* =================================================================
+   Responsive Design
+   ================================================================= */
+
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .custom-item-card .item-header {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .custom-item-card .item-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .attribute-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .attribute-actions {
+        justify-content: flex-end;
+    }
+}
+
+/* =================================================================
+   Scrollbar Styling
+   ================================================================= */
+
+.attribute-list::-webkit-scrollbar,
+.examples-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.attribute-list::-webkit-scrollbar-track,
+.examples-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+}
+
+.attribute-list::-webkit-scrollbar-thumb,
+.examples-list::-webkit-scrollbar-thumb {
+    background: rgba(138, 101, 204, 0.5);
+    border-radius: 3px;
+}
+
+.attribute-list::-webkit-scrollbar-thumb:hover,
+.examples-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(138, 101, 204, 0.7);
+}
+
+/* =================================================================
+   Animations
+   ================================================================= */
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.attribute-item,
+.custom-item-card,
+.example-item {
+    animation: slideIn 0.3s ease;
+}
+
+/* =================================================================
+   Utilities
+   ================================================================= */
+
+.text-muted {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.item-count {
+    font-weight: normal;
+    color: rgba(255, 255, 255, 0.6);
+}

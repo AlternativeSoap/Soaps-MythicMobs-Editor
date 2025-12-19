@@ -580,6 +580,85 @@ const TARGETERS_DATA = {
             examples: ['@VariableLocation{var=target.storedloc}'],
             requirements: []
         },
+        {
+            id: 'TargetPredictedLocation',
+            name: 'TargetPredictedLocation',
+            aliases: [],
+            category: 'location_single',
+            description: 'Targets the predicted location of the target based on velocity',
+            attributes: [
+                { name: 'ticks', alias: 't', type: 'integer', default: '20', required: false, description: 'Ticks ahead to predict' }
+            ],
+            examples: ['@TargetPredictedLocation{t=10}'],
+            requirements: []
+        },
+        {
+            id: 'ObstructingBlock',
+            name: 'ObstructingBlock',
+            aliases: [],
+            category: 'location_single',
+            description: 'Targets the block that is obstructing the line of sight',
+            attributes: [],
+            examples: ['@ObstructingBlock'],
+            requirements: []
+        },
+        {
+            id: 'TargetBlock',
+            name: 'TargetBlock',
+            aliases: [],
+            category: 'location_single',
+            description: 'Targets the block at the target location',
+            attributes: [],
+            examples: ['@TargetBlock'],
+            requirements: []
+        },
+        {
+            id: 'NearestStructure',
+            name: 'NearestStructure',
+            aliases: [],
+            category: 'location_single',
+            description: 'Targets the nearest structure of the specified type',
+            attributes: [
+                { name: 'structure', alias: 's', type: 'string', default: '', required: true, description: 'Structure type to find' },
+                { name: 'radius', alias: 'r', type: 'integer', default: '100', required: false, description: 'Search radius' }
+            ],
+            examples: ['@NearestStructure{s=village;r=200}'],
+            requirements: ['MC 1.16+']
+        },
+        {
+            id: 'HighestBlock',
+            name: 'HighestBlock',
+            aliases: [],
+            category: 'location_single',
+            description: 'Targets the highest solid block at the target location',
+            attributes: [],
+            examples: ['@HighestBlock'],
+            requirements: []
+        },
+        {
+            id: 'PlayerLocationByName',
+            name: 'PlayerLocationByName',
+            aliases: [],
+            category: 'location_single',
+            description: 'Targets the location of a player by their username',
+            attributes: [
+                { name: 'name', alias: 'n', type: 'string', default: '', required: true, description: 'Player username' }
+            ],
+            examples: ['@PlayerLocationByName{n=Notch}'],
+            requirements: []
+        },
+        {
+            id: 'ForwardWall',
+            name: 'ForwardWall',
+            aliases: [],
+            category: 'location_single',
+            description: 'Targets the nearest wall in front of the caster',
+            attributes: [
+                { name: 'maxdistance', alias: 'md', type: 'float', default: '100', required: false, description: 'Maximum distance to check' }
+            ],
+            examples: ['@ForwardWall{md=50}'],
+            requirements: []
+        },
 
         // MULTI LOCATION TARGETERS
         {
@@ -716,6 +795,42 @@ const TARGETERS_DATA = {
             examples: ['@RingAroundOrigin{r=5;p=12}'],
             requirements: []
         },
+        {
+            id: 'PlayerLocationsInRadius',
+            name: 'PlayerLocationsInRadius',
+            aliases: [],
+            category: 'location_multi',
+            description: 'Targets the locations of all players in radius',
+            attributes: [
+                { name: 'radius', alias: 'r', type: 'float', default: '16', required: false, description: 'Search radius' }
+            ],
+            examples: ['@PlayerLocationsInRadius{r=30}'],
+            requirements: []
+        },
+        {
+            id: 'Spawners',
+            name: 'Spawners',
+            aliases: [],
+            category: 'location_multi',
+            description: 'Targets all spawner blocks in radius',
+            attributes: [
+                { name: 'radius', alias: 'r', type: 'float', default: '16', required: false, description: 'Search radius' }
+            ],
+            examples: ['@Spawners{r=50}'],
+            requirements: []
+        },
+        {
+            id: 'ChunksInWERegion',
+            name: 'ChunksInWERegion',
+            aliases: [],
+            category: 'location_multi',
+            description: 'Targets chunk locations in a WorldEdit region',
+            attributes: [
+                { name: 'region', alias: 'r', type: 'string', default: '', required: true, description: 'WorldEdit region name' }
+            ],
+            examples: ['@ChunksInWERegion{r=spawn_area}'],
+            requirements: ['WorldEdit', 'Premium']
+        },
 
         // META ENTITY TARGETERS
         {
@@ -742,8 +857,86 @@ const TARGETERS_DATA = {
             examples: ['@LivingNearTargetLocation{r=10}'],
             requirements: []
         },
+        {
+            id: 'PlayersNearTargetLocations',
+            name: 'PlayersNearTargetLocations',
+            aliases: [],
+            category: 'meta_entity',
+            description: 'Targets players near the inherited target locations',
+            attributes: [
+                { name: 'radius', alias: 'r', type: 'float', default: '5', required: false, description: 'Search radius' }
+            ],
+            examples: ['@PlayersNearTargetLocations{r=10}'],
+            requirements: []
+        },
+        {
+            id: 'TargetedTarget',
+            name: 'TargetedTarget',
+            aliases: [],
+            category: 'meta_entity',
+            description: 'Targets what the inherited target is targeting',
+            attributes: [],
+            examples: ['@TargetedTarget'],
+            requirements: []
+        },
 
         // META LOCATION TARGETERS - Not in docs, placeholder
+        {
+            id: 'FloorOfTargets',
+            name: 'FloorOfTargets',
+            aliases: [],
+            category: 'meta_location',
+            description: 'Targets the floor location below inherited targets',
+            attributes: [],
+            examples: ['@FloorOfTargets'],
+            requirements: []
+        },
+        {
+            id: 'LocationsOfTargets',
+            name: 'LocationsOfTargets',
+            aliases: [],
+            category: 'meta_location',
+            description: 'Targets the locations of all inherited targets',
+            attributes: [],
+            examples: ['@LocationsOfTargets'],
+            requirements: []
+        },
+        {
+            id: 'TargetedLocation',
+            name: 'TargetedLocation',
+            aliases: [],
+            category: 'meta_location',
+            description: 'Targets the location that the inherited target is looking at',
+            attributes: [
+                { name: 'maxdistance', alias: 'md', type: 'float', default: '30', required: false, description: 'Max distance to check' }
+            ],
+            examples: ['@TargetedLocation{md=50}'],
+            requirements: []
+        },
+        {
+            id: 'BlocksInChunk',
+            name: 'BlocksInChunk',
+            aliases: [],
+            category: 'meta_location',
+            description: 'Targets all blocks of the specified type in the chunk',
+            attributes: [
+                { name: 'material', alias: 'm', type: 'string', default: '', required: true, description: 'Block material' }
+            ],
+            examples: ['@BlocksInChunk{m=SPAWNER}'],
+            requirements: []
+        },
+        {
+            id: 'BlockVein',
+            name: 'BlockVein',
+            aliases: [],
+            category: 'meta_location',
+            description: 'Targets all connected blocks of the same type (like a vein of ore)',
+            attributes: [
+                { name: 'radius', alias: 'r', type: 'float', default: '5', required: false, description: 'Max search radius' }
+            ],
+            examples: ['@BlockVein{r=10}'],
+            requirements: []
+        },
         
         // SPECIAL TARGETERS
         {
@@ -765,6 +958,28 @@ const TARGETERS_DATA = {
             attributes: [],
             examples: ['@ParentLocation'],
             requirements: []
+        },
+        {
+            id: 'None',
+            name: 'None',
+            aliases: [],
+            category: 'special',
+            description: 'No target, useful for clearing targets or placeholder',
+            attributes: [],
+            examples: ['@None'],
+            requirements: []
+        },
+        {
+            id: 'Region',
+            name: 'Region',
+            aliases: [],
+            category: 'special',
+            description: 'Targets entities within a WorldEdit region',
+            attributes: [
+                { name: 'region', alias: 'r', type: 'string', default: '', required: true, description: 'WorldEdit region name' }
+            ],
+            examples: ['@Region{r=spawn_area}'],
+            requirements: ['WorldEdit', 'Premium']
         }
     ],
 
@@ -822,6 +1037,9 @@ const TARGETERS_DATA = {
         };
     }
 };
+
+// Export to window for browser usage
+window.TARGETERS_DATA = TARGETERS_DATA;
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {

@@ -13,8 +13,28 @@ class TriggerBrowser {
         this.currentMobType = null;
         this.searchCache = new LRUCache(10);
         
+        // Initialize browser data merger
+        if (window.supabase && typeof BrowserDataMerger !== 'undefined') {
+            this.browserDataMerger = new BrowserDataMerger(window.supabase);
+        }
+        this.triggersData = TRIGGERS_DATA; // Default to built-in
+        
         this.createModal();
         this.attachEventListeners();
+    }
+
+    /**
+     * Load merged data from database
+     */
+    async loadMergedData() {
+        if (this.browserDataMerger) {
+            try {
+                this.triggersData = await this.browserDataMerger.getMergedTriggers();
+            } catch (error) {
+                console.error('Error loading merged triggers:', error);
+                this.triggersData = TRIGGERS_DATA; // Fallback
+            }
+        }
     }
 
     /**
@@ -216,7 +236,10 @@ class TriggerBrowser {
     /**
      * Open the trigger browser
      */
-    open(options = {}) {
+    async open(options = {}) {
+        // Load merged data if available
+        await this.loadMergedData();
+        
         this.currentMobType = options.mobType || null;
         this.currentModules = options.modules || null;
         this.onSelectCallback = options.onSelect || null;
@@ -262,7 +285,7 @@ class TriggerBrowser {
      * Update category tab counts
      */
     updateCategoryCounts() {
-        const triggers = TRIGGERS_DATA.triggers || [];
+        const triggers = this.triggersData.triggers || [];
         const categoryTabs = document.querySelectorAll('#triggerCategories .category-tab');
         
         categoryTabs.forEach(tab => {
@@ -299,7 +322,7 @@ class TriggerBrowser {
         }
         
         // Get filtered triggers
-        let triggers = TRIGGERS_DATA.triggers;
+        let triggers = this.triggersData.triggers;
 
         // Filter by category
         if (this.currentCategory !== 'all') {
@@ -308,7 +331,7 @@ class TriggerBrowser {
 
         // Filter by search query
         if (this.searchQuery) {
-            triggers = TRIGGERS_DATA.searchTriggers(this.searchQuery);
+            triggers = this.triggersData.searchTriggers(this.searchQuery);
             if (this.currentCategory !== 'all') {
                 triggers = triggers.filter(t => t.category === this.currentCategory);
             }
@@ -407,11 +430,11 @@ class TriggerBrowser {
      * Handle trigger selection
      */
     handleTriggerSelection(triggerName) {
-        const trigger = TRIGGERS_DATA.getTrigger(triggerName);
+        const trigger = this.triggersData.getTrigger(triggerName);
         if (!trigger) return;
 
         // Check requirements
-        const reqCheck = TRIGGERS_DATA.checkRequirements(trigger, this.currentModules);
+        const reqCheck = this.triggersData.checkRequirements(trigger, this.currentModules);
         if (!reqCheck.satisfied) {
             this.showAutoEnableConfirmation(trigger, reqCheck.missing);
             return;
@@ -520,7 +543,11 @@ class TriggerBrowser {
 
         // Validate parameter
         if (param.required && !inputValue) {
-            alert('This parameter is required.');
+            window.notificationModal?.alert(
+                'This parameter is required.',
+                'warning',
+                'Required Parameter'
+            );
             return;
         }
 
@@ -572,3 +599,6 @@ class TriggerBrowser {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = TriggerBrowser;
 }
+
+// Make available globally for lazy initialization
+window.TriggerBrowser = TriggerBrowser;

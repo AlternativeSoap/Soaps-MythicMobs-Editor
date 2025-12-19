@@ -355,7 +355,6 @@ class SkillEditor {
             context: sectionType,
             onSelect: (result) => {
                 if (!result || !result.conditionString) {
-                    console.log('ℹ️ Condition selection cancelled');
                     return;
                 }
                 
@@ -559,11 +558,6 @@ class SkillEditor {
                         // Update current skill reference
                         this.skillBuilderEditor.currentSkill = newName;
                         this.skillBuilderEditor.skills = this.currentSkill.skills;
-                        
-                        console.log('🔄 Renamed skill key in skills object:', {
-                            from: currentKey,
-                            to: newName
-                        });
                     }
                 }
                 
@@ -660,23 +654,27 @@ class SkillEditor {
     syncToFile() {
         // Sync currentSkill data to state.currentFile for live preview
         if (this.currentSkill && this.editor.state.currentFile) {
-            console.log('🔄 Syncing skill to file:', {
-                skillName: this.currentSkill.name,
-                fileId: this.editor.state.currentFile.id,
-                skillsData: JSON.parse(JSON.stringify(this.currentSkill.skills)),
-                skillsKeys: Object.keys(this.currentSkill.skills),
-                currentFileIdBefore: this.editor.state.currentFile.id
-            });
+            if (window.DEBUG_MODE) {
+                console.log('🔄 Syncing skill to file:', {
+                    skillName: this.currentSkill.name,
+                    fileId: this.editor.state.currentFile.id,
+                    skillsData: JSON.parse(JSON.stringify(this.currentSkill.skills)),
+                    skillsKeys: Object.keys(this.currentSkill.skills),
+                    currentFileIdBefore: this.editor.state.currentFile.id
+                });
+            }
             
             // Deep copy to ensure nested objects are copied
             const skillDataCopy = JSON.parse(JSON.stringify(this.currentSkill));
             Object.assign(this.editor.state.currentFile, skillDataCopy);
             
-            console.log('✅ Skill synced to file:', {
-                fileSkillsAfterSync: JSON.parse(JSON.stringify(this.editor.state.currentFile.skills)),
-                fileSkillsKeys: Object.keys(this.editor.state.currentFile.skills),
-                fileIdAfterSync: this.editor.state.currentFile.id
-            });
+            if (window.DEBUG_MODE) {
+                console.log('✅ Skill synced to file:', {
+                    fileSkillsAfterSync: JSON.parse(JSON.stringify(this.editor.state.currentFile.skills)),
+                    fileSkillsKeys: Object.keys(this.editor.state.currentFile.skills),
+                    fileIdAfterSync: this.editor.state.currentFile.id
+                });
+            }
             
             // Update YAML preview in side panel
             if (this.editor.updateYAMLPreview) {
@@ -904,20 +902,32 @@ class SkillEditor {
     }
     
     initializeSkillBuilder() {
+        console.log('Current browsers before init:', {
+            targeterBrowser: this.targeterBrowser,
+            mechanicBrowser: this.mechanicBrowser
+        });
+        
         // Initialize browser components if not already created
         if (!this.targeterBrowser) {
+            console.log('Creating new TargeterBrowser');
             this.targeterBrowser = new TargeterBrowser();
         }
         
         // No longer need to initialize condition editor - using global V2 browser
         
         if (!this.mechanicBrowser) {
+            console.log('Creating new MechanicBrowser');
             this.mechanicBrowser = new MechanicBrowser(
                 this.targeterBrowser,
                 null, // No trigger browser for skill files
                 null  // Using global conditionBrowserV2 instead
             );
         }
+        
+        console.log('Browsers after init:', {
+            targeterBrowser: !!this.targeterBrowser,
+            mechanicBrowser: !!this.mechanicBrowser
+        });
         
         // Initialize Skill Builder Editor
         const skillLinesContainer = document.getElementById('skill-lines-editor');
@@ -936,7 +946,6 @@ class SkillEditor {
                     this.currentSkill.skills[this.currentSkill.name || 'DefaultSkill'] = {
                         lines: this.currentSkill.Skills
                     };
-                    console.log('🔄 Migrated old Skills array to new format');
                 }
             }
             
@@ -946,7 +955,6 @@ class SkillEditor {
                 // Check if we have numeric keys that need migration
                 const numericKeys = keys.filter(key => !isNaN(key));
                 if (numericKeys.length > 0) {
-                    console.log('🔄 Migrating numeric keys to skill name:', this.currentSkill.name);
                     console.log('   Before migration keys:', keys);
                     
                     // Remove ALL numeric keys - they shouldn't exist
@@ -971,7 +979,6 @@ class SkillEditor {
             // Ensure at least one skill exists
             if (Object.keys(this.currentSkill.skills).length === 0) {
                 this.currentSkill.skills[this.currentSkill.name || 'DefaultSkill'] = { lines: [] };
-                if (window.DEBUG_MODE) console.log('📝 Created default empty skills object');
             }
             
             if (window.DEBUG_MODE) {
@@ -1007,11 +1014,13 @@ class SkillEditor {
             
             // Listen for changes
             this.skillBuilderEditor.onChange((skillLines) => {
-                console.log('🎯 SkillEditor onChange triggered:', {
-                    currentSkillName: this.skillBuilderEditor.currentSkill,
-                    linesCount: skillLines?.length || 0,
-                    skillsObjectBefore: JSON.parse(JSON.stringify(this.currentSkill.skills))
-                });
+                if (window.DEBUG_MODE) {
+                    console.log('🎯 SkillEditor onChange triggered:', {
+                        currentSkillName: this.skillBuilderEditor.currentSkill,
+                        linesCount: skillLines?.length || 0,
+                        skillsObjectBefore: JSON.parse(JSON.stringify(this.currentSkill.skills))
+                    });
+                }
                 
                 // Update the current skill's lines
                 if (this.skillBuilderEditor.currentSkill) {
@@ -1020,11 +1029,13 @@ class SkillEditor {
                         this.currentSkill.skills[this.skillBuilderEditor.currentSkill] = { lines: [] };
                     }
                     this.currentSkill.skills[this.skillBuilderEditor.currentSkill].lines = skillLines;
-                    console.log('✅ Updated skill lines:', {
-                        skillName: this.skillBuilderEditor.currentSkill,
-                        newLinesCount: skillLines?.length || 0,
-                        skillsObjectAfter: JSON.parse(JSON.stringify(this.currentSkill.skills))
-                    });
+                    if (window.DEBUG_MODE) {
+                        console.log('✅ Updated skill lines:', {
+                            skillName: this.skillBuilderEditor.currentSkill,
+                            newLinesCount: skillLines?.length || 0,
+                            skillsObjectAfter: JSON.parse(JSON.stringify(this.currentSkill.skills))
+                        });
+                    }
                 }
                 
                 this.syncToFile();

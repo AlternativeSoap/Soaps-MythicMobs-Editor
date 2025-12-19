@@ -8,7 +8,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'playerKills',
         name: 'Player Kills',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Matches how many players the target mob has killed',
         aliases: [],
@@ -31,7 +31,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'playerNotWithin',
         name: 'Player Not Within',
-        category: 'Meta',
+        category: 'Combat',
         type: 'meta',
         description: 'Checks if any players are NOT within a radius of the target',
         aliases: ['playersnotwithin'],
@@ -54,7 +54,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'playerWithin',
         name: 'Player Within',
-        category: 'Meta',
+        category: 'Combat',
         type: 'meta',
         description: 'Checks if any players are within a radius of the target',
         aliases: ['playerswithin'],
@@ -77,7 +77,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'playersInRadius',
         name: 'Players In Radius',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Checks how many players are in a radius',
         aliases: ['pir', 'playerInRadius'],
@@ -119,7 +119,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'playersInWorld',
         name: 'Players In World',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Matches the number of players in the caster\'s world',
         aliases: [],
@@ -142,7 +142,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'playersOnline',
         name: 'Players Online',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Matches the number of players online',
         aliases: ['onlineplayercount', 'onlineplayers'],
@@ -165,7 +165,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'plugin',
         name: 'Plugin',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Checks if the specified plugin is running on the server',
         aliases: ['pluginexists', 'hasplugin'],
@@ -188,7 +188,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'premium',
         name: 'Premium',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks if MythicMobs Premium is running on the server',
         aliases: ['ispremium', 'iscool'],
@@ -200,7 +200,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'projectileHasEnded',
         name: 'Projectile Has Ended',
-        category: 'Meta',
+        category: 'Combat',
         type: 'meta',
         description: 'Checks if the calling projectile has ended',
         aliases: [],
@@ -212,7 +212,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'sameFaction',
         name: 'Same Faction',
-        category: 'Meta',
+        category: 'Entity Type',
         type: 'meta',
         description: 'Checks if the target entity is in the same faction as the caster',
         aliases: ['factionsame'],
@@ -224,7 +224,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'score',
         name: 'Score',
-        category: 'Meta',
+        category: 'Variables & Data',
         type: 'meta',
         description: 'Checks a scoreboard value of the target entity',
         aliases: [],
@@ -264,7 +264,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'serverIsPaper',
         name: 'Server Is Paper',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Checks whether the server is running a fork of Paper',
         aliases: ['ispaper'],
@@ -276,7 +276,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'serverNMSVersion',
         name: 'Server NMS Version',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Checks if the server is running a specific Minecraft NMS version',
         aliases: ['servernms', 'nmsversion'],
@@ -299,7 +299,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'serverVersion',
         name: 'Server Version',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Checks if the server is running a specific Minecraft version',
         aliases: ['server', 'version'],
@@ -322,7 +322,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'serverVersionAfterOrEqual',
         name: 'Server Version After Or Equal',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Checks whether the server is after or equal to a specific version',
         aliases: ['serverAfterEq', 'serverAfter', 'versionAfterEq', 'versionAfter'],
@@ -354,7 +354,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'serverVersionBefore',
         name: 'Server Version Before',
-        category: 'Meta',
+        category: 'Server & World',
         type: 'meta',
         description: 'Checks whether the server is before a specific version',
         aliases: ['serverBefore', 'versionBefore'],
@@ -386,7 +386,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'skillOnCooldown',
         name: 'Skill On Cooldown',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks if the given skill is in cooldown for the target entity',
         aliases: [],
@@ -408,7 +408,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'spawnReason',
         name: 'Spawn Reason',
-        category: 'Meta',
+        category: 'Entity Type',
         type: 'meta',
         description: 'Checks against the spawn reason of the target(s)',
         aliases: [],
@@ -430,7 +430,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'sprinting',
         name: 'Sprinting',
-        category: 'Meta',
+        category: 'Entity State',
         type: 'meta',
         description: 'Checks if the target Player is sprinting',
         aliases: ['issprinting'],
@@ -442,7 +442,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'stance',
         name: 'Stance',
-        category: 'Meta',
+        category: 'Entity State',
         type: 'meta',
         description: 'Checks the stance of the target mob',
         aliases: [],
@@ -474,7 +474,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'stringEmpty',
         name: 'String Empty',
-        category: 'Meta',
+        category: 'Variables & Data',
         type: 'meta',
         description: 'Checks if the provided string is empty',
         aliases: ['isEmpty'],
@@ -496,7 +496,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'stringNotEmpty',
         name: 'String Not Empty',
-        category: 'Meta',
+        category: 'Variables & Data',
         type: 'meta',
         description: 'Checks if the provided string is not empty',
         aliases: ['notEmpty'],
@@ -518,7 +518,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'stringEquals',
         name: 'String Equals',
-        category: 'Meta',
+        category: 'Variables & Data',
         type: 'meta',
         description: 'Checks if value1 equals value2. Both values can use variables and placeholders',
         aliases: ['stringEq'],
@@ -549,7 +549,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'structure',
         name: 'Structure',
-        category: 'Meta',
+        category: 'Location',
         type: 'meta',
         description: 'Matches if the target location is inside of a structure. Supports wildcards and structures from datapacks',
         aliases: [],
@@ -572,7 +572,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'targetInLineOfSight',
         name: 'Target In Line Of Sight',
-        category: 'Meta',
+        category: 'Combat',
         type: 'meta',
         description: 'Tests if the target entity has line of sight to their target',
         aliases: [],
@@ -584,7 +584,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'targetNotInLineOfSight',
         name: 'Target Not In Line Of Sight',
-        category: 'Meta',
+        category: 'Combat',
         type: 'meta',
         description: 'Tests if the target doesn\'t have line of sight to their target',
         aliases: [],
@@ -596,7 +596,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'targetWithin',
         name: 'Target Within',
-        category: 'Meta',
+        category: 'Combat',
         type: 'meta',
         description: 'Tests if the target\'s target is within a certain distance',
         aliases: [],
@@ -619,7 +619,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'targetNotWithin',
         name: 'Target Not Within',
-        category: 'Meta',
+        category: 'Combat',
         type: 'meta',
         description: 'Tests if the target\'s target is not within a certain distance',
         aliases: [],
@@ -642,7 +642,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'targets',
         name: 'Targets',
-        category: 'Meta',
+        category: 'Combat',
         type: 'meta',
         description: 'Checks if the number of inherited targets from the parent skilltree matches the given range',
         aliases: [],
@@ -666,7 +666,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'templateType',
         name: 'Template Type',
-        category: 'Meta',
+        category: 'Entity Type',
         type: 'meta',
         description: 'Checks if the target mob extends the specified Template',
         aliases: ['template', 'instanceOf'],
@@ -688,7 +688,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'triggerBlockType',
         name: 'Trigger Block Type',
-        category: 'Meta',
+        category: 'Location',
         type: 'meta',
         description: 'Checks against the material type that triggered the skill. Only works with specific Triggers',
         aliases: ['triggeringBlockType'],
@@ -711,7 +711,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'triggerItemType',
         name: 'Trigger Item Type',
-        category: 'Meta',
+        category: 'Location',
         type: 'meta',
         description: 'Checks against the item material type that triggered the skill. Only works with specific Triggers',
         aliases: ['triggeringItemType'],
@@ -734,7 +734,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'variableContains',
         name: 'Variable Contains',
-        category: 'Meta',
+        category: 'Variables & Data',
         type: 'meta',
         description: 'Checks if the given variable contains a certain value. For Strings, checks if it contains a substring. For Lists/Sets, checks if it contains elements',
         aliases: ['variableContain', 'varContains', 'varContain', 'varCont'],
@@ -787,7 +787,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'variableEquals',
         name: 'Variable Equals',
-        category: 'Meta',
+        category: 'Variables & Data',
         type: 'meta',
         description: 'Checks the value of a variable. Value can include placeholders, even from PlaceholderAPI',
         aliases: ['variableeq', 'varequals', 'vareq'],
@@ -829,7 +829,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'variableInRange',
         name: 'Variable In Range',
-        category: 'Meta',
+        category: 'Variables & Data',
         type: 'meta',
         description: 'Checks if the given numeric variable is within a certain range',
         aliases: ['varinrange', 'varrange'],
@@ -870,7 +870,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'variableIsSet',
         name: 'Variable Is Set',
-        category: 'Meta',
+        category: 'Variables & Data',
         type: 'meta',
         description: 'Checks if the given variable is set',
         aliases: ['varisset', 'varset'],
@@ -902,7 +902,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'vehicleIsDead',
         name: 'Vehicle Is Dead',
-        category: 'Meta',
+        category: 'Entity State',
         type: 'meta',
         description: 'Checks if the casters mounted vehicle is dead',
         aliases: [],
@@ -914,7 +914,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'velocity',
         name: 'Velocity',
-        category: 'Meta',
+        category: 'Entity State',
         type: 'meta',
         description: 'Checks the velocity of the target entity against a range',
         aliases: [],
@@ -936,7 +936,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'wearing',
         name: 'Wearing',
-        category: 'Meta',
+        category: 'Player',
         type: 'meta',
         description: 'Checks if the target entity is wearing the selected item. Uses the Item Matcher',
         aliases: ['iswearing', 'wielding', 'iswielding'],
@@ -989,7 +989,7 @@ const META_CONDITIONS_FINAL = [
     {
         id: 'world',
         name: 'World',
-        category: 'Meta',
+        category: 'Location',
         type: 'meta',
         description: 'Checks the name of the target world',
         aliases: [],

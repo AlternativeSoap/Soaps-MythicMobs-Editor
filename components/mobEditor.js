@@ -89,7 +89,10 @@ class MobEditor {
     syncToFile() {
         // Sync currentMob data to state.currentFile for live preview
         if (this.currentMob && this.editor.state.currentFile) {
+            console.log('   currentMob.display:', this.currentMob.display);
+            console.log('   currentFile.display:', this.editor.state.currentFile.display);
             Object.assign(this.editor.state.currentFile, this.currentMob);
+            console.log('   currentFile.display:', this.editor.state.currentFile.display);
         }
     }
     
@@ -2724,6 +2727,8 @@ class MobEditor {
     updateMob(field, value) {
         if (!this.currentMob) return;
         
+        console.log(`🔄 updateMob called: field="${field}", value="${value}"`);
+        
         // Track if name field is being updated
         const isNameField = (field === 'name');
         
@@ -2822,6 +2827,10 @@ class MobEditor {
         
         this.syncToFile();
         this.editor.markDirty();
+        
+        // Update YAML preview to reflect changes immediately
+        console.log('📄 Calling updateYAMLPreview() from updateMob()');
+        this.editor.updateYAMLPreview();
         
         // Refresh file tree if name was updated
         if (isNameField) {

@@ -689,7 +689,7 @@ class RandomSpawnEditor {
             if (structureDropdown?.style.display === 'block') {
                 this.positionDropdown(structureSearch, structureDropdown);
             }
-        });
+        }, { passive: true });
         
         structureSearch?.addEventListener('input', (e) => {
             this.filterStructures(e.target.value);

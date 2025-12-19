@@ -246,5 +246,4 @@ window.FANCY_DROP_ATTRIBUTES = FANCY_DROP_ATTRIBUTES;
 window.DROP_EQUIPMENT_SLOTS = DROP_EQUIPMENT_SLOTS;
 
 if (window.DEBUG_MODE) {
-    console.log('✅ Drop Types loaded:', DROP_TYPES.length, 'types');
 }

@@ -20,8 +20,7 @@ class MythicMobsEditor {
         console.log('%c  © 2025 - Made with 💜 for the MythicMobs community', 'color: #8e44ad;');
         console.log('%c═══════════════════════════════════════════════════════════════', 'color: #9b59b6; font-weight: bold;');
         console.log('');
-        console.log('%cℹ️ Tip: Press Ctrl+K to open the Command Palette', 'color: #3498db;');
-        console.log('');
+                console.log('');
         // Core utilities
         this.storage = null;
         this.packManager = null;
@@ -88,19 +87,13 @@ class MythicMobsEditor {
      * Initialize the application
      */
     async init() {
-        if (window.DEBUG_MODE) console.log('🚀 Initializing Soaps MythicMobs Editor...');
-        
         try {
             // Initialize storage FIRST
             this.storage = new StorageManager();
             
             // Wait for storage auth check to complete
-            if (window.DEBUG_MODE) console.log('⏳ Waiting for auth check...');
             if (this.storage.db && this.storage.db.checkAuth) {
                 await this.storage.db.checkAuth();
-            }
-            if (window.DEBUG_MODE) {
-                console.log('✅ Auth check complete, userId:', this.storage.db?.userId || 'none');
             }
             
             // Initialize authentication
@@ -145,9 +138,6 @@ class MythicMobsEditor {
             this.commandPalette = new CommandPalette(this);
             
             // Load packs (now userId should be set)
-            if (window.DEBUG_MODE) {
-                console.log('📦 Loading packs with userId:', this.storage.db?.userId);
-            }
             await this.packManager.loadPacks();
             
             // Setup event listeners
@@ -158,11 +148,6 @@ class MythicMobsEditor {
             
             // Render initial UI
             this.render();
-            
-            if (window.DEBUG_MODE) {
-                console.log('✅ Editor initialized successfully');
-                console.log('🔐 Auth Status:', this.authManager.isAuthenticated() ? 'Authenticated' : 'Anonymous');
-            }
             
         } catch (error) {
             console.error('❌ Failed to initialize editor:', error);
@@ -914,14 +899,6 @@ class MythicMobsEditor {
         if (!this.state.currentFile) return;
         
         try {
-            if (window.DEBUG_MODE) {
-                console.log('💾 Saving file:', {
-                    name: this.state.currentFile.name,
-                    type: this.state.currentFileType,
-                    fileId: this.state.currentFile.id
-                });
-            }
-            
             this.showSavingStatus();
             this.fileManager.saveFile(this.state.currentFile, this.state.currentFileType);
             this.state.currentFile.modified = false;
@@ -929,8 +906,6 @@ class MythicMobsEditor {
             this.state.isDirty = false;
             this.updateSaveStatusIndicator();
             this.showToast('File saved successfully', 'success');
-            
-            if (window.DEBUG_MODE) console.log('✅ File saved successfully');
         } catch (error) {
             console.error('❌ Failed to save file:', error);
             this.showToast('Failed to save file', 'error');
@@ -942,15 +917,6 @@ class MythicMobsEditor {
      * Mark current state as dirty (unsaved changes)
      */
     markDirty() {
-        if (window.DEBUG_MODE) {
-            console.log('📝 Mark dirty called', {
-                currentFile: this.state.currentFile?.name,
-                fileType: this.state.currentFileType,
-                autoSave: this.settings.autoSave,
-                interval: this.settings.autoSaveInterval
-            });
-        }
-        
         this.state.isDirty = true;
         
         // Mark current file as modified for Save All
@@ -971,16 +937,10 @@ class MythicMobsEditor {
         
         // Schedule auto-save if enabled
         if (this.settings.autoSave) {
-            if (window.DEBUG_MODE) {
-                console.log('⏰ Auto-save scheduled in', this.settings.autoSaveInterval, 'ms');
-            }
             clearTimeout(this.autoSaveTimer);
             this.autoSaveTimer = setTimeout(() => {
-                if (window.DEBUG_MODE) console.log('🚀 Auto-save triggered');
                 this.save();
             }, this.settings.autoSaveInterval);
-        } else if (window.DEBUG_MODE) {
-            console.warn('⚠️ Auto-save is disabled');
         }
         
         // Schedule preview update if enabled
@@ -1231,8 +1191,14 @@ class MythicMobsEditor {
     /**
      * Clear change history
      */
-    clearChangeHistory() {
-        if (confirm('Are you sure you want to clear the change history?')) {
+    async clearChangeHistory() {
+        const confirmed = await window.notificationModal?.confirm(
+            'Are you sure you want to clear the change history? This action cannot be undone.',
+            'Clear History',
+            { confirmText: 'Clear', confirmButtonClass: 'danger' }
+        );
+        
+        if (confirmed) {
             this.changeHistory = [];
             this.updateRecentChangesDropdown();
             this.updateFullHistoryList();
@@ -2412,8 +2378,6 @@ class MythicMobsEditor {
                 'ImportExecutor',
                 'ImportReportGenerator'
             ];
-            
-            console.log('📋 Checking required classes:');
             const missingClasses = [];
             for (const className of requiredClasses) {
                 const available = typeof window[className] !== 'undefined';
@@ -2424,7 +2388,11 @@ class MythicMobsEditor {
             if (missingClasses.length > 0) {
                 const errorMsg = `Missing required classes: ${missingClasses.join(', ')}.\n\nMake sure all packImporter scripts are loaded correctly.`;
                 console.error('❌ ' + errorMsg);
-                alert(errorMsg);
+                window.notificationModal?.alert(
+                    errorMsg,
+                    'error',
+                    'Missing Components'
+                );
                 return;
             }
             
@@ -2432,19 +2400,20 @@ class MythicMobsEditor {
             const jsyamlAvailable = typeof jsyaml !== 'undefined';
             console.log(`📋 js-yaml library: ${jsyamlAvailable ? '✅ available' : '❌ MISSING'}`);
             if (!jsyamlAvailable) {
-                alert('js-yaml library not loaded. Check your internet connection and try refreshing the page.');
+                window.notificationModal?.alert(
+                    'js-yaml library not loaded. Check your internet connection and try refreshing the page.',
+                    'error',
+                    'Library Not Loaded'
+                );
                 return;
             }
             
             // Initialize pack importer if not already done
             if (!window.packImporter) {
-                console.log('🔧 Creating new PackImporter instance...');
                 window.packImporter = new PackImporter();
-                console.log('✅ PackImporter created successfully');
             }
             
             // Start the import process
-            console.log('🚀 Calling startImport()...');
             window.packImporter.startImport();
             
         } catch (error) {
@@ -2454,7 +2423,11 @@ class MythicMobsEditor {
             console.error('Error name:', error.name);
             console.error('Error message:', error.message);
             console.error('Error stack:', error.stack);
-            alert('Error initializing pack importer: ' + error.message + '\n\nCheck console (F12) for details.');
+            window.notificationModal?.alert(
+                'Error initializing pack importer: ' + error.message + '\n\nCheck console (F12) for details.',
+                'error',
+                'Initialization Error'
+            );
         }
     }
     

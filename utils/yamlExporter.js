@@ -117,15 +117,20 @@ class YAMLExporter {
     }
     
     exportMob(mob) {
+        console.log('   mob.display:', mob.display);
+        
         // Check if mob has a template
         const hasTemplate = mob.template && mob.template.trim();
+        console.log('   hasTemplate:', hasTemplate);
         
         // If using template, use template-aware export (simpler output)
         if (hasTemplate) {
+            console.log('   → Using exportMobWithTemplate');
             return this.exportMobWithTemplate(mob);
         }
         
         // Otherwise, use full export
+        console.log('   → Using exportMobFull');
         return this.exportMobFull(mob);
     }
     
@@ -142,6 +147,9 @@ class YAMLExporter {
      * 2. Properties that this mob explicitly defines (overrides)
      */
     exportMobWithTemplate(mob) {
+        console.log('   mob.display:', mob.display);
+        console.log('   mob.display check:', mob.display && mob.display.trim());
+        
         let yaml = `${mob.name}:\n`;
         
         // Always output Template first
@@ -156,6 +164,8 @@ class YAMLExporter {
         // Display - only if explicitly set on this mob
         if (mob.display && mob.display.trim()) {
             yaml += `  Display: '${mob.display}'\n`;
+        } else {
+            console.log('❌ Display NOT added - mob.display:', mob.display);
         }
         
         // Core stats - only if explicitly set (not inherited defaults)
@@ -266,12 +276,19 @@ class YAMLExporter {
             // Skip if value is undefined, null, or empty string (but allow false and 0)
             if (value === undefined || value === null) return false;
             if (value === '' || (typeof value === 'string' && value.trim() === '')) return false;
+            
+            // Universal fields that apply to all entity types (skip fieldManager check)
+            const universalFields = ['Display', 'Health', 'Damage', 'Armor', 'Faction'];
+            if (universalFields.includes(fieldName)) return true;
+            
             // Skip if field not applicable to this entity type
             if (!fieldManager.shouldShowField(entityType, fieldName)) return false;
             return true;
         };
         
         // === TOP-LEVEL FIELDS (outside Options) ===
+        console.log('   mob.display:', mob.display);
+        console.log('   shouldExport result:', shouldExport('Display', mob.display));
         
         // Display
         if (shouldExport('Display', mob.display)) {

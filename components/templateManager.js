@@ -15,8 +15,6 @@ class TemplateManager {
             timestamp: null,
             ttl: 5 * 60 * 1000 // 5 minutes
         };
-        
-        console.log('📦 TemplateManager initialized');
     }
     
     // ========================================
@@ -38,7 +36,6 @@ class TemplateManager {
     invalidateCache() {
         this.cache.templates = null;
         this.cache.timestamp = null;
-        console.log('🔄 Template cache invalidated');
     }
     
     /**
@@ -75,20 +72,34 @@ class TemplateManager {
         
         const currentUser = this.auth.getCurrentUser();
         
+        // Detect structure type and normalize data
+        const structureInfo = this.detectStructureType(templateData);
+        const sections = templateData.sections || (templateData.skillLines ? [{
+            name: 'DefaultSkill',
+            lines: templateData.skillLines
+        }] : []);
+        
+        // Get all lines for analysis (flatten sections)
+        const allLines = sections.flatMap(s => s.lines || []);
+        
         // Prepare template object for database
         const template = {
             owner_id: currentUser.id,
             name: templateData.name.trim(),
             description: templateData.description.trim(),
-            type: templateData.type || this.detectTemplateType(templateData.skillLines),
+            type: templateData.type || this.detectTemplateType(allLines),
             tags: templateData.tags || [],
+            structure_type: structureInfo.type,
+            is_official: templateData.is_official || false,
             data: {
-                skillLines: templateData.skillLines,
-                triggers: templateData.triggers || this.extractTriggers(templateData.skillLines),
+                sections: sections,
+                // Keep skillLines for backward compatibility
+                skillLines: sections.length === 1 ? sections[0].lines : allLines,
+                triggers: templateData.triggers || this.extractTriggers(allLines),
                 conditions: templateData.conditions || [],
-                category: templateData.category || this.suggestCategory(templateData.skillLines),
-                icon: templateData.icon || this.suggestIcon(templateData.skillLines),
-                difficulty: templateData.difficulty || this.calculateDifficulty(templateData.skillLines)
+                category: templateData.category || this.suggestCategory(allLines),
+                icon: templateData.icon || this.suggestIcon(allLines),
+                difficulty: templateData.difficulty || this.calculateDifficulty(allLines)
             }
         };
         
@@ -100,8 +111,6 @@ class TemplateManager {
                 .single();
             
             if (error) throw error;
-            
-            console.log('✅ Template created:', data.name);
             
             // Invalidate cache
             this.invalidateCache();
@@ -130,7 +139,6 @@ class TemplateManager {
         
         // Check cache first
         if (this.isCacheValid()) {
-            console.log('📦 Using cached templates');
             const cached = this.cache.templates;
             return type ? cached.filter(t => t.type === type) : cached;
         }
@@ -267,8 +275,6 @@ class TemplateManager {
             
             if (error) throw error;
             
-            console.log('✅ Template updated:', data.name);
-            
             // Invalidate cache
             this.invalidateCache();
             
@@ -311,8 +317,6 @@ class TemplateManager {
             if (!data.success) {
                 throw new Error(data.error || 'Failed to delete template');
             }
-            
-            console.log('✅ Template deleted successfully');
             
             // Invalidate cache
             this.invalidateCache();
@@ -422,6 +426,136 @@ class TemplateManager {
     // ========================================
     // AUTO-DETECTION UTILITIES
     // ========================================
+    
+    /**
+     * Detect structure type of template
+     * @param {Object} templateData - Template data
+     * @returns {Object} { type: 'single'|'multi-line'|'multi-section', lineCount, sectionCount }
+     */
+    detectStructureType(templateData) {
+        const sections = templateData.sections || [];
+        const skillLines = templateData.skillLines || [];
+        
+        // If sections array exists and has multiple sections
+        if (sections.length > 1) {
+            const totalLines = sections.reduce((sum, s) => sum + (s.lines?.length || 0), 0);
+            return {
+                type: 'multi-section',
+                sectionCount: sections.length,
+                lineCount: totalLines
+            };
+        }
+        
+        // If sections array has one section
+        if (sections.length === 1) {
+            const lines = sections[0].lines || [];
+            return {
+                type: lines.length === 1 ? 'single' : 'multi-line',
+                sectionCount: 1,
+                lineCount: lines.length
+            };
+        }
+        
+        // Fallback to skillLines array
+        return {
+            type: skillLines.length === 1 ? 'single' : 'multi-line',
+            sectionCount: 1,
+            lineCount: skillLines.length
+        };
+    }
+    
+    /**
+     * Validate section names (must be valid YAML keys)
+     * @param {string} sectionName - Section name to validate
+     * @returns {Object} { valid: boolean, error?: string }
+     */
+    validateSectionName(sectionName) {
+        if (!sectionName || typeof sectionName !== 'string') {
+            return { valid: false, error: 'Section name is required' };
+        }
+        
+        // Must start with letter or underscore
+        if (!/^[a-zA-Z_]/.test(sectionName)) {
+            return { valid: false, error: 'Section name must start with a letter or underscore' };
+        }
+        
+        // Can only contain letters, numbers, underscores, hyphens
+        if (!/^[a-zA-Z0-9_-]+$/.test(sectionName)) {
+            return { valid: false, error: 'Section name can only contain letters, numbers, underscores, and hyphens' };
+        }
+        
+        // Length check
+        if (sectionName.length < 2 || sectionName.length > 50) {
+            return { valid: false, error: 'Section name must be 2-50 characters' };
+        }
+        
+        return { valid: true };
+    }
+    
+    /**
+     * Detect structure type of template
+     * @param {Object} templateData - Template data
+     * @returns {Object} { type: 'single'|'multi-line'|'multi-section', lineCount, sectionCount }
+     */
+    detectStructureType(templateData) {
+        const sections = templateData.sections || [];
+        const skillLines = templateData.skillLines || [];
+        
+        // If sections array exists and has multiple sections
+        if (sections.length > 1) {
+            const totalLines = sections.reduce((sum, s) => sum + (s.lines?.length || 0), 0);
+            return {
+                type: 'multi-section',
+                sectionCount: sections.length,
+                lineCount: totalLines
+            };
+        }
+        
+        // If sections array has one section
+        if (sections.length === 1) {
+            const lines = sections[0].lines || [];
+            return {
+                type: lines.length === 1 ? 'single' : 'multi-line',
+                sectionCount: 1,
+                lineCount: lines.length
+            };
+        }
+        
+        // Fallback to skillLines array
+        return {
+            type: skillLines.length === 1 ? 'single' : 'multi-line',
+            sectionCount: 1,
+            lineCount: skillLines.length
+        };
+    }
+    
+    /**
+     * Validate section names (must be valid YAML keys)
+     * @param {string} sectionName - Section name to validate
+     * @returns {Object} { valid: boolean, error?: string }
+     */
+    validateSectionName(sectionName) {
+        if (!sectionName || typeof sectionName !== 'string') {
+            return { valid: false, error: 'Section name is required' };
+        }
+        
+        // Must start with letter or underscore
+        if (!/^[a-zA-Z_]/.test(sectionName)) {
+            return { valid: false, error: 'Section name must start with a letter or underscore' };
+        }
+        
+        // Can only contain letters, numbers, underscores, hyphens
+        if (!/^[a-zA-Z0-9_-]+$/.test(sectionName)) {
+            return { valid: false, error: 'Section name can only contain letters, numbers, underscores, and hyphens' };
+        }
+        
+        // Length check
+        if (sectionName.length < 2 || sectionName.length > 50) {
+            return { valid: false, error: 'Section name must be 2-50 characters' };
+        }
+        
+        return { valid: true };
+    }
     
     /**
      * Detect template type based on triggers
@@ -545,6 +679,19 @@ class TemplateManager {
      * @returns {Object} Processed template
      */
     processTemplate(dbTemplate) {
+        // Extract sections (prioritize sections array, fallback to skillLines)
+        let sections = dbTemplate.data?.sections || [];
+        if (sections.length === 0 && dbTemplate.data?.skillLines) {
+            // Convert legacy format
+            sections = [{
+                name: 'DefaultSkill',
+                lines: dbTemplate.data.skillLines
+            }];
+        }
+        
+        // Calculate structure info
+        const structureInfo = this.detectStructureType({ sections });
+        
         return {
             id: dbTemplate.id,
             owner_id: dbTemplate.owner_id,
@@ -553,11 +700,19 @@ class TemplateManager {
             description: dbTemplate.description,
             type: dbTemplate.type,
             tags: dbTemplate.tags || [],
+            structure_type: dbTemplate.structure_type || structureInfo.type,
+            is_official: dbTemplate.is_official || false,
             created_at: dbTemplate.created_at,
             updated_at: dbTemplate.updated_at,
             
-            // Flatten data object for easier access
-            skillLines: dbTemplate.data?.skillLines || [],
+            // Structure information
+            structureInfo: structureInfo,
+            
+            // Sections (new format)
+            sections: sections,
+            
+            // Flatten data object for easier access (backward compatibility)
+            skillLines: dbTemplate.data?.skillLines || sections.flatMap(s => s.lines || []),
             triggers: dbTemplate.data?.triggers || [],
             conditions: dbTemplate.data?.conditions || [],
             category: dbTemplate.data?.category || 'utility',
@@ -569,6 +724,7 @@ class TemplateManager {
             
             // UI helpers
             isBuiltIn: false,
+            isOfficial: dbTemplate.is_official || false,
             requiresMobFile: dbTemplate.type === 'mob'
         };
     }
@@ -595,5 +751,3 @@ class TemplateManager {
 
 // Export for use in other modules
 window.TemplateManager = TemplateManager;
-
-console.log('✅ TemplateManager loaded');

@@ -63,7 +63,6 @@ class PackImporter {
         this.fileInput.addEventListener('change', async (e) => {
             const files = e.target.files;
             if (files && files.length > 0) {
-                console.log('✅ Fallback: Files selected via input:', files.length);
                 await this.analyzeFallbackFiles(files);
             }
             // Reset input so same folder can be selected again
@@ -71,7 +70,6 @@ class PackImporter {
         });
 
         document.body.appendChild(this.fileInput);
-        console.log('📁 Fallback file input created');
     }
 
     /**
@@ -79,7 +77,11 @@ class PackImporter {
      */
     async startImport() {
         if (this.isImporting) {
-            alert('An import is already in progress');
+            window.notificationModal?.alert(
+                'An import operation is already in progress. Please wait for it to complete.',
+                'info',
+                'Import In Progress'
+            );
             return;
         }
 
@@ -101,15 +103,11 @@ class PackImporter {
         const isFirefox = navigator.userAgent.includes('Firefox');
         const isEdge = navigator.userAgent.includes('Edg/');
         const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
-        
-        console.log('🌐 Browser detection:', { isBrave, isChrome, isFirefox, isEdge, isSafari });
 
         try {
             // Determine best method
             const canUseDirectoryPicker = await this.canUseFileSystemAccessAPI();
             const canUseFallback = this.canUseFallbackMethod();
-            
-            console.log('📊 Method availability:', { canUseDirectoryPicker, canUseFallback });
 
             if (canUseDirectoryPicker) {
                 console.log('✅ Using File System Access API (showDirectoryPicker)');
@@ -131,7 +129,6 @@ class PackImporter {
             });
             
             if (error.name === 'AbortError') {
-                console.log('ℹ️ Folder selection cancelled by user');
                 return;
             }
             
@@ -140,7 +137,11 @@ class PackImporter {
                 console.log('⚠️ Primary method failed, trying fallback...');
                 this.useFallbackMethod();
             } else {
-                alert(`Error: ${error.message}\n\nCheck the browser console (F12) for more details.`);
+                window.notificationModal?.alert(
+                    `Error: ${error.message}\n\nCheck the browser console (F12) for more details.`,
+                    'error',
+                    'Import Error'
+                );
             }
         }
     }
@@ -172,7 +173,6 @@ class PackImporter {
             // Create a test to see if the function throws immediately
             const testResult = window.showDirectoryPicker.toString();
             if (testResult.includes('native code')) {
-                console.log('✅ showDirectoryPicker appears to be native and available');
                 return true;
             }
         } catch (e) {
@@ -188,7 +188,6 @@ class PackImporter {
     canUseFallbackMethod() {
         const input = document.createElement('input');
         const supported = 'webkitdirectory' in input;
-        console.log('📁 webkitdirectory support:', supported);
         return supported;
     }
 
@@ -196,13 +195,10 @@ class PackImporter {
      * Use File System Access API
      */
     async useFileSystemAccessAPI() {
-        console.log('🚀 Opening folder picker via File System Access API...');
         
         const directoryHandle = await window.showDirectoryPicker({
             mode: 'read'
         });
-
-        console.log('✅ Folder selected:', directoryHandle.name);
         await this.analyzeFolder(directoryHandle);
     }
 
@@ -210,7 +206,6 @@ class PackImporter {
      * Use fallback input method
      */
     useFallbackMethod() {
-        console.log('🚀 Opening folder picker via fallback input...');
         
         if (!this.fileInput) {
             this.createFallbackInput();
@@ -239,7 +234,7 @@ If you're on Chrome/Edge/Brave and still seeing this:
 
 📁 Alternative: Use "Import YAML" (Ctrl+I) to import individual files.`;
 
-        alert(message);
+        window.notificationModal?.alert(message, 'info', 'Folder Selection Not Supported');
     }
 
     /**
@@ -251,7 +246,6 @@ If you're on Chrome/Edge/Brave and still seeing this:
         this.previewUI.showLoading('Processing selected files...');
 
         try {
-            console.log('📁 Processing', fileList.length, 'files from folder selection');
 
             // Group files by path structure
             const filesByPath = new Map();
@@ -269,8 +263,6 @@ If you're on Chrome/Edge/Brave and still seeing this:
 
                 filesByPath.set(relativePath, file);
             }
-
-            console.log('📁 Root paths:', [...rootPaths]);
             console.log('📁 File paths sample:', [...filesByPath.keys()].slice(0, 10));
 
             // Build virtual folder structure from files
@@ -278,7 +270,6 @@ If you're on Chrome/Edge/Brave and still seeing this:
             
             // Detect folder type
             const folderType = this.detectFolderTypeFromFiles(virtualStructure);
-            console.log('📁 Detected folder type:', folderType);
 
             // Scan using virtual structure
             this.previewUI.updateLoadingStatus('Analyzing folder structure...', 15);
@@ -1013,10 +1004,13 @@ If you're on Chrome/Edge/Brave and still seeing this:
      * Handle import button click from UI
      */
     async handleImport(selectedPacks, options) {
-        console.log('🚀 handleImport called with:', { selectedPacks, options });
         
         if (this.isImporting) {
-            alert('An import is already in progress');
+            window.notificationModal?.alert(
+                'An import operation is already in progress. Please wait for it to complete.',
+                'info',
+                'Import In Progress'
+            );
             return;
         }
 
@@ -1026,14 +1020,6 @@ If you're on Chrome/Edge/Brave and still seeing this:
             // Build array of pack data in the format expected by ImportExecutor
             // ImportExecutor.execute expects: [{ pack, parseData, validation }, ...]
             const selectedPackData = [];
-            
-            console.log('📊 Current state:', {
-                hasScanResults: !!this.currentScanResults,
-                packsCount: this.currentScanResults?.packs?.length,
-                hasParseResults: !!this.currentParseResults,
-                parseResultsSize: this.currentParseResults?.size,
-                hasValidationResults: !!this.currentValidationResults
-            });
             
             for (const packName of selectedPacks) {
                 // Find the pack object from scan results
@@ -1073,8 +1059,6 @@ If you're on Chrome/Edge/Brave and still seeing this:
                     this.previewUI.updateImportProgress(progress, message);
                 }
             );
-            
-            console.log('✅ Import results:', importResults);
 
             // NOTE: updatePackManager was removed because ImportExecutor already saves packs
             // with the correct file-based structure via packManager.savePacks()
@@ -1171,7 +1155,11 @@ If you're on Chrome/Edge/Brave and still seeing this:
      */
     handleExportReport(format) {
         if (!this.currentScanResults || !this.currentParseResults || !this.currentValidationResults) {
-            alert('No data to export. Please scan a folder first.');
+            window.notificationModal?.alert(
+                'No data available to export. Please scan a folder first.',
+                'info',
+                'No Data'
+            );
             return;
         }
 

@@ -8,7 +8,6 @@ class NotificationModal {
     constructor() {
         this.currentModal = null;
         this.createStyles();
-        console.log('✅ NotificationModal initialized');
     }
     
     /**
@@ -349,5 +348,3 @@ window.notificationModal = new NotificationModal();
 // Provide convenience methods on window for easy access
 window.showAlert = (message, type, title) => window.notificationModal.alert(message, type, title);
 window.showConfirm = (message, title, options) => window.notificationModal.confirm(message, title, options);
-
-console.log('✅ NotificationModal loaded and ready');

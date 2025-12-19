@@ -8,7 +8,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'hasPotionEffect',
         name: 'Has Potion Effect',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target entity has a potion effect',
         aliases: ['haspotion'],
@@ -51,7 +51,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'hasTag',
         name: 'Has Tag',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target has a scoreboard tag',
         aliases: ['scoretag'],
@@ -74,7 +74,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'health',
         name: 'Health',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Tests the health of the target entity. Supports ranged values',
         aliases: ['hp'],
@@ -106,7 +106,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'healthPercent',
         name: 'Health Percent',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks the target\'s health as a percentage of max health',
         aliases: ['hpp'],
@@ -138,7 +138,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'height',
         name: 'Height',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks the height (in blocks) of the entity\'s hitbox',
         aliases: [],
@@ -161,7 +161,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'inBlock',
         name: 'In Block',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target\'s feet are within a certain block type',
         aliases: ['standingIn'],
@@ -184,7 +184,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'inCombat',
         name: 'In Combat',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Whether the target mob is considered in combat',
         aliases: [],
@@ -195,32 +195,9 @@ const ENTITY_CONDITIONS_ADVANCED = [
         ]
     },
     {
-        id: 'inRegion',
-        name: 'In Region',
-        category: 'Entity',
-        type: 'entity',
-        description: 'If the target is within the given WorldGuard region',
-        aliases: ['region'],
-        attributes: [
-            {
-                name: 'region',
-                aliases: ['r'],
-                type: 'text',
-                required: true,
-                description: 'The WorldGuard region name',
-                placeholder: 'spawn',
-                validation: 'text'
-            }
-        ],
-        examples: [
-            'inregion{region=spawn} true',
-            'region{r=arena} true'
-        ]
-    },
-    {
         id: 'inWater',
         name: 'In Water',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Tests if the target entity is in water',
         aliases: [],
@@ -233,7 +210,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'isChild',
         name: 'Is Child',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target mob is a baby/child variant',
         aliases: ['baby'],
@@ -246,7 +223,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'isLiving',
         name: 'Is Living',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Tests if the target entity is a living entity',
         aliases: ['living'],
@@ -259,7 +236,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'isMonster',
         name: 'Is Monster',
-        category: 'Entity',
+        category: 'Entity Type',
         type: 'entity',
         description: 'Tests if the target entity is a monster',
         aliases: ['monster'],
@@ -272,7 +249,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'isPlayer',
         name: 'Is Player',
-        category: 'Entity',
+        category: 'Entity Type',
         type: 'entity',
         description: 'Tests if the target entity is a player',
         aliases: ['player'],
@@ -285,7 +262,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'isSpawner',
         name: 'Is Spawner',
-        category: 'Entity',
+        category: 'Entity Type',
         type: 'entity',
         description: 'Checks if the target MythicMob was spawned by a MythicMobs spawner',
         aliases: ['spawner'],
@@ -298,7 +275,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'isTamed',
         name: 'Is Tamed',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target mob is tamed',
         aliases: ['tamed'],
@@ -311,7 +288,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'lastDamageCause',
         name: 'Last Damage Cause',
-        category: 'Entity',
+        category: 'Combat',
         type: 'entity',
         description: 'Tests the target\'s last damage cause',
         aliases: ['ldc'],
@@ -334,7 +311,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'level',
         name: 'Level',
-        category: 'Entity',
+        category: 'Player',
         type: 'entity',
         description: 'Checks the target MythicMob\'s level',
         aliases: ['lvl', 'mlevel'],
@@ -355,32 +332,9 @@ const ENTITY_CONDITIONS_ADVANCED = [
         ]
     },
     {
-        id: 'lightLevel',
-        name: 'Light Level',
-        category: 'Entity',
-        type: 'entity',
-        description: 'Tests the light level at the target entity\'s location',
-        aliases: ['ll'],
-        attributes: [
-            {
-                name: 'level',
-                aliases: ['l'],
-                type: 'range',
-                required: true,
-                description: 'The light level to check for (0-15)',
-                placeholder: '<8',
-                validation: 'number_range'
-            }
-        ],
-        examples: [
-            'lightlevel{l=<8} true',
-            'll{level=>12} true'
-        ]
-    },
-    {
         id: 'lineOfSight',
-        name: 'Line of Sight',
-        category: 'Entity',
+        name: 'Line Of Sight',
+        category: 'Combat',
         type: 'entity',
         description: 'Tests if the target entity has line of sight to the caster',
         aliases: ['los'],
@@ -393,7 +347,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'looksAtPlayer',
         name: 'Looks At Player',
-        category: 'Entity',
+        category: 'Combat',
         type: 'entity',
         description: 'Tests if the target entity is looking at a player',
         aliases: [],
@@ -406,7 +360,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'mobsInRadius',
         name: 'Mobs In Radius',
-        category: 'Entity',
+        category: 'Server & World',
         type: 'entity',
         description: 'Tests if the target location has a certain amount of mobs in the given radius',
         aliases: ['mir'],
@@ -449,7 +403,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'mounted',
         name: 'Mounted',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Checks if the target entity is riding another entity',
         aliases: ['isRiding'],
@@ -462,7 +416,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'mythicMobType',
         name: 'MythicMob Type',
-        category: 'Entity',
+        category: 'Entity Type',
         type: 'entity',
         description: 'Tests if the target is a MythicMob of the given type',
         aliases: ['mobname', 'mm'],
@@ -485,7 +439,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'notInRegion',
         name: 'Not In Region',
-        category: 'Entity',
+        category: 'Location',
         type: 'entity',
         description: 'Tests if the target is NOT within the given WorldGuard region',
         aliases: [],
@@ -508,7 +462,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'onBlock',
         name: 'On Block',
-        category: 'Entity',
+        category: 'Location',
         type: 'entity',
         description: 'Tests if the block the target entity is standing on matches the given material',
         aliases: ['standingOn'],
@@ -531,7 +485,7 @@ const ENTITY_CONDITIONS_ADVANCED = [
     {
         id: 'onGround',
         name: 'On Ground',
-        category: 'Entity',
+        category: 'Entity State',
         type: 'entity',
         description: 'Tests if the target entity is standing on solid ground',
         aliases: ['isOnGround'],
@@ -539,6 +493,185 @@ const ENTITY_CONDITIONS_ADVANCED = [
         examples: [
             'onground true',
             'isOnGround false'
+        ]
+    },
+    {
+        id: 'holding',
+        name: 'Holding',
+        category: 'Player',
+        type: 'entity',
+        description: 'Checks if the target is holding a given material (supports MythicMobs and MMOItems)',
+        aliases: [],
+        attributes: [
+            {
+                name: 'material',
+                aliases: ['m', 'type', 't', 'item', 'i', 'mat', 'types'],
+                type: 'text',
+                required: true,
+                description: 'A material, MythicItem or MMOItems internal id to check for',
+                placeholder: 'DIAMOND_SWORD',
+                validation: 'item_matcher'
+            },
+            {
+                name: 'strict',
+                aliases: ['exact', 'e'],
+                type: 'boolean',
+                required: false,
+                default: false,
+                description: 'Whether the matcher should more strictly match the target item',
+                validation: 'boolean'
+            },
+            {
+                name: 'vanillaonly',
+                aliases: ['vanilla'],
+                type: 'boolean',
+                required: false,
+                default: false,
+                description: 'Whether the matched item can only be a vanilla one',
+                validation: 'boolean'
+            }
+        ],
+        examples: [
+            'holding{m=DIAMOND_SWORD} true',
+            'holding{m=mmoitems.TOOL.PICKAXE_5} true'
+        ]
+    },
+    {
+        id: 'isBaby',
+        name: 'Is Baby',
+        category: 'Entity State',
+        type: 'entity',
+        description: 'Checks if the target entity is a baby (e.g. baby cow)',
+        aliases: ['baby'],
+        attributes: [],
+        examples: [
+            'isbaby true',
+            'baby true'
+        ]
+    },
+    {
+        id: 'isClimbing',
+        name: 'Is Climbing',
+        category: 'Entity State',
+        type: 'entity',
+        description: 'Checks if the target entity is climbing. A player climbing a ladder or a spider climbing a wall both match the condition',
+        aliases: ['climbing'],
+        attributes: [],
+        examples: [
+            'isClimbing true',
+            'climbing true'
+        ]
+    },
+    {
+        id: 'isCreeperPrimed',
+        name: 'Is Creeper Primed',
+        category: 'Entity State',
+        type: 'entity',
+        description: 'Checks if the target creeper is primed to explode',
+        aliases: [],
+        attributes: [],
+        examples: [
+            'iscreeperprimed true'
+        ]
+    },
+    {
+        id: 'isFlying',
+        name: 'Is Flying',
+        category: 'Entity State',
+        type: 'entity',
+        description: 'Checks if the target player is flying. Only works for creative-type fly. For elytra gliding, use the Gliding condition',
+        aliases: ['flying'],
+        attributes: [],
+        examples: [
+            'isFlying true',
+            'flying false'
+        ]
+    },
+    {
+        id: 'isFrozen',
+        name: 'Is Frozen',
+        category: 'Entity State',
+        type: 'entity',
+        description: 'Checks if the target entity is frozen',
+        aliases: [],
+        attributes: [],
+        examples: [
+            'isFrozen true'
+        ]
+    },
+    {
+        id: 'isInvulnerable',
+        name: 'Is Invulnerable',
+        category: 'Entity State',
+        type: 'entity',
+        description: 'Checks whether the target entity is invulnerable',
+        aliases: ['isInvincible'],
+        attributes: [],
+        examples: [
+            'isInvulnerable false'
+        ]
+    },
+    {
+        id: 'isLeashed',
+        name: 'Is Leashed',
+        category: 'Entity State',
+        type: 'entity',
+        description: 'Checks if the target entity is leashed',
+        aliases: [],
+        attributes: [],
+        examples: [
+            'isLeashed true'
+        ]
+    },
+    {
+        id: 'isMythicMob',
+        name: 'Is MythicMob',
+        category: 'Entity Type',
+        type: 'entity',
+        description: 'Checks if the target entity is a MythicMob',
+        aliases: ['ismm'],
+        attributes: [],
+        examples: [
+            'isMythicMob true',
+            'ismm true'
+        ]
+    },
+    {
+        id: 'isParentAlive',
+        name: 'Is Parent Alive',
+        category: 'Entity Type',
+        type: 'entity',
+        description: 'Checks if the parent of the target entity is still alive',
+        aliases: [],
+        attributes: [],
+        examples: [
+            'isparentalive true'
+        ]
+    },
+    {
+        id: 'isRaiderPatrolLeader',
+        name: 'Is Raider Patrol Leader',
+        category: 'Entity Type',
+        type: 'entity',
+        description: 'Checks if the target entity is the captain of a pillager group',
+        aliases: ['isPatrolLeader'],
+        attributes: [],
+        examples: [
+            'israiderpatrolleader true',
+            'isPatrolLeader true'
+        ]
+    },
+    {
+        id: 'isSaddled',
+        name: 'Is Saddled',
+        category: 'Entity State',
+        type: 'entity',
+        description: 'Checks if the target entity is saddled',
+        aliases: ['saddled'],
+        attributes: [],
+        examples: [
+            'isSaddled true',
+            'saddled true'
         ]
     }
 ];

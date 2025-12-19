@@ -165,7 +165,7 @@ class VirtualScroller {
         
         // Attach scroll listener with throttle
         this.handleScroll = throttle(() => this.update(), 16);
-        this.container.addEventListener('scroll', this.handleScroll);
+        this.container.addEventListener('scroll', this.handleScroll, { passive: true });
         
         // Mark as initialized
         this.isInitialized = true;

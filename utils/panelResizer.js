@@ -12,7 +12,6 @@ class PanelResizer {
     }
     
     init() {
-        if (window.DEBUG_MODE) console.log('🔧 Initializing PanelResizer...');
         this.loadSizes();
         this.attachHandlers();
     }
@@ -91,8 +90,6 @@ class PanelResizer {
     
     stopResize() {
         if (!this.isResizing) return;
-        
-        console.log('🛑 Stopping resize');
         
         this.isResizing = false;
         document.body.style.cursor = '';

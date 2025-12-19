@@ -15,8 +15,6 @@ class InlineConditionBuilder {
         
         this.createModal();
         this.attachEventListeners();
-        
-        console.log('✅ InlineConditionBuilder initialized');
     }
 
     /**
@@ -404,7 +402,11 @@ class InlineConditionBuilder {
      */
     confirmCondition() {
         if (!this.selectedCondition) {
-            alert('Please select a condition');
+            window.notificationModal?.alert(
+                'Please select a condition first.',
+                'warning',
+                'No Condition Selected'
+            );
             return;
         }
         

@@ -3078,3 +3078,102 @@ body[data-mode="advanced"] .advanced-only {
 .drop-preview-persistent .preview-info {
     font-size: 0.8rem;
 }
+
+/* =================================
+   Template Editor - Structure Type Buttons
+   ================================= */
+
+.btn-structure {
+    flex: 1;
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.btn-structure:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+    transform: translateY(-1px);
+}
+
+.btn-structure.active {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-structure.active:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* Section Cards */
+.section-card {
+    position: relative;
+    transition: box-shadow var(--transition-fast);
+}
+
+.section-card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.section-name-input {
+    font-weight: 600;
+}
+
+.section-lines-input {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* =================================
+   Template Selector - Structure & Official Badges
+   ================================= */
+
+.official-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.6rem;
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #000;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+}
+
+.official-badge i {
+    color: #ff8800;
+}
+
+.structure-badge {
+    font-weight: 600 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.owner-badge {
+    display: inline-flex;
+    padding: 0.25rem 0.6rem;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.owner-badge.built-in {
+    background: var(--info-color);
+    color: white;
+}
+
+.owner-badge.owner-you {
+    background: var(--success-color);
+    color: white;
+}

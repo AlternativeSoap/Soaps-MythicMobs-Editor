@@ -1,135 +1,97 @@
-# Changelog
+# What's New
 
-All notable changes to the Soaps MythicMobs Editor will be documented in this file.
+**🌐 [Try it now!](https://alternativesoap.github.io/Soaps-MythicMobs-Editor/)**
 
-## [Unreleased] - 2025-12-12
-
-### Fixed
-
-#### Database & Authentication
-- **Fixed template deletion with Supabase RLS** (Security Definer Function approach)
-  - Created `delete_template()` PostgreSQL function to bypass RLS issues
-  - Function validates authentication and ownership before deletion
-  - Disabled RLS on templates table (security handled by function)
-  - Template deletion now works reliably from JavaScript client
-  - Added proper error handling with JSON responses
-
-#### User Interface
-- **Fixed Minecraft item icons** (100+ icon mappings corrected)
-  - Fixed spawn egg icons (all 70+ variants now use generic spawn_egg.png for 1.21+)
-  - Fixed copper block variants (exposed, weathered, oxidized, waxed)
-  - Fixed shulker box icons (all 17 color variants)
-  - Fixed coral fan icons (tube, brain, bubble, fire, horn + dead variants)
-  - Fixed player and mob heads (skeleton, wither, zombie, creeper, piglin, dragon)
-  - Fixed azalea, moss_carpet, chorus_plant, chorus_flower, torchflower
-  - Fixed shield icon rendering
-  - Moved 50+ items from itemTextureMap to blockTextureItems for correct CDN path
-
-- **Fixed search bar placeholder text overlap**
-  - Added `padding-left: 2.5rem` to `.searchable-dropdown-search` input
-  - Search icon no longer overlaps with placeholder text
-
-- **Styled delete confirmation modal** to match site design
-  - Using custom `notificationModal` component instead of browser confirm()
-  - Consistent styling with rest of application
-  - Better UX with modal overlay and animations
-
-### Changed
-
-#### Database Migrations
-- Created 13 migration files to debug and fix RLS policies
-  - Identified root cause: `auth.uid()` returns NULL in REST API context
-  - Tested JWT claims approach with `auth.jwt() ->> 'sub'`
-  - Final solution: SECURITY DEFINER function with explicit ownership checks
-  - All migration files preserved in `/database_migrations` for reference
-
-#### Code Quality
-- Added comprehensive logging to `templateManager.deleteTemplate()`
-  - Session validation checks
-  - User ID verification
-  - Access token presence confirmation
-- Simplified deletion logic using database function (`.rpc('delete_template')`)
-- Removed 46 lines of legacy `<select>` dropdown code from mobDropsEditor
-
-## [Unreleased] - 2025-12-11
-
-### Fixed
-
-#### Skill Templates - Critical Bug Fixes
-- **Fixed non-existent `fallingblock` mechanic** (3 templates affected)
-  - `mob_meteor_strike`: Replaced with `shoot{type=FIREBALL}` mechanic
-  - `skill_meteor_shower`: Now uses `shoot` with `@Ring` targeter pattern
-  - `skill_meteor_rain`: Replaced with valid `shoot` mechanic and proper targeters
-  
-- **Fixed non-existent `@RandomLocation` targeter** (3 templates affected)
-  - Replaced with valid `@Ring{radius=...;points=...}` for pattern-based targeting
-  - Replaced with `@RandomLocationsNearCaster{r=...;a=...}` for scatter patterns
-  
-- **Fixed invalid `blockwave` attributes** (4 templates affected)
-  - Removed invalid attributes: `rs=`, `rd=`, `ifo=` (do not exist in MythicMobs)
-  - Now using only valid attributes: `m=`, `r=`, `d=`, `v=`
-  - Fixed templates: `util_prison`, `skill_flame_burst`, `skill_ice_prison`, `skill_earthquake`
-
-- **Simplified `skill_dragon_breath` template**
-  - Removed inline `projectile{onTick=...}` mechanics (requires separate metaskills)
-  - Replaced with simple cone attack using `@EntitiesInCone` and `@Cone` targeters
-  - Now a usable standalone example without external dependencies
-
-- **Fixed "View All Lines" button** in Template Selector
-  - Added `e.preventDefault()` to prevent default button behavior
-  - Button now properly displays full template preview modal
-
-### Changed
-
-#### Template Improvements
-- All skill templates now use only valid MythicMobs mechanics verified against official documentation
-- Improved template descriptions for clarity
-- Simplified complex examples to be more user-friendly
-
-### Technical Details
-- Total templates: 177 (95 mob context + 82 skill context)
-- All mechanics validated against `data/mechanics.js`
-- All targeters validated against `data/targeters.js`
-- No syntax errors or breaking changes
+Everything new and improved in the editor! Written in plain English so everyone can understand what's changed.
 
 ---
 
-## Previous Updates
+## December 2025 - Big Quality Update
 
-### Template Library Expansion - 2025-12-10
+### What Changed?
 
-#### Added
-- **29 new mob templates** (66 → 95 templates)
-  - Combat: 33 templates (basic attacks, combos, special moves)
-  - Effects: 15 templates (particles, sounds, visuals)
-  - Summons: 12 templates (minions, reinforcements)
-  - Projectiles: 13 templates (arrows, missiles, beams)
-  - Utility: 22 templates (teleport, buffs, special mechanics)
+**Cleaned up the database** - We found and removed a bunch of duplicate mechanics, triggers, and targeters that were confusing. No more seeing the same thing twice in the lists!
 
-- **26+ new skill templates** (57 → 82+ templates)
-  - Damage: 16 templates (combos, AoE, DoT)
-  - Healing: 13 templates (single target, AoE, HoT)
-  - Movement: 12 templates (teleports, dashes, pulls)
-  - Buffs: 13 templates (speed, strength, team buffs)
-  - Debuffs: 11 templates (slows, poisons, curses)
-  - Utility: 18+ templates (complete skills, examples)
+**Added tons of new stuff** - Added 19 new targeters, 4 new mechanics, and 1 new trigger! More options for building complex skills and mobs.
 
-- **8 complete skill examples** with full mechanics:
-  - ⚡ Thunder Strike - Lightning with damage and effects
-  - 🔥 Flame Burst - AoE fire with lingering flames
-  - ✨ Holy Nova - Damage enemies, heal allies
-  - 🧊 Ice Prison - Trap and damage
-  - 👻 Shadow Step - Teleport behind with stealth
-  - 🐉 Dragon Breath - Cone of fire damage
-  - 🌋 Earthquake - Ground slam with waves
-  - ☄️ Meteor Rain - Multiple falling meteors
+**Better organization** - Added a new "Meta" category for mechanics that modify other mechanics. Makes it easier to find what you're looking for!
 
-#### Fixed
-- Restored corrupted `skillTemplates.js` file from git
-- Added missing `hasTrigger()` helper method
-- Fixed template selector defaulting to empty favorites tab
-- Improved trigger detection for mob vs skill context filtering
+**Fixed broken templates** - Some of the example templates were using mechanics that don't actually exist in MythicMobs. We fixed all of those so the examples actually work now.
+
+**Fixed typos and errors** - Corrected mistakes in mechanic names and updated their settings to match the latest MythicMobs version.
+
+**Made things clearer** - Updated a lot of descriptions to be easier to understand. Less jargon, more helpful explanations.
+
+### The Details (For Curious People)
+
+**What got removed:**
+- 9 duplicate entries from the mechanic, trigger, and targeter browsers (no more seeing "spin" twice!)
+- 2 duplicate conditions that were showing up in the condition browser
+
+**What got added:**
+- 19 new targeters like @TargetBlock, @ForwardWall, @NearestStructure, @HighestBlock, @None, @Region
+- 4 new mechanics: WorldEditReplace, OpenCustomMenu, ParticleEquation, PrintParentTree
+- 1 new trigger: onDismounted (when a mob gets off a vehicle)
+- New "Meta" category with 23 mechanics that were in the wrong categories before
+
+**What got fixed:**
+- Fixed typo in "setRaiderCanJoinRaid" (had an extra space before)
+- Updated mechanics like EnderDragonResetCrystals and EnderDragonSpawnPortal with new settings
+- Fixed templates that were using mechanics that don't exist
+- Updated icons for over 100 Minecraft items so they show up correctly
 
 ---
 
-*For detailed documentation, see the `/docs` folder.*
+## Earlier This Month - Template System & Fixes
+
+### What's This About?
+
+**You can now save and share templates!** - If you make a really cool mob or skill, you can save it as a template and share it with other people. Or browse templates that others have made!
+
+**Better item icons** - Fixed a ton of Minecraft item icons that were showing up wrong or broken. Spawn eggs, shulker boxes, coral - all fixed!
+
+**Search works better** - The search bars don't have overlapping text anymore. Looks much cleaner!
+
+**Confirmation windows look nicer** - When you delete something, the confirmation popup now matches the site's style instead of being an ugly browser popup.
+
+### How Templates Work
+
+1. Make a mob or skill you're proud of
+2. Click "Save as Template"
+3. Other people can find it and use it!
+4. You can browse templates others have made too
+
+Templates get saved to the cloud, so you can access them from any computer once you log in.
+
+---
+
+## The Really Cool Stuff (Major Features)
+
+### Community Templates
+Share your creations with the world! Save your best mobs and skills as templates, or use templates made by other people. Great for learning or getting inspiration.
+
+### Better Icons & Visuals
+All the Minecraft item icons now show up correctly. No more mystery boxes or wrong textures!
+
+### More Complete Database
+We added a bunch of mechanics, targeters, and triggers that were missing. The editor now has 256 mechanics, 32 triggers, and 83 targeters - covering almost everything MythicMobs can do!
+
+### Better Organization
+Mechanics are now organized better with a new "Meta" category. These are special mechanics that modify how other mechanics work, so it makes sense to group them together.
+
+### Quality of Life
+Tons of small improvements that make the editor feel more polished - better search, cleaner confirmations, fixed overlaps, smoother experience overall.
+
+---
+
+## Important Notes
+
+**Your old stuff is safe** - All these updates don't break anything you've already made. Your mobs, skills, and items will still work exactly the same.
+
+**Templates are optional** - You don't HAVE to use the template system. It's just there if you want to share or learn from others.
+
+**Keep exporting backups** - Still a good idea to export your work regularly! Templates are saved to the cloud, but your main packs are saved in your browser.
+
+---
+
+**Questions?** Found a bug? Have suggestions? Let me know on [GitHub](https://github.com/AlternativeSoap/Soaps-MythicMobs-Editor/issues)!

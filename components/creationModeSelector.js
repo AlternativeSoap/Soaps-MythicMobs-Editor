@@ -134,7 +134,6 @@ class CreationModeSelector {
      * Open the creation mode selector
      */
     open(options = {}) {
-        console.log('📋 Opening Creation Mode Selector');
         this.context = options.context || 'mob';
         this.onSelectCallback = options.onSelect || null;
         
@@ -161,7 +160,6 @@ class CreationModeSelector {
      * Handle mode selection
      */
     selectMode(mode) {
-        console.log('✅ Mode selected:', mode);
         
         if (this.onSelectCallback) {
             this.onSelectCallback(mode);

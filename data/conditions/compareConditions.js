@@ -8,7 +8,7 @@ const COMPARE_CONDITIONS = [
     {
         id: 'boundingBoxesOverlap',
         name: 'Bounding Boxes Overlap',
-        category: 'Compare',
+        category: 'Combat',
         type: 'compare',
         description: 'Checks if the caster\'s BoundingBox overlaps with the target\'s',
         aliases: ['bbsoverlap'],
@@ -31,7 +31,7 @@ const COMPARE_CONDITIONS = [
     {
         id: 'cuboid',
         name: 'Cuboid',
-        category: 'Compare',
+        category: 'Location',
         type: 'compare',
         description: 'Whether the target is within a cuboid that has location1 and location2 as opposite vertices',
         aliases: ['incuboid'],
@@ -71,7 +71,7 @@ const COMPARE_CONDITIONS = [
     {
         id: 'distance',
         name: 'Distance',
-        category: 'Compare',
+        category: 'Combat',
         type: 'compare',
         description: 'Whether the distance between the caster and target is within the given range. Can be a single number, a ranged value (20to40), or >10 <5, etc.',
         aliases: [],
@@ -94,7 +94,7 @@ const COMPARE_CONDITIONS = [
     {
         id: 'distanceFromLocation',
         name: 'Distance From Location',
-        category: 'Compare',
+        category: 'Combat',
         type: 'compare',
         description: 'Whether the distance between the target and a specified location is within a certain range',
         aliases: [],
@@ -154,40 +154,9 @@ const COMPARE_CONDITIONS = [
         ]
     },
     {
-        id: 'distanceFromPin',
-        name: 'Distance From Pin',
-        category: 'Compare',
-        type: 'compare',
-        description: 'Checks if the target is within a certain distance of a specified pin',
-        aliases: [],
-        attributes: [
-            {
-                name: 'pin',
-                aliases: ['p'],
-                type: 'text',
-                required: true,
-                description: 'The pin to check against',
-                placeholder: 'example_pin',
-                validation: 'text'
-            },
-            {
-                name: 'distance',
-                aliases: ['d'],
-                type: 'range',
-                required: true,
-                description: 'The distance to check against. Can be a range.',
-                placeholder: '>10',
-                validation: 'number_range'
-            }
-        ],
-        examples: [
-            'distanceFromPin{pin=example_pin;d=>10} true'
-        ]
-    },
-    {
         id: 'distanceFromSpawn',
         name: 'Distance From Spawn',
-        category: 'Compare',
+        category: 'Combat',
         type: 'compare',
         description: 'Whether the distance from the world\'s spawn point to the target is within the given range',
         aliases: [],
@@ -210,7 +179,7 @@ const COMPARE_CONDITIONS = [
     {
         id: 'distanceFromTrackedLocation',
         name: 'Distance From Tracked Location',
-        category: 'Compare',
+        category: 'Combat',
         type: 'compare',
         description: 'Checks if the distance between the caster and its tracked location is within the specified values',
         aliases: ['distanceFromTL'],
@@ -233,7 +202,7 @@ const COMPARE_CONDITIONS = [
     {
         id: 'fieldOfView',
         name: 'Field of View',
-        category: 'Compare',
+        category: 'Combat',
         type: 'compare',
         description: 'Tests if the target is within the given angle from where the caster is looking',
         aliases: ['infieldofview', 'fov'],
@@ -267,7 +236,7 @@ const COMPARE_CONDITIONS = [
     {
         id: 'facing',
         name: 'Facing',
-        category: 'Compare',
+        category: 'Combat',
         type: 'compare',
         description: 'Tests if the target entity is facing towards the caster. Supports a tolerance modifier to allow for slight inaccuracies',
         aliases: [],
@@ -290,7 +259,7 @@ const COMPARE_CONDITIONS = [
     {
         id: 'lookingAt',
         name: 'Looking At',
-        category: 'Compare',
+        category: 'Location',
         type: 'compare',
         description: 'Checks if the caster is looking directly at the target entity',
         aliases: [],
@@ -302,7 +271,7 @@ const COMPARE_CONDITIONS = [
     {
         id: 'owner',
         name: 'Owner',
-        category: 'Compare',
+        category: 'Entity Type',
         type: 'compare',
         description: 'Checks if the target mob is owned by the caster',
         aliases: [],
@@ -314,7 +283,7 @@ const COMPARE_CONDITIONS = [
     {
         id: 'ownerIsOnline',
         name: 'Owner Is Online',
-        category: 'Compare',
+        category: 'Entity Type',
         type: 'compare',
         description: 'Checks if the owner of the target mob is online',
         aliases: [],
@@ -326,13 +295,117 @@ const COMPARE_CONDITIONS = [
     {
         id: 'sameWorld',
         name: 'Same World',
-        category: 'Compare',
+        category: 'Location',
         type: 'compare',
         description: 'Checks if the caster and target are in the same world',
         aliases: [],
         attributes: [],
         examples: [
             'sameworld true'
+        ]
+    },
+    {
+        id: 'isCaster',
+        name: 'Is Caster',
+        category: 'Entity Type',
+        type: 'compare',
+        description: 'Checks if the target is the caster of the skill',
+        aliases: [],
+        attributes: [],
+        examples: [
+            'isCaster true'
+        ]
+    },
+    {
+        id: 'isParent',
+        name: 'Is Parent',
+        category: 'Entity Type',
+        type: 'compare',
+        description: 'Checks if the target entity is the parent of the caster',
+        aliases: ['parent'],
+        attributes: [],
+        examples: [
+            'isparent true',
+            'parent true'
+        ]
+    },
+    {
+        id: 'isSibling',
+        name: 'Is Sibling',
+        category: 'Entity Type',
+        type: 'compare',
+        description: 'Checks if the target is a sibling of the caster',
+        aliases: ['sibling'],
+        attributes: [],
+        examples: [
+            'IsSibling true',
+            'sibling true'
+        ]
+    },
+    {
+        id: 'xDiff',
+        name: 'X Diff',
+        category: 'Combat',
+        type: 'compare',
+        description: 'Checks the difference in X between the targeted entity and the caster',
+        aliases: [],
+        attributes: [
+            {
+                name: 'difference',
+                aliases: ['diff', 'd'],
+                type: 'range',
+                required: true,
+                description: 'The X difference to check',
+                placeholder: '>5',
+                validation: 'number_range'
+            }
+        ],
+        examples: [
+            'xDiff{diff=>5} true'
+        ]
+    },
+    {
+        id: 'yDiff',
+        name: 'Y Diff',
+        category: 'Combat',
+        type: 'compare',
+        description: 'Checks the difference in Y between the targeted entity and the caster',
+        aliases: [],
+        attributes: [
+            {
+                name: 'difference',
+                aliases: ['diff', 'd'],
+                type: 'range',
+                required: true,
+                description: 'The Y difference to check',
+                placeholder: '>5',
+                validation: 'number_range'
+            }
+        ],
+        examples: [
+            'yDiff{diff=>5} true'
+        ]
+    },
+    {
+        id: 'zDiff',
+        name: 'Z Diff',
+        category: 'Combat',
+        type: 'compare',
+        description: 'Checks the difference in Z between the targeted entity and the caster',
+        aliases: [],
+        attributes: [
+            {
+                name: 'difference',
+                aliases: ['diff', 'd'],
+                type: 'range',
+                required: true,
+                description: 'The Z difference to check',
+                placeholder: '>5',
+                validation: 'number_range'
+            }
+        ],
+        examples: [
+            'zDiff{diff=>5} true'
         ]
     }
 ];

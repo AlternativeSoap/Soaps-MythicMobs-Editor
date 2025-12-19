@@ -62,7 +62,7 @@ class VirtualScrollManager {
                 });
                 ticking = true;
             }
-        });
+        }, { passive: true });
         
         // Handle window resize
         window.addEventListener('resize', this.throttle(() => {

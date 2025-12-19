@@ -198,10 +198,16 @@ class DamageModifierEditor {
         });
 
         // Clear all
-        document.getElementById('clear-all-modifiers')?.addEventListener('click', () => {
+        document.getElementById('clear-all-modifiers')?.addEventListener('click', async () => {
             if (Object.keys(this.damageModifiers).length === 0) return;
             
-            if (confirm('Clear all damage modifiers?')) {
+            const confirmed = await window.notificationModal?.confirm(
+                'Are you sure you want to clear all damage modifiers?',
+                'Clear All Modifiers',
+                { confirmText: 'Clear', confirmButtonClass: 'danger' }
+            );
+            
+            if (confirmed) {
                 this.damageModifiers = {};
                 this.render();
                 this.triggerChange();
