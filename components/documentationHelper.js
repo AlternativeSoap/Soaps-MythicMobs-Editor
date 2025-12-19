@@ -12,6 +12,12 @@ class DocumentationHelper {
             return;
         }
 
+        // Remove any existing modal-overlay to prevent duplicates
+        const existingModal = document.querySelector('.modal-overlay');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
         modal.innerHTML = `
@@ -101,6 +107,12 @@ class DocumentationHelper {
         if (!MATH_OPERATORS) {
             console.error('Math documentation not loaded');
             return;
+        }
+
+        // Remove any existing modal-overlay to prevent duplicates
+        const existingModal = document.querySelector('.modal-overlay');
+        if (existingModal) {
+            existingModal.remove();
         }
 
         const modal = document.createElement('div');

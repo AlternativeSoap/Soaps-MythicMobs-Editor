@@ -358,6 +358,15 @@ class SkillLineBuilder {
                                 <span class="preview-placeholder">
                                     <i class="fas fa-hammer"></i>
                                     <p>Your skill line will appear here</p>
+                                    <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(124, 58, 237, 0.1); border-radius: 6px; font-size: 0.75rem; color: var(--text-tertiary);">
+                                        <strong style="color: var(--accent-primary); display: block; margin-bottom: 0.5rem;">💡 Quick Tips:</strong>
+                                        <div style="text-align: left; line-height: 1.6;">
+                                            • Start by selecting a <strong>Mechanic</strong><br>
+                                            • Use <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px; font-size: 0.7rem;">Alt+M</kbd> for mechanics browser<br>
+                                            • Use <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px; font-size: 0.7rem;">Alt+T</kbd> for targeters<br>
+                                            • Press <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px; font-size: 0.7rem;">Ctrl+Enter</kbd> to add to queue
+                                        </div>
+                                    </div>
                                 </span>
                             </div>
                         </div>
@@ -1093,11 +1102,17 @@ class SkillLineBuilder {
             this.dom.mechanicCard.classList.add('filled');
             const btnClear = document.getElementById('btnClearMechanic');
             if (btnClear) btnClear.style.display = 'block';
+            // Hide the "Required" badge when mechanic is filled
+            const requiredBadge = this.dom.mechanicCard.querySelector('.component-badge.required');
+            if (requiredBadge) requiredBadge.style.display = 'none';
         } else {
             this.dom.mechanicStatus.classList.remove('filled');
             this.dom.mechanicCard.classList.remove('filled');
             const btnClear = document.getElementById('btnClearMechanic');
             if (btnClear) btnClear.style.display = 'none';
+            // Show the "Required" badge when mechanic is empty
+            const requiredBadge = this.dom.mechanicCard.querySelector('.component-badge.required');
+            if (requiredBadge) requiredBadge.style.display = 'inline-block';
         }
         
         // Enable/disable components based on mechanic selection

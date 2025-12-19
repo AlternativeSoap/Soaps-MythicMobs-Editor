@@ -565,8 +565,8 @@ class RandomSpawnEditor {
         });
         
         // Save button
-        document.getElementById('save-randomspawn')?.addEventListener('click', () => {
-            this.save();
+        document.getElementById('save-randomspawn')?.addEventListener('click', async () => {
+            await this.save();
         });
         
         // Type mode toggle
@@ -1142,16 +1142,33 @@ class RandomSpawnEditor {
         }
     }
     
-    save() {
+    async save() {
         const data = this.collectFormData();
         const file = this.editor.state.currentFile;
         
-        if (file) {
+        if (!file) return;
+        
+        const saveBtn = document.getElementById('save-randomspawn');
+        const originalHTML = saveBtn?.innerHTML;
+        
+        try {
+            // Show saving state
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            }
+            
             Object.assign(file, data);
-            this.editor.fileManager.saveFile(file, 'randomspawn');
-            this.editor.updateYAMLPreview();
-            this.editor.state.isDirty = false;
-            this.editor.updateSaveStatusIndicator();
+            
+            // Mark dirty and use the main save system
+            this.editor.markDirty();
+            await this.editor.saveCurrentFile();
+        } finally {
+            // Restore button state
+            if (saveBtn && originalHTML) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalHTML;
+            }
         }
     }
     

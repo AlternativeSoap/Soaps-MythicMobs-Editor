@@ -164,9 +164,10 @@ class FileManager {
         this.editor.packManager.createEmptyFile(type, fileName);
     }
     
-    saveFile(file, type) {
+    async saveFile(file, type, immediate = false) {
         // File is already in pack, just need to save packs
-        this.editor.packManager.savePacks();
+        // Pass immediate flag to bypass debounce for manual saves
+        return await this.editor.packManager.savePacks(immediate);
     }
     
     deleteFile(fileId, type) {

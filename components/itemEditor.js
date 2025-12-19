@@ -1240,7 +1240,7 @@ class ItemEditor {
         }
     }
     
-    saveItem(item) {
+    async saveItem(item) {
         if (!item.internalName) {
             this.editor.showToast('Please enter an internal name', 'error');
             return;
@@ -1250,12 +1250,29 @@ class ItemEditor {
             return;
         }
         
-        // Sync data before saving
-        this.syncToFile();
+        const saveBtn = document.getElementById('save-item');
+        const originalHTML = saveBtn?.innerHTML;
         
-        // Save through editor
-        if (this.editor && this.editor.saveCurrentFile) {
-            this.editor.saveCurrentFile();
+        try {
+            // Show saving state
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            }
+            
+            // Sync data before saving
+            this.syncToFile();
+            
+            // Save through editor
+            if (this.editor && this.editor.saveCurrentFile) {
+                await this.editor.saveCurrentFile();
+            }
+        } finally {
+            // Restore button state
+            if (saveBtn && originalHTML) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalHTML;
+            }
         }
     }
     

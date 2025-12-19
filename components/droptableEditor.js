@@ -248,8 +248,8 @@ class DropTableEditor {
         });
         
         // Save button
-        document.getElementById('save-droptable')?.addEventListener('click', () => {
-            this.save(droptable);
+        document.getElementById('save-droptable')?.addEventListener('click', async () => {
+            await this.save(droptable);
         });
         
         // New section button (add new droptable to current file)
@@ -308,20 +308,37 @@ class DropTableEditor {
         }
     }
     
-    save(droptable) {
+    async save(droptable) {
         const data = this.collectFormData();
         const file = this.editor.state.currentFile;
         
-        if (file) {
+        if (!file) return;
+        
+        const saveBtn = document.getElementById('save-droptable');
+        const originalHTML = saveBtn?.innerHTML;
+        
+        try {
+            // Show saving state
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            }
+            
             Object.assign(file, data);
             // Update drops from editor
             if (this.dropsEditor) {
                 file.drops = this.dropsEditor.getValue();
             }
-            this.editor.fileManager.saveFile(file, 'droptable');
-            this.editor.updateYAMLPreview();
-            this.editor.state.isDirty = false;
-            this.editor.updateSaveStatusIndicator();
+            
+            // Mark dirty and use the main save system
+            this.editor.markDirty();
+            await this.editor.saveCurrentFile();
+        } finally {
+            // Restore button state
+            if (saveBtn && originalHTML) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalHTML;
+            }
         }
     }
     

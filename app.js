@@ -48,7 +48,7 @@ class MythicMobsEditor {
             currentFileType: null,            // 'mob', 'skill', or 'item'
             currentView: 'dashboard',         // Current view name
             isDirty: false,                   // Unsaved changes flag
-            autoSave: true,                   // Auto-save enabled
+            autoSave: false,                  // Auto-save disabled by default
             livePreview: true,                // Live YAML preview enabled
             sidebarLeftCollapsed: false,
             sidebarRightCollapsed: false
@@ -59,7 +59,7 @@ class MythicMobsEditor {
         
         // Settings with defaults
         this.defaultSettings = {
-            autoSave: true,
+            autoSave: false,
             autoSaveInterval: 2000,
             livePreview: true,
             livePreviewDebounce: 300,
@@ -200,7 +200,13 @@ class MythicMobsEditor {
         document.getElementById('import-pack-btn')?.addEventListener('click', () => this.importPack());
         
         // Save actions
-        document.getElementById('save-all-btn')?.addEventListener('click', () => this.saveAll());
+        document.getElementById('save-all-btn')?.addEventListener('click', async () => {
+            try {
+                await this.saveAll();
+            } catch (error) {
+                console.error('Save all failed:', error);
+            }
+        });
         document.getElementById('save-status')?.addEventListener('click', (e) => this.toggleRecentChanges(e));
         document.getElementById('view-all-changes-btn')?.addEventListener('click', () => this.showChangeHistory());
         document.getElementById('close-history-modal')?.addEventListener('click', () => this.closeChangeHistory());
@@ -292,7 +298,7 @@ class MythicMobsEditor {
      * Setup keyboard shortcuts
      */
     setupKeyboardShortcuts() {
-        document.addEventListener('keydown', (e) => {
+        document.addEventListener('keydown', async (e) => {
             // Skip if user is typing in input/textarea
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
                 return;
@@ -305,9 +311,23 @@ class MythicMobsEditor {
             }
             
             // Save (Ctrl+S)
-            if (e.ctrlKey && e.key === 's') {
+            if (e.ctrlKey && !e.shiftKey && e.key === 's') {
                 e.preventDefault();
-                this.save();
+                try {
+                    await this.save();
+                } catch (error) {
+                    console.error('Save failed:', error);
+                }
+            }
+            
+            // Save All (Ctrl+Shift+S)
+            if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+                e.preventDefault();
+                try {
+                    await this.saveAll();
+                } catch (error) {
+                    console.error('Save all failed:', error);
+                }
             }
             
             // New Mob (Ctrl+N)
@@ -816,10 +836,14 @@ class MythicMobsEditor {
     /**
      * Open a file in the editor
      */
-    openFile(file, type) {
+    async openFile(file, type) {
         // Save current file if dirty and auto-save is enabled
-        if (this.state.isDirty && this.settings.autoSave) {
-            this.save();
+        if (this.state.isDirty && this.settings.autoSave && this.state.currentFile) {
+            try {
+                await this.save();
+            } catch (error) {
+                console.error('Failed to auto-save before switching files:', error);
+            }
         }
         
         // Update state
@@ -895,22 +919,106 @@ class MythicMobsEditor {
     /**
      * Save current file
      */
-    save() {
-        if (!this.state.currentFile) return;
+    async save() {
+        if (!this.state.currentFile) {
+            this.showToast('No file is currently open', 'warning');
+            return;
+        }
+        
+        // Check if file actually has changes
+        if (!this.state.currentFile.modified && !this.state.currentFile.isNew) {
+            this.showToast('No changes to save', 'info');
+            return;
+        }
+        
+        const fileName = this.state.currentFile.name || 'file';
         
         try {
             this.showSavingStatus();
-            this.fileManager.saveFile(this.state.currentFile, this.state.currentFileType);
+            
+            console.log(`💾 Saving file: ${fileName} (${this.state.currentFileType})`);
+            
+            // Save with retry logic
+            let saveSuccess = false;
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (!saveSuccess && retryCount < maxRetries) {
+                try {
+                    await this.fileManager.saveFile(this.state.currentFile, this.state.currentFileType, true); // true = immediate save
+                    saveSuccess = true;
+                    console.log(`✅ Save successful on attempt ${retryCount + 1}`);
+                } catch (error) {
+                    retryCount++;
+                    if (retryCount >= maxRetries) {
+                        throw error;
+                    }
+                    console.warn(`⚠️ Save attempt ${retryCount} failed, retrying...`, error);
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
+                }
+            }
+            
+            // Mark as saved
             this.state.currentFile.modified = false;
             this.state.currentFile.isNew = false;
-            this.state.isDirty = false;
+            this.state.currentFile.lastSaved = new Date().toISOString();
+            
+            // Only clear isDirty if no other files are modified
+            const hasOtherModifiedFiles = this.hasModifiedFiles();
+            this.state.isDirty = hasOtherModifiedFiles;
+            
             this.updateSaveStatusIndicator();
-            this.showToast('File saved successfully', 'success');
+            this.packManager.refresh(); // Refresh tree to remove asterisk
+            this.showToast(`✅ Saved ${fileName}`, 'success');
+            
         } catch (error) {
             console.error('❌ Failed to save file:', error);
-            this.showToast('Failed to save file', 'error');
+            this.showToast(`❌ Failed to save ${fileName}: ${error.message || 'Unknown error'}`, 'error');
             this.updateSaveStatusIndicator();
         }
+    }
+    
+    /**
+     * Save current file (wrapper for editor components)
+     * This is called by individual editors (mob, skill, item, etc.)
+     */
+    async saveCurrentFile() {
+        return await this.save();
+    }
+    
+    /**
+     * Check if any files are modified across all types
+     */
+    hasModifiedFiles() {
+        if (!this.state.currentPack) return false;
+        
+        const fileTypes = ['mobs', 'skills', 'items', 'droptables', 'randomspawns'];
+        
+        for (const type of fileTypes) {
+            const files = this.state.currentPack[type] || [];
+            if (files.some(file => file.modified || file.isNew)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Get count of modified files
+     */
+    getModifiedFileCount() {
+        if (!this.state.currentPack) return 0;
+        
+        const fileTypes = ['mobs', 'skills', 'items', 'droptables', 'randomspawns'];
+        let count = 0;
+        
+        fileTypes.forEach(type => {
+            const files = this.state.currentPack[type] || [];
+            count += files.filter(file => file.modified || file.isNew).length;
+        });
+        
+        return count;
     }
     
     /**
@@ -922,6 +1030,7 @@ class MythicMobsEditor {
         // Mark current file as modified for Save All
         if (this.state.currentFile) {
             this.state.currentFile.modified = true;
+            this.state.currentFile.lastModified = new Date().toISOString();
         }
         
         // Add to change history if enabled
@@ -935,11 +1044,17 @@ class MythicMobsEditor {
         
         this.updateSaveStatusIndicator();
         
-        // Schedule auto-save if enabled
-        if (this.settings.autoSave) {
+        // Schedule auto-save ONLY if enabled in settings
+        if (this.settings.autoSave && this.state.currentFile) {
             clearTimeout(this.autoSaveTimer);
-            this.autoSaveTimer = setTimeout(() => {
-                this.save();
+            this.autoSaveTimer = setTimeout(async () => {
+                if (this.settings.autoSave) { // Double-check setting hasn't changed
+                    try {
+                        await this.save();
+                    } catch (error) {
+                        console.error('Auto-save failed:', error);
+                    }
+                }
             }, this.settings.autoSaveInterval);
         }
         
@@ -957,11 +1072,14 @@ class MythicMobsEditor {
      */
     updateSaveStatusIndicator() {
         const status = document.querySelector('.save-status');
+        const saveAllBtn = document.getElementById('save-all-btn');
+        
         if (!status) return;
         
         const icon = status.querySelector('i');
         const text = status.querySelector('span');
         
+        // Update status indicator
         if (this.state.isDirty) {
             status.classList.remove('saved', 'saving');
             status.classList.add('unsaved');
@@ -972,6 +1090,17 @@ class MythicMobsEditor {
             status.classList.add('saved');
             icon.className = 'fas fa-check-circle';
             text.textContent = 'All changes saved';
+        }
+        
+        // Update Save All button state
+        if (saveAllBtn) {
+            const modifiedCount = this.getModifiedFileCount();
+            saveAllBtn.disabled = modifiedCount === 0;
+            if (modifiedCount > 0) {
+                saveAllBtn.title = `Save all ${modifiedCount} modified file${modifiedCount > 1 ? 's' : ''} (Ctrl+Shift+S)`;
+            } else {
+                saveAllBtn.title = 'No modified files to save';
+            }
         }
     }
     
@@ -994,7 +1123,7 @@ class MythicMobsEditor {
     /**
      * Save all modified files
      */
-    saveAll() {
+    async saveAll() {
         if (!this.state.currentPack) {
             this.showToast('No pack is currently open', 'warning');
             return;
@@ -1018,33 +1147,69 @@ class MythicMobsEditor {
             return;
         }
         
+        const saveAllBtn = document.getElementById('save-all-btn');
+        
+        // Disable button during save
+        if (saveAllBtn) {
+            saveAllBtn.disabled = true;
+            saveAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        }
+        
         this.showSavingStatus();
         let savedCount = 0;
         let errorCount = 0;
+        const failedFiles = [];
         
-        modifiedFiles.forEach(({ file, type }) => {
-            try {
-                this.fileManager.saveFile(file, type);
-                file.modified = false;
-                file.isNew = false;
-                savedCount++;
-                this.showToast(`Saved ${file.name}`, 'success');
-            } catch (error) {
-                console.error(`Failed to save ${file.name}:`, error);
-                this.showToast(`Failed to save ${file.name}`, 'error');
-                errorCount++;
+        console.log(`💾 Saving ${modifiedFiles.length} modified file${modifiedFiles.length > 1 ? 's' : ''}...`);
+        
+        try {
+            // Save each file individually with retry logic
+            for (const { file, type } of modifiedFiles) {
+                let saveSuccess = false;
+                let retryCount = 0;
+                const maxRetries = 3;
+                
+                while (!saveSuccess && retryCount < maxRetries) {
+                    try {
+                        await this.fileManager.saveFile(file, type, true); // true = immediate save
+                        file.modified = false;
+                        file.isNew = false;
+                        file.lastSaved = new Date().toISOString();
+                        savedCount++;
+                        saveSuccess = true;
+                        console.log(`✅ Saved: ${file.name}`);
+                    } catch (error) {
+                        retryCount++;
+                        if (retryCount >= maxRetries) {
+                            console.error(`❌ Failed to save ${file.name}:`, error);
+                            failedFiles.push(file.name);
+                            errorCount++;
+                        } else {
+                            console.warn(`⚠️ Save attempt ${retryCount} for ${file.name} failed, retrying...`);
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                        }
+                    }
+                }
             }
-        });
-        
-        // Update state
-        this.state.isDirty = false;
-        this.updateSaveStatusIndicator();
-        
-        // Show summary
-        if (errorCount === 0) {
-            this.showToast(`Successfully saved ${savedCount} file${savedCount > 1 ? 's' : ''}`, 'success');
-        } else {
-            this.showToast(`Saved ${savedCount} file${savedCount > 1 ? 's' : ''}, ${errorCount} failed`, 'warning');
+            
+            // Update state - only clear isDirty if all files saved successfully
+            this.state.isDirty = errorCount > 0;
+            this.updateSaveStatusIndicator();
+            this.packManager.refresh(); // Refresh tree to remove asterisks
+            
+            // Show summary
+            if (errorCount === 0) {
+                this.showToast(`✅ Successfully saved all ${savedCount} file${savedCount > 1 ? 's' : ''}`, 'success');
+            } else {
+                const failedList = failedFiles.join(', ');
+                this.showToast(`⚠️ Saved ${savedCount} of ${modifiedFiles.length} files. Failed: ${failedList}`, 'warning');
+            }
+        } finally {
+            // Re-enable button
+            if (saveAllBtn) {
+                saveAllBtn.innerHTML = '<i class="fas fa-save"></i> Save All';
+                this.updateSaveStatusIndicator(); // This will set correct disabled state
+            }
         }
     }
     
@@ -1559,6 +1724,7 @@ class MythicMobsEditor {
      */
     saveSettingsFromModal() {
         // Read values from form
+        const oldAutoSave = this.settings.autoSave;
         this.settings.autoSave = document.getElementById('setting-autosave').checked;
         this.settings.autoSaveInterval = parseInt(document.getElementById('setting-autosave-interval').value) * 1000;
         this.settings.animations = document.getElementById('setting-animations').checked;
@@ -1572,6 +1738,13 @@ class MythicMobsEditor {
         this.settings.maxHistory = parseInt(document.getElementById('setting-max-history').value);
         this.settings.warnDuplicateFiles = document.getElementById('setting-warn-duplicate-files').checked;
         this.settings.internalNameSeparator = document.getElementById('setting-internal-name-separator').value || '_';
+        
+        // Clear auto-save timer if auto-save was disabled
+        if (oldAutoSave && !this.settings.autoSave) {
+            clearTimeout(this.autoSaveTimer);
+            this.autoSaveTimer = null;
+            console.log('🔕 Auto-save disabled, timer cleared');
+        }
         
         // Save to storage
         this.saveSettings();
@@ -1632,14 +1805,19 @@ class MythicMobsEditor {
             });
         }
         
-        // Show/hide auto-save indicator
+        // Show/hide auto-save indicator and modified file count
         const saveAllBtn = document.getElementById('save-all-btn');
         if (saveAllBtn) {
+            const modifiedCount = this.getModifiedFileCount();
             if (this.settings.autoSave) {
-                saveAllBtn.title = 'Save all modified files';
+                saveAllBtn.title = `Save all modified files${modifiedCount > 0 ? ` (${modifiedCount})` : ''}`;
             } else {
-                saveAllBtn.title = 'Save all modified files (Auto-save is disabled)';
-                saveAllBtn.classList.add('pulse-highlight');
+                saveAllBtn.title = `Save all modified files${modifiedCount > 0 ? ` (${modifiedCount})` : ''} - Auto-save is disabled`;
+                if (modifiedCount > 0) {
+                    saveAllBtn.classList.add('pulse-highlight');
+                } else {
+                    saveAllBtn.classList.remove('pulse-highlight');
+                }
             }
         }
     }

@@ -499,8 +499,8 @@ class SkillEditor {
     
     attachEventListeners() {
         // Save button
-        document.getElementById('save-skill')?.addEventListener('click', () => {
-            this.saveSkill();
+        document.getElementById('save-skill')?.addEventListener('click', async () => {
+            await this.saveSkill();
         });
         
         // New section button (add new skill to current file)
@@ -685,18 +685,35 @@ class SkillEditor {
         }
     }
     
-    saveSkill() {
+    async saveSkill() {
         if (!this.currentSkill || !this.currentSkill.name) {
             this.editor.showToast('Please enter a skill name', 'error');
             return;
         }
         
-        // Sync data before saving
-        this.syncToFile();
+        const saveBtn = document.getElementById('save-skill');
+        const originalHTML = saveBtn?.innerHTML;
         
-        // Save through editor
-        if (this.editor && this.editor.saveCurrentFile) {
-            this.editor.saveCurrentFile();
+        try {
+            // Show saving state
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            }
+            
+            // Sync data before saving
+            this.syncToFile();
+            
+            // Save through editor
+            if (this.editor && this.editor.saveCurrentFile) {
+                await this.editor.saveCurrentFile();
+            }
+        } finally {
+            // Restore button state
+            if (saveBtn && originalHTML) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalHTML;
+            }
         }
     }
     

@@ -85,38 +85,64 @@ class PackManager {
         };
     }
     
-    async savePacks() {
+    async savePacks(immediate = false) {
+        // For immediate saves (manual save/save all), skip debounce
+        if (immediate) {
+            return await this._performSave();
+        }
+        
         // Debounce saves to avoid excessive storage writes during bulk operations
         clearTimeout(this.savePacksDebounce);
         
-        this.savePacksDebounce = setTimeout(async () => {
-            try {
-                // Update sync status UI
-                if (this.editor.authUI) {
-                    this.editor.authUI.setSyncStatus('syncing');
+        return new Promise((resolve, reject) => {
+            this.savePacksDebounce = setTimeout(async () => {
+                try {
+                    await this._performSave();
+                    resolve();
+                } catch (error) {
+                    reject(error);
                 }
-                
-                if (window.DEBUG_MODE) {
-                    console.log('💾 Saving packs to storage...', {
-                        packCount: this.packs.length,
-                        totalSkills: this.packs.reduce((sum, p) => sum + (p.skills?.length || 0), 0),
-                        userId: this.editor.storage.db?.userId || 'unknown'
-                    });
-                }
-                
-                await this.editor.storage.set('packs', this.packs);
-                
-                // Show success
-                if (this.editor.authUI) {
-                    this.editor.authUI.showSyncSuccess();
-                }
-            } catch (error) {
-                console.error('❌ Failed to save packs:', error);
-                if (this.editor.authUI) {
-                    this.editor.authUI.showSyncError();
-                }
+            }, 350); // 350ms debounce window
+        });
+    }
+    
+    async _performSave() {
+        try {
+            // Update sync status UI
+            if (this.editor.authUI) {
+                this.editor.authUI.setSyncStatus('syncing');
             }
-        }, 350); // 350ms debounce window
+            
+            if (window.DEBUG_MODE) {
+                console.log('💾 Saving packs to storage...', {
+                    packCount: this.packs.length,
+                    totalSkills: this.packs.reduce((sum, p) => sum + (p.skills?.length || 0), 0),
+                    userId: this.editor.storage.db?.userId || 'unknown'
+                });
+            }
+            
+            // Save with verification
+            await this.editor.storage.set('packs', this.packs);
+            
+            // Verify the save
+            const verification = await this.editor.storage.get('packs');
+            if (!verification || verification.length !== this.packs.length) {
+                throw new Error('Save verification failed - data mismatch');
+            }
+            
+            // Show success
+            if (this.editor.authUI) {
+                this.editor.authUI.showSyncSuccess();
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to save packs:', error);
+            if (this.editor.authUI) {
+                this.editor.authUI.showSyncError();
+            }
+            throw error;
+        }
     }
     
     /**

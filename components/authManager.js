@@ -241,6 +241,31 @@ class AuthManager {
             return { success: false, error: error.message };
         }
     }
+    
+    /**
+     * Update password for currently logged-in user
+     */
+    async updatePassword(newPassword) {
+        if (!this.supabase) {
+            throw new Error('Supabase client not initialized');
+        }
+        
+        if (!this.isAuthenticated()) {
+            return { success: false, error: 'Must be logged in to update password' };
+        }
+        
+        try {
+            const { error } = await this.supabase.auth.updateUser({
+                password: newPassword
+            });
+            
+            if (error) throw error;
+            return { success: true };
+        } catch (error) {
+            console.error('Password update error:', error);
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 window.AuthManager = AuthManager;

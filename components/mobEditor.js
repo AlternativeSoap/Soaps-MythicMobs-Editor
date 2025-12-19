@@ -96,7 +96,7 @@ class MobEditor {
         }
     }
     
-    saveMob(mob) {
+    async saveMob(mob) {
         if (!mob.name) {
             this.editor.showToast('Please enter an internal name', 'error');
             return;
@@ -109,12 +109,29 @@ class MobEditor {
             return;
         }
         
-        // Sync data before saving
-        this.syncToFile();
+        const saveBtn = document.getElementById('save-mob');
+        const originalHTML = saveBtn?.innerHTML;
         
-        // Save through editor
-        if (this.editor && this.editor.saveCurrentFile) {
-            this.editor.saveCurrentFile();
+        try {
+            // Show saving state
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            }
+            
+            // Sync data before saving
+            this.syncToFile();
+            
+            // Save through editor
+            if (this.editor && this.editor.saveCurrentFile) {
+                await this.editor.saveCurrentFile();
+            }
+        } finally {
+            // Restore button state
+            if (saveBtn && originalHTML) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalHTML;
+            }
         }
     }
     
@@ -2458,8 +2475,8 @@ class MobEditor {
     
     attachEventListeners() {
         // Save button
-        document.getElementById('save-mob')?.addEventListener('click', () => {
-            this.saveMob(this.currentMob);
+        document.getElementById('save-mob')?.addEventListener('click', async () => {
+            await this.saveMob(this.currentMob);
         });
         
         // New section button (add new mob to current file)
