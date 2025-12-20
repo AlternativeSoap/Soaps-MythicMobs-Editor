@@ -1450,6 +1450,108 @@ class MobEditor {
             ` : ''}
         `);
         
+        // Armadillo options (1.21+)
+        html += this.renderConditionalSection(entityType, 'ScaredState', 'Armadillo Options', 'fa-shield-alt', `
+            <div class="grid-2">
+                <div class="form-group" data-mob-field="ScaredState">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="mob-scaredstate" ${mob.scaredState ? 'checked' : ''}>
+                        Scared State
+                    </label>
+                    <small class="form-hint">Whether the armadillo is rolled up/scared</small>
+                </div>
+            </div>
+        `);
+        
+        // Mannequin options (1.21.11+)
+        html += this.renderConditionalSection(entityType, 'Immovable', 'Mannequin Options', 'fa-user', `
+            <div class="grid-3">
+                <div class="form-group" data-mob-field="Immovable">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="mob-immovable" ${mob.immovable ? 'checked' : ''}>
+                        Immovable
+                    </label>
+                    <small class="form-hint">Whether the mannequin should be immovable</small>
+                </div>
+                <div class="form-group" data-mob-field="HideDescription">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="mob-hidedescription" ${mob.hideDescription ? 'checked' : ''}>
+                        Hide Description
+                    </label>
+                    <small class="form-hint">Hide the description below the name</small>
+                </div>
+                <div class="form-group" data-mob-field="MainHand">
+                    <label class="form-label">Main Hand</label>
+                    <select class="form-select" id="mob-mainhand">
+                        <option value="RIGHT" ${!mob.mainHand || mob.mainHand === 'RIGHT' ? 'selected' : ''}>RIGHT</option>
+                        <option value="LEFT" ${mob.mainHand === 'LEFT' ? 'selected' : ''}>LEFT</option>
+                    </select>
+                    <small class="form-hint">Which hand should be the main one</small>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group" data-mob-field="Description">
+                    <label class="form-label">Description</label>
+                    <input type="text" class="form-input" id="mob-description" value="${mob.description || ''}" placeholder="Hello World!">
+                    <small class="form-hint">Appears below the mannequin's name</small>
+                </div>
+                <div class="form-group" data-mob-field="Player">
+                    <label class="form-label">Player</label>
+                    <input type="text" class="form-input" id="mob-player" value="${mob.player || 'Ashijin'}" placeholder="Ashijin">
+                    <small class="form-hint">Player whose skin to use for the mannequin</small>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group" data-mob-field="Pose">
+                    <label class="form-label">Pose</label>
+                    <select class="form-select" id="mob-pose">
+                        <option value="" ${!mob.pose ? 'selected' : ''}>Default</option>
+                        <option value="STANDING" ${mob.pose === 'STANDING' ? 'selected' : ''}>STANDING</option>
+                        <option value="FALL_FLYING" ${mob.pose === 'FALL_FLYING' ? 'selected' : ''}>FALL_FLYING</option>
+                        <option value="SLEEPING" ${mob.pose === 'SLEEPING' ? 'selected' : ''}>SLEEPING</option>
+                        <option value="SWIMMING" ${mob.pose === 'SWIMMING' ? 'selected' : ''}>SWIMMING</option>
+                        <option value="SPIN_ATTACK" ${mob.pose === 'SPIN_ATTACK' ? 'selected' : ''}>SPIN_ATTACK</option>
+                        <option value="SNEAKING" ${mob.pose === 'SNEAKING' ? 'selected' : ''}>SNEAKING</option>
+                        <option value="LONG_JUMPING" ${mob.pose === 'LONG_JUMPING' ? 'selected' : ''}>LONG_JUMPING</option>
+                        <option value="DYING" ${mob.pose === 'DYING' ? 'selected' : ''}>DYING</option>
+                        <option value="CROAKING" ${mob.pose === 'CROAKING' ? 'selected' : ''}>CROAKING</option>
+                        <option value="USING_TONGUE" ${mob.pose === 'USING_TONGUE' ? 'selected' : ''}>USING_TONGUE</option>
+                        <option value="SITTING" ${mob.pose === 'SITTING' ? 'selected' : ''}>SITTING</option>
+                        <option value="ROARING" ${mob.pose === 'ROARING' ? 'selected' : ''}>ROARING</option>
+                        <option value="SNIFFING" ${mob.pose === 'SNIFFING' ? 'selected' : ''}>SNIFFING</option>
+                        <option value="EMERGING" ${mob.pose === 'EMERGING' ? 'selected' : ''}>EMERGING</option>
+                        <option value="DIGGING" ${mob.pose === 'DIGGING' ? 'selected' : ''}>DIGGING</option>
+                    </select>
+                    <small class="form-hint">The pose of the mannequin</small>
+                </div>
+                <div class="form-group" data-mob-field="Model">
+                    <label class="form-label">Model</label>
+                    <select class="form-select" id="mob-model">
+                        <option value="CLASSIC" ${!mob.model || mob.model === 'CLASSIC' ? 'selected' : ''}>CLASSIC</option>
+                        <option value="SLIM" ${mob.model === 'SLIM' ? 'selected' : ''}>SLIM</option>
+                    </select>
+                    <small class="form-hint">The model type of the mannequin</small>
+                </div>
+            </div>
+            <div class="grid-3">
+                <div class="form-group" data-mob-field="Skin">
+                    <label class="form-label">Skin</label>
+                    <input type="text" class="form-input" id="mob-skin" value="${mob.skin || ''}" placeholder="namespace:directory/texturename">
+                    <small class="form-hint">Custom texture for mannequin's skin</small>
+                </div>
+                <div class="form-group" data-mob-field="Cape">
+                    <label class="form-label">Cape</label>
+                    <input type="text" class="form-input" id="mob-cape" value="${mob.cape || ''}" placeholder="namespace:directory/texturename">
+                    <small class="form-hint">Custom texture for mannequin's cape</small>
+                </div>
+                <div class="form-group" data-mob-field="Elytra">
+                    <label class="form-label">Elytra</label>
+                    <input type="text" class="form-input" id="mob-elytra" value="${mob.elytra || ''}" placeholder="namespace:directory/texturename">
+                    <small class="form-hint">Custom texture for mannequin's elytra</small>
+                </div>
+            </div>
+        `);
+        
         // Villager options
         html += this.renderConditionalSection(entityType, 'Profession', 'Villager Options', 'fa-briefcase', `
             <div class="grid-3">
@@ -2623,7 +2725,9 @@ class MobEditor {
             'translation', 'displayscale', 'leftrotation', 'rightrotation',
             'opacity', 'linewidth', 'backgroundcolor',
             // Phase 1 fields
-            'faction'
+            'faction',
+            // Mannequin fields
+            'description', 'player', 'skin', 'cape', 'elytra'
         ];
         
         textFields.forEach(field => {
@@ -2652,7 +2756,7 @@ class MobEditor {
         });
         
         // Select dropdowns
-        const selectFields = ['despawn', 'profession', 'villagertype', 'horsearmor', 'horsecolor', 'horsestyle', 'billboard', 'transform', 'alignment'];
+        const selectFields = ['despawn', 'profession', 'villagertype', 'horsearmor', 'horsecolor', 'horsestyle', 'billboard', 'transform', 'alignment', 'mainhand', 'pose', 'model'];
         selectFields.forEach(field => {
             const element = document.getElementById(`mob-${field}`);
             if (element) {
@@ -2676,7 +2780,11 @@ class MobEditor {
             'repeatallskills', 'usethreattable', 'randomizeproperties', 'preventjockeymounts',
             'preventconversion', 'baby', 'adult', 'agelock', 'supercharged', 'preventsuicide',
             'small', 'hasarms', 'hasbaseplate', 'marker', 'hasgravity', 'canmove', 'cantick',
-            'hastrades', 'preventslimesplit', 'saddled', 'tamed', 'defaultbackground', 'shadowed', 'seethrough'
+            'hastrades', 'preventslimesplit', 'saddled', 'tamed', 'defaultbackground', 'shadowed', 'seethrough',
+            // Mannequin fields
+            'immovable', 'hidedescription',
+            // Armadillo fields
+            'scaredstate'
         ];
         
         checkboxFields.forEach(field => {
@@ -2819,7 +2927,12 @@ class MobEditor {
             'linewidth': 'lineWidth',
             'backgroundcolor': 'backgroundColor',
             'defaultbackground': 'defaultBackground',
-            'seethrough': 'seeThrough'
+            'seethrough': 'seeThrough',
+            // Mannequin field mappings
+            'hidedescription': 'hideDescription',
+            'mainhand': 'mainHand',
+            // Armadillo field mappings
+            'scaredstate': 'scaredState'
         };
         
         const prop = fieldMap[field] || field;

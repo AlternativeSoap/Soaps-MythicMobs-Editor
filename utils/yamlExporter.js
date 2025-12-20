@@ -431,6 +431,9 @@ class YAMLExporter {
         if (shouldExport('HorseColor', mob.horseColor)) optionsMap.HorseColor = mob.horseColor;
         if (shouldExport('HorseStyle', mob.horseStyle)) optionsMap.HorseStyle = mob.horseStyle;
         
+        // Armadillo options (1.21+)
+        if (shouldExport('ScaredState', mob.scaredState) && mob.scaredState) optionsMap.ScaredState = true;
+        
         // Write Options section if any exist
         if (Object.keys(optionsMap).length > 0) {
             yaml += `  Options:\n`;
@@ -489,6 +492,36 @@ class YAMLExporter {
             if (Object.keys(displayOptionsMap).length > 0) {
                 yaml += `  DisplayOptions:\n`;
                 Object.entries(displayOptionsMap).forEach(([key, value]) => {
+                    yaml += `    ${key}: ${value}\n`;
+                });
+            }
+        }
+        
+        // === MANNEQUIN OPTIONS SECTION (for mannequin entities - 1.21.11+) ===
+        const isMannequin = entityType === 'MANNEQUIN';
+        if (isMannequin) {
+            const mannequinOptionsMap = {};
+            
+            // Boolean options
+            if (shouldExport('Immovable', mob.immovable) && mob.immovable) mannequinOptionsMap.Immovable = true;
+            if (shouldExport('HideDescription', mob.hideDescription) && mob.hideDescription) mannequinOptionsMap.HideDescription = true;
+            
+            // String options
+            if (shouldExport('Description', mob.description)) mannequinOptionsMap.Description = `"${mob.description}"`;
+            if (shouldExport('Player', mob.player)) mannequinOptionsMap.Player = mob.player;
+            if (shouldExport('Skin', mob.skin)) mannequinOptionsMap.Skin = mob.skin;
+            if (shouldExport('Cape', mob.cape)) mannequinOptionsMap.Cape = mob.cape;
+            if (shouldExport('Elytra', mob.elytra)) mannequinOptionsMap.Elytra = mob.elytra;
+            
+            // Enum options
+            if (shouldExport('MainHand', mob.mainHand)) mannequinOptionsMap.MainHand = mob.mainHand;
+            if (shouldExport('Pose', mob.pose)) mannequinOptionsMap.Pose = mob.pose;
+            if (shouldExport('Model', mob.model)) mannequinOptionsMap.Model = mob.model;
+            
+            // Write MannequinOptions section if any exist
+            if (Object.keys(mannequinOptionsMap).length > 0) {
+                yaml += `  MannequinOptions:\n`;
+                Object.entries(mannequinOptionsMap).forEach(([key, value]) => {
                     yaml += `    ${key}: ${value}\n`;
                 });
             }

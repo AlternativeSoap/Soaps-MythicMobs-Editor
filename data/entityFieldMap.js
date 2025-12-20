@@ -71,6 +71,17 @@ const ENTITY_FIELDS = {
         'Marker', 'Small', 'Pose'
     ],
     
+    // === MANNEQUIN (1.21.11+) ===
+    MANNEQUIN: [
+        'Immovable', 'Description', 'HideDescription', 'MainHand', 'Pose',
+        'Player', 'Skin', 'Cape', 'Elytra', 'Model'
+    ],
+    
+    // === ARMADILLO (1.21+) ===
+    ARMADILLO: [
+        'ScaredState'
+    ],
+    
     // === BEE ===
     BEE: [
         'Anger', 'HasNectar', 'HasStung', 'PreventStingerLoss'
@@ -318,6 +329,8 @@ const ENTITY_TYPE_MAPPING = {
     'ZOGLIN': ['UNIVERSAL', 'LIVING'],
     'ZOMBIFIED_PIGLIN': ['UNIVERSAL', 'LIVING', 'NEUTRAL', 'ZOMBIE'],
     'WARDEN': ['UNIVERSAL', 'LIVING'],
+    'BOGGED': ['UNIVERSAL', 'LIVING', 'SKELETON'],
+    'BREEZE': ['UNIVERSAL', 'LIVING'],
     
     // Passive Mobs
     'COW': ['UNIVERSAL', 'LIVING', 'BREEDABLE', 'COW'],
@@ -365,6 +378,7 @@ const ENTITY_TYPE_MAPPING = {
     'ALLAY': ['UNIVERSAL', 'LIVING'],
     'CAMEL': ['UNIVERSAL', 'LIVING', 'BREEDABLE', 'TAMEABLE', 'CAMEL'],
     'SNIFFER': ['UNIVERSAL', 'LIVING', 'BREEDABLE'],
+    'ARMADILLO': ['UNIVERSAL', 'LIVING', 'BREEDABLE', 'ARMADILLO'],
     
     // Boss Mobs
     'ENDER_DRAGON': ['UNIVERSAL', 'LIVING'],
@@ -372,6 +386,7 @@ const ENTITY_TYPE_MAPPING = {
     
     // Special Entities
     'ARMOR_STAND': ['UNIVERSAL', 'ARMOR_STAND'],
+    'MANNEQUIN': ['UNIVERSAL', 'MANNEQUIN'],
     'ITEM_FRAME': ['UNIVERSAL'],
     'GLOW_ITEM_FRAME': ['UNIVERSAL'],
     'PAINTING': ['UNIVERSAL'],
@@ -396,20 +411,20 @@ const ENTITY_TYPE_MAPPING = {
 const ENTITY_CATEGORIES = {
     'Hostile': [
         'ZOMBIE', 'ZOMBIE_VILLAGER', 'HUSK', 'DROWNED', 
-        'SKELETON', 'WITHER_SKELETON', 'STRAY',
+        'SKELETON', 'WITHER_SKELETON', 'STRAY', 'BOGGED',
         'CREEPER', 'SPIDER', 'CAVE_SPIDER', 'ENDERMAN',
         'BLAZE', 'GHAST', 'PHANTOM', 'WITCH',
         'VINDICATOR', 'EVOKER', 'PILLAGER', 'RAVAGER', 'VEX',
         'ENDERMITE', 'SILVERFISH', 'GUARDIAN', 'ELDER_GUARDIAN',
         'SHULKER', 'SLIME', 'MAGMA_CUBE',
         'PIGLIN', 'PIGLIN_BRUTE', 'HOGLIN', 'ZOGLIN', 'ZOMBIFIED_PIGLIN',
-        'WARDEN'
+        'WARDEN', 'BREEZE'
     ],
     'Passive': [
         'COW', 'MOOSHROOM', 'SHEEP', 'PIG', 'CHICKEN', 'RABBIT', 'TURTLE',
         'BAT', 'SQUID', 'GLOW_SQUID',
         'COD', 'SALMON', 'PUFFERFISH', 'TROPICAL_FISH', 'DOLPHIN',
-        'VILLAGER', 'WANDERING_TRADER'
+        'VILLAGER', 'WANDERING_TRADER', 'ARMADILLO'
     ],
     'Tameable': [
         'WOLF', 'CAT', 'OCELOT', 'PARROT',
@@ -424,7 +439,7 @@ const ENTITY_CATEGORIES = {
         'ENDER_DRAGON', 'WITHER'
     ],
     'Special': [
-        'ARMOR_STAND', 'ITEM_FRAME', 'GLOW_ITEM_FRAME', 'PAINTING', 
+        'ARMOR_STAND', 'MANNEQUIN', 'ITEM_FRAME', 'GLOW_ITEM_FRAME', 'PAINTING', 
         'BOAT', 'CHEST_BOAT', 'MINECART', 'MINECART_CHEST',
         'ITEM', 'EXPERIENCE_ORB', 'FALLING_BLOCK', 'TNT', 'INTERACTION', 'COPPER_GOLEM'
     ],
@@ -447,6 +462,10 @@ const ENTITY_DEFAULTS = {
     'WITHER': { health: 300, damage: 8, armor: 4 },
     'ENDER_DRAGON': { health: 200, damage: 10 },
     'ARMOR_STAND': { small: false, hasArms: false, hasBasePlate: true, marker: false },
+    'MANNEQUIN': { immovable: false, hideDescription: false, mainHand: 'RIGHT', player: 'Ashijin', model: 'CLASSIC' },
+    'ARMADILLO': { health: 12, movementSpeed: 0.14 },
+    'BOGGED': { health: 20, damage: 4, movementSpeed: 0.25 },
+    'BREEZE': { health: 30, damage: 3, movementSpeed: 0.63 },
     'SLIME': { health: 16, damage: 4, size: 1 },
     'MAGMA_CUBE': { health: 16, damage: 6, size: 1 },
     'PHANTOM': { health: 20, damage: 6, size: 1 },
