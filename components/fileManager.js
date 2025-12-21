@@ -31,8 +31,8 @@ class FileManager {
             // Only set defaults if NOT using a template
             type: template ? '' : 'ZOMBIE',
             display: template ? '' : '&6Custom Mob',
-            health: template ? undefined : 100,
-            damage: template ? undefined : 10,
+            health: template ? undefined : 0,
+            damage: template ? undefined : 0,
             armor: template ? undefined : 0,
             movementSpeed: template ? undefined : 0.3,
             followRange: template ? undefined : 32,

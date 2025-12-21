@@ -12,14 +12,11 @@ class DocumentationHelper {
             return;
         }
 
-        // Remove any existing modal-overlay to prevent duplicates
-        const existingModal = document.querySelector('.modal-overlay');
-        if (existingModal) {
-            existingModal.remove();
-        }
+        // Remove only documentation modals to prevent duplicates
+        document.querySelectorAll('.modal-overlay.documentation-modal').forEach(modal => modal.remove());
 
         const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
+        modal.className = 'modal-overlay documentation-modal';
         modal.innerHTML = `
             <div class="modal-dialog" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
@@ -109,14 +106,11 @@ class DocumentationHelper {
             return;
         }
 
-        // Remove any existing modal-overlay to prevent duplicates
-        const existingModal = document.querySelector('.modal-overlay');
-        if (existingModal) {
-            existingModal.remove();
-        }
+        // Remove only documentation modals to prevent duplicates
+        document.querySelectorAll('.modal-overlay.documentation-modal').forEach(modal => modal.remove());
 
         const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
+        modal.className = 'modal-overlay documentation-modal';
         modal.innerHTML = `
             <div class="modal-dialog" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">

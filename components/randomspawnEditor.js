@@ -131,11 +131,8 @@ class RandomSpawnEditor {
                 </h2>
                 <div class="editor-actions">
                     <div class="action-group secondary-actions">
-                        <button class="btn btn-outline" id="duplicate-randomspawn-btn" title="Create a copy of this spawn">
+                        <button class="btn btn-outline" id="duplicate-randomspawn-btn" title="Create a copy of this spawn (Ctrl+D)">
                             <i class="fas fa-copy"></i> Duplicate
-                        </button>
-                        <button class="btn btn-outline" id="rename-randomspawn-btn" title="Rename this spawn">
-                            <i class="fas fa-pen"></i> Rename
                         </button>
                         <button class="btn btn-outline btn-danger" id="delete-randomspawn-btn" title="Delete this spawn">
                             <i class="fas fa-trash"></i> Delete
@@ -553,11 +550,6 @@ class RandomSpawnEditor {
         // Duplicate button
         document.getElementById('duplicate-randomspawn-btn')?.addEventListener('click', () => {
             this.duplicateRandomSpawn();
-        });
-        
-        // Rename button
-        document.getElementById('rename-randomspawn-btn')?.addEventListener('click', () => {
-            this.renameRandomSpawn();
         });
         
         document.getElementById('delete-randomspawn-btn')?.addEventListener('click', () => {

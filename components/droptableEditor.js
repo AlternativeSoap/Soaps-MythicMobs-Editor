@@ -39,11 +39,8 @@ class DropTableEditor {
                 </h2>
                 <div class="editor-actions">
                     <div class="action-group secondary-actions">
-                        <button class="btn btn-outline" id="duplicate-droptable" title="Create a copy of this droptable">
+                        <button class="btn btn-outline" id="duplicate-droptable" title="Create a copy of this droptable (Ctrl+D)">
                             <i class="fas fa-copy"></i> Duplicate
-                        </button>
-                        <button class="btn btn-outline" id="rename-droptable" title="Rename this droptable">
-                            <i class="fas fa-pen"></i> Rename
                         </button>
                         <button class="btn btn-outline btn-danger" id="delete-droptable" title="Delete this droptable">
                             <i class="fas fa-trash"></i> Delete
@@ -260,11 +257,6 @@ class DropTableEditor {
         // Duplicate droptable button
         document.getElementById('duplicate-droptable')?.addEventListener('click', () => {
             this.duplicateDropTable(droptable);
-        });
-        
-        // Rename droptable button
-        document.getElementById('rename-droptable')?.addEventListener('click', () => {
-            this.renameDropTable(droptable);
         });
         
         // Delete droptable button

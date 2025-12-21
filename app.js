@@ -199,6 +199,9 @@ class MythicMobsEditor {
         document.getElementById('new-pack-btn')?.addEventListener('click', () => this.createNewPack());
         document.getElementById('import-pack-btn')?.addEventListener('click', () => this.importPack());
         
+        // Breadcrumb home button
+        document.getElementById('breadcrumb-home')?.addEventListener('click', () => this.goToDashboard());
+        
         // Save actions
         document.getElementById('save-all-btn')?.addEventListener('click', async () => {
             try {
@@ -395,7 +398,80 @@ class MythicMobsEditor {
                 e.preventDefault();
                 this.toggleLeftSidebar();
             }
+            
+            // Duplicate current item (Ctrl+D)
+            if (e.ctrlKey && e.key === 'd') {
+                e.preventDefault();
+                this.duplicateCurrentItem();
+            }
+            
+            // Return to dashboard (ESC)
+            if (e.key === 'Escape' && this.state.currentView !== 'dashboard') {
+                e.preventDefault();
+                this.goToDashboard();
+            }
         });
+    }
+    
+    /**
+     * Duplicate the currently open item (Ctrl+D shortcut)
+     */
+    duplicateCurrentItem() {
+        if (!this.state.currentFile || !this.state.currentFileType) {
+            this.showToast('No item open to duplicate', 'warning');
+            return;
+        }
+        
+        // Call the appropriate editor's duplicate method
+        switch (this.state.currentFileType) {
+            case 'mob':
+                this.mobEditor?.duplicateMob();
+                break;
+            case 'skill':
+                this.skillEditor?.duplicateSkill();
+                break;
+            case 'item':
+                this.itemEditor?.duplicateItem();
+                break;
+            case 'droptable':
+                this.droptableEditor?.duplicateDropTable(this.state.currentFile);
+                break;
+            case 'randomspawn':
+                this.randomspawnEditor?.duplicateRandomSpawn();
+                break;
+            default:
+                this.showToast('Cannot duplicate this item type', 'warning');
+        }
+    }
+    
+    /**
+     * Return to dashboard view
+     */
+    goToDashboard() {
+        // Hide all editor views
+        document.querySelectorAll('.view-container').forEach(view => {
+            view.classList.remove('active');
+        });
+        
+        // Show dashboard
+        const dashboardView = document.getElementById('dashboard-view');
+        if (dashboardView) {
+            dashboardView.classList.add('active');
+        }
+        
+        // Update state
+        this.state.currentView = 'dashboard';
+        this.state.currentFile = null;
+        this.state.currentFileType = null;
+        
+        // Update breadcrumb
+        this.updateBreadcrumb();
+        
+        // Hide home button when on dashboard
+        const homeBtn = document.getElementById('breadcrumb-home');
+        if (homeBtn) {
+            homeBtn.style.display = 'none';
+        }
     }
     
     /**
@@ -1460,13 +1536,16 @@ class MythicMobsEditor {
      */
     updateBreadcrumb() {
         const breadcrumb = document.getElementById('breadcrumb');
+        const homeBtn = document.getElementById('breadcrumb-home');
         if (!breadcrumb) return;
         
         let html = '';
         
         if (this.state.currentView === 'dashboard') {
             html = '<span class="breadcrumb-item">Dashboard</span>';
+            if (homeBtn) homeBtn.style.display = 'none';
         } else if (this.state.currentPack && this.state.currentFile) {
+            if (homeBtn) homeBtn.style.display = 'flex';
             const fileName = this.state.currentFile.internalName || this.state.currentFile.name || 'Unnamed';
             const parentFile = this.state.currentFile._parentFile;
             
@@ -1486,9 +1565,18 @@ class MythicMobsEditor {
                     <span class="breadcrumb-item">${fileName}</span>
                 `;
             }
+        } else {
+            if (homeBtn) homeBtn.style.display = 'none';
         }
         
-        breadcrumb.innerHTML = html;
+        // Preserve home button when updating breadcrumb
+        if (homeBtn) {
+            breadcrumb.innerHTML = '';
+            breadcrumb.appendChild(homeBtn);
+            breadcrumb.insertAdjacentHTML('beforeend', html);
+        } else {
+            breadcrumb.innerHTML = html;
+        }
     }
     
     /**

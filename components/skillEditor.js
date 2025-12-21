@@ -38,11 +38,8 @@ class SkillEditor {
                 </h2>
                 <div class="editor-actions">
                     <div class="action-group secondary-actions">
-                        <button class="btn btn-outline" id="duplicate-skill" title="Create a copy of this skill">
+                        <button class="btn btn-outline" id="duplicate-skill" title="Create a copy of this skill (Ctrl+D)">
                             <i class="fas fa-copy"></i> Duplicate
-                        </button>
-                        <button class="btn btn-outline" id="rename-skill" title="Rename this skill">
-                            <i class="fas fa-pen"></i> Rename
                         </button>
                         <button class="btn btn-outline btn-danger" id="delete-skill" title="Delete this skill">
                             <i class="fas fa-trash"></i> Delete
@@ -511,11 +508,6 @@ class SkillEditor {
         // Duplicate skill button
         document.getElementById('duplicate-skill')?.addEventListener('click', () => {
             this.duplicateSkill();
-        });
-        
-        // Rename skill button
-        document.getElementById('rename-skill')?.addEventListener('click', () => {
-            this.renameSkill();
         });
         
         document.getElementById('delete-skill')?.addEventListener('click', () => {

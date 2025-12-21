@@ -5,9 +5,13 @@
  */
 
 // Minecraft item icon sprite sheet using community CDN
-// This uses the Minecraft texture atlas hosted on a public CDN
+// Using multiple CDN fallbacks for reliability
 const MINECRAFT_ICON_CDN_ITEM = 'https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21/assets/minecraft/textures/item/';
 const MINECRAFT_ICON_CDN_BLOCK = 'https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21/assets/minecraft/textures/block/';
+
+// Alternative CDN (uses latest version)
+const MINECRAFT_ICON_CDN_ALT_ITEM = 'https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/refs/heads/1.21.4/assets/minecraft/textures/item/';
+const MINECRAFT_ICON_CDN_ALT_BLOCK = 'https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/refs/heads/1.21.4/assets/minecraft/textures/block/';
 
 /**
  * Get icon URL for a Minecraft item
@@ -903,7 +907,7 @@ function getMinecraftItemIcon(itemName) {
         // Trial spawner
         'trial_spawner': 'trial_spawner_top',
         
-        // Heads and skulls (use block textures)
+        // Heads and skulls (items display block textures when held)
         'player_head': 'player_head',
         'skeleton_skull': 'skeleton_skull',
         'wither_skeleton_skull': 'wither_skeleton_skull',
@@ -911,6 +915,28 @@ function getMinecraftItemIcon(itemName) {
         'creeper_head': 'creeper_head',
         'piglin_head': 'piglin_head',
         'dragon_head': 'dragon_head',
+        
+        // Glass panes (use block textures)
+        'glass_pane': 'glass_pane_top',
+        'white_stained_glass_pane': 'white_stained_glass_pane_top',
+        'orange_stained_glass_pane': 'orange_stained_glass_pane_top',
+        'magenta_stained_glass_pane': 'magenta_stained_glass_pane_top',
+        'light_blue_stained_glass_pane': 'light_blue_stained_glass_pane_top',
+        'yellow_stained_glass_pane': 'yellow_stained_glass_pane_top',
+        'lime_stained_glass_pane': 'lime_stained_glass_pane_top',
+        'pink_stained_glass_pane': 'pink_stained_glass_pane_top',
+        'gray_stained_glass_pane': 'gray_stained_glass_pane_top',
+        'light_gray_stained_glass_pane': 'light_gray_stained_glass_pane_top',
+        'cyan_stained_glass_pane': 'cyan_stained_glass_pane_top',
+        'purple_stained_glass_pane': 'purple_stained_glass_pane_top',
+        'blue_stained_glass_pane': 'blue_stained_glass_pane_top',
+        'brown_stained_glass_pane': 'brown_stained_glass_pane_top',
+        'green_stained_glass_pane': 'green_stained_glass_pane_top',
+        'red_stained_glass_pane': 'red_stained_glass_pane_top',
+        'black_stained_glass_pane': 'black_stained_glass_pane_top',
+        
+        // Moss carpet
+        'moss_carpet': 'moss_carpet',
         
         // Shield
         'shield': 'shield',
@@ -1007,24 +1033,6 @@ function getMinecraftItemIcon(itemName) {
         'lilac': 'lilac',
         'rose_bush': 'rose_bush',
         'peony': 'peony',
-        
-        // Stained glass panes (all have item textures)
-        'white_stained_glass_pane': 'white_stained_glass_pane',
-        'orange_stained_glass_pane': 'orange_stained_glass_pane',
-        'magenta_stained_glass_pane': 'magenta_stained_glass_pane',
-        'light_blue_stained_glass_pane': 'light_blue_stained_glass_pane',
-        'yellow_stained_glass_pane': 'yellow_stained_glass_pane',
-        'lime_stained_glass_pane': 'lime_stained_glass_pane',
-        'pink_stained_glass_pane': 'pink_stained_glass_pane',
-        'gray_stained_glass_pane': 'gray_stained_glass_pane',
-        'light_gray_stained_glass_pane': 'light_gray_stained_glass_pane',
-        'cyan_stained_glass_pane': 'cyan_stained_glass_pane',
-        'purple_stained_glass_pane': 'purple_stained_glass_pane',
-        'blue_stained_glass_pane': 'blue_stained_glass_pane',
-        'brown_stained_glass_pane': 'brown_stained_glass_pane',
-        'green_stained_glass_pane': 'green_stained_glass_pane',
-        'red_stained_glass_pane': 'red_stained_glass_pane',
-        'black_stained_glass_pane': 'black_stained_glass_pane',
         
         // Buckets and liquids
         'bucket': 'bucket',
@@ -1520,15 +1528,38 @@ function createMinecraftIcon(itemName, options = {}) {
     img.alt = itemName;
     img.title = itemName;
     
-    // Fallback to colored square if image fails to load
+    // Fallback to alternative CDN then colored square if image fails to load
     if (showFallback) {
+        let fallbackAttempted = false;
         img.onerror = function() {
-            const span = document.createElement('span');
-            span.className = 'mc-item-icon-fallback';
-            span.style.width = size + 'px';
-            span.style.height = size + 'px';
-            span.textContent = itemName.charAt(0).toUpperCase();
-            this.replaceWith(span);
+            if (!fallbackAttempted) {
+                // Try alternative CDN
+                fallbackAttempted = true;
+                const currentSrc = this.src;
+                if (currentSrc.includes(MINECRAFT_ICON_CDN_ITEM)) {
+                    this.src = currentSrc.replace(MINECRAFT_ICON_CDN_ITEM, MINECRAFT_ICON_CDN_ALT_ITEM);
+                } else if (currentSrc.includes(MINECRAFT_ICON_CDN_BLOCK)) {
+                    this.src = currentSrc.replace(MINECRAFT_ICON_CDN_BLOCK, MINECRAFT_ICON_CDN_ALT_BLOCK);
+                } else {
+                    // If alt CDN, show fallback
+                    const span = document.createElement('span');
+                    span.className = 'mc-item-icon-fallback';
+                    span.style.width = size + 'px';
+                    span.style.height = size + 'px';
+                    span.textContent = itemName.charAt(0).toUpperCase();
+                    span.title = `${itemName} (texture not found)`;
+                    this.replaceWith(span);
+                }
+            } else {
+                // Second attempt failed, show fallback
+                const span = document.createElement('span');
+                span.className = 'mc-item-icon-fallback';
+                span.style.width = size + 'px';
+                span.style.height = size + 'px';
+                span.textContent = itemName.charAt(0).toUpperCase();
+                span.title = `${itemName} (texture not found)`;
+                this.replaceWith(span);
+            }
         };
     }
     

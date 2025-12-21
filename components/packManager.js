@@ -292,7 +292,7 @@ class PackManager {
                 </div>
                 <div class="folder-files ${getFolderClasses('droptables')}">
                     ${this.renderFileBasedCollection(pack.droptables, 'droptable', fileStates)}
-                    <button class="add-item-btn" data-type="droptable">
+                    <button class="add-item-btn" data-type="droptable" data-pack-id="${pack.id}">
                         <i class="fas fa-plus"></i> New DropTable
                     </button>
                 </div>
@@ -308,7 +308,7 @@ class PackManager {
                 </div>
                 <div class="folder-files ${getFolderClasses('items')}">
                     ${this.renderFileBasedCollection(pack.items, 'item', fileStates)}
-                    <button class="add-item-btn" data-type="item">
+                    <button class="add-item-btn" data-type="item" data-pack-id="${pack.id}">
                         <i class="fas fa-plus"></i> New Item
                     </button>
                 </div>
@@ -324,7 +324,7 @@ class PackManager {
                 </div>
                 <div class="folder-files ${getFolderClasses('mobs')}">
                     ${this.renderFileBasedCollection(pack.mobs, 'mob', fileStates)}
-                    <button class="add-item-btn" data-type="mob">
+                    <button class="add-item-btn" data-type="mob" data-pack-id="${pack.id}">
                         <i class="fas fa-plus"></i> New Mob
                     </button>
                 </div>
@@ -340,7 +340,7 @@ class PackManager {
                 </div>
                 <div class="folder-files ${getFolderClasses('randomspawns')}">
                     ${this.renderFileBasedCollection(pack.randomspawns, 'randomspawn', fileStates)}
-                    <button class="add-item-btn" data-type="randomspawn">
+                    <button class="add-item-btn" data-type="randomspawn" data-pack-id="${pack.id}">
                         <i class="fas fa-plus"></i> New RandomSpawn
                     </button>
                 </div>
@@ -356,7 +356,7 @@ class PackManager {
                 </div>
                 <div class="folder-files ${getFolderClasses('skills')}">
                     ${this.renderFileBasedCollection(pack.skills, 'skill', fileStates)}
-                    <button class="add-item-btn" data-type="skill">
+                    <button class="add-item-btn" data-type="skill" data-pack-id="${pack.id}">
                         <i class="fas fa-plus"></i> New Skill
                     </button>
                 </div>
@@ -517,6 +517,17 @@ class PackManager {
                     this.renderPackTree();
                 }
             });
+            
+            // Double-click on pack title to rename inline
+            const packTitle = header.querySelector('.pack-title span');
+            if (packTitle) {
+                packTitle.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const packId = header.dataset.packId;
+                    this.startInlineEdit(packTitle, 'pack', { packId });
+                });
+            }
         });
         
         // Pack settings (cog) button clicks
@@ -576,6 +587,18 @@ class PackManager {
                 const fileId = header.dataset.fileId;
                 this.toggleYamlFile(fileId);
             });
+            
+            // Double-click on file name to rename inline
+            const fileNameSpan = header.querySelector('.yaml-file-name');
+            if (fileNameSpan) {
+                fileNameSpan.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const fileId = header.dataset.fileId;
+                    const fileType = header.closest('.yaml-file-container').dataset.fileType;
+                    this.startInlineEdit(fileNameSpan, 'file', { fileId, fileType });
+                });
+            }
         });
         
         // Entry item clicks (individual entries within YAML files)
@@ -586,10 +609,32 @@ class PackManager {
                 const fileType = item.dataset.fileType;
                 const parentFileId = item.dataset.parentFileId;
                 
-                const entry = this.findEntryById(entryId, fileType, parentFileId);
+                // Try to find entry in active pack first
+                let entry = this.findEntryById(entryId, fileType, parentFileId);
+                
+                // If not found in active pack, search all packs and auto-switch
+                if (!entry) {
+                    const result = this.findEntryInAllPacks(entryId, fileType, parentFileId);
+                    if (result) {
+                        // Auto-switch to the pack containing this entry
+                        this.setActivePack(result.pack);
+                        entry = result.entry;
+                    }
+                }
+                
                 if (entry) {
                     this.editor.openFile(entry, fileType);
                 }
+            });
+            
+            // Double-click to rename entry inline
+            item.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const entryId = item.dataset.entryId;
+                const fileType = item.dataset.fileType;
+                const parentFileId = item.dataset.parentFileId;
+                this.startInlineEdit(item, 'entry', { entryId, fileType, parentFileId });
             });
         });
         
@@ -609,7 +654,19 @@ class PackManager {
                     return;
                 }
                 
-                const file = this.findFile(fileId, fileType);
+                // Try to find file in active pack first
+                let file = this.findFile(fileId, fileType);
+                
+                // If not found in active pack, search all packs and auto-switch
+                if (!file) {
+                    const result = this.findFileInAllPacks(fileId, fileType);
+                    if (result) {
+                        // Auto-switch to the pack containing this file
+                        this.setActivePack(result.pack);
+                        file = result.file;
+                    }
+                }
+                
                 if (file) {
                     this.editor.openFile(file, fileType);
                 }
@@ -620,6 +677,16 @@ class PackManager {
         document.querySelectorAll('.add-item-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const type = btn.dataset.type;
+                const packId = btn.dataset.packId;
+                
+                // Auto-switch to the pack where the button was clicked
+                if (packId) {
+                    const targetPack = this.getPackById(packId);
+                    if (targetPack && targetPack !== this.activePack) {
+                        this.setActivePack(targetPack);
+                    }
+                }
+                
                 switch (type) {
                     case 'mob':
                         this.editor.createNewMob();
@@ -703,6 +770,155 @@ class PackManager {
     getFileStates() {
         const saved = localStorage.getItem('yamlFileStates');
         return saved ? JSON.parse(saved) : {};
+    }
+    
+    /**
+     * Start inline editing for a tree item
+     */
+    startInlineEdit(element, type, data) {
+        // Don't start editing if already editing
+        if (element.querySelector('input.inline-edit')) return;
+        
+        const currentText = element.textContent.trim();
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'inline-edit';
+        input.value = currentText;
+        
+        // Store original content
+        const originalContent = element.innerHTML;
+        
+        // Replace content with input
+        element.innerHTML = '';
+        element.appendChild(input);
+        input.focus();
+        input.select();
+        
+        // Save on Enter or blur
+        const save = async () => {
+            const newName = input.value.trim();
+            if (newName && newName !== currentText) {
+                const success = await this.performInlineRename(type, data, newName);
+                if (success) {
+                    element.textContent = newName;
+                } else {
+                    element.innerHTML = originalContent;
+                }
+            } else {
+                element.innerHTML = originalContent;
+            }
+        };
+        
+        // Cancel on Escape
+        const cancel = () => {
+            element.innerHTML = originalContent;
+        };
+        
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                input.blur();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancel();
+            }
+        });
+        
+        // Prevent clicks from closing the input
+        input.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+    
+    /**
+     * Perform the actual rename operation
+     */
+    async performInlineRename(type, data, newName) {
+        try {
+            // Sanitize the name
+            newName = this.editor.sanitizeInternalName(newName);
+            
+            if (type === 'pack') {
+                const pack = this.getPackById(data.packId);
+                if (!pack) return false;
+                
+                pack.name = newName;
+                if (pack.packinfo) {
+                    pack.packinfo.Name = newName;
+                }
+                
+                await this.savePacks();
+                this.renderPackTree();
+                this.editor.showToast(`Renamed pack to "${newName}"`, 'success');
+                return true;
+                
+            } else if (type === 'file') {
+                const file = this.findFileById(data.fileId, data.fileType);
+                if (!file) return false;
+                
+                // Update file name
+                file.fileName = newName.endsWith('.yml') ? newName : newName + '.yml';
+                file.relativePath = this.getRelativePath(data.fileType, file.fileName);
+                
+                await this.savePacks();
+                this.renderPackTree();
+                this.editor.showToast(`Renamed file to "${file.fileName}"`, 'success');
+                this.editor.markDirty();
+                return true;
+                
+            } else if (type === 'entry') {
+                const entry = this.findEntryById(data.entryId, data.fileType, data.parentFileId);
+                if (!entry) return false;
+                
+                // Check for duplicates in the same file
+                const parentFile = this.findFileById(data.parentFileId, data.fileType);
+                if (parentFile && parentFile.entries) {
+                    const duplicate = parentFile.entries.find(e => 
+                        e.id !== entry.id && 
+                        (e.name === newName || e.internalName === newName)
+                    );
+                    if (duplicate) {
+                        this.editor.showToast('An entry with that name already exists in this file', 'error');
+                        return false;
+                    }
+                }
+                
+                // Update entry name
+                const oldName = entry.name || entry.internalName;
+                if (entry.name !== undefined) entry.name = newName;
+                if (entry.internalName !== undefined) entry.internalName = newName;
+                
+                await this.savePacks();
+                this.renderPackTree();
+                this.editor.showToast(`Renamed "${oldName}" to "${newName}"`, 'success');
+                this.editor.markDirty();
+                
+                // If this entry is currently open, update the editor
+                if (this.editor.state.currentFile && this.editor.state.currentFile.id === entry.id) {
+                    this.editor.state.currentFile = entry;
+                    this.editor.updateCurrentEditor();
+                }
+                
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('Failed to rename:', error);
+            this.editor.showToast('Failed to rename: ' + error.message, 'error');
+            return false;
+        }
+    }
+    
+    /**
+     * Find a file by ID
+     */
+    findFileById(fileId, fileType) {
+        if (!this.activePack) return null;
+        const collection = this.activePack[fileType + 's'];
+        if (!collection) return null;
+        return collection.find(f => f.id === fileId);
     }
     
     /**
@@ -1135,6 +1351,23 @@ class PackManager {
         // No longer needed - handled by editor.updateYAMLPreview() via markDirty()
     }
     
+    /**
+     * Find a file in all packs (not just active pack)
+     * Returns { file, pack } or null
+     */
+    findFileInAllPacks(fileId, fileType) {
+        for (const pack of this.packs) {
+            const collection = pack[fileType + 's'];
+            if (collection && collection.length > 0) {
+                const file = collection.find(f => f.id === fileId);
+                if (file) {
+                    return { file, pack };
+                }
+            }
+        }
+        return null;
+    }
+
     findFile(fileId, fileType) {
         if (!this.activePack) return null;
         
@@ -1145,6 +1378,30 @@ class PackManager {
         return collection.find(f => f.id === fileId);
     }
     
+    /**
+     * Find an entry in all packs (not just active pack)
+     * Returns { entry, pack } or null
+     */
+    findEntryInAllPacks(entryId, fileType, parentFileId) {
+        for (const pack of this.packs) {
+            const collection = pack[fileType + 's'];
+            if (!collection || collection.length === 0) continue;
+            
+            if (parentFileId) {
+                const parentFile = collection.find(f => f.id === parentFileId);
+                if (parentFile && parentFile.entries) {
+                    const entry = parentFile.entries.find(e => e.id === entryId);
+                    if (entry) {
+                        // Attach parent file reference for context
+                        entry._parentFile = { id: parentFile.id, fileName: parentFile.fileName };
+                        return { entry, pack };
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     /**
      * Find an entry by its ID within the file-based structure
      */
@@ -1406,6 +1663,12 @@ class PackManager {
         const fileIndex = collection.findIndex(f => f.id === fileId);
         if (fileIndex >= 0) {
             collection.splice(fileIndex, 1);
+            
+            // If the deleted file is currently open, go to dashboard
+            if (this.editor.state.currentFile && this.editor.state.currentFile.id === fileId) {
+                this.editor.goToDashboard();
+            }
+            
             this.savePacks();
             this.renderPackTree();
             return true;
@@ -1428,6 +1691,11 @@ class PackManager {
             const entryIndex = file.entries.findIndex(e => e.id === entryId);
             if (entryIndex >= 0) {
                 file.entries.splice(entryIndex, 1);
+                
+                // If the deleted entry is currently open, go to dashboard
+                if (this.editor.state.currentFile && this.editor.state.currentFile.id === entryId) {
+                    this.editor.goToDashboard();
+                }
                 
                 // Optionally remove file if it's empty
                 // Uncomment if you want empty files to be auto-removed
@@ -1658,20 +1926,25 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
             return;
         }
         
+        // Check if the deleted pack contains the currently open file
+        const currentFileInDeletedPack = this.editor.state.currentFile && 
+            this.editor.state.currentFileType &&
+            pack[this.editor.state.currentFileType + 's']?.some(f => {
+                // Check if it's a file container
+                if (f.id === this.editor.state.currentFile.id) return true;
+                // Check if it's an entry within a file
+                if (f.entries?.some(e => e.id === this.editor.state.currentFile.id)) return true;
+                return false;
+            });
+        
         // Remove pack
         this.packs = this.packs.filter(p => p.id !== packId);
         
-        // If it was active, clear and show dashboard
-        if (this.activePack && this.activePack.id === packId) {
+        // If it was active or contained the open file, clear and show dashboard
+        if ((this.activePack && this.activePack.id === packId) || currentFileInDeletedPack) {
             this.activePack = this.packs[0] || null;
             this.editor.state.currentPack = this.activePack;
-            this.editor.state.currentView = 'dashboard';
-            
-            // Show dashboard
-            document.querySelectorAll('.view-container').forEach(view => {
-                view.classList.remove('active');
-            });
-            document.getElementById('dashboard-view')?.classList.add('active');
+            this.editor.goToDashboard();
         }
         
         this.savePacks();

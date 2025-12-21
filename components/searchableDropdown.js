@@ -149,18 +149,26 @@ class SearchableDropdown {
         
         container.innerHTML = `
             <div class="searchable-dropdown">
-                <div class="searchable-dropdown-input-wrapper">
-                    <input 
-                        type="text" 
-                        class="form-input searchable-dropdown-input" 
-                        placeholder="${this.placeholder}"
-                        value="${this.currentValue}"
-                        autocomplete="off"
-                    >
-                    <i class="fas fa-chevron-down searchable-dropdown-icon"></i>
-                </div>
+                <button type="button" class="searchable-dropdown-button">
+                    <span class="searchable-dropdown-button-text">${this.currentValue || this.placeholder}</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
                 <div class="searchable-dropdown-list" style="display: none;">
-                    ${this.renderItems()}
+                    <div class="searchable-dropdown-search-bar">
+                        <i class="fas fa-search"></i>
+                        <input 
+                            type="text" 
+                            class="searchable-dropdown-search-input" 
+                            placeholder="Search items..."
+                            autocomplete="off"
+                        >
+                        <button class="searchable-dropdown-clear-search" type="button" style="display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="searchable-dropdown-content">
+                        ${this.renderItems()}
+                    </div>
                 </div>
             </div>
         `;
@@ -378,75 +386,73 @@ class SearchableDropdown {
         const container = document.getElementById(this.containerId);
         if (!container) return;
         
-        const input = container.querySelector('.searchable-dropdown-input');
+        const button = container.querySelector('.searchable-dropdown-button');
         const list = container.querySelector('.searchable-dropdown-list');
-        const icon = container.querySelector('.searchable-dropdown-icon');
+        const modalSearch = container.querySelector('.searchable-dropdown-search-input');
+        const clearSearchBtn = container.querySelector('.searchable-dropdown-clear-search');
         
-        // Prevent input click from bubbling and closing dropdown
-        input.addEventListener('mousedown', (e) => {
-            if (this.isOpen) {
-                e.stopPropagation();
-            }
-        });
-        
-        // Input focus - show dropdown
-        input.addEventListener('focus', () => {
-            this.openDropdown();
-        });
-        
-        // Input typing - filter items with debouncing
-        let searchTimeout;
-        input.addEventListener('input', (e) => {
-            this.searchQuery = e.target.value;
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                this.filterItems(e.target.value);
-                this.openDropdown();
-            }, 150);
-        });
-        
-        // Icon click - toggle dropdown
-        icon.addEventListener('click', () => {
+        // Button click - toggle dropdown
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (this.isOpen) {
                 this.closeDropdown();
             } else {
-                input.focus();
+                this.openDropdown();
+                // Focus search input when opening
+                setTimeout(() => {
+                    if (modalSearch) {
+                        modalSearch.focus();
+                    }
+                }, 100);
             }
         });
         
-        // Keyboard navigation
-        input.addEventListener('keydown', (e) => {
-            if (!this.isOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-                this.openDropdown();
-                e.preventDefault();
-                return;
-            }
-            
-            switch (e.key) {
-                case 'ArrowDown':
-                    e.preventDefault();
-                    this.selectedIndex = Math.min(this.selectedIndex + 1, this.getVisibleItemCount() - 1);
-                    this.updateList();
-                    this.scrollToSelected();
-                    break;
-                case 'ArrowUp':
-                    e.preventDefault();
-                    this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
-                    this.updateList();
-                    this.scrollToSelected();
-                    break;
-                case 'Enter':
-                    e.preventDefault();
-                    const selectedItem = this.getItemAtIndex(this.selectedIndex);
-                    if (selectedItem) {
-                        this.selectItem(selectedItem);
+        let searchTimeout;
+        
+        // Modal search bar functionality
+        if (modalSearch) {
+            modalSearch.addEventListener('input', (e) => {
+                const query = e.target.value;
+                this.searchQuery = query;
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    this.filterItems(query);
+                    // Reset scroll to top when filtering
+                    const content = container.querySelector('.searchable-dropdown-content');
+                    if (content) {
+                        content.scrollTop = 0;
                     }
-                    break;
-                case 'Escape':
-                    this.closeDropdown();
-                    break;
-            }
-        });
+                }, 150);
+                
+                // Show/hide clear button
+                if (clearSearchBtn) {
+                    clearSearchBtn.style.display = query ? 'flex' : 'none';
+                }
+            });
+            
+            // Prevent clicks from closing dropdown
+            modalSearch.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+            
+            modalSearch.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
+        
+        // Clear search button
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (modalSearch) {
+                    modalSearch.value = '';
+                    this.searchQuery = '';
+                    this.filterItems('');
+                    clearSearchBtn.style.display = 'none';
+                    modalSearch.focus();
+                }
+            });
+        }
         
         // List click handling
         list.addEventListener('click', (e) => {
@@ -531,8 +537,16 @@ class SearchableDropdown {
         const container = document.getElementById(this.containerId);
         if (!container) return;
         
-        const list = container.querySelector('.searchable-dropdown-list');
-        list.innerHTML = this.renderItems();
+        const content = container.querySelector('.searchable-dropdown-content');
+        if (content) {
+            content.innerHTML = this.renderItems();
+        } else {
+            // Fallback if content wrapper doesn't exist yet
+            const list = container.querySelector('.searchable-dropdown-list');
+            if (list) {
+                list.innerHTML = this.renderItems();
+            }
+        }
     }
     
     selectItem(value) {
@@ -541,8 +555,8 @@ class SearchableDropdown {
         
         const container = document.getElementById(this.containerId);
         if (container) {
-            const input = container.querySelector('.searchable-dropdown-input');
-            input.value = value;
+            const buttonText = container.querySelector('.searchable-dropdown-button-text');
+            if (buttonText) buttonText.textContent = value;
         }
         
         this.searchQuery = '';
@@ -555,14 +569,13 @@ class SearchableDropdown {
         if (!container) return;
         
         const list = container.querySelector('.searchable-dropdown-list');
-        const icon = container.querySelector('.searchable-dropdown-icon');
-        const inputWrapper = container.querySelector('.searchable-dropdown-input-wrapper');
+        const chevron = container.querySelector('.fa-chevron-down');
         
         // Dropdown is now centered via CSS (top: 50%, left: 50%, transform: translate(-50%, -50%))
         // No need to manually position it
         
         list.style.display = 'block';
-        icon.style.transform = 'rotate(180deg)';
+        if (chevron) chevron.style.transform = 'rotate(180deg)';
         this.isOpen = true;
         this.justOpened = true;
         
@@ -577,10 +590,10 @@ class SearchableDropdown {
         if (!container) return;
         
         const list = container.querySelector('.searchable-dropdown-list');
-        const icon = container.querySelector('.searchable-dropdown-icon');
+        const chevron = container.querySelector('.fa-chevron-down');
         
         if (list) list.style.display = 'none';
-        if (icon) icon.style.transform = 'rotate(0deg)';
+        if (chevron) chevron.style.transform = 'rotate(0deg)';
         this.isOpen = false;
         this.selectedIndex = -1;
         this.expandedCategory = null; // Reset expanded state when closing
@@ -602,17 +615,12 @@ class SearchableDropdown {
         this.currentValue = value;
         const container = document.getElementById(this.containerId);
         if (container) {
-            const input = container.querySelector('.searchable-dropdown-input');
-            if (input) input.value = value;
+            const buttonText = container.querySelector('.searchable-dropdown-button-text');
+            if (buttonText) buttonText.textContent = value || this.placeholder;
         }
     }
     
     getValue() {
-        const container = document.getElementById(this.containerId);
-        if (container) {
-            const input = container.querySelector('.searchable-dropdown-input');
-            return input ? input.value : this.currentValue;
-        }
         return this.currentValue;
     }
     

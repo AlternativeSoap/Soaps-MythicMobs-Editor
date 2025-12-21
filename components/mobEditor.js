@@ -36,11 +36,8 @@ class MobEditor {
                 </h2>
                 <div class="editor-actions">
                     <div class="action-group secondary-actions">
-                        <button class="btn btn-outline" id="duplicate-mob" title="Create a copy of this mob">
+                        <button class="btn btn-outline" id="duplicate-mob" title="Create a copy of this mob (Ctrl+D)">
                             <i class="fas fa-copy"></i> Duplicate
-                        </button>
-                        <button class="btn btn-outline" id="rename-mob" title="Rename this mob">
-                            <i class="fas fa-pen"></i> Rename
                         </button>
                         <button class="btn btn-outline btn-danger" id="delete-mob" title="Delete this mob">
                             <i class="fas fa-trash"></i> Delete
@@ -163,8 +160,8 @@ class MobEditor {
             id: 'mob-' + Date.now(),
             name: newName.trim(),
             type: 'ZOMBIE',
-            health: 20,
-            damage: 5
+            health: 0,
+            damage: 0
         };
         
         // Add to parent file's entries
@@ -1014,13 +1011,13 @@ class MobEditor {
                     <div class="grid-3">
                         <div class="form-group" data-mob-field="Health">
                             <label class="form-label">Health</label>
-                            <input type="number" class="form-input" id="mob-health" value="${mob.health || 20}" min="0" step="0.5">
+                            <input type="number" class="form-input" id="mob-health" value="${mob.health || 0}" min="0" step="0.5">
                             <small class="form-hint">Maximum health points</small>
                         </div>
                         <div class="form-group" data-mob-field="Damage">
                             <label class="form-label">Damage</label>
-                            <input type="number" class="form-input" id="mob-damage" value="${mob.damage || 0}" min="0" step="0.5">
-                            <small class="form-hint">Attack damage</small>
+                            <input type="text" class="form-input" id="mob-damage" value="${mob.damage || ''}" placeholder="e.g. 5 or 2.5-3.5">
+                            <small class="form-hint">Attack damage (single value or range)</small>
                         </div>
                         <div class="form-group" data-mob-field="Armor">
                             <label class="form-label">Armor</label>
@@ -2457,6 +2454,47 @@ class MobEditor {
     }
     
     /**
+     * Apply vanilla Minecraft stats if available for the selected entity type
+     * Only fills in Health and Damage if the fields are empty or have default values
+     */
+    applyVanillaStatsIfAvailable(entityType) {
+        if (!entityType || !window.VANILLA_MOB_STATS) return;
+        
+        const stats = window.VANILLA_MOB_STATS[entityType];
+        if (!stats) return; // No vanilla data for this mob type
+        
+        const healthInput = document.getElementById('mob-health');
+        const damageInput = document.getElementById('mob-damage');
+        
+        let appliedStats = [];
+        
+        // Auto-fill Health - update whenever entity type changes
+        if (healthInput) {
+            this.currentMob.health = stats.health;
+            healthInput.value = stats.health;
+            appliedStats.push(`Health: ${stats.health}`);
+        }
+        
+        // Auto-fill Damage - update whenever entity type changes
+        if (damageInput && (stats.damage.min > 0 || stats.damage.max > 0)) {
+            // Calculate average damage (middle value between min and max)
+            const averageDamage = (stats.damage.min + stats.damage.max) / 2;
+            const damageValue = Math.round(averageDamage * 10) / 10; // Round to 1 decimal
+            this.currentMob.damage = damageValue;
+            damageInput.value = damageValue;
+            appliedStats.push(`Damage: ${damageValue}`);
+        }
+        
+        // Show subtle notification if stats were applied
+        if (appliedStats.length > 0) {
+            this.editor.showToast(`Applied ${entityType} defaults: ${appliedStats.join(', ')}`, 'info', 3000);
+        }
+        
+        // Sync to file for preview
+        this.syncToFile();
+    }
+    
+    /**
      * Toggle the entity type lock for template inheritance
      * When locked: uses inherited type from template
      * When unlocked: allows overriding the entity type
@@ -2591,11 +2629,6 @@ class MobEditor {
             this.duplicateMob();
         });
         
-        // Rename mob button
-        document.getElementById('rename-mob')?.addEventListener('click', () => {
-            this.renameMob();
-        });
-        
         // Delete mob button
         document.getElementById('delete-mob')?.addEventListener('click', () => {
             this.deleteMob();
@@ -2654,11 +2687,15 @@ class MobEditor {
         const typeSelect = document.getElementById('mob-type');
         if (typeSelect) {
             typeSelect.addEventListener('change', (e) => {
-                this.updateMob('type', e.target.value);
+                const selectedType = e.target.value;
+                this.updateMob('type', selectedType);
+                
+                // Auto-fill vanilla stats if available
+                this.applyVanillaStatsIfAvailable(selectedType);
+                
                 // Update YAML preview to show the Type override
                 this.editor.updateYAMLPreview();
-                // Re-render to show/hide entity-specific sections
-                this.render(this.currentMob);
+                // Note: Not re-rendering to preserve expanded/collapsed section states
             });
         }
         

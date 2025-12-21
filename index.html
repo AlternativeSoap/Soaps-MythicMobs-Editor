@@ -165,6 +165,9 @@
             <main class="editor-panel">
                 <!-- Breadcrumb Navigation -->
                 <div class="breadcrumb" id="breadcrumb">
+                    <button class="breadcrumb-home" id="breadcrumb-home" title="Back to Dashboard (ESC)">
+                        <i class="fas fa-home"></i>
+                    </button>
                     <span class="breadcrumb-item">Dashboard</span>
                 </div>
 
@@ -237,6 +240,7 @@
                                         </div>
                                         <div class="shortcut-group">
                                             <span class="shortcut-label">Editing</span>
+                                            <div class="shortcut-item"><kbd>Ctrl</kbd>+<kbd>D</kbd> <span>Duplicate</span></div>
                                             <div class="shortcut-item"><kbd>Ctrl</kbd>+<kbd>Z</kbd> <span>Undo</span></div>
                                             <div class="shortcut-item"><kbd>Ctrl</kbd>+<kbd>Y</kbd> <span>Redo</span></div>
                                         </div>
@@ -633,6 +637,7 @@
 
     <!-- Data Files -->
     <script src="data/mobData.js"></script>
+    <script src="data/vanillaMobStats.js"></script>
     <script src="data/templates.js"></script>
     <script src="data/entityFieldMap.js"></script>
     <script src="data/minecraftBlocks.js"></script>
@@ -717,7 +722,7 @@
     <!-- Enhanced Dropdown with Categories & Icons -->
     <script src="data/minecraftItemCategories.js"></script>
     <script src="data/minecraftItemIcons.js"></script>
-    <script src="components/searchableDropdown.js?v=2.0"></script>
+    <script src="components/searchableDropdown.js?v=3.0"></script>
     <script src="components/bossBarEditor.js"></script>
     <script src="components/equipmentEditor.js"></script>
     <script src="components/damageModifierEditor.js"></script>

@@ -48,11 +48,8 @@ class ItemEditor {
                 </h2>
                 <div class="editor-actions">
                     <div class="action-group secondary-actions">
-                        <button class="btn btn-outline" id="duplicate-item" title="Create a copy of this item">
+                        <button class="btn btn-outline" id="duplicate-item" title="Create a copy of this item (Ctrl+D)">
                             <i class="fas fa-copy"></i> Duplicate
-                        </button>
-                        <button class="btn btn-outline" id="rename-item" title="Rename this item">
-                            <i class="fas fa-pen"></i> Rename
                         </button>
                         <button class="btn btn-outline btn-danger" id="delete-item" title="Delete this item">
                             <i class="fas fa-trash"></i> Delete
@@ -1137,11 +1134,6 @@ class ItemEditor {
         // Duplicate item button
         document.getElementById('duplicate-item')?.addEventListener('click', () => {
             this.duplicateItem();
-        });
-        
-        // Rename item button
-        document.getElementById('rename-item')?.addEventListener('click', () => {
-            this.renameItem();
         });
         
         document.getElementById('delete-item')?.addEventListener('click', () => {
