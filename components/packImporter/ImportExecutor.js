@@ -34,6 +34,15 @@ class ImportExecutor {
         };
 
         const startTime = performance.now();
+        
+        // Calculate total files for accurate progress
+        let totalFiles = 0;
+        let processedFiles = 0;
+        for (const { parseData } of selectedPackData) {
+            if (parseData && parseData.files) {
+                totalFiles += parseData.files.length;
+            }
+        }
 
         try {
             let packIndex = 0;
@@ -52,11 +61,19 @@ class ImportExecutor {
                     totalPacks,
                     packName: pack.name,
                     currentFile: '',
-                    percentage: Math.round((packIndex / totalPacks) * 100)
+                    percentage: totalFiles > 0 ? Math.round((processedFiles / totalFiles) * 100) : 0,
+                    filesProcessed: processedFiles,
+                    totalFiles: totalFiles,
+                    message: `Importing pack ${packIndex + 1} of ${totalPacks}: ${pack.name}`
                 });
 
-                const packResult = await this.importPack(pack, parseData, validation, options);
+                const packResult = await this.importPack(pack, parseData, validation, options, processedFiles, totalFiles);
                 results.packs.push(packResult);
+                
+                // Update processed files count
+                if (parseData && parseData.files) {
+                    processedFiles += parseData.files.length;
+                }
 
                 results.totalImported += packResult.imported;
                 results.totalSkipped += packResult.skipped;
@@ -81,7 +98,7 @@ class ImportExecutor {
     /**
      * Import a single pack
      */
-    async importPack(pack, parseData, validation, options) {
+    async importPack(pack, parseData, validation, options, startFileIndex = 0, totalFiles = 0) {
         const result = {
             packName: pack.name,
             imported: 0,
@@ -145,14 +162,24 @@ class ImportExecutor {
                 editorPack[collection] = [];
             }
             
+            let fileIndexInFolder = 0;
             for (const file of files) {
                 if (this.cancelled) break;
+                
+                const currentFileIndex = startFileIndex + fileIndexInFolder;
+                const progressPercentage = totalFiles > 0 ? Math.round((currentFileIndex / totalFiles) * 100) : 0;
 
                 this.updateProgress({
                     phase: 'importing',
                     packName: pack.name,
-                    currentFile: file.relativePath
+                    currentFile: file.relativePath,
+                    filesProcessed: currentFileIndex,
+                    totalFiles: totalFiles,
+                    percentage: progressPercentage,
+                    message: `Processing ${file.relativePath}...`
                 });
+                
+                fileIndexInFolder++;
 
                 // Skip files with parse errors
                 if (!file.success) {
@@ -679,19 +706,34 @@ class ImportExecutor {
         if (!enchantments || !Array.isArray(enchantments)) return [];
         
         return enchantments.map(e => {
+            let enchStr;
             if (typeof e === 'string') {
                 // Already a string like "PROTECTION 1to3" or "SHARPNESS:5"
                 // Normalize colon format to space format
                 if (e.includes(':')) {
                     const parts = e.split(':');
-                    return `${parts[0].trim()} ${parts[1]?.trim() || '1'}`;
+                    enchStr = `${parts[0].trim()} ${parts[1]?.trim() || '1'}`;
+                } else {
+                    enchStr = e;
                 }
-                return e;
             } else if (typeof e === 'object' && e !== null) {
                 // Object format { type, level } - convert to string
-                return `${e.type || e.name || ''} ${e.level || 1}`;
+                enchStr = `${e.type || e.name || ''} ${e.level || 1}`;
+            } else {
+                enchStr = String(e);
             }
-            return String(e);
+            
+            // Normalize legacy enchantment names (DURABILITY -> UNBREAKING, etc.)
+            if (window.EnchantmentData?.normalizeName) {
+                const parts = enchStr.split(' ');
+                const enchName = parts[0];
+                const enchLevel = parts.slice(1).join(' ') || '1';
+                const normalizedName = window.EnchantmentData.normalizeName(enchName);
+                
+                return `${normalizedName} ${enchLevel}`;
+            }
+            
+            return enchStr;
         });
     }
 

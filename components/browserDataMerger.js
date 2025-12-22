@@ -7,22 +7,19 @@
 class BrowserDataMerger {
     constructor(supabaseClient) {
         this.supabase = supabaseClient;
-        this.cache = {
-            mechanics: { data: null, timestamp: null },
-            conditions: { data: null, timestamp: null },
-            triggers: { data: null, timestamp: null },
-            targeters: { data: null, timestamp: null }
-        };
-        this.cacheTTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+        // Use IntelligentCacheManager with 5-minute TTL
+        this.cache = new IntelligentCacheManager({
+            defaultTTL: 5 * 60 * 1000, // 5 minutes
+            maxSize: 50, // Max 50 entries
+            enableAdaptiveTTL: true
+        });
     }
 
     /**
      * Check if cached data is still valid
      */
     isCacheValid(browserType) {
-        const cached = this.cache[browserType];
-        if (!cached.data || !cached.timestamp) return false;
-        return (Date.now() - cached.timestamp) < this.cacheTTL;
+        return this.cache.has(browserType);
     }
 
     /**
@@ -30,12 +27,10 @@ class BrowserDataMerger {
      */
     clearCache(browserType = null) {
         if (browserType) {
-            this.cache[browserType] = { data: null, timestamp: null };
+            this.cache.delete(browserType);
         } else {
             // Clear all caches
-            Object.keys(this.cache).forEach(type => {
-                this.cache[type] = { data: null, timestamp: null };
-            });
+            this.cache.clear();
         }
     }
 
@@ -45,7 +40,7 @@ class BrowserDataMerger {
     async getMergedMechanics() {
         // Check cache first
         if (this.isCacheValid('mechanics')) {
-            return this.cache.mechanics.data;
+            return this.cache.get('mechanics');
         }
 
         try {
@@ -115,11 +110,10 @@ class BrowserDataMerger {
                 mechanics: mergedData
             };
 
-            // Update cache
-            this.cache.mechanics = {
-                data: result,
-                timestamp: Date.now()
-            };
+            // Update cache with tags for invalidation
+            this.cache.set('mechanics', result, {
+                tags: ['browser-data', 'mechanics', 'custom-content']
+            });
 
             return result;
         } catch (error) {
@@ -135,7 +129,7 @@ class BrowserDataMerger {
     async getMergedConditions() {
         // Check cache first
         if (this.isCacheValid('conditions')) {
-            return this.cache.conditions.data;
+            return this.cache.get('conditions');
         }
 
         try {
@@ -198,11 +192,10 @@ class BrowserDataMerger {
                 return a.name.localeCompare(b.name);
             });
 
-            // Update cache
-            this.cache.conditions = {
-                data: mergedData,
-                timestamp: Date.now()
-            };
+            // Update cache with tags for invalidation
+            this.cache.set('conditions', mergedData, {
+                tags: ['browser-data', 'conditions', 'custom-content']
+            });
 
             return mergedData;
         } catch (error) {
@@ -223,7 +216,7 @@ class BrowserDataMerger {
     async getMergedTriggers() {
         // Check cache first
         if (this.isCacheValid('triggers')) {
-            return this.cache.triggers.data;
+            return this.cache.get('triggers');
         }
 
         try {
@@ -291,11 +284,10 @@ class BrowserDataMerger {
                 triggers: mergedData
             };
 
-            // Update cache
-            this.cache.triggers = {
-                data: result,
-                timestamp: Date.now()
-            };
+            // Update cache with tags for invalidation
+            this.cache.set('triggers', result, {
+                tags: ['browser-data', 'triggers', 'custom-content']
+            });
 
             return result;
         } catch (error) {
@@ -311,7 +303,7 @@ class BrowserDataMerger {
     async getMergedTargeters() {
         // Check cache first
         if (this.isCacheValid('targeters')) {
-            return this.cache.targeters.data;
+            return this.cache.get('targeters');
         }
 
         try {
@@ -379,11 +371,10 @@ class BrowserDataMerger {
                 targeters: mergedData
             };
 
-            // Update cache
-            this.cache.targeters = {
-                data: result,
-                timestamp: Date.now()
-            };
+            // Update cache with tags for invalidation
+            this.cache.set('targeters', result, {
+                tags: ['browser-data', 'targeters', 'custom-content']
+            });
 
             return result;
         } catch (error) {
@@ -431,17 +422,21 @@ class BrowserDataMerger {
      * Get cache statistics (useful for debugging)
      */
     getCacheStats() {
-        const stats = {};
-        Object.keys(this.cache).forEach(type => {
-            const cached = this.cache[type];
-            stats[type] = {
-                isCached: !!cached.data,
-                timestamp: cached.timestamp,
-                age: cached.timestamp ? Date.now() - cached.timestamp : null,
-                isValid: this.isCacheValid(type)
-            };
-        });
-        return stats;
+        return this.cache.getStats();
+    }
+
+    /**
+     * Legacy method for compatibility
+     */
+    cacheStats() {
+        const stats = this.cache.getStats();
+        const cached = {
+            mechanics: this.cache.has('mechanics'),
+            conditions: this.cache.has('conditions'),
+            triggers: this.cache.has('triggers'),
+            targeters: this.cache.has('targeters')
+        };
+        return { ...stats, cached };
     }
 }
 

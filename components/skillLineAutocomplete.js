@@ -20,6 +20,16 @@ class SkillLineAutocomplete {
         this.conditions = this.loadConditionsData();
         this.triggers = this.loadTriggersData();
         
+        // Initialize learning system
+        this.learningSystem = new AutocompleteLearningSystem();
+        
+        // Track current line context for learning
+        this.currentLineContext = {
+            mechanic: null,
+            targeter: null,
+            condition: null
+        };
+        
         this.createOverlay();
         this.attachEventListeners();
     }
@@ -282,7 +292,21 @@ class SkillLineAutocomplete {
         // Check if user prefers effect: prefix
         const useEffectPrefix = localStorage.getItem('mechanicBrowser_useEffectPrefix') === 'true';
         
-        return this.fuzzyMatch(query, this.mechanics, (m) => [m.name, ...m.aliases])
+        let matches = this.fuzzyMatch(query, this.mechanics, (m) => [m.name, ...m.aliases]);
+        
+        // Apply learning system boost
+        matches = matches.map(m => {
+            const boostScore = this.learningSystem.getBoostScore('mechanics', m.name);
+            return {
+                ...m,
+                score: m.score + (boostScore * 100) // Add boost to existing fuzzy match score
+            };
+        });
+        
+        // Re-sort with boosted scores
+        matches.sort((a, b) => b.score - a.score);
+        
+        return matches
             .slice(0, 10)
             .map(m => {
                 // Check if this mechanic has effect: alias
@@ -294,13 +318,23 @@ class SkillLineAutocomplete {
                     ? `effect:${m.name}` 
                     : m.name;
                 
+                // Get suggested pairings from learning
+                const suggestedTargeter = this.learningSystem.getSuggestedTargeter(m.name);
+                const usageCount = this.learningSystem.data.mechanics[m.name] || 0;
+                
                 return {
                     text: m.name,
                     display: mechanicName,
                     description: m.description,
                     category: m.category,
                     icon: this.getMechanicIcon(m.category),
-                    insertText: `${mechanicName}{}`
+                    insertText: `${mechanicName}{}`,
+                    // Add learning metadata for UI hints
+                    _learning: {
+                        usageCount,
+                        suggestedTargeter,
+                        isPopular: usageCount >= 5
+                    }
                 };
             });
     }
@@ -309,16 +343,37 @@ class SkillLineAutocomplete {
      * Get targeter suggestions
      */
     getTargeterSuggestions(query) {
-        return this.fuzzyMatch(query, this.targeters, (t) => [t.name, ...t.aliases])
+        let matches = this.fuzzyMatch(query, this.targeters, (t) => [t.name, ...t.aliases]);
+        
+        // Apply learning system boost
+        matches = matches.map(t => {
+            const boostScore = this.learningSystem.getBoostScore('targeters', t.name);
+            return {
+                ...t,
+                score: t.score + (boostScore * 100)
+            };
+        });
+        
+        matches.sort((a, b) => b.score - a.score);
+        
+        return matches
             .slice(0, 10)
-            .map(t => ({
-                text: t.name,
-                display: t.name,
-                description: t.description,
-                category: t.category,
-                icon: '🎯',
-                insertText: t.name
-            }));
+            .map(t => {
+                const usageCount = this.learningSystem.data.targeters[t.name] || 0;
+                
+                return {
+                    text: t.name,
+                    display: t.name,
+                    description: t.description,
+                    category: t.category,
+                    icon: '🎯',
+                    insertText: t.name,
+                    _learning: {
+                        usageCount,
+                        isPopular: usageCount >= 5
+                    }
+                };
+            });
     }
 
     /**
@@ -341,16 +396,37 @@ class SkillLineAutocomplete {
      * Get condition suggestions
      */
     getConditionSuggestions(query) {
-        return this.fuzzyMatch(query, this.conditions, (c) => [c.name])
+        let matches = this.fuzzyMatch(query, this.conditions, (c) => [c.name]);
+        
+        // Apply learning boost
+        matches = matches.map(c => {
+            const boostScore = this.learningSystem.getBoostScore('conditions', c.name);
+            return {
+                ...c,
+                score: c.score + (boostScore * 100)
+            };
+        });
+        
+        matches.sort((a, b) => b.score - a.score);
+        
+        return matches
             .slice(0, 10)
-            .map(c => ({
-                text: c.name,
-                display: c.name,
-                description: c.description,
-                category: c.category,
-                icon: '❓',
-                insertText: c.params.length > 0 ? `${c.name}{}` : c.name
-            }));
+            .map(c => {
+                const usageCount = this.learningSystem.data.conditions[c.name] || 0;
+                
+                return {
+                    text: c.name,
+                    display: c.name,
+                    description: c.description,
+                    category: c.category,
+                    icon: '❓',
+                    insertText: c.params.length > 0 ? `${c.name}{}` : c.name,
+                    _learning: {
+                        usageCount,
+                        isPopular: usageCount >= 5
+                    }
+                };
+            });
     }
 
     /**
@@ -509,12 +585,27 @@ class SkillLineAutocomplete {
                 item.classList.add('selected');
             }
             
+            // Add learning badges
+            let badges = '';
+            if (suggestion._learning) {
+                if (suggestion._learning.isPopular) {
+                    badges += '<span class="autocomplete-badge popular" title="Frequently used">🔥 Popular</span>';
+                }
+                if (suggestion._learning.suggestedTargeter) {
+                    badges += `<span class="autocomplete-badge pairing" title="Often paired with ${suggestion._learning.suggestedTargeter}">💡 Pairs with @${suggestion._learning.suggestedTargeter}</span>`;
+                }
+                if (suggestion._learning.usageCount > 0 && suggestion._learning.usageCount < 5) {
+                    badges += `<span class="autocomplete-badge usage" title="Used ${suggestion._learning.usageCount} times">${suggestion._learning.usageCount}x</span>`;
+                }
+            }
+            
             item.innerHTML = `
                 <div class="autocomplete-item-header">
                     <span class="autocomplete-icon">${suggestion.icon}</span>
                     <span class="autocomplete-name">${this.highlightMatch(suggestion.display, this.currentContext.query)}</span>
                     ${suggestion.category ? `<span class="autocomplete-category">${suggestion.category}</span>` : ''}
                 </div>
+                ${badges ? `<div class="autocomplete-badges">${badges}</div>` : ''}
                 ${suggestion.description ? `<div class="autocomplete-description">${suggestion.description}</div>` : ''}
             `;
             
@@ -583,6 +674,9 @@ class SkillLineAutocomplete {
         const text = this.textarea.value;
         const context = this.currentContext;
         
+        // Track selection in learning system
+        this.trackSelection(suggestion, context);
+        
         // Find where to insert
         const beforeQuery = text.substring(0, cursorPos - context.query.length);
         const afterCursor = text.substring(cursorPos);
@@ -600,6 +694,77 @@ class SkillLineAutocomplete {
         
         this.hide();
         this.textarea.focus();
+    }
+    
+    /**
+     * Track selection for learning system
+     */
+    trackSelection(suggestion, context) {
+        const currentLine = this.getCurrentLine();
+        
+        switch (context.type) {
+            case 'mechanic':
+                // Track mechanic selection
+                this.currentLineContext.mechanic = suggestion.text;
+                this.learningSystem.trackMechanicSelection(
+                    suggestion.text,
+                    this.currentLineContext.targeter,
+                    this.currentLineContext.condition
+                );
+                break;
+                
+            case 'targeter':
+                // Track targeter selection
+                this.currentLineContext.targeter = suggestion.text;
+                this.learningSystem.trackTargeterSelection(suggestion.text);
+                
+                // Update mechanic pairing if mechanic exists on current line
+                if (this.currentLineContext.mechanic) {
+                    this.learningSystem.trackMechanicSelection(
+                        this.currentLineContext.mechanic,
+                        suggestion.text,
+                        this.currentLineContext.condition
+                    );
+                }
+                break;
+                
+            case 'condition':
+                // Track condition selection
+                this.currentLineContext.condition = suggestion.text;
+                this.learningSystem.trackConditionSelection(suggestion.text);
+                
+                // Update mechanic pairing if mechanic exists
+                if (this.currentLineContext.mechanic) {
+                    this.learningSystem.trackMechanicSelection(
+                        this.currentLineContext.mechanic,
+                        this.currentLineContext.targeter,
+                        suggestion.text
+                    );
+                }
+                break;
+                
+            case 'trigger':
+                this.learningSystem.trackTriggerSelection(suggestion.text);
+                break;
+                
+            case 'attribute':
+                // Track attribute pairing if we have a component name
+                if (context.componentName) {
+                    // Will track value when user completes the attribute
+                    // For now just note the attribute name was used
+                }
+                break;
+        }
+    }
+    
+    /**
+     * Get current line text
+     */
+    getCurrentLine() {
+        const cursorPos = this.textarea.selectionStart;
+        const text = this.textarea.value;
+        const lines = text.substring(0, cursorPos).split('\n');
+        return lines[lines.length - 1];
     }
 
     /**

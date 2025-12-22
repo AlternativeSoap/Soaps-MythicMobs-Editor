@@ -515,22 +515,178 @@ Object.assign(ImportPreviewUI.prototype, {
             progressOverlay = document.createElement('div');
             progressOverlay.className = 'pack-import-progress-overlay';
             progressOverlay.innerHTML = `
-                <div class="pack-import-progress-text" id="import-progress-text">Importing...</div>
-                <div class="pack-import-progress-bar-container">
-                    <div class="pack-import-progress-bar" id="import-progress-bar" style="width: 0%"></div>
+                <div class="pack-import-progress-container">
+                    <div class="pack-import-progress-icon">📦</div>
+                    <h3 class="pack-import-progress-title">Importing Pack Files</h3>
+                    <div class="pack-import-progress-percentage" id="import-progress-percentage">0%</div>
+                    <div class="pack-import-progress-bar-container">
+                        <div class="pack-import-progress-bar" id="import-progress-bar" style="width: 0%"></div>
+                    </div>
+                    <div class="pack-import-progress-text" id="import-progress-text">Preparing import...</div>
+                    <div class="pack-import-progress-current-file" id="import-current-file-container" style="display: none;">
+                        <div class="pack-import-progress-current-file-label">Current File</div>
+                        <div class="pack-import-progress-current-file-name" id="import-current-file"></div>
+                    </div>
+                    <div class="pack-import-progress-details" id="import-progress-details">
+                        <div class="pack-import-progress-detail-item">
+                            <span class="pack-import-progress-detail-label">Files Processed</span>
+                            <span class="pack-import-progress-detail-value" id="import-files-processed">0 / 0</span>
+                        </div>
+                        <div class="pack-import-progress-detail-item">
+                            <span class="pack-import-progress-detail-label">Time Remaining</span>
+                            <span class="pack-import-progress-detail-value" id="import-time-remaining">Calculating...</span>
+                        </div>
+                        <div class="pack-import-progress-detail-item">
+                            <span class="pack-import-progress-detail-label">Current Pack</span>
+                            <span class="pack-import-progress-detail-value" id="import-current-pack">-</span>
+                        </div>
+                        <div class="pack-import-progress-detail-item">
+                            <span class="pack-import-progress-detail-label">Processing Speed</span>
+                            <span class="pack-import-progress-detail-value" id="import-speed">-</span>
+                        </div>
+                    </div>
+                    <button class="pack-import-btn pack-import-btn-danger pack-import-cancel-btn" id="cancel-import">
+                        <i class="fas fa-times"></i> Cancel Import
+                    </button>
                 </div>
-                <button class="pack-import-btn pack-import-btn-danger pack-import-cancel-btn" id="cancel-import">
-                    Cancel
-                </button>
             `;
             this.modal.querySelector('.pack-import-modal')?.appendChild(progressOverlay);
+            
+            // Initialize progress tracking
+            this.progressStartTime = Date.now();
+            this.progressData = {
+                filesProcessed: 0,
+                totalFiles: 0,
+                lastUpdate: Date.now()
+            };
+            
+            // Attach cancel button event listener
+            const cancelBtn = progressOverlay.querySelector('#cancel-import');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    if (window.packImporter?.executor) {
+                        window.packImporter.executor.cancel();
+                        if (window.notificationModal) {
+                            window.notificationModal.alert('Import cancelled by user', 'info', 'Import Cancelled');
+                        }
+                    }
+                });
+            }
         }
         
-        const textEl = progressOverlay.querySelector('#import-progress-text');
+        // Update progress data
+        const percentageEl = progressOverlay.querySelector('#import-progress-percentage');
         const barEl = progressOverlay.querySelector('#import-progress-bar');
+        const textEl = progressOverlay.querySelector('#import-progress-text');
+        const filesProcessedEl = progressOverlay.querySelector('#import-files-processed');
+        const timeRemainingEl = progressOverlay.querySelector('#import-time-remaining');
+        const currentPackEl = progressOverlay.querySelector('#import-current-pack');
+        const speedEl = progressOverlay.querySelector('#import-speed');
+        const currentFileEl = progressOverlay.querySelector('#import-current-file');
+        const currentFileContainer = progressOverlay.querySelector('#import-current-file-container');
         
-        if (textEl) textEl.textContent = message;
-        if (barEl) barEl.style.width = `${progress}%`;
+        // Handle different message formats
+        let percentage = 0;
+        let statusText = message || 'Processing...';
+        let currentFile = null;
+        let currentPack = null;
+        let filesProcessed = null;
+        let totalFiles = null;
+        
+        // Check if progress is an object with detailed info
+        if (typeof progress === 'object' && progress !== null) {
+            percentage = progress.percentage || 0;
+            statusText = progress.message || statusText;
+            currentFile = progress.currentFile;
+            currentPack = progress.packName;
+            filesProcessed = progress.filesProcessed;
+            totalFiles = progress.totalFiles;
+        } else {
+            // Simple number progress
+            percentage = progress || 0;
+        }
+        
+        // Update percentage display
+        if (percentageEl) {
+            percentageEl.textContent = `${Math.round(percentage)}%`;
+        }
+        
+        // Update progress bar
+        if (barEl) {
+            barEl.style.width = `${percentage}%`;
+        }
+        
+        // Update status text
+        if (textEl) {
+            textEl.textContent = statusText;
+        }
+        
+        // Update current file
+        if (currentFile && currentFileEl && currentFileContainer) {
+            currentFileEl.textContent = currentFile;
+            currentFileContainer.style.display = 'block';
+        } else if (currentFileContainer) {
+            currentFileContainer.style.display = 'none';
+        }
+        
+        // Update files processed
+        if (filesProcessed !== null && totalFiles !== null && filesProcessedEl) {
+            filesProcessedEl.textContent = `${filesProcessed} / ${totalFiles}`;
+            this.progressData.filesProcessed = filesProcessed;
+            this.progressData.totalFiles = totalFiles;
+        }
+        
+        // Update current pack
+        if (currentPack && currentPackEl) {
+            currentPackEl.textContent = currentPack;
+        }
+        
+        // Calculate and update time remaining
+        if (timeRemainingEl && this.progressData.totalFiles > 0) {
+            const now = Date.now();
+            const elapsed = now - this.progressStartTime;
+            const processed = this.progressData.filesProcessed;
+            const total = this.progressData.totalFiles;
+            
+            if (processed > 0 && processed < total) {
+                const avgTimePerFile = elapsed / processed;
+                const remaining = (total - processed) * avgTimePerFile;
+                timeRemainingEl.textContent = this.formatTime(remaining);
+                
+                // Calculate speed
+                if (speedEl) {
+                    const filesPerSecond = (processed / elapsed) * 1000;
+                    if (filesPerSecond >= 1) {
+                        speedEl.textContent = `${filesPerSecond.toFixed(1)} files/sec`;
+                    } else {
+                        const secondsPerFile = 1 / filesPerSecond;
+                        speedEl.textContent = `${secondsPerFile.toFixed(1)} sec/file`;
+                    }
+                }
+            } else if (processed >= total) {
+                timeRemainingEl.textContent = 'Finishing up...';
+                if (speedEl) speedEl.textContent = 'Complete';
+            }
+        }
+    },
+    
+    /**
+     * Format time in milliseconds to human readable
+     */
+    formatTime(ms) {
+        const seconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        
+        if (hours > 0) {
+            return `${hours}h ${minutes % 60}m`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${seconds % 60}s`;
+        } else if (seconds > 0) {
+            return `${seconds}s`;
+        } else {
+            return '< 1s';
+        }
     },
 
     /**

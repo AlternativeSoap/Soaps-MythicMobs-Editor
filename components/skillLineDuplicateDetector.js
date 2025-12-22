@@ -17,6 +17,11 @@ class SkillLineDuplicateDetector {
         
         // Mechanics that are commonly repeated and should not be flagged as duplicates
         this.excludedMechanics = ['delay', 'wait', 'pause'];
+        
+        // Initialize SmartDuplicateDetector for advanced fuzzy matching
+        if (typeof SmartDuplicateDetector !== 'undefined') {
+            this.smartDetector = new SmartDuplicateDetector();
+        }
     }
     
     /**
@@ -54,12 +59,54 @@ class SkillLineDuplicateDetector {
         // Find similar mechanics
         this.similarGroups = this.findSimilarMechanics(skillLines);
         
+        // Use SmartDuplicateDetector for advanced fuzzy matching if available
+        let smartResults = null;
+        if (this.smartDetector) {
+            try {
+                smartResults = this.smartDetector.detectInSkill(skillLines);
+                
+                // Merge smart detection results with our similar groups
+                // The smart detector uses fuzzy matching which complements our similarity detection
+                if (smartResults && smartResults.similar && smartResults.similar.length > 0) {
+                    // Add fuzzy-matched similar lines to our similar groups
+                    smartResults.similar.forEach(match => {
+                        // Only add if not already in our similar groups
+                        const alreadyExists = this.similarGroups.some(group => 
+                            group.baseIndex === match.line1 || 
+                            group.similarLines.some(sl => sl.index === match.line2)
+                        );
+                        
+                        if (!alreadyExists) {
+                            this.similarGroups.push({
+                                type: 'fuzzy',
+                                baseIndex: match.line1,
+                                baseLine: match.content1,
+                                similarLines: [{
+                                    index: match.line2,
+                                    line: match.content2,
+                                    similarity: match.similarity / 100, // Convert to 0-1 scale
+                                    differences: []
+                                }],
+                                suggestion: `Fuzzy match detected (${match.similarity.toFixed(1)}% similar). Consider consolidating.`,
+                                severity: match.similarity >= 90 ? 'warning' : 'info',
+                                averageSimilarity: match.similarity / 100
+                            });
+                        }
+                    });
+                }
+            } catch (error) {
+                console.warn('SmartDuplicateDetector error:', error);
+                // Continue without smart detection
+            }
+        }
+        
         // Calculate potential savings
         const potentialSavings = this.calculateSavings(this.duplicates, this.similarGroups);
         
         return {
             duplicates: this.duplicates,
             similarGroups: this.similarGroups,
+            smartResults: smartResults, // Include smart detection results
             summary: {
                 totalLines: skillLines.length,
                 exactDuplicates: this.duplicates.length,

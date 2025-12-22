@@ -684,8 +684,41 @@ class YAMLParser {
         }
 
         // Parse Enchantments
-        if (itemData.Enchantments && Array.isArray(itemData.Enchantments)) {
-            item.Enchantments = itemData.Enchantments.map(ench => String(ench));
+        if (itemData.Enchantments) {
+            if (Array.isArray(itemData.Enchantments)) {
+                item.Enchantments = itemData.Enchantments.map(ench => {
+                    const enchStr = String(ench);
+                    // Normalize legacy enchantment names
+                    if (window.EnchantmentData?.normalizeName) {
+                        // Split enchantment into name and level
+                        const parts = enchStr.includes(':') ? enchStr.split(':') : enchStr.split(' ');
+                        const enchName = parts[0].trim();
+                        const enchLevel = parts.slice(1).join(' ').trim() || '1';
+                        
+                        // Normalize the name
+                        const normalizedName = window.EnchantmentData.normalizeName(enchName);
+                        
+                        return `${normalizedName} ${enchLevel}`;
+                    }
+                    return enchStr;
+                });
+            } else if (typeof itemData.Enchantments === 'object') {
+                // Handle object format: { DURABILITY: 1, PROTECTION: 3 }
+                item.Enchantments = Object.entries(itemData.Enchantments).map(([type, level]) => {
+                    const normalizedName = window.EnchantmentData?.normalizeName ? 
+                        window.EnchantmentData.normalizeName(type) : type.toUpperCase();
+                    return `${normalizedName} ${level}`;
+                });
+            } else {
+                // Single enchantment as string
+                const enchStr = String(itemData.Enchantments);
+                const parts = enchStr.split(' ');
+                const enchName = parts[0];
+                const enchLevel = parts.slice(1).join(' ') || '1';
+                const normalizedName = window.EnchantmentData?.normalizeName ? 
+                    window.EnchantmentData.normalizeName(enchName) : enchName.toUpperCase();
+                item.Enchantments = [`${normalizedName} ${enchLevel}`];
+            }
         }
 
         // Parse Attributes (slot-based)

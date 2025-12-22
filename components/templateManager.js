@@ -9,12 +9,12 @@ class TemplateManager {
         this.supabase = supabaseClient;
         this.auth = authManager;
         
-        // Cache management (5-minute TTL)
-        this.cache = {
-            templates: null,
-            timestamp: null,
-            ttl: 5 * 60 * 1000 // 5 minutes
-        };
+        // Use IntelligentCacheManager with 5-minute TTL
+        this.cache = new IntelligentCacheManager({
+            defaultTTL: 5 * 60 * 1000, // 5 minutes
+            maxSize: 100, // Max 100 template entries
+            enableAdaptiveTTL: true
+        });
     }
     
     // ========================================
@@ -25,25 +25,23 @@ class TemplateManager {
      * Check if cache is valid
      */
     isCacheValid() {
-        if (!this.cache.templates || !this.cache.timestamp) return false;
-        const age = Date.now() - this.cache.timestamp;
-        return age < this.cache.ttl;
+        return this.cache.has('templates');
     }
     
     /**
      * Invalidate cache (force refresh)
      */
     invalidateCache() {
-        this.cache.templates = null;
-        this.cache.timestamp = null;
+        this.cache.delete('templates');
     }
     
     /**
      * Set cache
      */
     setCache(templates) {
-        this.cache.templates = templates;
-        this.cache.timestamp = Date.now();
+        this.cache.set('templates', templates, {
+            tags: ['templates', 'user-content']
+        });
     }
     
     // ========================================
@@ -139,7 +137,7 @@ class TemplateManager {
         
         // Check cache first
         if (this.isCacheValid()) {
-            const cached = this.cache.templates;
+            const cached = this.cache.get('templates');
             return type ? cached.filter(t => t.type === type) : cached;
         }
         

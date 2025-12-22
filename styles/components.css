@@ -397,6 +397,11 @@
     max-width: 800px;
 }
 
+/* Confirm Modal Styles */
+.modal.modal-confirm {
+    max-width: 600px !important;
+}
+
 /* Alert Modal Styles */
 .modal-alert {
     max-width: 450px !important;

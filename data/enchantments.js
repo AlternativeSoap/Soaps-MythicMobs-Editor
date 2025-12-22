@@ -65,14 +65,54 @@ const ENCHANTMENTS = [
     { id: 'BREACH', name: 'Breach', maxLevel: 4, category: 'Mace', description: 'Reduces armor effectiveness' }
 ];
 
+// Legacy enchantment name mappings (pre-1.13 names to modern names)
+const LEGACY_ENCHANTMENT_NAMES = {
+    'DURABILITY': 'UNBREAKING',
+    'ARROW_DAMAGE': 'POWER',
+    'ARROW_KNOCKBACK': 'PUNCH',
+    'ARROW_FIRE': 'FLAME',
+    'ARROW_INFINITE': 'INFINITY',
+    'DIG_SPEED': 'EFFICIENCY',
+    'DAMAGE_ALL': 'SHARPNESS',
+    'DAMAGE_UNDEAD': 'SMITE',
+    'DAMAGE_ARTHROPODS': 'BANE_OF_ARTHROPODS',
+    'LOOT_BONUS_MOBS': 'LOOTING',
+    'LOOT_BONUS_BLOCKS': 'FORTUNE',
+    'OXYGEN': 'RESPIRATION',
+    'WATER_WORKER': 'AQUA_AFFINITY',
+    'PROTECTION_ENVIRONMENTAL': 'PROTECTION',
+    'PROTECTION_FIRE': 'FIRE_PROTECTION',
+    'PROTECTION_FALL': 'FEATHER_FALLING',
+    'PROTECTION_EXPLOSIONS': 'BLAST_PROTECTION',
+    'PROTECTION_PROJECTILE': 'PROJECTILE_PROTECTION'
+};
+
 window.EnchantmentData = {
     ENCHANTMENTS,
+    LEGACY_ENCHANTMENT_NAMES,
     
     /**
-     * Get enchantment by ID
+     * Get enchantment by ID (supports legacy names)
      */
     getEnchantment(id) {
-        return ENCHANTMENTS.find(e => e.id === id);
+        // Try direct match first
+        let enchant = ENCHANTMENTS.find(e => e.id === id || e.id === id.toUpperCase());
+        
+        // If not found, try legacy name mapping
+        if (!enchant && LEGACY_ENCHANTMENT_NAMES[id.toUpperCase()]) {
+            const modernName = LEGACY_ENCHANTMENT_NAMES[id.toUpperCase()];
+            enchant = ENCHANTMENTS.find(e => e.id === modernName);
+        }
+        
+        return enchant;
+    },
+    
+    /**
+     * Normalize enchantment name (convert legacy to modern)
+     */
+    normalizeName(name) {
+        const upper = name.toUpperCase();
+        return LEGACY_ENCHANTMENT_NAMES[upper] || upper;
     },
     
     /**

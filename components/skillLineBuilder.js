@@ -238,7 +238,8 @@ class SkillLineBuilder {
             this.render();
             const renderTime = performance.now() - startTime;
             
-            this.setState({ lastRenderTime: renderTime });
+            // Update state directly without triggering re-render (performance tracking only)
+            this.state.lastRenderTime = renderTime;
             
             if (renderTime > 16.67) {
                 console.warn(`⚠️ Slow render: ${renderTime.toFixed(2)}ms`);

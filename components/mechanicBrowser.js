@@ -40,7 +40,35 @@ class MechanicBrowser {
         
         // Smart features
         this.recentMechanics = this.loadRecentMechanics();
-        this.favoritesManager = new FavoritesManager('mechanicBrowser_favorites');
+        // Smart Favorites Manager for intelligent auto-promotion and usage tracking
+        if (typeof SmartFavoritesManager !== 'undefined') {
+            this.favoritesManager = new SmartFavoritesManager('mechanicBrowser', 'mechanics');
+        } else {
+            // Fallback to basic FavoritesManager if SmartFavoritesManager not available
+            this.favoritesManager = new FavoritesManager('mechanicBrowser_favorites');
+        }
+        
+        // Performance settings (will be set from DevicePerformanceDetector if available)
+        this.performanceSettings = {
+            useVirtualScroll: false, // Enable for 100+ items
+            batchSize: 30, // Render 30 items at a time
+            debounceSearch: 300, // ms
+            disableTransitions: false, // Disable CSS transitions on slow devices
+            lazyLoadImages: true, // Lazy load images and heavy content
+            minItemsForVirtualScroll: 50 // Start virtual scrolling at this threshold
+        };
+        
+        // Debounce timer for search
+        this.searchDebounceTimer = null;
+        
+        // Template cache for faster rendering
+        this.cardTemplate = null;
+        
+        // Intersection observer for lazy loading
+        this.intersectionObserver = null;
+        
+        // Apply adaptive settings if available
+        this.applyAdaptiveSettings();
         
         // Performance optimizations
         this.eventListeners = [];
@@ -118,7 +146,33 @@ class MechanicBrowser {
      * Toggle favorite mechanic (O(1))
      */
     toggleFavorite(mechanicId) {
-        return this.favoritesManager.toggle(mechanicId);
+        const result = this.favoritesManager.toggle(mechanicId);
+        
+        // Track usage for auto-favoriting if SmartFavoritesManager is being used
+        if (this.favoritesManager instanceof SmartFavoritesManager) {
+            this.favoritesManager.trackUsage(mechanicId);
+        }
+        
+        // Update button visual state immediately (no full re-render needed)
+        const button = document.querySelector(`.btn-favorite[data-mechanic-id="${mechanicId}"]`);
+        if (button) {
+            const icon = button.querySelector('i');
+            const isFavorited = this.isFavorite(mechanicId);
+            
+            if (icon) {
+                icon.className = isFavorited ? 'fas fa-star' : 'far fa-star';
+                icon.style.color = isFavorited ? '#ffc107' : '#666';
+                icon.style.animation = isFavorited ? 'starGlow 1.5s ease-in-out infinite' : 'none';
+            }
+            button.title = isFavorited ? 'Remove from favorites' : 'Add to favorites';
+        }
+        
+        // Clear cache for favorites category
+        const favCacheKey = `Favorites:${this.searchQuery}`;
+        this.renderCache.delete(favCacheKey);
+        this.searchCache.delete(favCacheKey);
+        
+        return result;
     }
     
     /**
@@ -250,11 +304,11 @@ class MechanicBrowser {
             }
         });
 
-        // Search input with debouncing (150ms)
+        // Search input with debouncing (300ms for better performance)
         const debouncedSearch = debounce((query) => {
             this.searchQuery = query;
             this.renderMechanics();
-        }, 150);
+        }, 300);
         
         document.getElementById('mechanicSearchInput').addEventListener('input', (e) => {
             debouncedSearch(e.target.value);
@@ -277,9 +331,9 @@ class MechanicBrowser {
                 e.stopPropagation();
                 const mechanicId = favoriteBtn.dataset.mechanicId;
                 this.toggleFavorite(mechanicId);
-                this.renderMechanics();
-                this.renderQuickAccess();
-                this.updateCategoryCounts();
+                // No need to re-render - toggle handles visual update
+                this.renderQuickAccess(); // Update quick access counts
+                this.updateCategoryCounts(); // Update category counts
             }
         });
 
@@ -465,12 +519,8 @@ class MechanicBrowser {
         this.currentCategory = 'All';
         this.searchQuery = '';
         
-        // OPTIMIZATION: Use double RAF to ensure smooth rendering after layout
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                this.renderMechanics();
-            });
-        });
+        // Render immediately - skeleton already shown for perceived performance
+        this.renderMechanics();
     }
     
     /**
@@ -538,6 +588,57 @@ class MechanicBrowser {
     }
 
     /**
+     * Apply adaptive performance settings based on device capabilities
+     */
+    applyAdaptiveSettings() {
+        if (typeof DevicePerformanceDetector === 'undefined') return;
+        
+        try {
+            const detector = new DevicePerformanceDetector();
+            const profile = detector.profile; // Use profile property, not getProfile()
+            
+            if (profile && profile.deviceClass) {
+                // Adjust settings based on device performance
+                switch (profile.deviceClass) {
+                    case 'slow':
+                        this.performanceSettings.useVirtualScroll = true;
+                        this.performanceSettings.batchSize = 20;
+                        this.performanceSettings.debounceSearch = 500;
+                        this.performanceSettings.disableTransitions = true;
+                        this.performanceSettings.minItemsForVirtualScroll = 30;
+                        break;
+                    case 'medium':
+                        this.performanceSettings.useVirtualScroll = false;
+                        this.performanceSettings.batchSize = 30;
+                        this.performanceSettings.debounceSearch = 300;
+                        this.performanceSettings.disableTransitions = false;
+                        this.performanceSettings.minItemsForVirtualScroll = 50;
+                        break;
+                    case 'fast':
+                        this.performanceSettings.useVirtualScroll = false;
+                        this.performanceSettings.batchSize = 50;
+                        this.performanceSettings.debounceSearch = 150;
+                        this.performanceSettings.disableTransitions = false;
+                        this.performanceSettings.minItemsForVirtualScroll = 100;
+                        break;
+                }
+                
+                // Apply CSS class to disable transitions if needed
+                if (this.performanceSettings.disableTransitions) {
+                    const overlay = document.getElementById('mechanicBrowserOverlay');
+                    if (overlay) {
+                        overlay.classList.add('disable-transitions');
+                    }
+                }
+                
+                console.log(`📊 Mechanic Browser optimized for ${profile.deviceClass} device:`, this.performanceSettings);
+            }
+        } catch (error) {
+            console.warn('Could not apply adaptive settings:', error);
+        }
+    }
+    
+    /**
      * Render mechanics list (using DataOptimizer with HTML caching)
      */
     renderMechanics() {
@@ -604,14 +705,42 @@ class MechanicBrowser {
             return;
         }
 
-        // Note: Virtual scrolling disabled for grid layouts to preserve multi-column CSS grid
-        // The grid layout is more important for UX than virtual scrolling performance
-
-        const renderedHTML = mechanics.map(mechanic => 
+        // Check if we should use virtual scrolling
+        const shouldUseVirtualScroll = this.performanceSettings.useVirtualScroll && 
+                                       mechanics.length > this.performanceSettings.minItemsForVirtualScroll;
+        
+        // Use VirtualScrollManager if available and needed
+        if (shouldUseVirtualScroll && typeof VirtualScrollManager !== 'undefined') {
+            this.initializeVirtualScroll(listContainer, mechanics);
+            return;
+        }
+        
+        // Use DocumentFragment for efficient batch rendering
+        const fragment = document.createDocumentFragment();
+        const tempDiv = document.createElement('div');
+        
+        // Batch render based on performance settings
+        const batchSize = this.performanceSettings.batchSize;
+        let itemsToRender = mechanics;
+        
+        // For large lists, render in smaller batches with requestIdleCallback
+        if (mechanics.length > 100 && window.requestIdleCallback) {
+            this.renderInBatches(listContainer, mechanics, batchSize);
+            return;
+        }
+        
+        const renderedHTML = itemsToRender.map(mechanic => 
             this.renderMechanicCard(mechanic)
         ).join('');
         
-        listContainer.innerHTML = renderedHTML;
+        tempDiv.innerHTML = renderedHTML;
+        while (tempDiv.firstChild) {
+            fragment.appendChild(tempDiv.firstChild);
+        }
+        
+        // Clear and append in one operation
+        listContainer.innerHTML = '';
+        listContainer.appendChild(fragment);
         
         // Cache the rendered HTML
         this.renderCache.set(cacheKey, renderedHTML);
@@ -626,6 +755,75 @@ class MechanicBrowser {
     }
 
     /**
+     * Initialize virtual scrolling for large lists
+     */
+    initializeVirtualScroll(container, mechanics) {
+        if (!this.virtualScroller) {
+            this.virtualScroller = new VirtualScrollManager({
+                itemHeight: 180, // Approximate height of mechanic card
+                bufferSize: 3,
+                minItemsForVirtualization: this.performanceSettings.minItemsForVirtualScroll
+            });
+        }
+        
+        const scrollContainer = container.closest('.condition-browser-body') || container;
+        
+        this.virtualScroller.initialize(
+            scrollContainer,
+            container,
+            mechanics,
+            (index, mechanic) => this.renderMechanicCard(mechanic)
+        );
+        
+        this.setupMechanicEventDelegation(container);
+        console.log(`🚀 Virtual scrolling enabled for ${mechanics.length} mechanics`);
+    }
+    
+    /**
+     * Render mechanics in batches using requestIdleCallback for better performance
+     */
+    renderInBatches(container, mechanics, batchSize) {
+        let currentIndex = 0;
+        const fragment = document.createDocumentFragment();
+        const tempDiv = document.createElement('div');
+        
+        const renderBatch = (deadline) => {
+            while ((deadline.timeRemaining() > 0 || deadline.didTimeout) && currentIndex < mechanics.length) {
+                const endIndex = Math.min(currentIndex + batchSize, mechanics.length);
+                const batch = mechanics.slice(currentIndex, endIndex);
+                
+                const batchHTML = batch.map(m => this.renderMechanicCard(m)).join('');
+                tempDiv.innerHTML = batchHTML;
+                
+                while (tempDiv.firstChild) {
+                    fragment.appendChild(tempDiv.firstChild);
+                }
+                
+                currentIndex = endIndex;
+            }
+            
+            if (currentIndex === batchSize) {
+                // First batch - show immediately
+                container.innerHTML = '';
+                container.appendChild(fragment.cloneNode(true));
+                this.setupMechanicEventDelegation(container);
+            } else if (currentIndex < mechanics.length) {
+                // More batches to render
+                container.appendChild(fragment.cloneNode(true));
+            } else {
+                // Final batch
+                container.appendChild(fragment);
+            }
+            
+            if (currentIndex < mechanics.length) {
+                requestIdleCallback(renderBatch, { timeout: 1000 });
+            }
+        };
+        
+        requestIdleCallback(renderBatch, { timeout: 1000 });
+    }
+    
+    /**
      * Render a single mechanic card
      */
     renderMechanicCard(mechanic) {
@@ -636,43 +834,26 @@ class MechanicBrowser {
             badges.push(`<span class="mechanic-badge attributes">${mechanic.attributes.length} attributes</span>`);
         }
 
-        const aliasesHTML = mechanic.aliases && mechanic.aliases.length > 0
-            ? `<div class="mechanic-aliases"><strong>Aliases:</strong> ${mechanic.aliases.join(', ')}</div>`
-            : '';
-
-        const examplesHTML = mechanic.examples && mechanic.examples.length > 0
-            ? `<div class="mechanic-examples"><code>${mechanic.examples[0]}</code></div>`
-            : '';
-
-        return `
-            <div class="condition-card" data-mechanic="${mechanic.id}">
-                    <div class="condition-card-header">
-                        <h4>${mechanic.name}</h4>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <button class="btn-icon btn-favorite" data-mechanic-id="${mechanic.id}" title="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
-                                <i class="${isFavorite ? 'fas' : 'far'} fa-star" style="color: ${isFavorite ? '#ffc107' : '#666'}; ${isFavorite ? 'animation: starGlow 1.5s ease-in-out infinite;' : ''}"></i>
-                            </button>
-                            <span class="condition-category-badge">${mechanic.category}</span>
-                        </div>
-                    </div>
-                    <div class="condition-card-body">
-                        <p class="condition-card-description">${mechanic.description}</p>
-                        ${mechanic.aliases && mechanic.aliases.length > 0 ? `
-                            <div class="condition-aliases">
-                                <strong>Aliases:</strong> ${mechanic.aliases.join(', ')}
-                            </div>
-                    ` : ''}
-                    ${mechanic.examples && mechanic.examples.length > 0 ? `
-                        <div class="condition-example">
-                            <code>${mechanic.examples[0]}</code>
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="condition-card-footer">
-                    <button class="btn btn-primary btn-select-mechanic">Select</button>
-                </div>
-            </div>
-        `;
+        // Simplified rendering for better performance
+        return `<div class="condition-card" data-mechanic="${mechanic.id}">
+    <div class="condition-card-header">
+        <h4>${mechanic.name}</h4>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="btn-icon btn-favorite" data-mechanic-id="${mechanic.id}" title="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
+                <i class="${isFavorite ? 'fas' : 'far'} fa-star" style="color: ${isFavorite ? '#ffc107' : '#666'};"></i>
+            </button>
+            <span class="condition-category-badge">${mechanic.category}</span>
+        </div>
+    </div>
+    <div class="condition-card-body">
+        <p class="condition-card-description">${mechanic.description}</p>${mechanic.aliases?.length ? `
+        <div class="condition-aliases"><strong>Aliases:</strong> ${mechanic.aliases.join(', ')}</div>` : ''}${mechanic.examples?.length ? `
+        <div class="condition-example"><code>${mechanic.examples[0]}</code></div>` : ''}
+    </div>
+    <div class="condition-card-footer">
+        <button class="btn btn-primary btn-select-mechanic">Select</button>
+    </div>
+</div>`;
     }
 
     /**
@@ -2055,10 +2236,18 @@ class MechanicBrowser {
             }
         });
 
-        // Search functionality
+        // Search functionality with debouncing
         searchInput.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase();
-            const categories = container.querySelectorAll('.entity-category');
+            
+            // Clear existing timer
+            if (this.searchDebounceTimer) {
+                clearTimeout(this.searchDebounceTimer);
+            }
+            
+            // Debounce search for better performance
+            this.searchDebounceTimer = setTimeout(() => {
+                const categories = container.querySelectorAll('.entity-category');
             
             categories.forEach(category => {
                 const items = category.querySelectorAll('.entity-item');
@@ -2077,6 +2266,7 @@ class MechanicBrowser {
                 // Hide category if no visible items
                 category.style.display = visibleCount > 0 ? '' : 'none';
             });
+            }, this.performanceSettings.debounceSearch);
         });
 
         // Sync input changes back to chips

@@ -11,7 +11,13 @@ class ConditionBrowser {
         this.searchQuery = '';
         this.onSelectCallback = null;
         this.callbackInvoked = false;  // Track if callback was already called
-        this.favoritesManager = new FavoritesManager('conditionBrowserFavorites');
+        // Smart Favorites Manager for intelligent auto-promotion and usage tracking
+        if (typeof SmartFavoritesManager !== 'undefined') {
+            this.favoritesManager = new SmartFavoritesManager('conditionBrowser', 'conditions');
+        } else {
+            // Fallback to basic FavoritesManager if SmartFavoritesManager not available
+            this.favoritesManager = new FavoritesManager('conditionBrowserFavorites');
+        }
         this.searchCache = new LRUCache(10);
         this.virtualScroller = null;
         this.usageMode = 'yaml';  // 'inline' or 'yaml'
@@ -46,6 +52,12 @@ class ConditionBrowser {
      */
     toggleFavorite(conditionId) {
         this.favoritesManager.toggle(conditionId);
+        
+        // Track usage for auto-favoriting if SmartFavoritesManager is being used
+        if (typeof SmartFavoritesManager !== 'undefined' && this.favoritesManager instanceof SmartFavoritesManager) {
+            this.favoritesManager.trackUsage(conditionId);
+        }
+        
         this.renderConditions();
     }
 

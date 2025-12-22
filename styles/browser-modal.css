@@ -316,6 +316,10 @@
     cursor: pointer;
     position: relative;
     overflow: hidden;
+    
+    /* Performance optimizations */
+    content-visibility: auto;
+    contain-intrinsic-size: 180px;
 }
 
 .condition-card::after {
@@ -1467,6 +1471,14 @@
     .action-buttons .btn {
         width: 100%;
     }
+}
+
+/* Performance optimization: Disable transitions on low-end devices */
+.disable-transitions *,
+.disable-transitions *::before,
+.disable-transitions *::after {
+    transition: none !important;
+    animation: none !important;
 }
 
 /* Print Styles */

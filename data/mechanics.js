@@ -22,6 +22,19 @@ const UNIVERSAL_ATTRIBUTES = [
     { name: 'forcesync', alias: ['sync'], type: 'boolean', default: false, description: 'Force synchronous execution (needed for some mechanics like CancelEvent)' }
 ];
 
+// Skill Reference Parameters - Parameters that reference other skills
+const SKILL_REFERENCE_PARAMS = [
+    'onStartSkill', 'onStart', 'oS',
+    'onTickSkill', 'onTick', 'oT',
+    'onEndSkill', 'onEnd', 'oE',
+    'onHitSkill', 'onHit', 'oH',
+    'onBounceSkill', 'onBounce',
+    'onHitBlockSkill', 'onHitBlock', 'ohb',
+    'onInteractSkill', 'onInteract',
+    'onstartskill', 'ontickskill', 'onendskill', // lowercase variants
+    'skill', 's', 'm', 'meta' // common aliases
+];
+
 // Inherited Particle Attributes - Shared by all particle mechanics except base Particle
 const INHERITED_PARTICLE_ATTRIBUTES = [
     { name: 'mob', alias: ['m', 't'], type: 'text', default: '', description: 'Entity to spawn as particle (Premium Only)' },
@@ -604,9 +617,9 @@ const MECHANICS_DATA = {
                 { name: 'auraname', alias: ['aura', 'b', 'buff', 'buffname', 'debuff', 'debuffname', 'n', 'name'], type: 'string', default: 'UUID', description: 'Optional name, required for aura mechanics & conditions' },
                 { name: 'auratype', alias: ['auragroup', 'group', 'type', 'g'], type: 'string', default: '', description: 'The type/group of the aura' },
                 { name: 'attachmenttype', alias: ['attachment', 'attach'], type: 'string', default: 'NONE', description: 'Attachment to apply (NONE, MODELENGINE)' },
-                { name: 'onstartskill', alias: ['onstart', 'os'], type: 'string', default: '', description: 'Metaskill executed when aura starts' },
-                { name: 'ontickskill', alias: ['ontick', 'ot'], type: 'string', default: '', description: 'Metaskill executed every interval' },
-                { name: 'onendskill', alias: ['onend', 'oe'], type: 'string', default: '', description: 'Metaskill executed when aura ends' },
+                { name: 'onstartskill', alias: ['onstart', 'os'], type: 'skillref', default: '', description: 'Metaskill executed when aura starts' },
+                { name: 'ontickskill', alias: ['ontick', 'ot'], type: 'skillref', default: '', description: 'Metaskill executed every interval' },
+                { name: 'onendskill', alias: ['onend', 'oe'], type: 'skillref', default: '', description: 'Metaskill executed when aura ends' },
                 { name: 'showbartimer', alias: ['bartimer', 'bt'], type: 'boolean', default: false, description: 'Display boss bar timer for caster' },
                 { name: 'bartimerdisplay', alias: ['bartimertext'], type: 'string', default: '', description: 'Boss bar text (if showBarTimer=true)' },
                 { name: 'bartimercolor', alias: [], type: 'string', default: 'RED', description: 'Boss bar color' },
@@ -699,13 +712,13 @@ const MECHANICS_DATA = {
             description: 'Fires a meta-projectile that can be decorated with particle/sound effects. Has the most attributes of any mechanic. Other mechanics (Missile, Totem, Orbital) inherit from this. Type can be NORMAL or METEOR.',
             attributes: [
                 // Multi-Skill Attributes (Inheritable)
-                { name: 'onStartSkill', alias: ['onStart', 'oS'], type: 'string', default: '', description: 'Metaskill executed when projectile starts at origin' },
-                { name: 'onTickSkill', alias: ['onTick', 'oT', 'm', 'meta', 's', 'skill'], type: 'string', default: '', description: 'Metaskill executed every [interval] ticks at origin' },
-                { name: 'onHitSkill', alias: ['onHit', 'oH'], type: 'string', default: '', description: 'Metaskill executed when hitting entities. Targets inherited.' },
-                { name: 'onEndSkill', alias: ['onEnd', 'oE'], type: 'string', default: '', description: 'Metaskill executed when projectile ends' },
-                { name: 'onBounceSkill', alias: ['onBounce'], type: 'string', default: '', description: 'Metaskill executed on bounce (Premium)' },
-                { name: 'onHitBlockSkill', alias: ['onHitBlock', 'ohb'], type: 'string', default: '', description: 'Metaskill executed when hitting a block' },
-                { name: 'onInteractSkill', alias: ['onInteract'], type: 'string', default: '', description: 'Metaskill executed when projectile is interacted with' },
+                { name: 'onStartSkill', alias: ['onStart', 'oS'], type: 'skillref', default: '', description: 'Metaskill executed when projectile starts at origin' },
+                { name: 'onTickSkill', alias: ['onTick', 'oT', 'm', 'meta', 's', 'skill'], type: 'skillref', default: '', description: 'Metaskill executed every [interval] ticks at origin' },
+                { name: 'onHitSkill', alias: ['onHit', 'oH'], type: 'skillref', default: '', description: 'Metaskill executed when hitting entities. Targets inherited.' },
+                { name: 'onEndSkill', alias: ['onEnd', 'oE'], type: 'skillref', default: '', description: 'Metaskill executed when projectile ends' },
+                { name: 'onBounceSkill', alias: ['onBounce'], type: 'skillref', default: '', description: 'Metaskill executed on bounce (Premium)' },
+                { name: 'onHitBlockSkill', alias: ['onHitBlock', 'ohb'], type: 'skillref', default: '', description: 'Metaskill executed when hitting a block' },
+                { name: 'onInteractSkill', alias: ['onInteract'], type: 'skillref', default: '', description: 'Metaskill executed when projectile is interacted with' },
                 
                 // Core Inheritable Attributes
                 { name: 'BulletType', alias: ['bullet', 'b'], type: 'select', default: '', description: 'Bullet type determines visual representation',

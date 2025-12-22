@@ -28,6 +28,7 @@
     
     <!-- Styles -->
     <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/mode-comparison.css">
     <link rel="stylesheet" href="styles/components.css">
     <link rel="stylesheet" href="styles/editor.css">
     <link rel="stylesheet" href="styles/browser-modal.css">
@@ -40,6 +41,7 @@
     <link rel="stylesheet" href="styles/adminPanelEnhanced.css">
     <link rel="stylesheet" href="styles/templateWizard.css">
     <link rel="stylesheet" href="styles/browser-management.css">
+    <link rel="stylesheet" href="styles/pack-tools.css">
 </head>
 <body>
     <!-- Main Container -->
@@ -58,6 +60,10 @@
                     </button>
                     <button class="mode-btn" data-mode="advanced" title="Enables all MythicMobs features and advanced options">
                         <i class="fas fa-user-cog"></i> Advanced
+                        <i class="fas fa-info-circle mode-info-icon" id="mode-info-icon" title="What's included in Advanced mode?"></i>
+                    </button>
+                    <button class="mode-difference-link" id="mode-difference-btn" title="Compare Beginner and Advanced modes">
+                        <i class="fas fa-question-circle"></i> What's the difference?
                     </button>
                 </div>
             </div>
@@ -72,7 +78,7 @@
                     <i class="fas fa-check-circle"></i>
                     <span>All changes saved</span>
                 </div>
-                <div class="recent-changes-dropdown hidden" id="recent-changes-dropdown">
+                <div class="recent-changes-dropdown hidden advanced-only" id="recent-changes-dropdown">
                     <div class="dropdown-header">
                         <h4>Recent Changes</h4>
                     </div>
@@ -110,6 +116,66 @@
                         <button class="btn btn-secondary" id="logoutBtn" style="display: none;">
                             <i class="fas fa-sign-out-alt"></i> Sign Out
                         </button>
+                    </div>
+                </div>
+                
+                <!-- Tools Menu -->
+                <div class="tools-menu advanced-only">
+                    <button class="icon-btn" id="tools-btn" title="Tools">
+                        <i class="fas fa-wrench"></i>
+                    </button>
+                    <div class="tools-dropdown" id="tools-dropdown">
+                        <div class="tools-dropdown-item" data-tool="statistics">
+                            <i class="fas fa-chart-bar"></i>
+                            <div class="item-label">
+                                <div class="item-text">Pack Statistics</div>
+                                <span class="item-description">Analytics & metrics</span>
+                            </div>
+                        </div>
+                        
+                        <div class="tools-dropdown-item" data-tool="dependency">
+                            <i class="fas fa-project-diagram"></i>
+                            <div class="item-label">
+                                <div class="item-text">Dependency Graph</div>
+                                <span class="item-description">Ctrl+Shift+D</span>
+                            </div>
+                        </div>
+                        
+                        <div class="tools-dropdown-divider"></div>
+                        
+                        <div class="tools-dropdown-item" data-tool="duplicates">
+                            <i class="fas fa-clone"></i>
+                            <div class="item-label">
+                                <div class="item-text">Duplicate Detector</div>
+                                <span class="item-description">Find conflicts</span>
+                            </div>
+                        </div>
+                        
+                        <div class="tools-dropdown-item" data-tool="validator">
+                            <i class="fas fa-check-circle"></i>
+                            <div class="item-label">
+                                <div class="item-text">Pack Validator</div>
+                                <span class="item-description">Health check</span>
+                            </div>
+                        </div>
+                        
+                        <div class="tools-dropdown-item" data-tool="usage">
+                            <i class="fas fa-chart-line"></i>
+                            <div class="item-label">
+                                <div class="item-text">Skill Usage Report</div>
+                                <span class="item-description">Usage analytics</span>
+                            </div>
+                        </div>
+                        
+                        <div class="tools-dropdown-divider"></div>
+                        
+                        <div class="tools-dropdown-item" data-tool="backup">
+                            <i class="fas fa-save"></i>
+                            <div class="item-label">
+                                <div class="item-text">Backup Manager</div>
+                                <span class="item-description">Save & restore</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -205,13 +271,13 @@
                                     <p>Create loot table</p>
                                     <span class="shortcut-badge"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></span>
                                 </button>
-                                <button class="action-card" id="quick-new-randomspawn">
+                                <button class="action-card advanced-only" id="quick-new-randomspawn">
                                     <i class="fas fa-map-marked-alt"></i>
                                     <h3>New RandomSpawn</h3>
                                     <p>Create spawn config</p>
                                     <span class="shortcut-badge"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd></span>
                                 </button>
-                                <button class="action-card" id="quick-import">
+                                <button class="action-card advanced-only" id="quick-import">
                                     <i class="fas fa-file-import"></i>
                                     <h3>Import YAML</h3>
                                     <p>Import existing config</p>
@@ -290,9 +356,6 @@
                 <div class="sidebar-header">
                     <h3><i class="fas fa-code"></i> YAML Preview</h3>
                     <div class="header-actions">
-                        <button class="icon-btn" id="edit-yaml-btn" title="Edit YAML">
-                            <i class="fas fa-edit"></i>
-                        </button>
                         <button class="icon-btn" id="copy-yaml-btn" title="Copy YAML">
                             <i class="fas fa-copy"></i>
                         </button>
@@ -302,8 +365,7 @@
                     </div>
                 </div>
                 <div class="sidebar-content">
-                    <pre class="yaml-preview" id="yaml-preview-content"><code># Select an item to see YAML preview</code></pre>
-                    <textarea class="yaml-editor hidden" id="yaml-editor" spellcheck="false"></textarea>
+                    <pre class="yaml-preview" id="yaml-preview-content" contenteditable="true" spellcheck="false"><code># Select an item to see YAML preview</code></pre>
                 </div>
                 <div class="sidebar-footer">
                     <button class="btn btn-primary btn-sm" id="export-yaml-btn">
@@ -450,7 +512,17 @@
                                 <option value="advanced">Advanced</option>
                             </select>
                         </div>
-                        <div class="setting-item">
+                        <div class="setting-item advanced-only">
+                            <div class="setting-info">
+                                <label class="setting-label">Delay Display Mode</label>
+                                <span class="setting-description">How to display delay mechanics in skill editor</span>
+                            </div>
+                            <select class="form-select" id="setting-delay-display-mode">
+                                <option value="ticks">Ticks (Minecraft ticks)</option>
+                                <option value="seconds">Seconds (20 ticks = 1s)</option>
+                            </select>
+                        </div>
+                        <div class="setting-item advanced-only">
                             <div class="setting-info">
                                 <label class="setting-label">Compact Mode</label>
                                 <span class="setting-description">Reduce spacing in editor UI</span>
@@ -464,7 +536,7 @@
                     
                     <!-- File Settings -->
                     <div class="settings-panel" id="settings-files">
-                        <div class="setting-item">
+                        <div class="setting-item advanced-only">
                             <div class="setting-info">
                                 <label class="setting-label">Include Default Values</label>
                                 <span class="setting-description">Include default values in YAML export</span>
@@ -494,7 +566,7 @@
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
-                        <div class="setting-item">
+                        <div class="setting-item advanced-only">
                             <div class="setting-info">
                                 <label class="setting-label">Internal Name Space Replacement</label>
                                 <span class="setting-description">Character used to replace spaces in internal names (e.g., "My Skill" → "My<span id="separator-preview">_</span>Skill")</span>
@@ -522,7 +594,7 @@
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
-                        <div class="setting-item">
+                        <div class="setting-item advanced-only">
                             <div class="setting-info">
                                 <label class="setting-label">Max History Entries</label>
                                 <span class="setting-description">Maximum number of changes to remember</span>
@@ -683,6 +755,7 @@
     <script src="utils/browserPerformance.js"></script>
     <script src="utils/dataStructureOptimizer.js"></script>
     <script src="utils/favoritesManager.js"></script>
+    <script src="utils/graphUtils.js"></script>
     <script src="utils/helpers.js"></script>
     <script src="utils/yamlParser.js"></script>
     <script src="utils/yamlExporter.js"></script>
@@ -697,6 +770,13 @@
     <script src="utils/editorHistory.js"></script>
     <script src="utils/collapsibleManager.js"></script>
     <script src="utils/panelResizer.js"></script>
+    
+    <!-- Smart Features -->
+    <script src="utils/autocompleteLearning.js"></script>
+    <script src="utils/intelligentCacheManager.js"></script>
+    <script src="utils/smartDuplicateDetector.js"></script>
+    <script src="utils/devicePerformanceDetector.js"></script>
+    <script src="utils/smartFavoritesManager.js"></script>
 
     <!-- Trigger System -->
     <script src="data/triggers.js"></script>
@@ -734,6 +814,7 @@
     <script src="components/triggerBrowser.js"></script>
     <script src="components/targeterBrowser.js?v=3.8"></script>
     <script src="components/mechanicBrowser.js"></script>
+    <script src="components/skillBrowser.js"></script>
     <script src="components/creationModeSelector.js"></script>
     <script src="components/notificationModal.js"></script>
     <script src="components/templateManager.js"></script>
@@ -745,6 +826,93 @@
     <script src="components/attributeBuilder.js"></script>
     <script src="components/adminManager.js"></script>
     <script src="components/adminPanel.js"></script>
+    
+    <!-- Mode Comparison Modal -->
+    <div class="modal" id="mode-comparison-modal">
+        <div class="modal-content mode-comparison-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-layer-group"></i> Beginner vs Advanced Mode</h2>
+                <button class="modal-close" id="close-mode-comparison">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="mode-comparison-intro">Choose the mode that fits your experience level. You can switch anytime!</p>
+                
+                <div class="mode-comparison-grid">
+                    <!-- Beginner Mode Column -->
+                    <div class="mode-column beginner-column">
+                        <div class="mode-column-header">
+                            <i class="fas fa-user"></i>
+                            <h3>Beginner Mode</h3>
+                            <span class="mode-badge beginner">Recommended for Starters</span>
+                        </div>
+                        <div class="mode-column-body">
+                            <p class="mode-description">Essential features to get you started quickly without overwhelming options.</p>
+                            
+                            <div class="feature-category">
+                                <h4><i class="fas fa-check-circle"></i> Included Features</h4>
+                                <ul class="feature-list">
+                                    <li><i class="fas fa-skull"></i> Create Mobs (Core Properties)</li>
+                                    <li><i class="fas fa-magic"></i> Create Skills (Basic Mechanics)</li>
+                                    <li><i class="fas fa-gem"></i> Create Items (Essential Options)</li>
+                                    <li><i class="fas fa-table"></i> Create Drop Tables</li>
+                                    <li><i class="fas fa-heart"></i> Health & Damage Settings</li>
+                                    <li><i class="fas fa-tag"></i> Display Names & Lore</li>
+                                    <li><i class="fas fa-shield-alt"></i> Basic Enchantments</li>
+                                    <li><i class="fas fa-cube"></i> Basic Attributes</li>
+                                    <li><i class="fas fa-save"></i> Save & Export YAML</li>
+                                    <li><i class="fas fa-file-import"></i> Import Packs</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Advanced Mode Column -->
+                    <div class="mode-column advanced-column">
+                        <div class="mode-column-header">
+                            <i class="fas fa-user-cog"></i>
+                            <h3>Advanced Mode</h3>
+                            <span class="mode-badge advanced">Full Feature Set</span>
+                        </div>
+                        <div class="mode-column-body">
+                            <p class="mode-description">Everything in Beginner mode, plus advanced features and tools for power users.</p>
+                            
+                            <div class="feature-category">
+                                <h4><i class="fas fa-plus-circle"></i> Additional Features</h4>
+                                <ul class="feature-list">
+                                    <li><i class="fas fa-wrench"></i> <strong>Tools Menu</strong> - Pack Statistics, Dependency Graph, Validators</li>
+                                    <li><i class="fas fa-history"></i> <strong>Recent Changes Tracker</strong> - Detailed edit history</li>
+                                    <li><i class="fas fa-map-marked-alt"></i> <strong>RandomSpawn Editor</strong> - Mob spawn configuration</li>
+                                    <li><i class="fas fa-file-code"></i> <strong>Direct YAML Import</strong> - Import raw YAML files</li>
+                                    <li><i class="fas fa-crown"></i> <strong>BossBar Settings</strong> - Custom boss health bars</li>
+                                    <li><i class="fas fa-puzzle-piece"></i> <strong>Modules System</strong> - MythicMobs modules</li>
+                                    <li><i class="fas fa-bolt"></i> <strong>Power System</strong> - Advanced mob abilities</li>
+                                    <li><i class="fas fa-code"></i> <strong>NBT Data</strong> - Custom item NBT tags</li>
+                                    <li><i class="fas fa-gem"></i> <strong>Crucible Skills</strong> - Item-based skills</li>
+                                    <li><i class="fas fa-book"></i> <strong>Advanced Item Options</strong> - Armor trim, books, banners</li>
+                                    <li><i class="fas fa-filter"></i> <strong>Conditions System</strong> - Skill conditions, target conditions, triggers</li>
+                                    <li><i class="fas fa-cogs"></i> <strong>Advanced Settings</strong> - Delay modes, compact UI, separators</li>
+                                    <li><i class="fas fa-clock"></i> <strong>Extended History</strong> - Configurable history size</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mode-comparison-footer">
+                    <p><i class="fas fa-lightbulb"></i> <strong>Tip:</strong> Start with Beginner mode and switch to Advanced when you need more features!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pack Tools -->
+    <script src="components/dependencyGraph.js"></script>
+    <script src="components/packStatistics.js"></script>
+    <script src="components/duplicateDetector.js"></script>
+    <script src="components/packValidator.js"></script>
+    <script src="components/skillUsageReport.js"></script>
+    <script src="components/backupManager.js"></script>
+    
     <script src="components/templateWizard.js"></script>
     <script src="components/templateEditor.js"></script>
     <script src="components/templateSelector.js"></script>
@@ -754,7 +922,6 @@
     <script src="components/skillLineGroupDetector.js"></script>
     <script src="components/skillLineQuickEdit.js"></script>
     <script src="components/skillLineTooltip.js"></script>
-    <script src="components/skillPatternAnalyzer.js"></script>
     <script src="components/validationPanel.js"></script>
     <script src="components/skillDependencyTracker.js"></script>
     <script src="components/skillLineFormatter.js"></script>
@@ -766,6 +933,7 @@
     <script src="utils/performanceUtils.js"></script>
     <script src="utils/lazyLoader.js"></script>
     <script src="utils/workerPool.js"></script>
+    <script src="utils/delayAnalyzer.js"></script>
     <script src="components/virtualScrollManager.js"></script>
     <script src="components/skillBuilderEditor.js"></script>
     <script src="components/mobDropsEditor.js"></script>
@@ -799,9 +967,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize global keyboard shortcut manager
             window.keyboardShortcutManager = new KeyboardShortcutManager();
-            
-            // Initialize onboarding tour
-            window.onboardingTour = new OnboardingTour();
             
             // Initialize global notification modal
             window.notificationModal = new NotificationModal();
@@ -909,13 +1074,6 @@
                     console.warn('⚠️ Template system not initialized: supabaseClient or authManager missing');
                 }
             }, 500);
-            
-            // Auto-start tour for new users after a short delay
-            setTimeout(() => {
-                if (window.onboardingTour.shouldAutoStart()) {
-                    window.onboardingTour.start();
-                }
-            }, 1000);
         });
     </script>
 </body>

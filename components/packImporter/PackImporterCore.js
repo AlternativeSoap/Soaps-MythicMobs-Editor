@@ -268,6 +268,11 @@ If you're on Chrome/Edge/Brave and still seeing this:
             // Build virtual folder structure from files
             const virtualStructure = this.buildVirtualStructure(fileList);
             
+            console.log('📂 Virtual structure built:');
+            console.log('   Root name:', virtualStructure.name);
+            console.log('   Root folders:', Object.keys(virtualStructure.folders));
+            console.log('   Root files:', virtualStructure.files.map(f => f.name));
+            
             // Detect folder type
             const folderType = this.detectFolderTypeFromFiles(virtualStructure);
 
@@ -275,8 +280,24 @@ If you're on Chrome/Edge/Brave and still seeing this:
             this.previewUI.updateLoadingStatus('Analyzing folder structure...', 15);
             this.currentScanResults = await this.scanFromFiles(fileList, virtualStructure, folderType);
             
+            console.log('📊 Scan complete:');
+            console.log('   Detected type:', this.currentScanResults.type);
+            console.log('   Packs found:', this.currentScanResults.packs.length);
+            console.log('   Pack names:', this.currentScanResults.packs.map(p => p.name));
+            
             if (!this.currentScanResults.packs || this.currentScanResults.packs.length === 0) {
-                throw new Error('No valid MythicMobs packs found in the selected folder.\n\nExpected structure:\n- Packs folder with sub-folders containing Mobs/Skills/Items\n- Or a single pack folder with Mobs/Skills/Items folders');
+                const errorDetails = `No valid MythicMobs packs found in the selected folder.
+
+Selected folder: ${virtualStructure.name}
+Detected type: ${folderType}
+Subfolders found: ${Object.keys(virtualStructure.folders).join(', ') || 'none'}
+
+Expected structure:
+• Single pack: Select a folder containing Mobs/, Skills/, Items/ subfolders
+• Multiple packs: Select a Packs folder containing pack subfolders
+
+Note: Folder names are case-insensitive (skills = Skills, mobs = Mobs)`;
+                throw new Error(errorDetails);
             }
 
             // Phase 2: Parse YAML files
@@ -373,11 +394,18 @@ If you're on Chrome/Edge/Brave and still seeing this:
      */
     detectFolderTypeFromFiles(structure) {
         const folderNames = Object.keys(structure.folders);
+        const folderNamesLower = folderNames.map(f => f.toLowerCase());
         const mythicFolders = ['Mobs', 'Skills', 'Items', 'DropTables', 'RandomSpawns'];
+        const mythicFoldersLower = mythicFolders.map(f => f.toLowerCase());
         
-        // Check if this is directly a pack (has Mobs/Skills/Items)
-        const hasMythicFolders = mythicFolders.some(f => folderNames.includes(f));
+        console.log('🔍 Detecting folder type:');
+        console.log('   Available folders:', folderNames);
+        console.log('   Looking for:', mythicFolders);
+        
+        // Check if this is directly a pack (has Mobs/Skills/Items) - case insensitive
+        const hasMythicFolders = mythicFoldersLower.some(f => folderNamesLower.includes(f));
         if (hasMythicFolders) {
+            console.log('   ✅ Detected: single-pack (has MythicMobs folders)');
             return 'single-pack';
         }
 
@@ -385,7 +413,9 @@ If you're on Chrome/Edge/Brave and still seeing this:
         for (const subName of folderNames) {
             const subFolder = structure.folders[subName];
             const subFolderNames = Object.keys(subFolder.folders);
-            if (mythicFolders.some(f => subFolderNames.includes(f))) {
+            const subFolderNamesLower = subFolderNames.map(f => f.toLowerCase());
+            if (mythicFoldersLower.some(f => subFolderNamesLower.includes(f))) {
+                console.log(`   ✅ Detected: packs-folder (subfolder "${subName}" has MythicMobs folders)`);
                 return 'packs-folder';
             }
         }
@@ -393,9 +423,11 @@ If you're on Chrome/Edge/Brave and still seeing this:
         // Check if this is just a "Packs" folder rename
         if (folderNames.length > 0) {
             // Assume it's a packs folder with pack subfolders
+            console.log('   ⚠️ Detected: packs-folder (assumed from subfolder structure)');
             return 'packs-folder';
         }
 
+        console.log('   ❌ Detected: unknown');
         return 'unknown';
     }
 
@@ -499,8 +531,19 @@ If you're on Chrome/Edge/Brave and still seeing this:
 
         let hasContent = false;
 
+        // Helper function to find folder case-insensitively
+        const findFolder = (targetName) => {
+            const targetLower = targetName.toLowerCase();
+            for (const [folderName, folderData] of Object.entries(structure.folders)) {
+                if (folderName.toLowerCase() === targetLower) {
+                    return folderData;
+                }
+            }
+            return null;
+        };
+
         for (const folderName of mythicFolders) {
-            const folder = structure.folders[folderName];
+            const folder = findFolder(folderName);
             const files = folder ? this.collectYamlFiles(folder, folderName) : [];
             
             // Calculate folder size
@@ -1055,8 +1098,9 @@ If you're on Chrome/Edge/Brave and still seeing this:
             const importResults = await this.executor.execute(
                 selectedPackData,
                 options,
-                (progress, message) => {
-                    this.previewUI.updateImportProgress(progress, message);
+                (progressData) => {
+                    // progressData is now an object with detailed information
+                    this.previewUI.updateImportProgress(progressData);
                 }
             );
 

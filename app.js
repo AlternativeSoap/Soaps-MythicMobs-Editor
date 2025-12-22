@@ -71,7 +71,8 @@ class MythicMobsEditor {
             keepHistory: true,
             maxHistory: 100,
             warnDuplicateFiles: true,
-            internalNameSeparator: '_'
+            internalNameSeparator: '_',
+            delayDisplayMode: 'ticks'
         };
         
         this.settings = { ...this.defaultSettings };
@@ -137,6 +138,16 @@ class MythicMobsEditor {
             this.randomspawnEditor = new RandomSpawnEditor(this);
             this.commandPalette = new CommandPalette(this);
             
+            // Initialize pack tools
+            this.dependencyGraph = new DependencyGraph(this);
+            this.packStatistics = new PackStatistics(this);
+            this.duplicateDetector = new DuplicateDetector(this);
+            this.packValidator = new PackValidator(this);
+            this.skillUsageReport = new SkillUsageReport(this);
+            this.backupManager = new BackupManager(this);
+            
+            window.dependencyGraph = this.dependencyGraph; // Make globally accessible
+            
             // Load packs (now userId should be set)
             await this.packManager.loadPacks();
             
@@ -187,6 +198,23 @@ class MythicMobsEditor {
             });
         });
         
+        // Mode comparison triggers
+        document.getElementById('mode-difference-btn')?.addEventListener('click', () => this.showModeComparison());
+        document.querySelectorAll('.mode-info-icon').forEach(icon => {
+            icon.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent mode switch
+                this.showModeComparison();
+            });
+        });
+        
+        // Mode comparison modal close
+        document.getElementById('close-mode-comparison')?.addEventListener('click', () => this.closeModeComparison());
+        document.getElementById('mode-comparison-modal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'mode-comparison-modal') {
+                this.closeModeComparison();
+            }
+        });
+        
         // Quick actions
         document.getElementById('quick-new-mob')?.addEventListener('click', () => this.createNewMob());
         document.getElementById('quick-new-skill')?.addEventListener('click', () => this.createNewSkill());
@@ -234,7 +262,6 @@ class MythicMobsEditor {
         });
         
         // YAML actions
-        document.getElementById('edit-yaml-btn')?.addEventListener('click', () => this.yamlEditor?.toggle());
         document.getElementById('copy-yaml-btn')?.addEventListener('click', () => this.copyYAML());
         document.getElementById('export-yaml-btn')?.addEventListener('click', () => this.exportYAML());
         
@@ -250,6 +277,29 @@ class MythicMobsEditor {
         document.getElementById('save-settings-btn')?.addEventListener('click', () => this.saveSettingsFromModal());
         document.getElementById('reset-settings-btn')?.addEventListener('click', () => this.resetSettings());
         document.getElementById('help-btn')?.addEventListener('click', () => this.showHelp());
+        
+        // Tools dropdown
+        document.getElementById('tools-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleToolsDropdown();
+        });
+        
+        // Tools dropdown items
+        document.querySelectorAll('.tools-dropdown-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const tool = e.currentTarget.dataset.tool;
+                this.closeToolsDropdown();
+                this.openTool(tool);
+            });
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const toolsMenu = document.querySelector('.tools-menu');
+            if (toolsMenu && !toolsMenu.contains(e.target)) {
+                this.closeToolsDropdown();
+            }
+        });
         
         // Settings tabs
         document.querySelectorAll('.settings-tab').forEach(tab => {
@@ -355,6 +405,12 @@ class MythicMobsEditor {
             if (e.ctrlKey && e.shiftKey && e.key === 'T') {
                 e.preventDefault();
                 this.createNewDropTable();
+            }
+            
+            // Dependency Graph (Ctrl+Shift+D)
+            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                e.preventDefault();
+                this.showDependencyGraph();
             }
             
             // New RandomSpawn (Ctrl+Shift+R)
@@ -491,9 +547,67 @@ class MythicMobsEditor {
     /**
      * Switch editor mode
      */
-    switchMode(mode) {
+    async switchMode(mode) {
+        console.log('🔄 switchMode called:', mode);
+        
+        // Check for manual edits in the preview panel
+        console.log('🔍 Checking preview panel for manual edits...');
+        console.log('   _previewHasManualEdits:', this._previewHasManualEdits);
+        console.log('   _previewElement exists:', !!this._previewElement);
+        
+        if (this._previewHasManualEdits && this._previewElement) {
+            const currentContent = this._previewElement.textContent;
+            console.log('📊 Preview content check:');
+            console.log('   Current length:', currentContent.length);
+            console.log('   Original length:', this._originalPreviewContent?.length || 0);
+            console.log('   Are equal:', currentContent === this._originalPreviewContent);
+            
+            if (currentContent !== this._originalPreviewContent) {
+                console.log('⚠️ PREVIEW PANEL has unsaved edits - showing prompt');
+                const result = await this.showConfirmDialog(
+                    'You have unsaved manual edits in the YAML preview panel. What would you like to do?',
+                    'Unsaved YAML Preview Edits',
+                    [
+                        { text: 'Apply & Switch', value: 'apply', primary: true },
+                        { text: 'Discard & Switch', value: 'discard' },
+                        { text: 'Cancel', value: 'cancel' }
+                    ]
+                );
+                
+                console.log('👤 User chose:', result);
+                
+                if (result === 'cancel') {
+                    console.log('🚫 Mode switch cancelled');
+                    return; // Don't switch modes
+                } else if (result === 'apply') {
+                    console.log('✅ Applying preview edits before mode switch');
+                    await this.applyManualYAMLEdits(currentContent);
+                }
+                this._previewHasManualEdits = false;
+            } else {
+                console.log('ℹ️ Preview content unchanged despite edit flag');
+            }
+        } else {
+            console.log('ℹ️ No preview panel edits to check');
+        }
+        
         const wasBeginnerMode = this.state.currentMode === 'beginner';
         this.state.currentMode = mode;
+        
+        // Set data-mode attribute on body for CSS mode-specific styling
+        document.body.setAttribute('data-mode', mode);
+        
+        // Update save-status title based on mode
+        const saveStatus = document.getElementById('save-status');
+        if (saveStatus) {
+            if (mode === 'advanced') {
+                saveStatus.setAttribute('title', 'Click to view recent changes');
+                saveStatus.style.cursor = 'pointer';
+            } else {
+                saveStatus.setAttribute('title', 'All changes saved');
+                saveStatus.style.cursor = 'default';
+            }
+        }
         
         // Set flag to collapse advanced sections when switching from beginner to advanced
         if (wasBeginnerMode && mode === 'advanced') {
@@ -913,6 +1027,29 @@ class MythicMobsEditor {
      * Open a file in the editor
      */
     async openFile(file, type) {
+        // Check for unsaved manual edits in preview panel before opening new file
+        if (this._previewHasManualEdits && this._previewElement) {
+            const currentContent = this._previewElement.textContent;
+            if (currentContent !== this._originalPreviewContent) {
+                const result = await this.showConfirmDialog(
+                    'You have unsaved manual edits in the YAML preview panel. What would you like to do?',
+                    'Unsaved YAML Preview Edits',
+                    [
+                        { text: 'Apply & Open', value: 'apply', primary: true },
+                        { text: 'Discard & Open', value: 'discard' },
+                        { text: 'Cancel', value: 'cancel' }
+                    ]
+                );
+                
+                if (result === 'cancel') {
+                    return; // Don't open new file
+                } else if (result === 'apply') {
+                    await this.applyManualYAMLEdits(currentContent);
+                }
+                this._previewHasManualEdits = false;
+            }
+        }
+        
         // Save current file if dirty and auto-save is enabled
         if (this.state.isDirty && this.settings.autoSave && this.state.currentFile) {
             try {
@@ -1330,6 +1467,9 @@ class MythicMobsEditor {
      */
     toggleRecentChanges(e) {
         e.stopPropagation();
+        // Only toggle dropdown in advanced mode
+        if (this.state.currentMode !== 'advanced') return;
+        
         const dropdown = document.getElementById('recent-changes-dropdown');
         if (dropdown) {
             dropdown.classList.toggle('hidden');
@@ -1582,10 +1722,119 @@ class MythicMobsEditor {
     /**
      * Update YAML preview
      */
-    updateYAMLPreview() {
+    async updateYAMLPreview() {
+        console.log('🔄 updateYAMLPreview called');
+        
         // Cache preview element
         if (!this._previewElement) {
             this._previewElement = document.getElementById('yaml-preview-content');
+            console.log('📝 Setting up preview element:', this._previewElement);
+            console.log('📝 Is contenteditable:', this._previewElement?.getAttribute('contenteditable'));
+            
+            // Initialize flags - start with _updatingPreview true to prevent initial content from being seen as user edit
+            this._previewHasManualEdits = false;
+            this._originalPreviewContent = '';
+            this._updatingPreview = true;
+            
+            // Use MutationObserver to detect ANY changes to the preview content
+            // This is more reliable than input events for contenteditable elements
+            this._previewObserver = new MutationObserver((mutations) => {
+                console.log('🔬 MUTATION DETECTED in preview panel!');
+                console.log('   Mutations:', mutations.length);
+                
+                // Only track if the mutation was from user input, not from programmatic updates
+                if (!this._updatingPreview) {
+                    console.log('   ✅ User-generated mutation detected');
+                    this._previewHasManualEdits = true;
+                    console.log('   _previewHasManualEdits set to:', this._previewHasManualEdits);
+                } else {
+                    console.log('   ℹ️ Programmatic update, ignoring');
+                }
+            });
+            
+            // Start observing the preview element and its children
+            this._previewObserver.observe(this._previewElement, {
+                characterData: true,
+                characterDataOldValue: true,
+                childList: true,
+                subtree: true
+            });
+            
+            // Track manual edits in the preview panel (backup to MutationObserver)
+            this._previewElement.addEventListener('input', (e) => {
+                console.log('✏️ INPUT EVENT FIRED in preview panel!');
+                console.log('   Current content:', this._previewElement.textContent.substring(0, 100));
+                this._previewHasManualEdits = true;
+                console.log('   _previewHasManualEdits set to:', this._previewHasManualEdits);
+            });
+            
+            // Track blur event (when user clicks out of the preview panel)
+            this._previewElement.addEventListener('blur', (e) => {
+                console.log('👁️ BLUR EVENT FIRED - user clicked out of preview panel');
+                const currentContent = this._previewElement.textContent;
+                console.log('   Original content:', this._originalPreviewContent?.substring(0, 100));
+                console.log('   Current content:', currentContent.substring(0, 100));
+                
+                // Check if content has changed
+                if (currentContent !== this._originalPreviewContent) {
+                    console.log('⚠️ CONTENT CHANGED DETECTED on blur!');
+                    this._previewHasManualEdits = true;
+                    
+                    // Immediately prompt the user to save changes
+                    this.promptToSavePreviewEdits();
+                } else {
+                    console.log('ℹ️ No content changes detected on blur');
+                }
+            });
+            
+            // Track focus event for debugging
+            this._previewElement.addEventListener('focus', (e) => {
+                console.log('🎯 FOCUS EVENT - user clicked into preview panel');
+                console.log('   Storing current content as baseline for blur check');
+                // Store the content when user starts editing
+                if (!this._previewHasManualEdits) {
+                    this._editStartContent = this._previewElement.textContent;
+                }
+            });
+            
+            // Keyboard shortcuts for preview panel
+            this._previewElement.addEventListener('keydown', async (e) => {
+                console.log('⌨️ KEYDOWN in preview panel:', e.key, 'Ctrl:', e.ctrlKey);
+                
+                // Ctrl+S: Apply changes and save
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    console.log('🔑 Ctrl+S pressed - applying and saving changes');
+                    if (this._previewHasManualEdits) {
+                        const currentContent = this._previewElement.textContent;
+                        await this.applyManualYAMLEdits(currentContent, true); // true = save after applying
+                        this._previewHasManualEdits = false;
+                    }
+                }
+                // Esc: Discard changes
+                else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    console.log('🔑 Esc pressed - discarding changes');
+                    if (this._previewHasManualEdits) {
+                        this._previewHasManualEdits = false;
+                        this.updateYAMLPreview();
+                    }
+                }
+                // Ctrl+Enter: Apply changes without saving
+                else if (e.ctrlKey && e.key === 'Enter') {
+                    e.preventDefault();
+                    console.log('🔑 Ctrl+Enter pressed - applying without saving');
+                    if (this._previewHasManualEdits) {
+                        const currentContent = this._previewElement.textContent;
+                        await this.applyManualYAMLEdits(currentContent, false); // false = don't save
+                        this._previewHasManualEdits = false;
+                    }
+                }
+            });
+            
+            this._previewElement.addEventListener('paste', (e) => {
+                console.log('📋 PASTE in preview panel');
+            });
         }
         const preview = this._previewElement;
         
@@ -1594,8 +1843,56 @@ class MythicMobsEditor {
             return;
         }
         
+        console.log('🔍 Checking for manual edits:');
+        console.log('   _previewHasManualEdits:', this._previewHasManualEdits);
+        console.log('   _originalPreviewContent length:', this._originalPreviewContent?.length || 0);
+        console.log('   Current content length:', preview.textContent?.length || 0);
+        
+        // Check if user has manually edited the preview panel
+        if (this._previewHasManualEdits) {
+            const currentContent = preview.textContent;
+            console.log('📊 Content comparison:');
+            console.log('   Original:', this._originalPreviewContent.substring(0, 100));
+            console.log('   Current:', currentContent.substring(0, 100));
+            console.log('   Are equal:', currentContent === this._originalPreviewContent);
+            
+            if (currentContent !== this._originalPreviewContent) {
+                console.log('⚠️ MANUAL EDITS DETECTED! Showing prompt...');
+                
+                // Prompt user to apply or discard changes
+                const result = await this.showConfirmDialog(
+                    'You have unsaved manual edits in the YAML preview panel. What would you like to do?',
+                    'Unsaved YAML Edits',
+                    [
+                        { text: 'Apply Changes', value: 'apply', primary: true },
+                        { text: 'Discard Changes', value: 'discard' },
+                        { text: 'Cancel', value: 'cancel' }
+                    ]
+                );
+                
+                console.log('👤 User chose:', result);
+                
+                if (result === 'cancel') {
+                    console.log('🚫 Cancelled - keeping manual edits');
+                    return; // Don't update preview, keep manual edits
+                } else if (result === 'apply') {
+                    console.log('✅ Applying manual edits...');
+                    // Parse and apply the manual YAML edits
+                    await this.applyManualYAMLEdits(currentContent);
+                } else {
+                    console.log('🗑️ Discarding manual edits');
+                }
+                // If 'discard', continue with normal preview update
+            } else {
+                console.log('ℹ️ No content changes detected despite manual edit flag');
+            }
+            this._previewHasManualEdits = false;
+        } else {
+            console.log('ℹ️ No manual edits flag set, proceeding with normal update');
+        }
+        
         if (!this.state.currentFile) {
-            preview.innerHTML = '<code># Select an item to see YAML preview</code>';
+            preview.textContent = '# Select an item to see YAML preview';
             return;
         }
         
@@ -1616,9 +1913,24 @@ class MythicMobsEditor {
             }
             
             // Only update DOM if content actually changed
-            const newContent = `<code>${this.escapeHtml(yaml)}</code>`;
-            if (preview.innerHTML !== newContent) {
-                preview.innerHTML = newContent;
+            if (preview.textContent !== yaml) {
+                // Set flag to prevent MutationObserver from treating this as user edit
+                this._updatingPreview = true;
+                console.log('🔒 Setting _updatingPreview = true');
+                
+                preview.textContent = yaml;
+                
+                // Store original content for change detection
+                this._originalPreviewContent = yaml;
+                this._previewHasManualEdits = false;
+                
+                // Use requestAnimationFrame to ensure DOM updates are complete before clearing flag
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        this._updatingPreview = false;
+                        console.log('🔓 Programmatic update complete, now tracking user edits');
+                    });
+                });
             }
             
             // Update YAML editor content if in edit mode
@@ -1628,6 +1940,115 @@ class MythicMobsEditor {
         } catch (error) {
             console.error('Failed to generate YAML preview:', error);
             preview.innerHTML = '<code># Error generating preview</code>';
+        }
+    }
+    
+    /**
+     * Prompt user to save preview edits (called when blurring out of preview panel)
+     */
+    async promptToSavePreviewEdits() {
+        console.log('💬 promptToSavePreviewEdits called');
+        
+        if (!this._previewElement || !this._previewHasManualEdits) {
+            console.log('   No edits to save');
+            return;
+        }
+        
+        const currentContent = this._previewElement.textContent;
+        
+        if (currentContent === this._originalPreviewContent) {
+            console.log('   Content unchanged, skipping prompt');
+            this._previewHasManualEdits = false;
+            return;
+        }
+        
+        console.log('   Showing save prompt dialog...');
+        
+        const result = await this.showConfirmDialog(
+            'You have manual edits in the YAML preview panel. Would you like to apply them?',
+            'Save YAML Preview Edits',
+            [
+                { text: 'Apply Changes', value: 'apply', primary: true },
+                { text: 'Discard Changes', value: 'discard' },
+                { text: 'Keep Editing', value: 'cancel' }
+            ]
+        );
+        
+        console.log('   User chose:', result);
+        
+        if (result === 'apply') {
+            console.log('   Applying changes...');
+            await this.applyManualYAMLEdits(currentContent);
+            this._previewHasManualEdits = false;
+        } else if (result === 'discard') {
+            console.log('   Discarding changes, reverting to original...');
+            // Revert to original content
+            this.updateYAMLPreview();
+            this._previewHasManualEdits = false;
+        } else {
+            console.log('   User chose to keep editing');
+            // Re-focus the preview panel so they can continue editing
+            this._previewElement.focus();
+        }
+    }
+    
+    /**
+     * Apply manual YAML edits from preview panel to form data
+     * @param {string} yamlContent - The manually edited YAML content
+     * @param {boolean} shouldSave - Whether to save the file after applying changes
+     */
+    async applyManualYAMLEdits(yamlContent, shouldSave = true) {
+        console.log('🔧 applyManualYAMLEdits called');
+        console.log('   YAML content length:', yamlContent.length);
+        console.log('   Should save:', shouldSave);
+        
+        try {
+            // Parse the manually edited YAML
+            console.log('   Parsing YAML...');
+            const parsed = jsyaml.load(yamlContent);
+            console.log('   Parsed result:', parsed);
+            
+            if (!parsed || typeof parsed !== 'object') {
+                console.error('   Invalid YAML format - not an object');
+                this.showToast('Invalid YAML format', 'error');
+                return;
+            }
+            
+            // Simple merge: Just assign all properties from parsed YAML
+            if (this.state.currentFile) {
+                console.log('   Merging parsed data into current file...');
+                Object.assign(this.state.currentFile, parsed);
+                
+                // Mark file as modified
+                this.state.currentFile.modified = true;
+                
+                // Save the file if requested
+                if (shouldSave) {
+                    console.log('   Saving file...');
+                    await this.save();
+                    console.log('   ✅ File saved successfully');
+                    this.showToast('Manual YAML edits applied and saved', 'success');
+                } else {
+                    console.log('   ℹ️ Skipping save (shouldSave = false)');
+                    this.showToast('Manual YAML edits applied', 'success');
+                }
+                
+                // Keep the manual YAML in the preview (don't regenerate)
+                console.log('   Preserving manual YAML in preview panel');
+                this._updatingPreview = true;
+                this._previewElement.textContent = yamlContent;
+                this._originalPreviewContent = yamlContent;
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        this._updatingPreview = false;
+                    });
+                });
+            } else {
+                console.warn('   No current file to apply edits to');
+            }
+        } catch (error) {
+            console.error('❌ Failed to parse manual YAML edits:', error);
+            this.showToast(`Failed to apply YAML edits: ${error.message}`, 'error');
         }
     }
     
@@ -1766,6 +2187,7 @@ class MythicMobsEditor {
         document.getElementById('max-history-value').textContent = this.settings.maxHistory;
         document.getElementById('setting-warn-duplicate-files').checked = this.settings.warnDuplicateFiles !== false;
         document.getElementById('setting-internal-name-separator').value = this.settings.internalNameSeparator || '_';
+        document.getElementById('setting-delay-display-mode').value = this.settings.delayDisplayMode || 'ticks';
         
         // Update separator preview
         const separatorPreview = document.getElementById('separator-preview');
@@ -1826,6 +2248,7 @@ class MythicMobsEditor {
         this.settings.maxHistory = parseInt(document.getElementById('setting-max-history').value);
         this.settings.warnDuplicateFiles = document.getElementById('setting-warn-duplicate-files').checked;
         this.settings.internalNameSeparator = document.getElementById('setting-internal-name-separator').value || '_';
+        this.settings.delayDisplayMode = document.getElementById('setting-delay-display-mode').value || 'ticks';
         
         // Clear auto-save timer if auto-save was disabled
         if (oldAutoSave && !this.settings.autoSave) {
@@ -1884,6 +2307,20 @@ class MythicMobsEditor {
         // Apply default mode if no file is open
         if (!this.state.currentFile) {
             this.state.currentMode = this.settings.defaultMode;
+            document.body.setAttribute('data-mode', this.state.currentMode);
+            
+            // Update save-status title based on mode
+            const saveStatus = document.getElementById('save-status');
+            if (saveStatus) {
+                if (this.state.currentMode === 'advanced') {
+                    saveStatus.setAttribute('title', 'Click to view recent changes');
+                    saveStatus.style.cursor = 'pointer';
+                } else {
+                    saveStatus.setAttribute('title', 'All changes saved');
+                    saveStatus.style.cursor = 'default';
+                }
+            }
+            
             document.querySelectorAll('.mode-btn').forEach(btn => {
                 if (btn.dataset.mode === this.state.currentMode) {
                     btn.classList.add('active');
@@ -2145,24 +2582,43 @@ class MythicMobsEditor {
     /**
      * Show confirm dialog
      */
-    showConfirmDialog(title, message, confirmLabel = 'OK', cancelLabel = 'Cancel') {
+    showConfirmDialog(title, message, optionsOrConfirmLabel = 'OK', cancelLabel = 'Cancel') {
         return new Promise((resolve) => {
-            const confirmAction = () => {
-                resolve(true);
-            };
+            let buttons;
             
-            const cancelAction = () => {
-                resolve(false);
-            };
+            // Check if third parameter is an array of options or a simple string
+            if (Array.isArray(optionsOrConfirmLabel)) {
+                // New format: array of {text, value, primary} objects
+                buttons = optionsOrConfirmLabel.map(option => ({
+                    label: option.text,
+                    class: option.primary ? 'btn-primary' : 'btn-secondary',
+                    action: () => resolve(option.value)
+                }));
+            } else if (typeof optionsOrConfirmLabel === 'object' && optionsOrConfirmLabel.confirmText) {
+                // Old format with options object: {confirmText, cancelText, showCancel}
+                const confirmAction = () => resolve(true);
+                const cancelAction = () => resolve(optionsOrConfirmLabel.showCancel ? null : false);
+                
+                buttons = [
+                    { label: optionsOrConfirmLabel.cancelText || 'Cancel', class: 'btn-secondary', action: cancelAction },
+                    { label: optionsOrConfirmLabel.confirmText || 'OK', class: 'btn-primary', action: confirmAction }
+                ];
+            } else {
+                // Legacy format: simple confirm/cancel
+                const confirmAction = () => resolve(true);
+                const cancelAction = () => resolve(false);
+                
+                buttons = [
+                    { label: cancelLabel, class: 'btn-secondary', action: cancelAction },
+                    { label: optionsOrConfirmLabel, class: 'btn-primary', action: confirmAction }
+                ];
+            }
             
             this.createModal(title, `
                 <div class="form-group">
                     <p>${message}</p>
                 </div>
-            `, [
-                { label: cancelLabel, class: 'btn-secondary', action: cancelAction },
-                { label: confirmLabel, class: 'btn-primary', action: confirmAction }
-            ], 'modal-confirm');
+            `, buttons, 'modal-confirm');
             
             // Add keyboard shortcuts
             setTimeout(() => {
@@ -2704,6 +3160,160 @@ class MythicMobsEditor {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    
+    /**
+     * Show dependency graph analysis
+     */
+    showDependencyGraph() {
+        if (!this.state.currentPack) {
+            this.showToast('Please select a pack first', 'warning');
+            return;
+        }
+        
+        // Build and analyze graph
+        this.dependencyGraph.buildGraph(this.state.currentPack);
+        
+        // Show visualization
+        this.dependencyGraph.showVisualization();
+        
+        this.showToast('Dependency graph generated', 'success');
+    }
+    
+    /**
+     * Toggle tools dropdown menu
+     */
+    toggleToolsDropdown() {
+        const toolsBtn = document.getElementById('tools-btn');
+        const dropdown = document.getElementById('tools-dropdown');
+        
+        if (!toolsBtn || !dropdown) return;
+        
+        const isActive = toolsBtn.classList.contains('active');
+        
+        if (isActive) {
+            this.closeToolsDropdown();
+        } else {
+            toolsBtn.classList.add('active');
+            dropdown.classList.add('active');
+        }
+    }
+    
+    /**
+     * Close tools dropdown menu
+     */
+    closeToolsDropdown() {
+        const toolsBtn = document.getElementById('tools-btn');
+        const dropdown = document.getElementById('tools-dropdown');
+        
+        if (!toolsBtn || !dropdown) return;
+        
+        toolsBtn.classList.remove('active');
+        dropdown.classList.remove('active');
+    }
+    
+    /**
+     * Open a specific tool from the dropdown
+     * @param {string} tool - Tool identifier
+     */
+    openTool(tool) {
+        switch (tool) {
+            case 'statistics':
+                this.showPackStatistics();
+                break;
+            case 'dependency':
+                this.showDependencyGraph();
+                break;
+            case 'duplicates':
+                this.showDuplicateDetector();
+                break;
+            case 'validator':
+                this.showPackValidator();
+                break;
+            case 'usage':
+                this.showSkillUsageReport();
+                break;
+            case 'backup':
+                this.showBackupManager();
+                break;
+            default:
+                console.warn('Unknown tool:', tool);
+        }
+    }
+    
+    /**
+     * Show pack statistics tool
+     */
+    showPackStatistics() {
+        if (!this.state.currentPack) {
+            this.showToast('Please select a pack first', 'warning');
+            return;
+        }
+        
+        this.packStatistics.show(this.state.currentPack);
+    }
+    
+    /**
+     * Show duplicate detector tool
+     */
+    showDuplicateDetector() {
+        if (!this.state.currentPack) {
+            this.showToast('Please select a pack first', 'warning');
+            return;
+        }
+        
+        this.duplicateDetector.analyze(this.state.currentPack);
+    }
+    
+    /**
+     * Show pack validator tool
+     */
+    showPackValidator() {
+        if (!this.state.currentPack) {
+            this.showToast('Please select a pack first', 'warning');
+            return;
+        }
+        
+        this.packValidator.validate(this.state.currentPack);
+    }
+    
+    /**
+     * Show skill usage report tool
+     */
+    showSkillUsageReport() {
+        if (!this.state.currentPack) {
+            this.showToast('Please select a pack first', 'warning');
+            return;
+        }
+        
+        this.skillUsageReport.generate(this.state.currentPack);
+    }
+    
+    /**
+     * Show backup manager tool
+     */
+    showBackupManager() {
+        this.backupManager.show();
+    }
+    
+    /**
+     * Show mode comparison modal
+     */
+    showModeComparison() {
+        const modal = document.getElementById('mode-comparison-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    }
+    
+    /**
+     * Close mode comparison modal
+     */
+    closeModeComparison() {
+        const modal = document.getElementById('mode-comparison-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
     }
 }
 

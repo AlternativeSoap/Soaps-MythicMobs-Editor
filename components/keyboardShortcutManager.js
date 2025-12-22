@@ -360,10 +360,7 @@ class KeyboardShortcutManager {
                     ${this.renderShortcutCategories(shortcuts)}
                 </div>
                 <div class="shortcuts-help-footer">
-                    <button class="btn btn-primary start-tour-btn">
-                        <i class="fas fa-play"></i> Start Tour
-                    </button>
-                    <button class="btn btn-secondary close-shortcuts-help-btn">
+                    <button class="btn btn-primary close-shortcuts-help-btn">
                         Close
                     </button>
                 </div>
@@ -379,21 +376,6 @@ class KeyboardShortcutManager {
                 setTimeout(() => modal.remove(), 300);
             });
         });
-        
-        // Start tour handler
-        const startTourBtn = modal.querySelector('.start-tour-btn');
-        if (startTourBtn) {
-            startTourBtn.addEventListener('click', () => {
-                // Close help modal
-                modal.classList.add('fade-out');
-                setTimeout(() => modal.remove(), 300);
-                
-                // Start tour
-                if (window.onboardingTour) {
-                    window.onboardingTour.start(true); // Force start
-                }
-            });
-        }
     }
     
     /**

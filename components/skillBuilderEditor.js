@@ -50,18 +50,9 @@ class SkillBuilderEditor {
         // Context tooltips
         this.tooltip = new SkillLineTooltip();
         
-        // Pattern analyzer
-        this.patternAnalyzer = new SkillPatternAnalyzer();
-        this.analysisResults = null;
-        
         // Validation panel (persistent sidebar)
         this.validationPanel = null;
         this.showValidationPanel = false;
-        
-        // Dependency tracker
-        this.dependencyTracker = new SkillDependencyTracker();
-        this.dependencyResults = null;
-        this.showDependencies = false;
         
         // Line formatter
         this.formatter = new SkillLineFormatter();
@@ -148,11 +139,12 @@ class SkillBuilderEditor {
      * Setup performance optimizations
      */
     setupPerformanceOptimizations() {
-        // Create validation cache with 30 second TTL
-        this.validationCache = PerformanceUtils.createCache(30000);
-        
-        // Create analysis cache with 60 second TTL
-        this.analysisCache = PerformanceUtils.createCache(60000);
+        // Use IntelligentCacheManager for validation caching
+        this.validationCache = new IntelligentCacheManager({
+            defaultTTL: 30000, // 30 seconds
+            maxSize: 50,
+            enableAdaptiveTTL: true
+        });
         
         // Debounced render (prevents excessive re-renders)
         this.debouncedRender = PerformanceUtils.debounce(() => {
@@ -163,11 +155,6 @@ class SkillBuilderEditor {
         this.debouncedValidate = PerformanceUtils.debounce(() => {
             this.performValidation();
         }, 300);
-        
-        // Debounced analysis
-        this.debouncedAnalyze = PerformanceUtils.debounce(() => {
-            this.performAnalysis();
-        }, 500);
     }
     
     /**
@@ -193,38 +180,11 @@ class SkillBuilderEditor {
     }
     
     /**
-     * Perform analysis with caching
-     */
-    performAnalysis() {
-        if (!this.patternAnalyzer) return null;
-        
-        const cacheKey = JSON.stringify(this.skillLines);
-        
-        // Check cache first
-        if (this.analysisCache && this.analysisCache.has(cacheKey)) {
-            return this.analysisCache.get(cacheKey);
-        }
-        
-        // Perform analysis
-        const results = this.patternAnalyzer.analyzeSkill(this.skillLines);
-        
-        // Cache results
-        if (this.analysisCache) {
-            this.analysisCache.set(cacheKey, results);
-        }
-        
-        return results;
-    }
-    
-    /**
      * Clear performance caches when data changes
      */
     clearPerformanceCaches() {
         if (this.validationCache) {
             this.validationCache.clear();
-        }
-        if (this.analysisCache) {
-            this.analysisCache.clear();
         }
     }
     
@@ -259,12 +219,6 @@ class SkillBuilderEditor {
                 this.render();
                 break;
                 
-            case 'toggle-analysis':
-            case 'toggle-dependencies':
-                this.showDependencies = !this.showDependencies;
-                this.render();
-                break;
-                
             case 'add-line':
                 this.addSkillLine();
                 break;
@@ -278,7 +232,6 @@ class SkillBuilderEditor {
             case 'escape':
                 // Close all panels
                 this.showAnalysis = false;
-                this.showDependencies = false;
                 this.showDuplicates = false;
                 this.render();
                 break;
@@ -383,32 +336,11 @@ class SkillBuilderEditor {
         // Detect groups and analyze patterns before rendering (context-aware)
         const linesToAnalyze = this.context === 'mob' ? this.skillLines : this.getSkillLines();
         this.groups = this.groupDetector.detectGroups(linesToAnalyze);
-        this.analysisResults = this.patternAnalyzer.analyze(linesToAnalyze);
-        
-        // Analyze dependencies (for skill context only)
-        if (this.context === 'skill') {
-            // Get external references from mobs
-            const mobRefs = this.getMobSkillReferences();
-            this.dependencyResults = this.dependencyTracker.analyze(this.skills, 'skill', mobRefs);
-        } else {
-            this.dependencyResults = this.dependencyTracker.analyze(linesToAnalyze, 'mob');
-        }
         
         // Analyze duplicates
         this.duplicateResults = this.duplicateDetector.analyze(linesToAnalyze);
         
-        const summary = this.patternAnalyzer.getSummary(this.analysisResults);
-        const depSummary = this.dependencyResults.summary;
         const dupSummary = this.duplicateResults.summary;
-        
-        // Collect all problems from analysis and dependencies
-        const allProblems = [
-            ...this.analysisResults.antiPatterns,
-            ...this.dependencyResults.issues
-        ];
-        
-        // Total insights count (issues + tips)
-        const insightsCount = allProblems.length + (this.analysisResults.tips?.length || 0);
         
         this.container.innerHTML = `
             <div class="skill-builder-editor">
@@ -430,12 +362,6 @@ class SkillBuilderEditor {
                         
                         <!-- Analysis Tools -->
                         <div class="toolbar-section toolbar-divider">
-                            <button class="btn btn-sm toggle-dependencies-btn ${this.showDependencies ? 'active' : ''}" id="toggle-dependencies-btn" title="${this.showDependencies ? 'Hide' : 'Show'} dependencies & insights">
-                                <i class="fas fa-project-diagram"></i>
-                                Dependencies & Insights
-                                ${depSummary.missingSkills + depSummary.circularDeps + allProblems.length > 0 ? `<span class="badge badge-error">${depSummary.missingSkills + depSummary.circularDeps + allProblems.length}</span>` : ''}
-                                ${this.analysisResults.tips?.length > 0 ? `<span class="badge badge-tip">${this.analysisResults.tips.length}</span>` : ''}
-                            </button>
                             <button class="btn btn-sm toggle-duplicates-btn ${this.showDuplicates ? 'active' : ''}" id="toggle-duplicates-btn" title="${this.showDuplicates ? 'Hide' : 'Show'} duplicates">
                                 <i class="fas fa-clone"></i>
                                 Duplicates
@@ -466,7 +392,6 @@ class SkillBuilderEditor {
                         </div>
                     </div>
                     
-                    ${this.showDependencies ? this.renderDependencyPanel() : ''}
                     ${this.showDuplicates ? this.renderDuplicatePanel() : ''}
                     
                     <div class="skill-lines-list">
@@ -485,316 +410,6 @@ class SkillBuilderEditor {
         
         // Enable tooltips on skill line previews
         this.tooltip.enableTooltips(this.container);
-    }
-
-    /**
-     * Render unified Insights panel (merged Analysis + Problems + Tips)
-     */
-    renderInsightsPanel() {
-        if (!this.analysisResults) return '';
-        
-        const { patterns, antiPatterns, tips } = this.analysisResults;
-        const depIssues = this.dependencyResults?.issues || [];
-        const allIssues = [...antiPatterns, ...depIssues];
-        const summary = this.patternAnalyzer.getSummary(this.analysisResults);
-        
-        return `
-            <div class="insights-panel">
-                <div class="insights-header">
-                    <h3><i class="fas fa-lightbulb"></i> Skill Insights</h3>
-                    <div class="insights-summary">
-                        ${summary.severity.error > 0 ? `
-                            <span class="summary-item error">
-                                <i class="fas fa-times-circle"></i> ${summary.severity.error} errors
-                            </span>
-                        ` : ''}
-                        ${summary.severity.warning > 0 ? `
-                            <span class="summary-item warning">
-                                <i class="fas fa-exclamation-triangle"></i> ${summary.severity.warning} warnings
-                            </span>
-                        ` : ''}
-                        ${tips && tips.length > 0 ? `
-                            <span class="summary-item tip">
-                                <i class="fas fa-lightbulb"></i> ${tips.length} tips
-                            </span>
-                        ` : ''}
-                        ${patterns.length > 0 ? `
-                            <span class="summary-item info">
-                                <i class="fas fa-check-circle"></i> ${patterns.length} patterns
-                            </span>
-                        ` : ''}
-                    </div>
-                </div>
-                
-                <div class="insights-content">
-                    ${allIssues.length > 0 ? `
-                        <div class="insights-section issues-section">
-                            <h4><i class="fas fa-exclamation-circle"></i> Issues to Fix</h4>
-                            ${allIssues.map((issue, idx) => `
-                                <div class="insights-item ${issue.severity}" data-issue-index="${idx}">
-                                    <div class="insights-item-header">
-                                        <span class="insights-icon">${issue.icon || '⚠️'}</span>
-                                        <span class="insights-name">${issue.name || issue.type}</span>
-                                        <span class="insights-severity ${issue.severity}">${issue.severity}</span>
-                                    </div>
-                                    <div class="insights-message">${issue.message}</div>
-                                    ${issue.suggestion ? `
-                                        <div class="insights-suggestion">
-                                            <i class="fas fa-arrow-right"></i> ${issue.suggestion}
-                                        </div>
-                                    ` : ''}
-                                    ${issue.lineIndices ? `
-                                        <div class="insights-lines">
-                                            Line${issue.lineIndices.length > 1 ? 's' : ''}: ${issue.lineIndices.map(i => i + 1).join(', ')}
-                                            <button class="btn-link jump-to-line-btn" data-line-index="${issue.lineIndices[0]}">
-                                                Jump
-                                            </button>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                    
-                    ${tips && tips.length > 0 ? `
-                        <div class="insights-section tips-section">
-                            <h4><i class="fas fa-lightbulb"></i> Tips & Suggestions</h4>
-                            ${tips.map((tip, idx) => `
-                                <div class="insights-item tip" data-tip-index="${idx}">
-                                    <div class="insights-item-header">
-                                        <span class="insights-icon">${tip.icon}</span>
-                                        <span class="insights-name">${tip.name}</span>
-                                    </div>
-                                    <div class="insights-message">${tip.message}</div>
-                                    <div class="insights-suggestion">
-                                        <i class="fas fa-arrow-right"></i> ${tip.suggestion}
-                                    </div>
-                                    ${tip.lineIndices ? `
-                                        <div class="insights-lines">
-                                            Line${tip.lineIndices.length > 1 ? 's' : ''}: ${tip.lineIndices.map(i => i + 1).join(', ')}
-                                            <button class="btn-link jump-to-line-btn" data-line-index="${tip.lineIndices[0]}">
-                                                Jump
-                                            </button>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                    
-                    ${patterns.length > 0 ? `
-                        <div class="insights-section patterns-section">
-                            <h4><i class="fas fa-check-circle"></i> Good Patterns</h4>
-                            ${patterns.map((pattern, idx) => `
-                                <div class="insights-item success" data-pattern-index="${idx}">
-                                    <div class="insights-item-header">
-                                        <span class="insights-icon">${pattern.icon}</span>
-                                        <span class="insights-name">${pattern.name}</span>
-                                    </div>
-                                    <div class="insights-message">${pattern.message}</div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                    
-                    ${allIssues.length === 0 && (!tips || tips.length === 0) && patterns.length === 0 ? `
-                        <div class="insights-empty">
-                            <i class="fas fa-check-circle"></i>
-                            <p>No issues found. Your skill looks good!</p>
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-    }
-
-    renderDependencyPanel() {
-        if (!this.dependencyResults) return '';
-        
-        const { dependencies, usages, issues, summary } = this.dependencyResults;
-        const graphData = this.dependencyTracker.generateGraphData();
-        
-        // Get insights data
-        const { patterns, antiPatterns, tips } = this.analysisResults || {};
-        const allIssues = [...(antiPatterns || []), ...issues];
-        
-        return `
-            <div class="dependency-panel">
-                <div class="dependency-header">
-                    <h3><i class="fas fa-project-diagram"></i> Dependencies & Insights</h3>
-                    <div class="dependency-summary">
-                        <span class="summary-item">
-                            <i class="fas fa-file-code"></i> ${summary.totalSkills} skills
-                        </span>
-                        <span class="summary-item">
-                            <i class="fas fa-link"></i> ${summary.totalDependencies || 0} dependencies
-                        </span>
-                        ${summary.missingSkills > 0 ? `
-                            <span class="summary-item error">
-                                <i class="fas fa-times-circle"></i> ${summary.missingSkills} missing
-                            </span>
-                        ` : ''}
-                        ${summary.circularDeps > 0 ? `
-                            <span class="summary-item error">
-                                <i class="fas fa-circle-notch"></i> ${summary.circularDeps} circular
-                            </span>
-                        ` : ''}
-                        ${summary.unusedSkills > 0 ? `
-                            <span class="summary-item info">
-                                <i class="fas fa-info-circle"></i> ${summary.unusedSkills} unused
-                            </span>
-                        ` : ''}
-                    </div>
-                </div>
-                
-                <div class="dependency-content">
-                    ${issues.length > 0 ? `
-                        <div class="dependency-section issues-section">
-                            <h4><i class="fas fa-exclamation-triangle"></i> Dependency Issues</h4>
-                            ${issues.map((issue, idx) => `
-                                <div class="dependency-issue ${issue.severity}" data-issue-index="${idx}">
-                                    <div class="issue-header">
-                                        <span class="issue-type">${issue.type}</span>
-                                        <span class="issue-severity ${issue.severity}">${issue.severity}</span>
-                                    </div>
-                                    <div class="issue-message">${issue.message}</div>
-                                    ${issue.suggestion ? `
-                                        <div class="issue-suggestion">
-                                            <i class="fas fa-lightbulb"></i> ${issue.suggestion}
-                                        </div>
-                                    ` : ''}
-                                    ${issue.cycle ? `
-                                        <div class="issue-cycle">
-                                            ${issue.cycle.join(' → ')}
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                    
-                    ${antiPatterns && antiPatterns.length > 0 ? `
-                        <div class="dependency-section insights-section">
-                            <h4><i class="fas fa-lightbulb"></i> Skill Insights</h4>
-                            ${antiPatterns.map((issue, idx) => `
-                                <div class="insights-item ${issue.severity}" data-issue-index="${idx}">
-                                    <div class="insights-item-header">
-                                        <span class="insights-icon">${issue.icon || '⚠️'}</span>
-                                        <span class="insights-name">${issue.name || issue.type}</span>
-                                        <span class="insights-severity ${issue.severity}">${issue.severity}</span>
-                                    </div>
-                                    <div class="insights-description">${issue.description || issue.message}</div>
-                                    ${issue.suggestion ? `
-                                        <div class="insights-suggestion">
-                                            <i class="fas fa-lightbulb"></i> ${issue.suggestion}
-                                        </div>
-                                    ` : ''}
-                                    ${issue.affectedLines && issue.affectedLines.length > 0 ? `
-                                        <div class="insights-affected">
-                                            <span>Lines: ${issue.affectedLines.join(', ')}</span>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                    
-                    ${tips && tips.length > 0 ? `
-                        <div class="dependency-section tips-section">
-                            <h4><i class="fas fa-star"></i> Tips</h4>
-                            ${tips.map(tip => `
-                                <div class="tip-item">
-                                    <div class="tip-header">
-                                        <span class="tip-icon">💡</span>
-                                        <span class="tip-name">${tip.name}</span>
-                                    </div>
-                                    <div class="tip-description">${tip.description}</div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                    
-                    <div class="dependency-section graph-section">
-                        <h4><i class="fas fa-sitemap"></i> Dependency Graph</h4>
-                        ${this.renderDependencyGraph(graphData)}
-                    </div>
-                    
-                    <div class="dependency-section details-section">
-                        <h4><i class="fas fa-list"></i> Skill Details</h4>
-                        <div class="dependency-list">
-                            ${Object.entries(dependencies).map(([skill, deps]) => {
-                                const usedBy = usages[skill] || [];
-                                return `
-                                    <div class="dependency-item">
-                                        <div class="dependency-skill-name">
-                                            <i class="fas fa-magic"></i>
-                                            <strong>${skill}</strong>
-                                        </div>
-                                        ${deps.length > 0 ? `
-                                            <div class="dependency-refs">
-                                                <span class="ref-label">References:</span>
-                                                ${deps.map(dep => `<span class="ref-tag">${dep}</span>`).join('')}
-                                            </div>
-                                        ` : '<div class="dependency-refs no-deps">No dependencies</div>'}
-                                        ${usedBy.length > 0 ? `
-                                            <div class="dependency-usages">
-                                                <span class="ref-label">Used by:</span>
-                                                ${usedBy.map(user => `<span class="ref-tag usage">${user}</span>`).join('')}
-                                            </div>
-                                        ` : '<div class="dependency-usages no-usage">Not used by other skills</div>'}
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
-    renderDependencyGraph(graphData) {
-        const { nodes, edges } = graphData;
-        
-        if (nodes.length === 0) {
-            return '<div class="graph-empty">No skills to visualize</div>';
-        }
-        
-        // Simple text-based visualization
-        return `
-            <div class="dependency-graph-visual">
-                ${nodes.map(node => {
-                    const outgoing = edges.filter(e => e.from === node.id);
-                    const incoming = edges.filter(e => e.to === node.id);
-                    
-                    let nodeClass = 'node';
-                    if (node.isEntryPoint) nodeClass += ' entry-point';
-                    if (node.isLeaf) nodeClass += ' leaf';
-                    if (node.isIsolated) nodeClass += ' isolated';
-                    
-                    return `
-                        <div class="${nodeClass}">
-                            <div class="node-header">
-                                <span class="node-name">${node.name}</span>
-                                <span class="node-stats">
-                                    ${incoming.length > 0 ? `<span class="incoming" title="Used by ${incoming.length} skill(s)">↓${incoming.length}</span>` : ''}
-                                    ${outgoing.length > 0 ? `<span class="outgoing" title="References ${outgoing.length} skill(s)">↑${outgoing.length}</span>` : ''}
-                                </span>
-                            </div>
-                            ${outgoing.length > 0 ? `
-                                <div class="node-dependencies">
-                                    ${outgoing.map(edge => `
-                                        <div class="dependency-edge">
-                                            <i class="fas fa-arrow-right"></i>
-                                            <span>${edge.toSkill}</span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        `;
     }
     
     renderSkillLinesList() {
@@ -916,6 +531,19 @@ class SkillBuilderEditor {
             validationTooltip = validation.warnings.join('\n');
         }
         
+        // Analyze delay information
+        let delayAnnotation = '';
+        if (window.DelayAnalyzer) {
+            const lines = this.context === 'mob' ? this.skillLines : this.getSkillLines();
+            const delayMode = window.editor?.settings?.delayDisplayMode || 'ticks';
+            const delayInfoArray = window.DelayAnalyzer.analyzeDelaySequence(lines, delayMode);
+            const delayInfo = window.DelayAnalyzer.getDelayInfoForLine(delayInfoArray, index);
+            
+            if (delayInfo && delayInfo.displayText) {
+                delayAnnotation = `<span class="delay-info"># ${delayInfo.displayText}</span>`;
+            }
+        }
+        
         return `
             <div class="skill-line-card ${validationClass} ${inGroup ? 'in-group' : ''} ${isParent ? 'parent' : ''}" data-index="${index}" draggable="true" title="${validationTooltip}">
                 <div class="skill-line-grip">
@@ -925,6 +553,7 @@ class SkillBuilderEditor {
                     ${validationIcon}
                     ${isParent ? '<span class="parent-badge" title="Parent skill">P</span>' : ''}
                     <code class="skill-line-preview">${this.syntaxHighlighter.highlight(line)}</code>
+                    ${delayAnnotation}
                 </div>
                 <div class="skill-line-actions">
                     <button class="btn-icon format-skill-line-btn" data-index="${index}" title="Format Line">
@@ -1107,15 +736,6 @@ class SkillBuilderEditor {
         if (toggleInsightsBtn) {
             toggleInsightsBtn.addEventListener('click', () => {
                 this.showAnalysis = !this.showAnalysis;
-                this.render();
-            });
-        }
-        
-        // Toggle dependencies button
-        const toggleDependenciesBtn = this.container.querySelector('#toggle-dependencies-btn');
-        if (toggleDependenciesBtn) {
-            toggleDependenciesBtn.addEventListener('click', () => {
-                this.showDependencies = !this.showDependencies;
                 this.render();
             });
         }

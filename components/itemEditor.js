@@ -24,6 +24,27 @@ class ItemEditor {
             this.renderFileContainer(item, container);
             return;
         }
+        
+        // Normalize enchantments if they haven't been normalized yet
+        if (item.Enchantments && Array.isArray(item.Enchantments) && window.EnchantmentData?.normalizeName) {
+            let normalized = false;
+            item.Enchantments = item.Enchantments.map(ench => {
+                const parts = String(ench).split(' ');
+                const enchName = parts[0];
+                const enchLevel = parts.slice(1).join(' ') || '1';
+                const normalizedName = window.EnchantmentData.normalizeName(enchName);
+                
+                if (normalizedName !== enchName.toUpperCase()) {
+                    normalized = true;
+                    return `${normalizedName} ${enchLevel}`;
+                }
+                return ench;
+            });
+            
+            if (normalized) {
+                this.editor.markDirty();
+            }
+        }
 
         container.innerHTML = this.generateItemEditorHTML(item);
         this.attachEventHandlers(item);
@@ -74,6 +95,7 @@ class ItemEditor {
                 ${this.generateBannerLayersSection(item)}
                 ${this.generateFireworkSection(item)}
                 ${isAdvanced ? this.generateNBTSection(item) : ''}
+                ${isAdvanced ? this.generateSkillsSection(item) : ''}
                 ${isAdvanced ? this.generateAdvancedSection(item) : ''}
             </div>
         `;
@@ -331,15 +353,19 @@ class ItemEditor {
                                 enchName = '';
                                 enchLevel = '1';
                             }
+                            
                             return `
                                 <div class="list-item enchantment-item" data-index="${index}">
                                     <select class="form-select enchantment-type">
                                         <option value="">Select Enchantment...</option>
-                                        ${enchantmentsList.map(e => `
-                                            <option value="${e.id}" ${e.id === enchName || e.id.toUpperCase() === enchName.toUpperCase() ? 'selected' : ''}>
-                                                ${e.name} (Max: ${e.maxLevel})
-                                            </option>
-                                        `).join('')}
+                                        ${enchantmentsList.map(e => {
+                                            const isSelected = e.id === enchName || e.id === enchName.toUpperCase() || e.id.toUpperCase() === enchName.toUpperCase();
+                                            return `
+                                                <option value="${e.id}" ${isSelected ? 'selected' : ''}>
+                                                    ${e.name} (Max: ${e.maxLevel})
+                                                </option>
+                                            `;
+                                        }).join('')}
                                     </select>
                                     <input 
                                         type="text" 
@@ -971,12 +997,54 @@ class ItemEditor {
     }
 
     /**
-     * Advanced Section (Trim, Book, Skills)
+     * Skills Section (Crucible)
+     */
+    generateSkillsSection(item) {
+        const skills = item?.Skills || [];
+        
+        return `
+            <div class="card collapsible-card collapsed">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-magic"></i> Skills (Crucible)
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <div class="form-group">
+                        <label class="form-label">Crucible Skills</label>
+                        <small class="form-hint">Format: ~onConsume @trigger skill_name</small>
+                        <div id="item-skills-list" class="list-editor">
+                            ${skills.map((skill, index) => `
+                                <div class="list-item skill-item" data-index="${index}">
+                                    <input 
+                                        type="text" 
+                                        class="form-input skill-line" 
+                                        value="${skill}"
+                                        placeholder="~onConsume @trigger my_skill"
+                                    >
+                                    <button type="button" class="btn-icon btn-danger remove-skill" data-index="${index}">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            `).join('')}
+                            <button type="button" class="add-item-btn add-skill-btn">
+                                <i class="fas fa-plus-circle"></i>
+                                <span>Add Skill</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Advanced Section (Trim, Book)
      */
     generateAdvancedSection(item) {
         const trim = item?.Trim || {};
         const book = item?.Book || {};
-        const skills = item?.Skills || [];
         
         return `
             <div class="card collapsible-card collapsed">
@@ -1043,30 +1111,6 @@ class ItemEditor {
                                 placeholder="Page 1 content&#10;Page 2 content&#10;..."
                             >${(book.pages || []).join('\n')}</textarea>
                             <small class="form-hint">One page per line</small>
-                        </div>
-
-                        <div class="form-group full-width">
-                            <label class="form-label">Skills (Crucible)</label>
-                            <small class="form-hint">Format: ~onConsume @trigger skill_name</small>
-                            <div id="item-skills-list" class="list-editor">
-                                ${skills.map((skill, index) => `
-                                    <div class="list-item skill-item" data-index="${index}">
-                                        <input 
-                                            type="text" 
-                                            class="form-input skill-line" 
-                                            value="${skill}"
-                                            placeholder="~onConsume @trigger my_skill"
-                                        >
-                                        <button type="button" class="btn-icon btn-danger remove-skill" data-index="${index}">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                `).join('')}
-                                <button type="button" class="add-item-btn add-skill-btn">
-                                    <i class="fas fa-plus-circle"></i>
-                                    <span>Add Skill</span>
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>

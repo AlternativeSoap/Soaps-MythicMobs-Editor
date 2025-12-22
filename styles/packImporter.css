@@ -874,38 +874,230 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.9);
+    background: linear-gradient(145deg, rgba(30, 30, 58, 0.98) 0%, rgba(22, 22, 46, 0.98) 100%);
+    backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 10;
+    animation: progressOverlayFadeIn 0.3s ease-out;
+}
+
+@keyframes progressOverlayFadeIn {
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+    }
+    to {
+        opacity: 1;
+        backdrop-filter: blur(10px);
+    }
+}
+
+.pack-import-progress-container {
+    background: linear-gradient(145deg, #1e1e3a 0%, #16162e 100%);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    position: relative;
+    border-radius: 20px;
+    padding: 3rem 3.5rem;
+    box-shadow: 
+        0 25px 80px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(102, 126, 234, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    min-width: 550px;
+    max-width: 650px;
+    animation: progressContainerSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pack-import-progress-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    opacity: 0.9;
+    border-radius: 20px 20px 0 0;
+}
+
+@keyframes progressContainerSlideIn {
+    from {
+        transform: scale(0.9) translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+}
+
+.pack-import-progress-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    background: rgba(102, 126, 234, 0.15);
+    border-radius: 50%;
+    box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+    animation: progressIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes progressIconPulse {
+    0%, 100% { 
+        transform: scale(1);
+        box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+    }
+    50% { 
+        transform: scale(1.05);
+        box-shadow: 0 0 40px rgba(102, 126, 234, 0.5);
+    }
+}
+
+.pack-import-progress-title {
+    color: #ffffff;
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
 }
 
 .pack-import-progress-text {
-    color: #fff;
-    font-size: 1.1rem;
-    margin-bottom: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    line-height: 1.5;
+}
+
+.pack-import-progress-percentage {
+    font-size: 3rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+    margin-bottom: 1rem;
+    animation: percentageGlow 2s ease-in-out infinite;
+}
+
+@keyframes percentageGlow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
 }
 
 .pack-import-progress-bar-container {
-    width: 400px;
-    height: 8px;
-    background: rgba(99, 102, 241, 0.2);
-    border-radius: 4px;
+    width: 100%;
+    height: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
     overflow: hidden;
-    margin-bottom: 16px;
+    margin-bottom: 1.5rem;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    position: relative;
 }
 
 .pack-import-progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, #4f46e5, #7c3aed);
-    border-radius: 4px;
-    transition: width 0.3s ease;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    background-size: 200% 100%;
+    border-radius: 8px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+    animation: progressBarShimmer 2s linear infinite;
+    position: relative;
+}
+
+.pack-import-progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent);
+    border-radius: 8px 8px 0 0;
+}
+
+@keyframes progressBarShimmer {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+}
+
+.pack-import-progress-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pack-import-progress-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.pack-import-progress-detail-label {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.pack-import-progress-detail-value {
+    font-size: 1.1rem;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.pack-import-progress-current-file {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.pack-import-progress-current-file-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.pack-import-progress-current-file-name {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-family: 'Courier New', monospace;
+    word-break: break-all;
 }
 
 .pack-import-cancel-btn {
-    margin-top: 16px;
+    margin-top: 0.5rem;
+    width: 100%;
+    padding: 1rem;
+    font-size: 1rem;
+    border-radius: 10px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pack-import-cancel-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
 }
 
 /* Tabs for entries */

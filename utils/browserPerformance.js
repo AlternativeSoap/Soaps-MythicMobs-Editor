@@ -100,6 +100,10 @@ class LRUCache {
         this.cache.set(key, value);
     }
     
+    delete(key) {
+        return this.cache.delete(key);
+    }
+    
     clear() {
         this.cache.clear();
     }
