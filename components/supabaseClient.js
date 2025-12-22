@@ -43,19 +43,29 @@ class DatabaseStorageManager {
      * Check authentication status
      */
     async checkAuth() {
-        if (!this.supabase) return;
+        if (!this.supabase) {
+            this.useCloud = false;
+            this.userId = this.getOrCreateAnonymousId();
+            return;
+        }
         
         try {
             const { data: { session } } = await this.supabase.auth.getSession();
-            if (session) {
+            if (session && session.user) {
+                // User is actually authenticated
                 this.userId = session.user.id;
+                this.useCloud = true;
+                console.log('✅ Authenticated user, cloud storage enabled');
             } else {
-                // Generate a unique anonymous ID
+                // No authenticated session - use localStorage only
                 this.userId = this.getOrCreateAnonymousId();
+                this.useCloud = false;
+                console.log('ℹ️ Anonymous user, using localStorage only');
             }
         } catch (error) {
-            console.error('Failed to check auth:', error);
+            console.warn('⚠️ Auth check failed, using localStorage only:', error);
             this.userId = this.getOrCreateAnonymousId();
+            this.useCloud = false;
         }
     }
     
@@ -64,11 +74,39 @@ class DatabaseStorageManager {
      */
     getOrCreateAnonymousId() {
         let anonId = localStorage.getItem('mythicmobs_anon_id');
+        
+        // Validate if existing ID is a valid UUID
+        if (anonId && !this.isValidUUID(anonId)) {
+            console.warn('⚠️ Invalid anonymous ID detected, regenerating...');
+            anonId = null; // Force regeneration
+        }
+        
         if (!anonId) {
-            anonId = 'anon_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            // Generate a valid UUID v4 for anonymous users
+            anonId = this.generateUUID();
             localStorage.setItem('mythicmobs_anon_id', anonId);
+            console.log('✅ Generated new anonymous UUID:', anonId);
         }
         return anonId;
+    }
+    
+    /**
+     * Check if a string is a valid UUID
+     */
+    isValidUUID(uuid) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(uuid);
+    }
+    
+    /**
+     * Generate a valid UUID v4
+     */
+    generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
     }
     
     /**
