@@ -8,6 +8,113 @@ class PackManager {
         this.activePack = null;
         this.openDropdownPackId = null;
         this.savePacksDebounce = null; // Debounce timer for batching saves
+        
+        // New features
+        this.contextMenu = null;
+        this.searchQuery = '';
+        this.recentFiles = [];
+        this.favorites = new Set();
+        this.fileStatuses = new Map(); // fileId -> {modified, error, synced}
+        this._favoritesMetadataCache = null; // Cache to prevent repeated 406 errors
+        
+        // Event listener flags to prevent duplication
+        this._recentFilesToggleSetup = false;
+        this._favoritesToggleSetup = false;
+        this._recentFilesClickDelegationSetup = false;
+        this._favoritesClickDelegationSetup = false;
+        this._searchSetup = false;
+        
+        // Initialize features
+        this.initializeFeatures();
+    }
+    
+    /**
+     * Initialize new features (search, recent files, favorites, context menu)
+     */
+    initializeFeatures() {
+        // Initialize context menu
+        if (typeof ContextMenu !== 'undefined') {
+            this.contextMenu = new ContextMenu();
+            this.setupContextMenuActions();
+        }
+        
+        // Load recent files from storage
+        this.loadRecentFiles();
+        
+        // Load favorites from storage
+        this.loadFavorites();
+        
+        // Setup keyboard shortcuts
+        this.setupKeyboardShortcuts();
+        
+        // Setup toggle handlers (only once)
+        this.setupRecentFilesToggle();
+        this.setupFavoritesToggle();
+        
+        // Setup click delegation for items (only once)
+        this.setupRecentFilesClickDelegation();
+        this.setupFavoritesClickDelegation();
+    }
+    
+    /**
+     * Setup keyboard shortcuts
+     */
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+F to focus search
+            if (e.ctrlKey && e.key === 'f' && !e.shiftKey) {
+                const searchInput = document.getElementById('pack-search-input');
+                if (searchInput && document.activeElement !== searchInput) {
+                    e.preventDefault();
+                    searchInput.focus();
+                    searchInput.select();
+                }
+            }
+        });
+    }
+    
+    /**
+     * Setup context menu actions
+     */
+    setupContextMenuActions() {
+        if (!this.contextMenu) return;
+        
+        this.contextMenu.registerAction('open', (data) => {
+            if (data.fileId && data.fileType) {
+                this.openFile(data.fileId, data.fileType);
+            }
+        });
+        
+        this.contextMenu.registerAction('duplicate', (data) => {
+            if (data.fileId && data.fileType) {
+                this.duplicateFile(data.fileId, data.fileType);
+            }
+        });
+        
+        this.contextMenu.registerAction('delete', (data) => {
+            if (data.fileId && data.fileType) {
+                this.deleteFile(data.fileId, data.fileType);
+            }
+        });
+        
+        this.contextMenu.registerAction('export', (data) => {
+            if (data.fileId && data.fileType) {
+                this.exportFile(data.fileId, data.fileType);
+            }
+        });
+        
+        this.contextMenu.registerAction('copyName', (data) => {
+            if (data.fileName) {
+                navigator.clipboard.writeText(data.fileName);
+                this.editor.showToast('Name copied to clipboard', 'success');
+            }
+        });
+        
+        this.contextMenu.registerAction('toggleFavorite', (data) => {
+            if (data.fileId) {
+                this.toggleFavorite(data.fileId, data.fileName, data.fileType, data.packName);
+            }
+        });
     }
     
     async loadPacks() {
@@ -190,6 +297,20 @@ class PackManager {
         
         container.innerHTML = this.packs.map(pack => this.renderPackItem(pack)).join('');
         this.attachPackEventListeners();
+        
+        // Setup search and render features
+        this.setupSearch();
+        this.renderRecentFiles();
+        this.renderFavorites();
+        
+        // Setup toggles and click delegation (will only run once when DOM is ready)
+        this.setupRecentFilesToggle();
+        this.setupFavoritesToggle();
+        this.setupRecentFilesClickDelegation();
+        this.setupFavoritesClickDelegation();
+        
+        // Restore search state if there was an active search
+        this.restoreSearchState();
     }
     
     renderPackItem(pack) {
@@ -464,15 +585,24 @@ class PackManager {
         const isActive = this.editor.state.currentFile && this.editor.state.currentFile.id === entry.id;
         const displayName = entry.internalName || entry.name || 'Unnamed';
         const isPlaceholder = entry._placeholder;
+        const isFavorited = this.isFavorited(entry.id);
         
         return `
             <div class="entry-item ${isActive ? 'active' : ''} ${isPlaceholder ? 'placeholder-entry' : ''}" 
                  data-entry-id="${entry.id}" 
                  data-file-type="${type}"
+                 data-file-name="${displayName}"
                  data-parent-file-id="${parentFileId}">
                 <i class="fas ${icons[type]} entry-icon"></i>
                 <span>${displayName}</span>
                 ${isPlaceholder ? '<span class="placeholder-badge">placeholder</span>' : ''}
+                <button class="favorite-star-btn ${isFavorited ? 'favorited' : ''}" 
+                        data-entry-id="${entry.id}"
+                        data-file-name="${displayName}"
+                        data-file-type="${type}"
+                        title="${isFavorited ? 'Remove from favorites' : 'Add to favorites'}">
+                    <i class="fas fa-star"></i>
+                </button>
             </div>
         `;
     }
@@ -726,6 +856,56 @@ class PackManager {
         
         // Pack drag and drop
         this.attachPackDragListeners();
+        
+        // Context menu for entries and files
+        document.querySelectorAll('.entry-item, .yaml-file-header').forEach(item => {
+            item.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const fileId = item.dataset.entryId || item.dataset.fileId;
+                const fileType = item.dataset.fileType;
+                const fileName = item.dataset.fileName || item.querySelector('.yaml-file-name, span')?.textContent || 'Unknown';
+                
+                if (!this.contextMenu) return;
+                
+                const isFavorited = this.isFavorited(fileId);
+                
+                const menuItems = [
+                    { label: 'Open', icon: 'fa-folder-open', action: 'open' },
+                    { label: 'Duplicate', icon: 'fa-copy', action: 'duplicate' },
+                    { separator: true },
+                    { label: isFavorited ? 'Remove from Favorites' : 'Add to Favorites', icon: 'fa-star', action: 'toggleFavorite' },
+                    { separator: true },
+                    { label: 'Copy Name', icon: 'fa-clipboard', action: 'copyName' },
+                    { label: 'Export', icon: 'fa-file-export', action: 'export' },
+                    { separator: true },
+                    { label: 'Delete', icon: 'fa-trash', action: 'delete', danger: true }
+                ];
+                
+                this.contextMenu.show(e.clientX, e.clientY, menuItems, {
+                    fileId,
+                    fileType,
+                    fileName,
+                    packName: this.activePack?.name || 'Unknown'
+                });
+            });
+        });
+        
+        // Favorite star buttons
+        document.querySelectorAll('.favorite-star-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                
+                const fileId = btn.dataset.entryId;
+                const fileName = btn.dataset.fileName;
+                const fileType = btn.dataset.fileType;
+                const packName = this.activePack?.name || 'Unknown';
+                
+                this.toggleFavorite(fileId, fileName, fileType, packName);
+            });
+        });
     }
     
     toggleFolder(header) {
@@ -2048,6 +2228,860 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
                 return false;
             });
         });
+    }
+    
+    // =================================================================
+    // SEARCH & FILTER
+    // =================================================================
+    
+    /**
+     * Setup search functionality
+     */
+    setupSearch() {
+        // Only setup once
+        if (this._searchSetup) return;
+        
+        const searchInput = document.getElementById('pack-search-input');
+        const clearBtn = document.getElementById('pack-search-clear');
+        
+        if (!searchInput) {
+            // DOM not ready yet, will try again on next render
+            return;
+        }
+        
+        // Real-time search
+        searchInput.addEventListener('input', (e) => {
+            this.searchQuery = e.target.value.trim().toLowerCase();
+            
+            // Show/hide clear button
+            if (clearBtn) {
+                if (this.searchQuery) {
+                    clearBtn.classList.remove('hidden');
+                } else {
+                    clearBtn.classList.add('hidden');
+                }
+            }
+            
+            this.applySearch();
+        });
+        
+        // Clear search
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                this.searchQuery = '';
+                clearBtn.classList.add('hidden');
+                this.applySearch();
+                searchInput.focus();
+            });
+        }
+        
+        // Mark as setup
+        this._searchSetup = true;
+    }
+    
+    /**
+     * Restore search state after re-render
+     */
+    restoreSearchState() {
+        if (!this.searchQuery) return;
+        
+        const searchInput = document.getElementById('pack-search-input');
+        const clearBtn = document.getElementById('pack-search-clear');
+        
+        if (searchInput) {
+            // Restore input value
+            searchInput.value = this.searchQuery;
+            
+            // Show clear button
+            if (clearBtn) {
+                clearBtn.classList.remove('hidden');
+            }
+            
+            // Reapply search filter
+            this.applySearch();
+        }
+    }
+    
+    /**
+     * Apply search filter to pack tree
+     */
+    applySearch() {
+        const allItems = document.querySelectorAll('.entry-item, .yaml-file-header');
+        
+        if (!this.searchQuery) {
+            // Show all items
+            document.querySelectorAll('.pack-item, .folder-item, .yaml-file-header, .entry-item, .yaml-file-item, .yaml-file-container')
+                .forEach(el => el.classList.remove('search-hidden'));
+            
+            // Remove highlights
+            document.querySelectorAll('.search-highlight').forEach(el => {
+                const parent = el.parentNode;
+                parent.replaceChild(document.createTextNode(el.textContent), el);
+            });
+            
+            return;
+        }
+        
+        // Track matches
+        let matchCount = 0;
+        const matchedPacks = new Set();
+        const matchedYamlFiles = new Set();
+        const yamlFilesWithMatchingHeader = new Set();
+        
+        // First pass: find all matching entries
+        allItems.forEach(item => {
+            const nameEl = item.querySelector('.entry-name, .file-name');
+            const text = (nameEl ? nameEl.textContent : item.textContent).toLowerCase();
+            const matches = text.includes(this.searchQuery);
+            
+            if (matches) {
+                item.classList.remove('search-hidden');
+                this.highlightText(nameEl || item, this.searchQuery);
+                matchCount++;
+                
+                // Show and expand parent pack
+                const packItem = item.closest('.pack-item');
+                if (packItem) {
+                    packItem.classList.remove('search-hidden');
+                    matchedPacks.add(packItem);
+                    
+                    // Expand pack to show results
+                    const packBody = packItem.querySelector('.pack-body');
+                    if (packBody) {
+                        packBody.classList.remove('collapsed');
+                    }
+                }
+                
+                // Show parent folder
+                const folderItem = item.closest('.folder-item');
+                if (folderItem) {
+                    folderItem.classList.remove('search-hidden');
+                    
+                    // Expand folder
+                    const folderFiles = folderItem.querySelector('.folder-files');
+                    if (folderFiles) {
+                        folderFiles.classList.remove('collapsed');
+                    }
+                }
+                
+                // Handle YAML file expansion
+                if (item.classList.contains('yaml-file-header')) {
+                    // This is a YAML file header that matches
+                    const yamlFileItem = item.closest('.yaml-file-item');
+                    if (yamlFileItem) {
+                        yamlFileItem.classList.remove('search-hidden');
+                        matchedYamlFiles.add(item);
+                        yamlFilesWithMatchingHeader.add(yamlFileItem);
+                    }
+                } else if (item.classList.contains('entry-item')) {
+                    // This is an entry inside a YAML file
+                    const yamlFileItem = item.closest('.yaml-file-item');
+                    if (yamlFileItem) {
+                        yamlFileItem.classList.remove('search-hidden');
+                        const header = yamlFileItem.querySelector('.yaml-file-header');
+                        if (header) {
+                            header.classList.remove('search-hidden');
+                            matchedYamlFiles.add(header);
+                        }
+                    }
+                }
+            } else {
+                item.classList.add('search-hidden');
+            }
+        });
+        
+        // Second pass: handle YAML file visibility
+        matchedYamlFiles.forEach(header => {
+            const yamlFileItem = header.closest('.yaml-file-item');
+            if (yamlFileItem) {
+                // Expand the entries container
+                const entriesContainer = yamlFileItem.querySelector('.yaml-entries');
+                if (entriesContainer) {
+                    entriesContainer.classList.remove('collapsed');
+                    
+                    // Only show ALL entries if the YAML file header itself matches
+                    if (yamlFilesWithMatchingHeader.has(yamlFileItem)) {
+                        // File name matches - show all entries
+                        const entries = entriesContainer.querySelectorAll('.entry-item');
+                        entries.forEach(entry => {
+                            entry.classList.remove('search-hidden');
+                        });
+                    }
+                    // Otherwise, only matching entries are shown (already handled in first pass)
+                }
+            }
+        });
+        
+        // Hide YAML file containers with no visible content
+        document.querySelectorAll('.yaml-file-item, .yaml-file-container').forEach(yamlFile => {
+            const visibleEntries = yamlFile.querySelectorAll('.entry-item:not(.search-hidden)');
+            const header = yamlFile.querySelector('.yaml-file-header');
+            
+            if (visibleEntries.length === 0 && header && header.classList.contains('search-hidden')) {
+                // No visible entries and header is hidden - hide entire container
+                yamlFile.classList.add('search-hidden');
+            } else {
+                yamlFile.classList.remove('search-hidden');
+            }
+        });
+        
+        // Hide packs with no matches
+        document.querySelectorAll('.pack-item').forEach(pack => {
+            if (!matchedPacks.has(pack)) {
+                pack.classList.add('search-hidden');
+            }
+        });
+        
+        // Hide empty folders
+        document.querySelectorAll('.folder-item').forEach(folder => {
+            const visibleItems = folder.querySelectorAll('.entry-item:not(.search-hidden), .yaml-file-header:not(.search-hidden)');
+            if (visibleItems.length === 0) {
+                folder.classList.add('search-hidden');
+            } else {
+                folder.classList.remove('search-hidden');
+            }
+        });
+        
+        // Show results count
+        console.log(`🔍 Search: "${this.searchQuery}" - Found ${matchCount} result(s)`);
+    }
+    
+    /**
+     * Highlight matching text
+     */
+    highlightText(element, query) {
+        if (!query || !element) return;
+        
+        // Remove any existing highlights first
+        element.querySelectorAll('.search-highlight').forEach(highlight => {
+            const parent = highlight.parentNode;
+            parent.replaceChild(document.createTextNode(highlight.textContent), highlight);
+            parent.normalize(); // Merge adjacent text nodes
+        });
+        
+        // Get the text content directly
+        const originalHTML = element.innerHTML;
+        const text = element.textContent;
+        const lowerText = text.toLowerCase();
+        const lowerQuery = query.toLowerCase();
+        
+        let index = lowerText.indexOf(lowerQuery);
+        if (index === -1) return;
+        
+        // Build new HTML with highlighted matches
+        let result = '';
+        let lastIndex = 0;
+        
+        while (index !== -1) {
+            // Add text before match
+            result += this.escapeHtml(text.substring(lastIndex, index));
+            
+            // Add highlighted match
+            const matchText = text.substring(index, index + query.length);
+            result += `<span class="search-highlight">${this.escapeHtml(matchText)}</span>`;
+            
+            // Move to next
+            lastIndex = index + query.length;
+            index = lowerText.indexOf(lowerQuery, lastIndex);
+        }
+        
+        // Add remaining text
+        result += this.escapeHtml(text.substring(lastIndex));
+        
+        element.innerHTML = result;
+    }
+    
+    /**
+     * Escape HTML special characters
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // =================================================================
+    // RECENT FILES
+    // =================================================================
+    
+    /**
+     * Load recent files from storage
+     */
+    async loadRecentFiles() {
+        try {
+            const saved = await this.editor.storage.get('recentFiles');
+            if (saved !== null && Array.isArray(saved)) {
+                // Database has data (could be empty array or populated)
+                this.recentFiles = saved;
+            } else {
+                // Fallback: Initialize empty array for users without database entry
+                this.recentFiles = [];
+                await this.editor.storage.set('recentFiles', []);
+            }
+        } catch (error) {
+            // Handle errors gracefully
+            console.warn('Failed to load recent files, using empty array:', error);
+            this.recentFiles = [];
+        }
+    }
+    
+    /**
+     * Save recent files to storage
+     */
+    async saveRecentFiles() {
+        try {
+            await this.editor.storage.set('recentFiles', this.recentFiles);
+        } catch (error) {
+            // Silently handle storage errors
+            console.debug('Unable to save recent files to cloud storage');
+        }
+    }
+    
+    /**
+     * Add file to recent files
+     */
+    async addToRecentFiles(fileId, fileName, fileType, packName) {
+        // Remove if already exists
+        this.recentFiles = this.recentFiles.filter(f => f.fileId !== fileId);
+        
+        // Add to beginning
+        this.recentFiles.unshift({
+            fileId,
+            fileName,
+            fileType,
+            packName,
+            timestamp: Date.now()
+        });
+        
+        // Keep only last 10
+        this.recentFiles = this.recentFiles.slice(0, 10);
+        
+        await this.saveRecentFiles();
+        this.renderRecentFiles();
+    }
+    
+    /**
+     * Render recent files section
+     */
+    renderRecentFiles() {
+        const section = document.getElementById('recent-files-section');
+        const list = document.getElementById('recent-files-list');
+        const count = document.getElementById('recent-files-count');
+        
+        if (!section || !list || !count) return;
+        
+        // Update count
+        count.textContent = this.recentFiles.length;
+        
+        // Show/hide section
+        if (this.recentFiles.length === 0) {
+            section.classList.add('empty');
+            return;
+        }
+        
+        section.classList.remove('empty');
+        
+        // Render list
+        const icons = {
+            mob: 'fa-skull',
+            skill: 'fa-magic',
+            item: 'fa-gem',
+            droptable: 'fa-table',
+            randomspawn: 'fa-map-marked-alt'
+        };
+        
+        list.innerHTML = this.recentFiles.map(file => {
+            const isActive = this.editor.state.currentFile && this.editor.state.currentFile.id === file.fileId;
+            return `
+                <div class="recent-file-item ${isActive ? 'active' : ''}" 
+                     data-file-id="${file.fileId}" 
+                     data-file-type="${file.fileType}">
+                    <i class="fas ${icons[file.fileType] || 'fa-file'} recent-file-icon"></i>
+                    <div class="recent-file-info">
+                        <div class="recent-file-name">${file.fileName}</div>
+                        <div class="recent-file-meta">${file.packName} • ${file.fileType}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Click handlers are attached via event delegation in setupRecentFilesClickDelegation()
+    }
+    
+    /**
+     * Setup recent files section toggle
+     */
+    setupRecentFilesToggle() {
+        // Only setup once
+        if (this._recentFilesToggleSetup) return;
+        
+        const header = document.getElementById('recent-files-header');
+        const section = document.getElementById('recent-files-section');
+        
+        if (!header || !section) {
+            // Elements don't exist yet, don't set flag so we can try again later
+            return;
+        }
+        
+        header.addEventListener('click', () => {
+            section.classList.toggle('collapsed');
+            
+            // Save state
+            const isCollapsed = section.classList.contains('collapsed');
+            localStorage.setItem('recentFilesCollapsed', isCollapsed);
+        });
+        
+        // Restore state
+        const savedState = localStorage.getItem('recentFilesCollapsed');
+        if (savedState === 'false') {
+            section.classList.remove('collapsed');
+        }
+        
+        // Only set flag after successfully attaching listener
+        this._recentFilesToggleSetup = true;
+    }
+    
+    /**
+     * Setup click delegation for recent files items
+     */
+    setupRecentFilesClickDelegation() {
+        // Only setup once
+        if (this._recentFilesClickDelegationSetup) return;
+        
+        const list = document.getElementById('recent-files-list');
+        if (!list) {
+            // Element doesn't exist yet, don't set flag so we can try again later
+            return;
+        }
+        
+        // Use event delegation on the list container
+        list.addEventListener('click', (e) => {
+            const item = e.target.closest('.recent-file-item');
+            if (!item) return;
+            
+            const fileId = item.dataset.fileId;
+            const fileType = item.dataset.fileType;
+            if (fileId && fileType) {
+                this.openFile(fileId, fileType);
+            }
+        });
+        
+        // Only set flag after successfully attaching listener
+        this._recentFilesClickDelegationSetup = true;
+    }
+    
+    // =================================================================
+    // FAVORITES
+    // =================================================================
+    
+    /**
+     * Load favorites from storage
+     */
+    async loadFavorites() {
+        try {
+            const saved = await this.editor.storage.get('favorites');
+            if (saved !== null && Array.isArray(saved)) {
+                // Database has data (could be empty array or populated)
+                this.favorites = new Set(saved);
+            } else {
+                // Fallback: Initialize empty arrays for users without database entries
+                this.favorites = new Set();
+                await this.editor.storage.set('favorites', []);
+                await this.editor.storage.set('favoritesMetadata', {});
+            }
+        } catch (error) {
+            // Handle errors gracefully
+            console.warn('Failed to load favorites, using empty set:', error);
+            this.favorites = new Set();
+        }
+    }
+    
+    /**
+     * Save favorites to storage
+     */
+    async saveFavorites() {
+        try {
+            await this.editor.storage.set('favorites', Array.from(this.favorites));
+        } catch (error) {
+            // Silently handle storage errors
+            console.debug('Unable to save favorites to cloud storage');
+        }
+    }
+    
+    /**
+     * Toggle favorite status
+     */
+    async toggleFavorite(fileId, fileName, fileType, packName) {
+        const key = fileId;
+        
+        if (this.favorites.has(key)) {
+            this.favorites.delete(key);
+        } else {
+            // Store with metadata
+            const favoriteData = { fileId, fileName, fileType, packName };
+            this.favorites.add(key);
+            
+            // Also store metadata separately
+            const metadata = await this.editor.storage.get('favoritesMetadata') || {};
+            metadata[key] = favoriteData;
+            await this.editor.storage.set('favoritesMetadata', metadata);
+            
+            // Invalidate cache so next render will fetch fresh data
+            this._favoritesMetadataCache = null;
+        }
+        
+        await this.saveFavorites();
+        this.renderPackTree();
+        this.renderFavorites();
+    }
+    
+    /**
+     * Check if file is favorited
+     */
+    isFavorited(fileId) {
+        return this.favorites.has(fileId);
+    }
+    
+    /**
+     * Render favorites section
+     */
+    async renderFavorites() {
+        const section = document.getElementById('favorites-section');
+        const list = document.getElementById('favorites-list');
+        const count = document.getElementById('favorites-count');
+        
+        if (!section || !list || !count) return;
+        
+        // Get metadata (cached to prevent repeated 406 errors)
+        if (!this._favoritesMetadataCache) {
+            try {
+                this._favoritesMetadataCache = await this.editor.storage.get('favoritesMetadata') || {};
+            } catch (error) {
+                // Silently handle missing data - normal for first-time users
+                this._favoritesMetadataCache = {};
+            }
+        }
+        const metadata = this._favoritesMetadataCache;
+        
+        // Filter valid favorites
+        const validFavorites = Array.from(this.favorites)
+            .map(key => metadata[key])
+            .filter(f => f);
+        
+        // Update count
+        count.textContent = validFavorites.length;
+        
+        // Show/hide section
+        if (validFavorites.length === 0) {
+            section.classList.add('empty');
+            return;
+        }
+        
+        section.classList.remove('empty');
+        
+        // Render list
+        const icons = {
+            mob: 'fa-skull',
+            skill: 'fa-magic',
+            item: 'fa-gem',
+            droptable: 'fa-table',
+            randomspawn: 'fa-map-marked-alt'
+        };
+        
+        list.innerHTML = validFavorites.map(file => {
+            const isActive = this.editor.state.currentFile && this.editor.state.currentFile.id === file.fileId;
+            return `
+                <div class="favorite-item ${isActive ? 'active' : ''}" 
+                     data-file-id="${file.fileId}" 
+                     data-file-type="${file.fileType}">
+                    <i class="fas ${icons[file.fileType] || 'fa-file'} favorite-icon"></i>
+                    <div class="favorite-info">
+                        <div class="favorite-name">${file.fileName}</div>
+                        <div class="favorite-meta">${file.packName} • ${file.fileType}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Click handlers are attached via event delegation in setupFavoritesClickDelegation()
+    }
+    
+    /**
+     * Setup favorites section toggle
+     */
+    setupFavoritesToggle() {
+        // Only setup once
+        if (this._favoritesToggleSetup) return;
+        
+        const header = document.getElementById('favorites-header');
+        const section = document.getElementById('favorites-section');
+        
+        if (!header || !section) {
+            // Elements don't exist yet, don't set flag so we can try again later
+            return;
+        }
+        
+        header.addEventListener('click', () => {
+            section.classList.toggle('collapsed');
+            
+            // Save state
+            const isCollapsed = section.classList.contains('collapsed');
+            localStorage.setItem('favoritesCollapsed', isCollapsed);
+        });
+        
+        // Restore state
+        const savedState = localStorage.getItem('favoritesCollapsed');
+        if (savedState === 'false') {
+            section.classList.remove('collapsed');
+        }
+        
+        // Only set flag after successfully attaching listener
+        this._favoritesToggleSetup = true;
+    }
+    
+    /**
+     * Setup click delegation for favorites items
+     */
+    setupFavoritesClickDelegation() {
+        // Only setup once
+        if (this._favoritesClickDelegationSetup) return;
+        
+        const list = document.getElementById('favorites-list');
+        if (!list) {
+            // Element doesn't exist yet, don't set flag so we can try again later
+            return;
+        }
+        
+        // Use event delegation on the list container
+        list.addEventListener('click', (e) => {
+            const item = e.target.closest('.favorite-item');
+            if (!item) return;
+            
+            const fileId = item.dataset.fileId;
+            const fileType = item.dataset.fileType;
+            if (fileId && fileType) {
+                this.openFile(fileId, fileType);
+            }
+        });
+        
+        // Only set flag after successfully attaching listener
+        this._favoritesClickDelegationSetup = true;
+    }
+    
+    // =================================================================
+    // FILE STATUS INDICATORS
+    // =================================================================
+    
+    /**
+     * Set file status
+     */
+    setFileStatus(fileId, status) {
+        this.fileStatuses.set(fileId, status);
+    }
+    
+    /**
+     * Get file status
+     */
+    getFileStatus(fileId) {
+        return this.fileStatuses.get(fileId) || null;
+    }
+    
+    /**
+     * Mark file as modified
+     */
+    markFileModified(fileId) {
+        this.setFileStatus(fileId, { modified: true, error: false, synced: false });
+        this.updateFileStatusIndicator(fileId);
+    }
+    
+    /**
+     * Mark file as saved
+     */
+    markFileSaved(fileId) {
+        this.setFileStatus(fileId, { modified: false, error: false, synced: true });
+        this.updateFileStatusIndicator(fileId);
+    }
+    
+    /**
+     * Mark file as error
+     */
+    markFileError(fileId) {
+        this.setFileStatus(fileId, { modified: false, error: true, synced: false });
+        this.updateFileStatusIndicator(fileId);
+    }
+    
+    /**
+     * Update file status indicator in UI
+     */
+    updateFileStatusIndicator(fileId) {
+        const elements = document.querySelectorAll(`[data-file-id="${fileId}"], [data-entry-id="${fileId}"]`);
+        const status = this.getFileStatus(fileId);
+        
+        elements.forEach(el => {
+            // Remove existing indicators
+            const existing = el.querySelector('.file-status-indicator');
+            if (existing) existing.remove();
+            
+            if (!status) return;
+            
+            // Add new indicator
+            const indicator = document.createElement('div');
+            indicator.className = 'file-status-indicator';
+            
+            if (status.modified) {
+                indicator.innerHTML = '<span class="status-dot modified" title="Modified"></span>';
+            } else if (status.error) {
+                indicator.innerHTML = '<i class="fas fa-exclamation-circle status-icon error" title="Error"></i>';
+            } else if (status.synced) {
+                indicator.innerHTML = '<i class="fas fa-check-circle status-icon synced" title="Saved"></i>';
+            }
+            
+            el.appendChild(indicator);
+        });
+    }
+    
+    // =================================================================
+    // HELPER METHODS
+    // =================================================================
+    
+    /**
+     * Find a file across all packs
+     * @returns {Object|null} { pack, file, entry } or null if not found
+     */
+    findFileInAllPacks(fileId, fileType) {
+        for (const pack of this.packs) {
+            const collection = pack[fileType + 's'];
+            if (!collection) continue;
+            
+            // Search in file-based structure
+            for (const file of collection) {
+                // Check file level
+                if (file.id === fileId) {
+                    return { pack, file, entry: null };
+                }
+                
+                // Check entry level
+                if (file.entries) {
+                    const entry = file.entries.find(e => e.id === fileId);
+                    if (entry) {
+                        return { pack, file, entry };
+                    }
+                }
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Open a file (searches all packs)
+     */
+    openFile(fileId, fileType) {
+        // Find the file across all packs
+        const result = this.findFileInAllPacks(fileId, fileType);
+        
+        if (!result) {
+            // File not found - show warning
+            this.showMissingFileWarning(fileId, fileType);
+            return;
+        }
+        
+        // If file is in a different pack, switch to it first
+        if (result.pack.id !== this.activePack?.id) {
+            this.setActivePack(result.pack);
+        }
+        
+        // Open the file or entry
+        const itemToOpen = result.entry || result.file;
+        this.editor.openFile(itemToOpen, fileType);
+    }
+    
+    /**
+     * Show warning when file no longer exists
+     */
+    showMissingFileWarning(fileId, fileType) {
+        // Try to get file name from recent files or favorites metadata
+        let fileName = 'Unknown file';
+        
+        // Check recent files
+        const recentFile = this.recentFiles.find(f => f.fileId === fileId);
+        if (recentFile) {
+            fileName = recentFile.fileName;
+        } else if (this._favoritesMetadataCache && this._favoritesMetadataCache[fileId]) {
+            // Check favorites metadata
+            fileName = this._favoritesMetadataCache[fileId].fileName;
+        }
+        
+        // Show notification
+        if (this.editor.notificationModal) {
+            this.editor.notificationModal.show(
+                'File Not Found',
+                `The file "${fileName}" no longer exists. It may have been deleted or renamed.`,
+                [
+                    {
+                        text: 'Remove from List',
+                        primary: true,
+                        callback: () => {
+                            this.removeDeletedFile(fileId);
+                        }
+                    },
+                    {
+                        text: 'OK',
+                        callback: () => {}
+                    }
+                ]
+            );
+        } else {
+            // Fallback to alert if notification modal not available
+            alert(`File "${fileName}" no longer exists.\n\nIt may have been deleted or renamed.`);
+            this.removeDeletedFile(fileId);
+        }
+    }
+    
+    /**
+     * Remove a deleted file from recent files and favorites
+     */
+    async removeDeletedFile(fileId) {
+        // Remove from recent files
+        const recentIndex = this.recentFiles.findIndex(f => f.fileId === fileId);
+        if (recentIndex !== -1) {
+            this.recentFiles.splice(recentIndex, 1);
+            await this.saveRecentFiles();
+            this.renderRecentFiles();
+        }
+        
+        // Remove from favorites
+        if (this.favorites.has(fileId)) {
+            this.favorites.delete(fileId);
+            
+            // Remove from metadata
+            if (this._favoritesMetadataCache && this._favoritesMetadataCache[fileId]) {
+                delete this._favoritesMetadataCache[fileId];
+                await this.editor.storage.set('favoritesMetadata', this._favoritesMetadataCache);
+            }
+            
+            await this.saveFavorites();
+            this.renderFavorites();
+            this.renderPackTree();
+        }
+    }
+    
+    /**
+     * Duplicate a file
+     */
+    duplicateFile(fileId, fileType) {
+        // Implementation depends on existing duplicate functionality
+        console.log('Duplicate file:', fileId, fileType);
+        // Call appropriate editor duplicate method
+    }
+    
+    /**
+     * Export a file
+     */
+    exportFile(fileId, fileType) {
+        // Implementation depends on existing export functionality
+        console.log('Export file:', fileId, fileType);
+        // Call appropriate export method
     }
 }
 

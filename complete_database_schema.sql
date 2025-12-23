@@ -427,5 +427,13 @@ POST-INSTALLATION STEPS:
    SELECT tablename, policyname FROM pg_policies 
    WHERE schemaname = 'public';
 
+3. NOTE ABOUT NEW FEATURES:
+
+   The following features will auto-initialize in the database
+   on first use (no manual setup needed):
+   - Recent Files (recentFiles key in user_data)
+   - Favorites (favorites key in user_data)
+   - Favorites Metadata (favoritesMetadata key in user_data)
+
 =============================================================
 */

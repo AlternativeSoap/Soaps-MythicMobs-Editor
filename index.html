@@ -205,6 +205,44 @@
                     </div>
                 </div>
                 <div class="sidebar-content">
+                    <!-- Search Box -->
+                    <div class="pack-search-container">
+                        <div class="search-input-wrapper">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" 
+                                   id="pack-search-input" 
+                                   class="pack-search-input" 
+                                   placeholder="Search files..."
+                                   autocomplete="off">
+                            <button class="icon-btn search-clear-btn hidden" id="pack-search-clear" title="Clear search">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Files Section -->
+                    <div class="recent-files-section collapsed" id="recent-files-section">
+                        <div class="recent-files-header" id="recent-files-header">
+                            <i class="fas fa-chevron-right recent-chevron"></i>
+                            <i class="fas fa-clock"></i>
+                            <span>Recent Files</span>
+                            <span class="badge" id="recent-files-count">0</span>
+                        </div>
+                        <div class="recent-files-list" id="recent-files-list"></div>
+                    </div>
+                    
+                    <!-- Favorites Section -->
+                    <div class="favorites-section collapsed" id="favorites-section">
+                        <div class="favorites-header" id="favorites-header">
+                            <i class="fas fa-chevron-right favorites-chevron"></i>
+                            <i class="fas fa-star"></i>
+                            <span>Favorites</span>
+                            <span class="badge" id="favorites-count">0</span>
+                        </div>
+                        <div class="favorites-list" id="favorites-list"></div>
+                    </div>
+                    
+                    <!-- Pack Tree -->
                     <div id="pack-tree"></div>
                 </div>
                 <div class="sidebar-footer">
@@ -789,6 +827,7 @@
     <script src="components/authManager.js"></script>
     <script src="components/authUI.js"></script>
     <script src="components/storageManager.js"></script>
+    <script src="components/contextMenu.js"></script>
     <script src="components/packManager.js"></script>
     <script src="components/fileManager.js"></script>
     <script src="components/documentationHelper.js"></script>

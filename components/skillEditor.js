@@ -77,14 +77,6 @@ class SkillEditor {
                                 <small class="form-hint">Time between executions for the same caster</small>
                             </div>
                         </div>
-                        
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type=\"checkbox\" id=\"skill-cancelifnotargets\" ${this.getConditionStorageObject().cancelIfNoTargets !== false ? 'checked' : ''}>
-                                Cancel If No Targets
-                            </label>
-                            <small class="form-hint">If enabled, skill won't execute if no valid targets are found (default: true)</small>
-                        </div>
                     </div>
                 </div>
                 
@@ -152,6 +144,14 @@ class SkillEditor {
                         <label class="form-label">Skill (Async Execute)</label>
                         <input type="text" class="form-input" id="skill-skillref" value="${targetObj.skill || ''}" placeholder="AnotherSkillName">
                         <small class="form-hint">Another metaskill to execute (ignores its conditions/cooldown, runs before this skill's mechanics)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="skill-cancelifnotargets" ${targetObj.cancelIfNoTargets !== false ? 'checked' : ''}>
+                            Cancel If No Targets
+                        </label>
+                        <small class="form-hint">If enabled, skill won't execute if no valid targets are found (default: true)</small>
                     </div>
                     
                     <div class="skill-parameters-info" style="

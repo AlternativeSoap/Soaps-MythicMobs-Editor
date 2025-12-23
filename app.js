@@ -331,6 +331,22 @@ class MythicMobsEditor {
             if (preview) preview.textContent = e.target.value;
         });
         
+        // Delay display mode - update immediately when changed
+        document.getElementById('setting-delay-display-mode')?.addEventListener('change', (e) => {
+            this.settings.delayDisplayMode = e.target.value;
+            this.saveSettings();
+            
+            // Re-render skill builder if it exists to show updated delay annotations
+            if (this.skillEditor?.skillBuilderEditor) {
+                this.skillEditor.skillBuilderEditor.render();
+            }
+            
+            // Re-render mob skills editor if it exists
+            if (this.mobEditor?.skillsEditor) {
+                this.mobEditor.skillsEditor.render();
+            }
+        });
+        
         // Note: Modal overlay click handler is attached per-modal in createModal()
         
         // Close command palette on escape
@@ -1063,6 +1079,13 @@ class MythicMobsEditor {
         this.state.currentFile = file;
         this.state.currentFileType = type;
         this.state.currentView = `${type}-editor`;
+        
+        // Add to recent files
+        if (file && file.id && type !== 'packinfo' && type !== 'tooltips') {
+            const fileName = file.internalName || file.name || 'Unnamed';
+            const packName = this.state.currentPack?.name || 'Unknown Pack';
+            this.packManager.addToRecentFiles(file.id, fileName, type, packName);
+        }
         
         // Hide all views
         document.querySelectorAll('.view-container').forEach(view => {

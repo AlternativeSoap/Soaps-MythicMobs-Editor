@@ -697,4 +697,7 @@ BEGIN
   RAISE NOTICE '2. All errors should be gone';
   RAISE NOTICE '3. Admin panel should work correctly';
   RAISE NOTICE '';
+  RAISE NOTICE 'NOTE: New features (Recent Files, Favorites) will';
+  RAISE NOTICE 'auto-initialize in the database on first use.';
+  RAISE NOTICE '';
 END $$;

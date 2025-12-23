@@ -1524,8 +1524,8 @@ class SkillBuilderEditor {
         const lines = this.context === 'mob' ? this.skillLines : this.getSkillLines();
         const currentLine = lines[index];
         
-        // Use custom editor for editing - it's the most flexible
-        this.customEditor.open({
+        // Use skill line builder for editing - it's the most flexible
+        this.skillLineBuilder.open({
             context: this.context,
             onAdd: (skillLine) => {
                 if (this.context === 'mob') {
@@ -1539,15 +1539,15 @@ class SkillBuilderEditor {
             }
         });
         
-        // Pre-fill the custom editor with current line
+        // Pre-fill the skill line builder with current line
         setTimeout(() => {
-            if (this.customEditor.input) {
-                this.customEditor.input.value = currentLine;
-                this.customEditor.currentInput = currentLine;
-                this.customEditor.applySyntaxHighlighting();
-                this.customEditor.updateValidation();
-                this.customEditor.updatePreview();
-                this.customEditor.updateAddButton();
+            if (this.skillLineBuilder.input) {
+                this.skillLineBuilder.input.value = currentLine;
+                this.skillLineBuilder.currentInput = currentLine;
+                this.skillLineBuilder.applySyntaxHighlighting();
+                this.skillLineBuilder.updateValidation();
+                this.skillLineBuilder.updatePreview();
+                this.skillLineBuilder.updateAddButton();
             }
         }, 100);
     }
