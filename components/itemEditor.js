@@ -48,9 +48,13 @@ class ItemEditor {
 
         container.innerHTML = this.generateItemEditorHTML(item);
         this.attachEventHandlers(item);
+        
+        // IMPORTANT: Update conditional sections BEFORE initializing collapsible
+        // This ensures sections are visible/hidden before collapsible manager processes them
+        this.updateConditionalSections(item);
+        
         window.collapsibleManager.initializeCollapsible();
         window.collapsibleManager.restoreStates();
-        this.updateConditionalSections(item);
     }
 
     /**
@@ -96,7 +100,9 @@ class ItemEditor {
                 ${this.generateFireworkSection(item)}
                 ${isAdvanced ? this.generateNBTSection(item) : ''}
                 ${isAdvanced ? this.generateSkillsSection(item) : ''}
-                ${isAdvanced ? this.generateAdvancedSection(item) : ''}
+                ${isAdvanced ? this.generateArmorTrimSection(item) : ''}
+                ${isAdvanced ? this.generateBookSection(item) : ''}
+                ${isAdvanced ? this.generatePlayerHeadSection(item) : ''}
             </div>
         `;
     }
@@ -602,57 +608,211 @@ class ItemEditor {
     generatePotionEffectsSection(item) {
         const potionEffects = item?.PotionEffects || [];
         const effects = window.PotionEffectData?.POTION_EFFECTS || [];
+        const potionColor = item?.Options?.Color || '146,107,174'; // Default potion purple
+        
+        // Parse RGB color
+        const rgbParts = potionColor.split(',').map(v => parseInt(v.trim()) || 0);
+        const r = rgbParts[0] || 146;
+        const g = rgbParts[1] || 107;
+        const b = rgbParts[2] || 174;
+        const hexColor = '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+        
+        // Helper function for duration display
+        const formatDuration = (ticks) => {
+            const totalSeconds = Math.floor(ticks / 20);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            if (minutes > 0) {
+                return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+            }
+            return `${seconds}s`;
+        };
+        
+        // Helper function for amplifier display
+        const formatAmplifier = (amp) => {
+            const level = parseInt(amp) + 1;
+            const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+            return roman[level - 1] || level;
+        };
         
         return `
-            <div class="card collapsible-card collapsed" id="potion-effects-section" style="display: none;">
+            <div class="card collapsible-card collapsed" id="potion-effects-section">
                 <div class="card-header collapsible-header">
                     <h3 class="card-title">
-                        <i class="fas fa-flask"></i> Potion Effects
+                        <i class="fas fa-flask"></i> Potion Effects & Color
                         ${potionEffects.length > 0 ? `<span class="card-badge">${potionEffects.length}</span>` : ''}
                         <i class="fas fa-chevron-down collapse-icon"></i>
                     </h3>
                 </div>
                 <div class="card-body collapsible-card-body">
-                    <div id="item-potion-effects-list" class="list-editor">
-                        ${potionEffects.map((effect, index) => {
-                            const parts = effect.split(' ');
-                            const effectType = parts[0];
-                            const duration = parts[1] || 600;
-                            const amplifier = parts[2] || 0;
-                            return `
-                                <div class="list-item potion-effect-item" data-index="${index}">
-                                    <select class="form-select potion-effect-type">
-                                        <option value="">Select Effect...</option>
-                                        ${effects.map(e => `
-                                            <option value="${e.id}" ${e.id === effectType ? 'selected' : ''} title="${e.description}">
-                                                ${e.name}
-                                            </option>
-                                        `).join('')}
-                                    </select>
-                                    <input 
-                                        type="number" 
-                                        class="form-input potion-duration" 
-                                        value="${duration}"
-                                        min="1"
-                                        placeholder="Duration (ticks)"
-                                    >
-                                    <input 
-                                        type="number" 
-                                        class="form-input potion-amplifier" 
-                                        value="${amplifier}"
-                                        min="0"
-                                        placeholder="Level"
-                                    >
-                                    <button type="button" class="btn-icon btn-danger remove-potion-effect" data-index="${index}">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>
-                            `;
-                        }).join('')}
-                        <button type="button" class="add-item-btn add-potion-effect-btn">
-                            <i class="fas fa-plus-circle"></i>
-                            <span>Add Potion Effect</span>
-                        </button>
+                    
+                    <!-- Potion Color Section -->
+                    <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, transparent 100%); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 10px; padding: 18px; margin-bottom: 24px;">
+                        <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 14px; color: rgba(168, 85, 247, 1);">
+                            <i class="fas fa-palette"></i>
+                            Potion Color
+                        </label>
+                        <div style="display: flex; gap: 14px; align-items: end;">
+                            <!-- Color Picker -->
+                            <div style="flex: 0 0 auto;">
+                                <label for="potion-color-picker" class="form-label" style="font-size: 11px; margin-bottom: 6px; display: block;">Pick Color</label>
+                                <input 
+                                    type="color" 
+                                    id="potion-color-picker" 
+                                    value="${hexColor}"
+                                    data-interactive="true"
+                                    style="width: 90px; height: 42px; border: 2px solid rgba(168, 85, 247, 0.4); border-radius: 8px; cursor: pointer; background: transparent;"
+                                >
+                            </div>
+                            
+                            <!-- RGB Input -->
+                            <div style="flex: 1;">
+                                <label for="potion-color-rgb" class="form-label" style="font-size: 11px; margin-bottom: 6px; display: block;">RGB Values</label>
+                                <input 
+                                    type="text" 
+                                    id="potion-color-rgb" 
+                                    class="form-input" 
+                                    value="${potionColor}"
+                                    data-interactive="true"
+                                    placeholder="146,107,174"
+                                    style="font-family: 'Courier New', monospace; font-weight: 600; font-size: 14px;"
+                                >
+                            </div>
+                        </div>
+                        <small class="form-hint" style="margin-top: 10px; display: block;">
+                            <i class="fas fa-info-circle" style="color: #a855f7;"></i>
+                            Pick a color or enter RGB values (e.g., "255,0,0" for red)
+                        </small>
+                    </div>
+
+                    <!-- Potion Effects List -->
+                    <div>
+                        <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 14px;">
+                            <i class="fas fa-magic" style="color: var(--accent-primary);"></i>
+                            Active Effects ${potionEffects.length > 0 ? `<span style="background: rgba(139, 92, 246, 0.2); color: #a855f7; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700;">${potionEffects.length}</span>` : ''}
+                        </label>
+                        
+                        ${potionEffects.length === 0 ? `
+                            <div style="background: rgba(139, 92, 246, 0.05); border: 2px dashed rgba(139, 92, 246, 0.2); border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 14px;">
+                                <i class="fas fa-flask" style="font-size: 32px; color: rgba(139, 92, 246, 0.3); margin-bottom: 12px;"></i>
+                                <p style="color: rgba(255, 255, 255, 0.5); margin: 0; font-size: 13px;">No potion effects added yet</p>
+                                <p style="color: rgba(255, 255, 255, 0.3); margin: 4px 0 0 0; font-size: 11px;">Click "Add Potion Effect" below to add your first effect</p>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Effects List Container -->
+                        <div id="item-potion-effects-list" style="margin-bottom: 14px;">
+                            ${potionEffects.map((effect, index) => {
+                                const parts = effect.split(' ');
+                                const effectType = parts[0];
+                                const duration = parts[1] || 600;
+                                const amplifier = parts[2] || 0;
+                                const effectName = effects.find(e => e.id === effectType)?.name || effectType;
+                                
+                                return `
+                                    <div class="potion-effect-item" data-index="${index}" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(139, 92, 246, 0.05) 100%); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 10px; padding: 16px; margin-bottom: 12px; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);">
+                                        <!-- Effect Header -->
+                                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                                            <div style="display: flex; align-items: center; gap: 10px;">
+                                                <span style="background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%); color: #fff; padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);">EFFECT ${index + 1}</span>
+                                                <span style="color: rgba(255, 255, 255, 0.8); font-size: 13px; font-weight: 500;">${effectName} ${formatAmplifier(amplifier)} • ${formatDuration(duration)}</span>
+                                            </div>
+                                            <button type="button" class="remove-potion-effect" data-index="${index}" data-interactive="true" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(239, 68, 68, 0.15) 100%); border: 1px solid rgba(239, 68, 68, 0.4); color: #ff6b6b; padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; transition: all 0.2s; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);" onmouseover="this.style.background='linear-gradient(135deg, rgba(239, 68, 68, 0.4) 0%, rgba(239, 68, 68, 0.25) 100%)'; this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.4)'" onmouseout="this.style.background='linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(239, 68, 68, 0.15) 100%)'; this.style.transform='scale(1)'; this.style.boxShadow='0 2px 6px rgba(239, 68, 68, 0.2)'">
+                                                <i class="fas fa-trash-alt"></i>
+                                                Remove
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Effect Controls with integrated labels -->
+                                        <div style="display: grid; grid-template-columns: 1.5fr 1.8fr 1.3fr; gap: 14px;">
+                                            <!-- Effect Type -->
+                                            <div>
+                                                <label class="form-label" style="font-size: 11px; margin-bottom: 7px; display: block; color: rgba(255, 255, 255, 0.7); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Effect Type</label>
+                                                <select class="form-select potion-effect-type" data-interactive="true" style="width: 100%; padding: 10px 12px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 6px; color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;">
+                                                    <option value="" style="background: #1a1a2e; color: #999;">Select Effect...</option>
+                                                    ${effects.map(e => `
+                                                        <option value="${e.id}" ${e.id === effectType ? 'selected' : ''} title="${e.description}" style="background: #1a1a2e; color: #fff; padding: 8px;">
+                                                            ${e.name}
+                                                        </option>
+                                                    `).join('')}
+                                                </select>
+                                            </div>
+                                            
+                                            <!-- Duration -->
+                                            <div>
+                                                <label class="form-label" style="font-size: 11px; margin-bottom: 7px; display: block; color: rgba(255, 255, 255, 0.7); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Duration (ticks)</label>
+                                                <div style="display: flex; gap: 6px; align-items: center;">
+                                                    <input 
+                                                        type="number" 
+                                                        class="form-input potion-duration" 
+                                                        value="${duration}"
+                                                        min="1"
+                                                        data-interactive="true"
+                                                        data-index="${index}"
+                                                        placeholder="600"
+                                                        style="flex: 1; padding: 10px 12px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 6px; color: #fff; font-family: 'Courier New', monospace; font-size: 14px; font-weight: 600; transition: all 0.2s;"
+                                                        onmouseenter="this.style.borderColor='rgba(139, 92, 246, 0.6)'"
+                                                        onmouseleave="this.style.borderColor='rgba(139, 92, 246, 0.4)'"
+                                                    >
+                                                    <!-- Spinner Buttons (outside input) -->
+                                                    <div style="display: flex; flex-direction: column; gap: 1px;">
+                                                        <button type="button" class="potion-spinner-up" data-target="duration" data-index="${index}" data-interactive="true" style="width: 32px; height: 20px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(139, 92, 246, 0.2) 100%); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #a855f7; font-size: 10px; transition: all 0.15s; padding: 0;" onmouseover="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.5) 0%, rgba(139, 92, 246, 0.4) 100%)'; this.style.borderColor='rgba(139, 92, 246, 0.7)'; this.style.color='#c4b5fd'; this.style.transform='translateY(-1px)'" onmouseout="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(139, 92, 246, 0.2) 100%)'; this.style.borderColor='rgba(139, 92, 246, 0.4)'; this.style.color='#a855f7'; this.style.transform='translateY(0)'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
+                                                            <i class="fas fa-chevron-up" style="font-size: 9px;"></i>
+                                                        </button>
+                                                        <button type="button" class="potion-spinner-down" data-target="duration" data-index="${index}" data-interactive="true" style="width: 32px; height: 20px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(139, 92, 246, 0.2) 100%); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #a855f7; font-size: 10px; transition: all 0.15s; padding: 0;" onmouseover="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.5) 0%, rgba(139, 92, 246, 0.4) 100%)'; this.style.borderColor='rgba(139, 92, 246, 0.7)'; this.style.color='#c4b5fd'; this.style.transform='translateY(1px)'" onmouseout="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(139, 92, 246, 0.2) 100%)'; this.style.borderColor='rgba(139, 92, 246, 0.4)'; this.style.color='#a855f7'; this.style.transform='translateY(0)'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
+                                                            <i class="fas fa-chevron-down" style="font-size: 9px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <small class="duration-display" data-index="${index}" style="margin-top: 6px; display: block; font-size: 11px; color: rgba(168, 85, 247, 0.9); font-weight: 600;">
+                                                    <i class="fas fa-clock" style="font-size: 10px; margin-right: 4px;"></i>${formatDuration(duration)}
+                                                </small>
+                                            </div>
+                                            
+                                            <!-- Amplifier (Level) -->
+                                            <div>
+                                                <label class="form-label" style="font-size: 11px; margin-bottom: 7px; display: block; color: rgba(255, 255, 255, 0.7); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Level</label>
+                                                <div style="display: flex; gap: 6px; align-items: center;">
+                                                    <input 
+                                                        type="number" 
+                                                        class="form-input potion-amplifier" 
+                                                        value="${amplifier}"
+                                                        min="0"
+                                                        max="255"
+                                                        data-interactive="true"
+                                                        data-index="${index}"
+                                                        placeholder="0"
+                                                        style="flex: 1; padding: 10px 12px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 6px; color: #fff; font-family: 'Courier New', monospace; font-size: 14px; font-weight: 600; transition: all 0.2s;"
+                                                        onmouseenter="this.style.borderColor='rgba(139, 92, 246, 0.6)'"
+                                                        onmouseleave="this.style.borderColor='rgba(139, 92, 246, 0.4)'"
+                                                    >
+                                                    <!-- Spinner Buttons (outside input) -->
+                                                    <div style="display: flex; flex-direction: column; gap: 1px;">
+                                                        <button type="button" class="potion-spinner-up" data-target="amplifier" data-index="${index}" data-interactive="true" style="width: 32px; height: 20px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(139, 92, 246, 0.2) 100%); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #a855f7; font-size: 10px; transition: all 0.15s; padding: 0;" onmouseover="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.5) 0%, rgba(139, 92, 246, 0.4) 100%)'; this.style.borderColor='rgba(139, 92, 246, 0.7)'; this.style.color='#c4b5fd'; this.style.transform='translateY(-1px)'" onmouseout="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(139, 92, 246, 0.2) 100%)'; this.style.borderColor='rgba(139, 92, 246, 0.4)'; this.style.color='#a855f7'; this.style.transform='translateY(0)'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
+                                                            <i class="fas fa-chevron-up" style="font-size: 9px;"></i>
+                                                        </button>
+                                                        <button type="button" class="potion-spinner-down" data-target="amplifier" data-index="${index}" data-interactive="true" style="width: 32px; height: 20px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(139, 92, 246, 0.2) 100%); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #a855f7; font-size: 10px; transition: all 0.15s; padding: 0;" onmouseover="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.5) 0%, rgba(139, 92, 246, 0.4) 100%)'; this.style.borderColor='rgba(139, 92, 246, 0.7)'; this.style.color='#c4b5fd'; this.style.transform='translateY(1px)'" onmouseout="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(139, 92, 246, 0.2) 100%)'; this.style.borderColor='rgba(139, 92, 246, 0.4)'; this.style.color='#a855f7'; this.style.transform='translateY(0)'" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
+                                                            <i class="fas fa-chevron-down" style="font-size: 9px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <small class="amplifier-display" data-index="${index}" style="margin-top: 6px; display: block; font-size: 11px; color: rgba(168, 85, 247, 0.9); font-weight: 600;">
+                                                    <i class="fas fa-star" style="font-size: 10px; margin-right: 4px;"></i>Level ${formatAmplifier(amplifier)}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        
+                        <!-- Add Effect Button (OUTSIDE list container) -->
+                        <div style="margin-top: 14px;">
+                            <button type="button" class="add-potion-effect-btn" data-interactive="true" style="width: 100%; background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(168, 85, 247, 0.1) 100%); border: 2px dashed rgba(139, 92, 246, 0.4); color: #a855f7; padding: 14px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;" onmouseover="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(168, 85, 247, 0.2) 100%)'; this.style.borderColor='rgba(139, 92, 246, 0.6)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(139, 92, 246, 0.3)'" onmouseout="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(168, 85, 247, 0.1) 100%)'; this.style.borderColor='rgba(139, 92, 246, 0.4)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                                <i class="fas fa-plus-circle" style="font-size: 16px;"></i>
+                                <span>Add Potion Effect</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -817,48 +977,184 @@ class ItemEditor {
         const patterns = window.BannerPatternData?.BANNER_PATTERNS || [];
         const colors = window.BannerPatternData?.BANNER_COLORS || [];
         
+        // Check if this should be visible (banners and shields)
+        const material = item?.Id?.toLowerCase() || '';
+        const isBannerOrShield = material.includes('banner') || material.includes('shield');
+        const initialDisplay = isBannerOrShield ? 'block' : 'none';
+        
         return `
-            <div class="card collapsible-card collapsed" id="banner-layers-section" style="display: none;">
+            <div class="card collapsible-card collapsed" id="banner-layers-section" style="display: ${initialDisplay};">
                 <div class="card-header collapsible-header">
                     <h3 class="card-title">
-                        <i class="fas fa-flag"></i> Banner Layers
+                        <i class="fas fa-flag"></i> Banner Layers & Shield Patterns
                         ${bannerLayers.length > 0 ? `<span class="card-badge">${bannerLayers.length}</span>` : ''}
                         <i class="fas fa-chevron-down collapse-icon"></i>
                     </h3>
                 </div>
                 <div class="card-body collapsible-card-body">
-                    <div id="item-banner-layers-list" class="list-editor">
-                        ${bannerLayers.map((layer, index) => {
-                            const parts = layer.split(' ');
-                            const color = parts[0];
-                            const pattern = parts[1];
-                            return `
-                                <div class="list-item banner-layer-item" data-index="${index}">
-                                    <select class="form-select banner-color">
-                                        <option value="">Select Color...</option>
-                                        ${colors.map(c => `
-                                            <option value="${c}" ${c === color ? 'selected' : ''}>${c}</option>
-                                        `).join('')}
-                                    </select>
-                                    <select class="form-select banner-pattern">
-                                        <option value="">Select Pattern...</option>
-                                        ${patterns.map(p => `
-                                            <option value="${p.id}" ${p.id === pattern ? 'selected' : ''} title="${p.description}">
-                                                ${p.name}
-                                            </option>
-                                        `).join('')}
-                                    </select>
-                                    <button type="button" class="btn-icon btn-danger remove-banner-layer" data-index="${index}">
-                                        <i class="fas fa-times"></i>
+                    <!-- Helper Tips -->
+                    <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%); border-left: 3px solid #8b5cf6; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: start; gap: 12px;">
+                            <i class="fas fa-lightbulb" style="color: #a78bfa; font-size: 18px; margin-top: 2px;"></i>
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">Quick Guide</div>
+                                <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 13px; line-height: 1.6;">
+                                    <li>Click color swatches to change layer colors</li>
+                                    <li>Use pattern dropdown for different designs</li>
+                                    <li>Layer 1 = Base, higher layers overlay on top</li>
+                                    <li>Watch the live Minecraft preview update!</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 220px; gap: 24px;">
+                        <!-- Layer Management -->
+                        <div>
+                            <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 12px; font-size: 14px;">
+                                <i class="fas fa-layer-group" style="color: var(--accent-primary); font-size: 16px;"></i>
+                                Banner Layers
+                                <span style="background: rgba(139, 92, 246, 0.2); color: #a78bfa; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-left: 8px;">
+                                    ${bannerLayers.length} ${bannerLayers.length === 1 ? 'Layer' : 'Layers'}
+                                </span>
+                                <small style="font-weight: normal; color: var(--text-secondary); margin-left: auto; font-size: 11px;">
+                                    <i class="fas fa-arrow-down" style="margin-right: 4px;"></i>
+                                    Bottom → Top
+                                </small>
+                            </label>
+                            
+                            <div id="item-banner-layers-list" style="display: flex; flex-direction: column; gap: 12px;">
+                                ${bannerLayers.length === 0 ? `
+                                    <div style="padding: 50px 40px; text-align: center; background: linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, rgba(99, 102, 241, 0.03) 100%); border: 2px dashed rgba(139, 92, 246, 0.3); border-radius: 12px; animation: pulse 2s ease-in-out infinite;">
+                                        <i class="fas fa-flag" style="font-size: 56px; background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 16px; opacity: 0.5;"></i>
+                                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px; font-size: 16px;">Start Creating Your Banner</div>
+                                        <p style="color: var(--text-secondary); margin: 0; font-size: 13px; line-height: 1.5;">
+                                            Click the button below to add your first layer.<br>
+                                            <span style="color: #a78bfa;">The base layer determines the banner's background color.</span>
+                                        </p>
+                                    </div>
+                                ` : ''}
+                                ${bannerLayers.map((layer, index) => this.generateBannerLayerCard(layer, index, colors, patterns)).join('')}
+                                <div data-interactive="true" style="width: 100%;">
+                                    <button type="button" class="add-item-btn add-banner-layer-btn" data-interactive="true" style="width: 100%; background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); border: none; padding: 16px; font-weight: 600; border-radius: 12px; box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; position: relative; overflow: hidden;">
+                                        <span style="position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                            <i class="fas fa-plus-circle" style="font-size: 18px;"></i>
+                                            <span>Add Layer</span>
+                                        </span>
                                     </button>
                                 </div>
-                            `;
-                        }).join('')}
-                        <button type="button" class="add-item-btn add-banner-layer-btn">
-                            <i class="fas fa-plus-circle"></i>
-                            <span>Add Banner Layer</span>
-                        </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Live Preview -->
+                        <div>
+                            <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 12px;">
+                                <i class="fas fa-eye" style="color: var(--accent-primary);"></i>
+                                Live Preview
+                            </label>
+                            <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 20px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: center; min-height: 280px; position: relative;">
+                                <div style="position: absolute; top: 12px; right: 12px; background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; color: #a78bfa;">
+                                    <i class="fas fa-sparkles" style="margin-right: 4px;"></i>
+                                    MINECRAFT
+                                </div>
+                                <canvas id="banner-preview-canvas" style="filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.5));"></canvas>
+                            </div>
+                            <small class="form-hint" style="margin-top: 12px; display: block; text-align: center;">
+                                <i class="fas fa-info-circle" style="color: var(--accent-primary);"></i>
+                                Updates live as you edit
+                            </small>
+                        </div>
                     </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Generate individual banner layer card with color swatches
+     */
+    generateBannerLayerCard(layer, index, colors, patterns) {
+        const parts = layer.split(' ');
+        const selectedColor = parts[0] || 'WHITE';
+        const selectedPattern = parts[1] || 'BASE';
+        const patternObj = patterns.find(p => p.id === selectedPattern);
+        
+        // Minecraft color to hex mapping for swatches
+        const colorHexMap = {
+            'WHITE': '#F9FFFE', 'ORANGE': '#F9801D', 'MAGENTA': '#C74EBD', 'LIGHT_BLUE': '#3AB3DA',
+            'YELLOW': '#FED83D', 'LIME': '#80C71F', 'PINK': '#F38BAA', 'GRAY': '#474F52',
+            'LIGHT_GRAY': '#9D9D97', 'CYAN': '#169C9C', 'PURPLE': '#8932B8', 'BLUE': '#3C44AA',
+            'BROWN': '#835432', 'GREEN': '#5E7C16', 'RED': '#B02E26', 'BLACK': '#1D1D21'
+        };
+        
+        return `
+            <div class="banner-layer-card" data-index="${index}" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 16px; position: relative; transition: all 0.2s ease;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div style="background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); color: white; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; flex-shrink: 0; box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);">
+                        ${index + 1}
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 600; font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${selectedColor} ${selectedPattern}
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                            ${patternObj?.name || selectedPattern}
+                        </div>
+                    </div>
+                    <button type="button" class="btn-icon btn-danger remove-banner-layer" data-index="${index}" data-interactive="true" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <!-- Color Picker (Swatches) -->
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fas fa-palette" style="margin-right: 4px;"></i>
+                        Color
+                    </label>
+                    <div class="banner-color-swatches" data-index="${index}" style="display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px;" data-interactive="true">
+                        ${colors.map(color => `
+                            <div 
+                                class="color-swatch ${color === selectedColor ? 'selected' : ''}" 
+                                data-color="${color}"
+                                data-interactive="true"
+                                style="
+                                    width: 100%;
+                                    aspect-ratio: 1;
+                                    background: ${colorHexMap[color] || '#FFF'};
+                                    border: 2px solid ${color === selectedColor ? '#8b5cf6' : 'rgba(255, 255, 255, 0.2)'};
+                                    border-radius: 4px;
+                                    cursor: pointer;
+                                    transition: all 0.2s ease;
+                                    box-shadow: ${color === selectedColor ? '0 0 0 2px rgba(139, 92, 246, 0.3), inset 0 1px 2px rgba(0, 0, 0, 0.2)' : 'inset 0 1px 2px rgba(0, 0, 0, 0.2)'};
+                                    position: relative;
+                                "
+                                title="${color}"
+                            >
+                                ${color === selectedColor ? '<i class="fas fa-check" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 8px; color: rgba(0, 0, 0, 0.6); text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);"></i>' : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <!-- Pattern Selector -->
+                <div>
+                    <label style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fas fa-shapes" style="margin-right: 4px;"></i>
+                        Pattern
+                    </label>
+                    <select class="form-select banner-pattern" data-index="${index}" data-interactive="true" style="background: rgba(30, 30, 46, 0.8); border: 1px solid rgba(139, 92, 246, 0.3); padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--text-primary); cursor: pointer;">
+                        ${patterns.map(p => `
+                            <option value="${p.id}" ${p.id === selectedPattern ? 'selected' : ''} title="${p.description}">
+                                ${p.name}${p.requiresItem ? ' ⚠️ (Special Item Required)' : ''}
+                            </option>
+                        `).join('')}
+                    </select>
+                    ${patternObj?.requiresItem ? `
+                        <small class="form-hint" style="margin-top: 6px; display: block; color: #fbbf24;">
+                            <i class="fas fa-exclamation-triangle"></i> Requires banner pattern item in-game
+                        </small>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -869,9 +1165,23 @@ class ItemEditor {
      */
     generateFireworkSection(item) {
         const firework = item?.Firework || {};
+        const colors = (firework.colors || []).join(', ');
+        const fadeColors = (firework.fadeColors || []).join(', ');
+        
+        // Parse first color for preview
+        const firstColor = (firework.colors && firework.colors[0]) ? firework.colors[0].split(',').map(v => parseInt(v.trim()) || 0) : [255, 0, 0];
+        const r = firstColor[0] || 255;
+        const g = firstColor[1] || 0;
+        const b = firstColor[2] || 0;
+        const hexColor = '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+        
+        // Check if this should be visible
+        const material = item?.Id?.toLowerCase() || '';
+        const isFireworkItem = material === 'firework_rocket';
+        const initialDisplay = isFireworkItem ? 'block' : 'none';
         
         return `
-            <div class="card collapsible-card collapsed" id="firework-section" style="display: none;">
+            <div class="card collapsible-card collapsed" id="firework-section" style="display: ${initialDisplay};">
                 <div class="card-header collapsible-header">
                     <h3 class="card-title">
                         <i class="fas fa-rocket"></i> Firework
@@ -879,9 +1189,13 @@ class ItemEditor {
                     </h3>
                 </div>
                 <div class="card-body collapsible-card-body">
-                    <div class="grid-2">
+                    <div class="grid-2" style="gap: 20px;">
+                        <!-- Power Setting -->
                         <div class="form-group">
-                            <label for="firework-power" class="form-label">Power</label>
+                            <label for="firework-power" class="form-label" style="display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-tachometer-alt" style="color: var(--accent-primary);"></i>
+                                Flight Power
+                            </label>
                             <input 
                                 type="number" 
                                 id="firework-power" 
@@ -889,54 +1203,89 @@ class ItemEditor {
                                 value="${firework.power || 1}"
                                 min="0"
                                 max="4"
+                                style="font-weight: 600; font-size: 16px;"
                             >
-                            <small class="form-hint">Flight duration (0-4)</small>
+                            <small class="form-hint">Duration (0-4) - Higher = longer flight</small>
                         </div>
 
-                        <div class="form-group full-width">
-                            <label for="firework-colors" class="form-label">Colors</label>
-                            <input 
-                                type="text" 
-                                id="firework-colors" 
-                                class="form-input" 
-                                value="${(firework.colors || []).join(', ')}"
-                                placeholder="255,0,0, 0,255,0"
-                            >
-                            <small class="form-hint">RGB colors, comma-separated (e.g., "255,0,0, 0,255,0")</small>
-                        </div>
-
-                        <div class="form-group full-width">
-                            <label for="firework-fade-colors" class="form-label">Fade Colors</label>
-                            <input 
-                                type="text" 
-                                id="firework-fade-colors" 
-                                class="form-input" 
-                                value="${(firework.fadeColors || []).join(', ')}"
-                                placeholder="128,128,128"
-                            >
-                            <small class="form-hint">RGB colors to fade to</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input 
-                                    type="checkbox" 
-                                    id="firework-trail"
-                                    ${firework.trail ? 'checked' : ''}
-                                >
-                                <span>Trail</span>
+                        <!-- Firework Effects Toggle -->
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 12px;">
+                            <label class="form-label" style="display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-sparkles" style="color: var(--accent-primary);"></i>
+                                Visual Effects
                             </label>
+                            <div style="display: flex; gap: 20px;">
+                                <label class="custom-control custom-control-switch" style="margin: 0;">
+                                    <input type="checkbox" id="firework-trail" ${firework.trail ? 'checked' : ''}>
+                                    <span class="custom-control-label">Trail</span>
+                                </label>
+                                <label class="custom-control custom-control-switch" style="margin: 0;">
+                                    <input type="checkbox" id="firework-flicker" ${firework.flicker ? 'checked' : ''}>
+                                    <span class="custom-control-label">Flicker</span>
+                                </label>
+                            </div>
                         </div>
 
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input 
-                                    type="checkbox" 
-                                    id="firework-flicker"
-                                    ${firework.flicker ? 'checked' : ''}
-                                >
-                                <span>Flicker</span>
+                        <!-- Explosion Colors -->
+                        <div class="form-group full-width" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, transparent 100%); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 16px;">
+                            <label for="firework-colors" class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 12px;">
+                                <i class="fas fa-palette" style="color: #ef4444;"></i>
+                                Explosion Colors
                             </label>
+                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;">
+                                <div>
+                                    <input 
+                                        type="color" 
+                                        id="firework-color-picker" 
+                                        value="${hexColor}"
+                                        style="width: 80px; height: 40px; border: 2px solid rgba(239, 68, 68, 0.3); border-radius: 6px; cursor: pointer;"
+                                        title="Click to ADD a color to the list"
+                                    >
+                                    <small class="form-hint" style="display: block; margin-top: 4px; text-align: center;">Add Color</small>
+                                </div>
+                                <div>
+                                    <input 
+                                        type="text" 
+                                        id="firework-colors" 
+                                        class="form-input" 
+                                        value="${colors}"
+                                        placeholder="255,0,0, 0,255,0, 0,0,255"
+                                        style="font-family: 'Courier New', monospace; font-weight: 600;"
+                                    >
+                                    <small class="form-hint">Multiple colors = variety in ONE firework! Each is RGB (R,G,B), separate with ", " — Example: "255,0,0, 0,255,0, 0,0,255"</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fade Colors -->
+                        <div class="form-group full-width" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.05) 0%, transparent 100%); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 8px; padding: 16px;">
+                            <label for="firework-fade-colors" class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 12px;">
+                                <i class="fas fa-adjust" style="color: #a855f7;"></i>
+                                Fade Colors (Optional)
+                            </label>
+                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;">
+                                <div>
+                                    <input 
+                                        type="color" 
+                                        id="firework-fade-color-picker" 
+                                        value="#808080"
+                                        style="width: 80px; height: 40px; border: 2px solid rgba(168, 85, 247, 0.3); border-radius: 6px; cursor: pointer;"
+                                        title="Click to ADD a fade color to the list"
+                                    >
+                                    <small class="form-hint" style="display: block; margin-top: 4px; text-align: center;">Add Color</small>
+                                </div>
+                                <div>
+                                    <input 
+                                        type="text" 
+                                        id="firework-fade-colors" 
+                                        class="form-input" 
+                                        value="${fadeColors}"
+                                        placeholder="128,128,128, 64,64,64"
+                                        style="font-family: 'Courier New', monospace; font-weight: 600;"
+                                    >
+                                    <small class="form-hint">Fade colors after explosion. Multiple colors = variety! Each is RGB (R,G,B), separate with ", "</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1040,17 +1389,23 @@ class ItemEditor {
     }
 
     /**
-     * Advanced Section (Trim, Book)
+     * Armor Trim Section (Conditional: armor items only)
      */
-    generateAdvancedSection(item) {
+    generateArmorTrimSection(item) {
         const trim = item?.Trim || {};
-        const book = item?.Book || {};
+        
+        // Check if this should be visible
+        const material = item?.Id?.toLowerCase() || '';
+        const isAdvanced = this.editor.state.currentMode === 'advanced';
+        const isArmorItem = material.includes('helmet') || material.includes('chestplate') || 
+                            material.includes('leggings') || material.includes('boots');
+        const initialDisplay = (isArmorItem && isAdvanced) ? 'block' : 'none';
         
         return `
-            <div class="card collapsible-card collapsed">
+            <div class="card collapsible-card collapsed" id="armor-trim-section" style="display: ${initialDisplay};">
                 <div class="card-header collapsible-header">
                     <h3 class="card-title">
-                        <i class="fas fa-graduation-cap"></i> Advanced
+                        <i class="fas fa-shield-alt"></i> Armor Trim
                         <i class="fas fa-chevron-down collapse-icon"></i>
                     </h3>
                 </div>
@@ -1077,40 +1432,135 @@ class ItemEditor {
                             </select>
                             <small class="form-hint">Armor trim pattern (1.20+)</small>
                         </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
 
-                        <div class="form-group full-width">
-                            <label for="book-title" class="form-label">Book Title</label>
+    /**
+     * Book Section (Conditional: writable/written books only)
+     */
+    generateBookSection(item) {
+        const book = item?.Book || {};
+        const pages = book.pages || [];
+        const currentPage = pages[0] || '';
+        
+        // Check if this should be visible
+        const material = item?.Id?.toLowerCase() || '';
+        const isAdvanced = this.editor.state.currentMode === 'advanced';
+        const isBookItem = material === 'written_book' || material === 'writable_book';
+        const initialDisplay = (isBookItem && isAdvanced) ? 'block' : 'none';
+        
+        return `
+            <div class="card collapsible-card collapsed" id="book-section" style="display: ${initialDisplay};">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-book"></i> Book Content
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <div style="display: flex; flex-direction: column; gap: 16px; max-width: 800px;">
+                        <div class="form-group">
+                                <label for="book-title" class="form-label" style="display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-heading" style="color: var(--accent-primary);"></i>
+                                    Book Title
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="book-title" 
+                                    class="form-input" 
+                                    value="${book.title || ''}"
+                                    placeholder="Enter book title"
+                                    style="font-weight: 600;"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="book-author" class="form-label" style="display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-user-edit" style="color: var(--accent-primary);"></i>
+                                    Author
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="book-author" 
+                                    class="form-input" 
+                                    value="${book.author || ''}"
+                                    placeholder="Enter author name"
+                                    style="font-weight: 600;"
+                                >
+                            </div>
+
+                            <div class="form-group" style="flex: 1;">
+                                <label for="book-pages" class="form-label" style="display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-file-alt" style="color: var(--accent-primary);"></i>
+                                    Pages (One page per line)
+                                </label>
+                                <textarea 
+                                    id="book-pages" 
+                                    class="form-input" 
+                                    rows="12"
+                                    placeholder="Enter page content. One page per line.&#10;&#10;Example:&#10;This is page 1&#10;This is page 2&#10;This is page 3&#10;&#10;Use Minecraft color codes:&#10;&0 = Black, &1 = Dark Blue&#10;&2 = Dark Green, &3 = Dark Aqua&#10;&4 = Dark Red, &5 = Dark Purple&#10;&6 = Gold, &7 = Gray&#10;&8 = Dark Gray, &9 = Blue&#10;&a = Green, &b = Aqua&#10;&c = Red, &d = Light Purple&#10;&e = Yellow, &f = White&#10;&l = Bold, &n = Underline, &o = Italic"
+                                    style="font-family: 'Courier New', monospace; font-size: 13px; resize: vertical; min-height: 300px;"
+                                >${pages.join('\n')}</textarea>
+                                <small class="form-hint">One page per line. Use Minecraft color codes (&a, &b, &c, etc.)</small>
+                            </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Player Head Section (Conditional: player_head only)
+     */
+    generatePlayerHeadSection(item) {
+        const options = item?.Options || {};
+        
+        // Check if this should be visible
+        const material = item?.Id?.toLowerCase() || '';
+        const isAdvanced = this.editor.state.currentMode === 'advanced';
+        const isPlayerHead = material === 'player_head';
+        const initialDisplay = (isPlayerHead && isAdvanced) ? 'block' : 'none';
+        
+        return `
+            <div class="card collapsible-card collapsed" id="player-head-section" style="display: ${initialDisplay};">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-user"></i> Player Head Settings
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <div class="grid-2">
+                        <div class="form-group full-width" id="option-Player-group">
+                            <label for="option-Player" class="form-label">
+                                <i class="fas fa-user" style="color: var(--accent-primary); margin-right: 6px;"></i>
+                                Player Name
+                            </label>
                             <input 
                                 type="text" 
-                                id="book-title" 
+                                id="option-Player" 
                                 class="form-input" 
-                                value="${book.title || ''}"
-                                placeholder="My Book Title"
+                                value="${options.Player || ''}"
+                                placeholder="Player username"
                             >
-                            <small class="form-hint">For written books</small>
+                            <small class="form-hint">Minecraft player username to use their skin</small>
                         </div>
 
-                        <div class="form-group full-width">
-                            <label for="book-author" class="form-label">Book Author</label>
-                            <input 
-                                type="text" 
-                                id="book-author" 
-                                class="form-input" 
-                                value="${book.author || ''}"
-                                placeholder="Author Name"
-                            >
-                            <small class="form-hint">For written books</small>
-                        </div>
-
-                        <div class="form-group full-width">
-                            <label class="form-label">Book Pages</label>
+                        <div class="form-group full-width" id="option-SkinTexture-group">
+                            <label for="option-SkinTexture" class="form-label">
+                                <i class="fas fa-image" style="color: var(--accent-primary); margin-right: 6px;"></i>
+                                Skin Texture (Base64)
+                            </label>
                             <textarea 
-                                id="book-pages" 
+                                id="option-SkinTexture" 
                                 class="form-input" 
-                                rows="4"
-                                placeholder="Page 1 content&#10;Page 2 content&#10;..."
-                            >${(book.pages || []).join('\n')}</textarea>
-                            <small class="form-hint">One page per line</small>
+                                rows="3"
+                                placeholder="Base64 texture value from minecraft-heads.com"
+                            >${options.SkinTexture || ''}</textarea>
+                            <small class="form-hint">Custom texture value (overrides Player). Get from <a href="https://minecraft-heads.com" target="_blank" style="color: var(--accent-primary);">minecraft-heads.com</a></small>
                         </div>
                     </div>
                 </div>
@@ -1127,37 +1577,72 @@ class ItemEditor {
      */
     updateConditionalSections(item) {
         const material = item?.Id?.toLowerCase() || '';
+        const isAdvanced = this.editor.state.currentMode === 'advanced';
         
+        console.log('🔄 updateConditionalSections called');
+        console.log('   Material:', material);
+        console.log('   Advanced mode:', isAdvanced);
+        console.log('   Item object:', item);
+        
+        // Potion section - only for specific potion types
         const potionSection = document.getElementById('potion-effects-section');
         if (potionSection) {
-            const isPotionItem = material.includes('potion') || material.includes('tipped_arrow');
+            const isPotionItem = material === 'potion' || material === 'splash_potion' || material === 'lingering_potion';
             potionSection.style.display = isPotionItem ? 'block' : 'none';
+            console.log('   Potion section:', isPotionItem ? 'VISIBLE' : 'HIDDEN');
         }
         
+        // Banner section - only for banners and shields
         const bannerSection = document.getElementById('banner-layers-section');
         if (bannerSection) {
-            const isBannerItem = material.includes('banner') || material.includes('shield');
+            const isBannerItem = material.includes('banner') || material === 'shield';
             bannerSection.style.display = isBannerItem ? 'block' : 'none';
+            console.log('   Banner section:', isBannerItem ? 'VISIBLE' : 'HIDDEN');
         }
         
+        // Firework section - only for firework_rocket
         const fireworkSection = document.getElementById('firework-section');
+        console.log('🚀 Firework section element:', fireworkSection ? 'FOUND' : 'NOT FOUND');
         if (fireworkSection) {
-            const isFireworkItem = material.includes('firework');
+            const isFireworkItem = material === 'firework_rocket';
+            console.log('   Is firework_rocket?', isFireworkItem, '(comparing "' + material + '" === "firework_rocket")');
             fireworkSection.style.display = isFireworkItem ? 'block' : 'none';
+            console.log('   Display set to:', fireworkSection.style.display);
+            console.log('   Computed display:', window.getComputedStyle(fireworkSection).display);
+        } else {
+            console.warn('⚠️ Firework section element not found in DOM!');
         }
         
+        // Armor Trim section - only for armor items in advanced mode
+        const armorTrimSection = document.getElementById('armor-trim-section');
+        if (armorTrimSection) {
+            const isArmorItem = material.includes('helmet') || material.includes('chestplate') || 
+                                material.includes('leggings') || material.includes('boots');
+            armorTrimSection.style.display = (isArmorItem && isAdvanced) ? 'block' : 'none';
+            console.log('   Armor trim section:', (isArmorItem && isAdvanced) ? 'VISIBLE' : 'HIDDEN');
+        }
+        
+        // Book section - only for book items in advanced mode
+        const bookSection = document.getElementById('book-section');
+        if (bookSection) {
+            const isBookItem = material === 'written_book' || material === 'writable_book';
+            bookSection.style.display = (isBookItem && isAdvanced) ? 'block' : 'none';
+            console.log('   Book section:', (isBookItem && isAdvanced) ? 'VISIBLE' : 'HIDDEN');
+        }
+        
+        // Player Head section - only for player_head in advanced mode
+        const playerHeadSection = document.getElementById('player-head-section');
+        if (playerHeadSection) {
+            const isPlayerHead = material === 'player_head';
+            playerHeadSection.style.display = (isPlayerHead && isAdvanced) ? 'block' : 'none';
+            console.log('   Player head section:', (isPlayerHead && isAdvanced) ? 'VISIBLE' : 'HIDDEN');
+        }
+        
+        // Color field - show for leather armor, potions (handled in Options section)
         const colorGroup = document.getElementById('item-color-group');
         if (colorGroup) {
-            const isColorableItem = material.includes('leather_') || material.includes('banner') || material.includes('shield');
+            const isColorableItem = material.includes('leather_') || material.includes('banner') || material === 'shield';
             colorGroup.style.display = isColorableItem ? 'block' : 'none';
-        }
-        
-        const playerGroup = document.getElementById('option-Player-group');
-        const skinGroup = document.getElementById('option-SkinTexture-group');
-        if (playerGroup && skinGroup) {
-            const isPlayerHead = material === 'player_head';
-            playerGroup.style.display = isPlayerHead ? 'block' : 'none';
-            skinGroup.style.display = isPlayerHead ? 'block' : 'none';
         }
     }
 
@@ -1183,15 +1668,6 @@ class ItemEditor {
         document.getElementById('delete-item')?.addEventListener('click', () => {
             this.deleteItem();
         });
-        
-        const materialSelect = document.getElementById('item-material');
-        if (materialSelect) {
-            materialSelect.addEventListener('change', (e) => {
-                item.Id = e.target.value;
-                this.updateConditionalSections(item);
-                this.editor.markDirty();
-            });
-        }
 
         const internalNameInput = document.getElementById('item-internal-name');
         if (internalNameInput) {
@@ -1750,42 +2226,277 @@ class ItemEditor {
      * Attach potion effect handlers
      */
     attachPotionEffectHandlers(item) {
-        const addBtn = document.querySelector('.add-potion-effect-btn');
-        if (addBtn) {
-            addBtn.addEventListener('click', () => {
-                if (!item.PotionEffects) item.PotionEffects = [];
-                item.PotionEffects.push('SPEED 600 0');
-                window.collapsibleManager.saveStates();
-                this.render(item);
+        // Color picker and RGB input synchronization
+        const colorPicker = document.getElementById('potion-color-picker');
+        const colorRgbInput = document.getElementById('potion-color-rgb');
+        const potionPreview = document.getElementById('potion-preview');
+        
+        const updatePotionColor = (rgb, fromPicker = false) => {
+            if (!item.Options) item.Options = {};
+            item.Options.Color = rgb;
+            
+            // Update preview
+            if (potionPreview) {
+                const parts = rgb.split(',').map(v => parseInt(v.trim()) || 0);
+                const r = parts[0] || 146;
+                const g = parts[1] || 107;
+                const b = parts[2] || 174;
+                const hexColor = '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+                potionPreview.style.background = `linear-gradient(180deg, transparent 20%, ${hexColor} 30%, ${hexColor} 90%, transparent 95%)`;
+                
+                if (fromPicker && colorRgbInput) {
+                    colorRgbInput.value = rgb;
+                }
+                if (!fromPicker && colorPicker) {
+                    colorPicker.value = hexColor;
+                }
+            }
+            
+            this.editor.markDirty();
+        };
+        
+        if (colorPicker) {
+            colorPicker.addEventListener('input', (e) => {
+                const hex = e.target.value;
+                const r = parseInt(hex.substr(1, 2), 16);
+                const g = parseInt(hex.substr(3, 2), 16);
+                const b = parseInt(hex.substr(5, 2), 16);
+                const rgb = `${r},${g},${b}`;
+                updatePotionColor(rgb, true);
             });
         }
+        
+        if (colorRgbInput) {
+            colorRgbInput.addEventListener('input', (e) => {
+                const rgb = e.target.value.trim();
+                if (/^\d+,\s*\d+,\s*\d+$/.test(rgb)) {
+                    updatePotionColor(rgb, false);
+                }
+            });
+        }
+        
+        // Helper function to format duration display
+        const formatDuration = (ticks) => {
+            const totalSeconds = Math.floor(ticks / 20);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            if (minutes > 0) {
+                return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+            }
+            return `${seconds}s`;
+        };
+        
+        // Helper function to format amplifier display
+        const formatAmplifier = (amp) => {
+            const level = parseInt(amp) + 1;
+            const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+            return roman[level - 1] || level;
+        };
+        
+        // Potion effects - Add button with CAPTURE phase to prevent bubbling issues
+        const addBtn = document.querySelector('.add-potion-effect-btn');
+        if (addBtn) {
+            // Use capture phase (true) to handle event BEFORE it bubbles
+            addBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                // Save scroll position BEFORE render
+                const container = document.querySelector('.item-editor-container') || document.querySelector('.editor-content');
+                const scrollTop = container ? container.scrollTop : 0;
+                
+                if (!item.PotionEffects) item.PotionEffects = [];
+                // Add Speed II for 60 seconds (1200 ticks) as default
+                item.PotionEffects.push('SPEED 1200 1');
+                
+                // Save states and ensure section stays expanded
+                window.collapsibleManager.saveStates();
+                
+                // Mark dirty and re-render
+                this.editor.markDirty();
+                this.render(item);
+                
+                // Restore scroll position and ensure section stays expanded
+                requestAnimationFrame(() => {
+                    const potionSection = document.getElementById('potion-effects-section');
+                    if (potionSection) {
+                        potionSection.classList.remove('collapsed');
+                    }
+                    
+                    // Restore scroll position
+                    if (container) {
+                        container.scrollTop = scrollTop;
+                    }
+                });
+                
+                this.editor.updateYAMLPreview();
+            }, true); // TRUE = capture phase
+        }
 
+        // Remove potion effect buttons
         document.querySelectorAll('.remove-potion-effect').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                // Save scroll position BEFORE render
+                const container = document.querySelector('.item-editor-container') || document.querySelector('.editor-content');
+                const scrollTop = container ? container.scrollTop : 0;
+                
                 const index = parseInt(e.currentTarget.dataset.index);
                 item.PotionEffects.splice(index, 1);
+                
                 window.collapsibleManager.saveStates();
+                this.editor.markDirty();
                 this.render(item);
-            });
+                
+                // Keep section expanded and restore scroll
+                requestAnimationFrame(() => {
+                    const potionSection = document.getElementById('potion-effects-section');
+                    if (potionSection) {
+                        potionSection.classList.remove('collapsed');
+                    }
+                    
+                    // Restore scroll position
+                    if (container) {
+                        container.scrollTop = scrollTop;
+                    }
+                });
+                
+                this.editor.updateYAMLPreview();
+            }, true); // TRUE = capture phase
         });
 
+        // Potion effect inputs - live updates WITH live calculator display
         document.querySelectorAll('.potion-effect-item').forEach(effectItem => {
             const index = parseInt(effectItem.dataset.index);
             const typeSelect = effectItem.querySelector('.potion-effect-type');
             const durationInput = effectItem.querySelector('.potion-duration');
             const amplifierInput = effectItem.querySelector('.potion-amplifier');
+            const durationDisplay = effectItem.querySelector('.duration-display');
+            const amplifierDisplay = effectItem.querySelector('.amplifier-display');
             
-            [typeSelect, durationInput, amplifierInput].forEach(el => {
-                el.addEventListener('change', () => {
-                    const type = typeSelect.value;
-                    const duration = durationInput.value || 600;
-                    const amplifier = amplifierInput.value || 0;
-                    if (type) {
-                        item.PotionEffects[index] = `${type} ${duration} ${amplifier}`;
-                        this.editor.markDirty();
+            const updateEffect = () => {
+                const type = typeSelect?.value || 'SPEED';
+                const duration = durationInput?.value || 600;
+                const amplifier = amplifierInput?.value || 0;
+                if (type) {
+                    item.PotionEffects[index] = `${type} ${duration} ${amplifier}`;
+                    this.editor.markDirty();
+                    this.editor.updateYAMLPreview();
+                }
+            };
+            
+            if (typeSelect) {
+                typeSelect.addEventListener('change', updateEffect);
+            }
+            
+            if (durationInput) {
+                // Live update for effect data AND display
+                durationInput.addEventListener('input', (e) => {
+                    const ticks = parseInt(e.target.value) || 0;
+                    
+                    // Update the display immediately
+                    if (durationDisplay) {
+                        durationDisplay.innerHTML = `<i class="fas fa-clock" style="font-size: 10px; margin-right: 4px;"></i>${formatDuration(ticks)}`;
                     }
+                    
+                    // Update the effect data
+                    updateEffect();
                 });
+            }
+            
+            if (amplifierInput) {
+                // Live update for effect data AND display
+                amplifierInput.addEventListener('input', (e) => {
+                    const amp = parseInt(e.target.value) || 0;
+                    
+                    // Update the display immediately
+                    if (amplifierDisplay) {
+                        amplifierDisplay.innerHTML = `<i class="fas fa-star" style="font-size: 10px; margin-right: 4px;"></i>Level ${formatAmplifier(amp)}`;
+                    }
+                    
+                    // Update the effect data
+                    updateEffect();
+                });
+            }
+        });
+        
+        // Custom spinner button handlers with hold-to-repeat functionality
+        let spinnerInterval = null;
+        let spinnerTimeout = null;
+        
+        const incrementValue = (input, isUp) => {
+            if (!input) return;
+            
+            let currentValue = parseInt(input.value) || 0;
+            const min = parseInt(input.min) || 0;
+            const max = parseInt(input.max) || 999999;
+            
+            // Increment or decrement
+            if (isUp) {
+                currentValue = Math.min(currentValue + 1, max);
+            } else {
+                currentValue = Math.max(currentValue - 1, min);
+            }
+            
+            // Update input value
+            input.value = currentValue;
+            
+            // Trigger input event to update display and YAML
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        
+        document.querySelectorAll('.potion-spinner-up, .potion-spinner-down').forEach(btn => {
+            const isUp = btn.classList.contains('potion-spinner-up');
+            const target = btn.dataset.target;
+            const index = parseInt(btn.dataset.index);
+            
+            // Find the input field
+            const input = target === 'duration' 
+                ? document.querySelector(`.potion-duration[data-index="${index}"]`)
+                : document.querySelector(`.potion-amplifier[data-index="${index}"]`);
+            
+            // Click handler (single increment)
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                incrementValue(input, isUp);
+            }, true);
+            
+            // Mousedown handler (start repeating after delay)
+            btn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                
+                // Clear any existing intervals
+                if (spinnerInterval) clearInterval(spinnerInterval);
+                if (spinnerTimeout) clearTimeout(spinnerTimeout);
+                
+                // Start repeating after 500ms delay
+                spinnerTimeout = setTimeout(() => {
+                    spinnerInterval = setInterval(() => {
+                        incrementValue(input, isUp);
+                    }, 50); // Repeat every 50ms when holding
+                }, 500); // 500ms delay before starting repeat
             });
+            
+            // Mouseup and mouseleave handlers (stop repeating)
+            const stopRepeating = () => {
+                if (spinnerInterval) {
+                    clearInterval(spinnerInterval);
+                    spinnerInterval = null;
+                }
+                if (spinnerTimeout) {
+                    clearTimeout(spinnerTimeout);
+                    spinnerTimeout = null;
+                }
+            };
+            
+            btn.addEventListener('mouseup', stopRepeating);
+            btn.addEventListener('mouseleave', stopRepeating);
         });
     }
 
@@ -1793,41 +2504,196 @@ class ItemEditor {
      * Attach banner layer handlers
      */
     attachBannerLayerHandlers(item) {
+        console.log('🎨 Attaching banner layer handlers...');
+        
+        // Initialize banner renderer
+        const canvas = document.getElementById('banner-preview-canvas');
+        console.log('🖼️ Canvas element:', canvas ? 'FOUND' : 'NOT FOUND');
+        
+        if (canvas) {
+            // Ensure Banner Renderer class is available
+            if (typeof BannerRenderer === 'undefined') {
+                console.error('❌ BannerRenderer class not loaded - check if bannerRenderer.js is included');
+                return;
+            }
+            
+            console.log('✅ BannerRenderer class available');
+            
+            // Always recreate renderer on render to ensure fresh state
+            this.bannerRenderer = new BannerRenderer('banner-preview-canvas');
+            console.log('✅ BannerRenderer initialized/recreated');
+            
+            // Initial render
+            console.log('🎨 Rendering initial banner preview with', item?.BannerLayers?.length || 0, 'layers');
+            this.updateBannerPreview(item);
+        } else {
+            console.warn('⚠️ Canvas element not found - banner preview will not work');
+        }
+        
         const addBtn = document.querySelector('.add-banner-layer-btn');
         if (addBtn) {
-            addBtn.addEventListener('click', () => {
+            console.log('✅ Add Banner Layer button found, attaching handlers...');
+            // Use capture phase (true) to handle event BEFORE it bubbles
+            addBtn.addEventListener('click', (e) => {
+                console.log('🎨 Add Banner Layer clicked!');
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
                 if (!item.BannerLayers) item.BannerLayers = [];
+                
+                // Save scroll position BEFORE render
+                const container = document.querySelector('.item-editor-container') || document.querySelector('.editor-content');
+                const scrollTop = container ? container.scrollTop : 0;
+                
                 item.BannerLayers.push('WHITE BASE');
+                console.log('📝 Added layer, total layers:', item.BannerLayers.length);
+                
                 window.collapsibleManager.saveStates();
                 this.render(item);
-            });
+                
+                // Keep section expanded and restore scroll
+                requestAnimationFrame(() => {
+                    const newSection = document.getElementById('banner-layers-section');
+                    if (newSection) {
+                        newSection.classList.remove('collapsed');
+                    }
+                    
+                    // Restore scroll position
+                    if (container) {
+                        container.scrollTop = scrollTop;
+                    }
+                    
+                    // Force preview update with a slight delay to ensure DOM is ready
+                    setTimeout(() => {
+                        console.log('🔄 Force updating banner preview after add');
+                        this.updateBannerPreview(item);
+                    }, 50);
+                });
+            }, true);
+        } else {
+            console.warn('⚠️ Add Banner Layer button NOT found');
         }
 
+        // Remove layer buttons
         document.querySelectorAll('.remove-banner-layer').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                // Save scroll position BEFORE render
+                const container = document.querySelector('.item-editor-container') || document.querySelector('.editor-content');
+                const scrollTop = container ? container.scrollTop : 0;
+                
                 const index = parseInt(e.currentTarget.dataset.index);
                 item.BannerLayers.splice(index, 1);
+                
                 window.collapsibleManager.saveStates();
                 this.render(item);
+                
+                // Keep section expanded and restore scroll
+                requestAnimationFrame(() => {
+                    const newSection = document.getElementById('banner-layers-section');
+                    if (newSection) {
+                        newSection.classList.remove('collapsed');
+                    }
+                    
+                    // Restore scroll position
+                    if (container) {
+                        container.scrollTop = scrollTop;
+                    }
+                });
+            }, true);
+        });
+
+        // Color swatch handlers
+        document.querySelectorAll('.banner-color-swatches').forEach(swatchContainer => {
+            const index = parseInt(swatchContainer.dataset.index);
+            
+            swatchContainer.querySelectorAll('.color-swatch').forEach(swatch => {
+                swatch.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const color = swatch.dataset.color;
+                    const parts = item.BannerLayers[index].split(' ');
+                    const pattern = parts[1] || 'BASE';
+                    
+                    item.BannerLayers[index] = `${color} ${pattern}`;
+                    
+                    // Update UI immediately
+                    swatchContainer.querySelectorAll('.color-swatch').forEach(s => {
+                        s.classList.remove('selected');
+                        s.style.border = '2px solid rgba(255, 255, 255, 0.2)';
+                        s.style.boxShadow = 'inset 0 2px 4px rgba(0, 0, 0, 0.2)';
+                        const check = s.querySelector('.fa-check');
+                        if (check) check.remove();
+                    });
+                    swatch.classList.add('selected');
+                    swatch.style.border = '2px solid #8b5cf6';
+                    swatch.style.boxShadow = '0 0 0 2px rgba(139, 92, 246, 0.3), inset 0 2px 4px rgba(0, 0, 0, 0.2)';
+                    swatch.innerHTML = '<i class="fas fa-check" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 10px; color: rgba(0, 0, 0, 0.6); text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);"></i>';
+                    
+                    // Update layer title
+                    const layerCard = swatch.closest('.banner-layer-card');
+                    const titleDiv = layerCard.querySelector('[style*="font-weight: 600"]');
+                    if (titleDiv) {
+                        titleDiv.textContent = `${color} ${pattern}`;
+                    }
+                    
+                    this.updateBannerPreview(item);
+                    this.editor.markDirty();
+                }, true);
             });
         });
 
-        document.querySelectorAll('.banner-layer-item').forEach(layerItem => {
-            const index = parseInt(layerItem.dataset.index);
-            const colorSelect = layerItem.querySelector('.banner-color');
-            const patternSelect = layerItem.querySelector('.banner-pattern');
+        // Pattern select handlers
+        document.querySelectorAll('.banner-pattern').forEach(select => {
+            const index = parseInt(select.dataset.index);
             
-            [colorSelect, patternSelect].forEach(el => {
-                el.addEventListener('change', () => {
-                    const color = colorSelect.value;
-                    const pattern = patternSelect.value;
-                    if (color && pattern) {
-                        item.BannerLayers[index] = `${color} ${pattern}`;
-                        this.editor.markDirty();
-                    }
-                });
-            });
+            select.addEventListener('change', (e) => {
+                e.stopPropagation();
+                const pattern = select.value;
+                const parts = item.BannerLayers[index].split(' ');
+                const color = parts[0] || 'WHITE';
+                
+                item.BannerLayers[index] = `${color} ${pattern}`;
+                
+                // Update layer title
+                const layerCard = select.closest('.banner-layer-card');
+                const titleDiv = layerCard.querySelector('[style*="font-weight: 600"]');
+                if (titleDiv) {
+                    titleDiv.textContent = `${color} ${pattern}`;
+                }
+                
+                // Update subtitle with pattern name
+                const patterns = window.BannerPatternData?.BANNER_PATTERNS || [];
+                const patternObj = patterns.find(p => p.id === pattern);
+                const subtitleDiv = layerCard.querySelector('[style*="font-size: 11px"]');
+                if (subtitleDiv) {
+                    subtitleDiv.textContent = patternObj?.name || pattern;
+                }
+                
+                this.updateBannerPreview(item);
+                this.editor.markDirty();
+            }, true);
         });
+    }
+    
+    /**
+     * Update banner preview canvas
+     */
+    updateBannerPreview(item) {
+        console.log('🖼️ updateBannerPreview called');
+        
+        if (!this.bannerRenderer) {
+            console.warn('⚠️ Banner renderer not initialized, cannot update preview');
+            return;
+        }
+        
+        const layers = item?.BannerLayers || [];
+        console.log('🎨 Rendering banner with layers:', layers);
+        this.bannerRenderer.renderBanner(layers);
+        console.log('✅ Banner preview rendered');
     }
 
     /**
@@ -1991,7 +2857,12 @@ class ItemEditor {
                     placeholder: 'Search materials...',
                     value: item.Id || '',
                     onSelect: (value) => {
+                        console.log('🎯 Material selected:', value);
                         item.Id = value;
+                        
+                        // Update conditional sections immediately when material changes
+                        this.updateConditionalSections(item);
+                        
                         this.syncToFile();
                         this.editor.markDirty();
                     }
@@ -2081,7 +2952,15 @@ class ItemEditor {
         if (fireworkColors) {
             fireworkColors.addEventListener('input', (e) => {
                 if (!item.Firework) item.Firework = {};
-                item.Firework.colors = e.target.value.split(',').map(c => c.trim()).filter(c => c);
+                // Split on pattern like ", " (comma + space) or multiple spaces to separate RGB groups
+                // Each RGB group like "255,0,0" stays together
+                const input = e.target.value.trim();
+                if (input) {
+                    // Split by comma+space or multiple spaces, keeping RGB triplets together
+                    item.Firework.colors = input.split(/,\s+|\s{2,}/).filter(c => c.trim());
+                } else {
+                    item.Firework.colors = [];
+                }
                 this.editor.markDirty();
             });
         }
@@ -2090,7 +2969,13 @@ class ItemEditor {
         if (fireworkFadeColors) {
             fireworkFadeColors.addEventListener('input', (e) => {
                 if (!item.Firework) item.Firework = {};
-                item.Firework.fadeColors = e.target.value.split(',').map(c => c.trim()).filter(c => c);
+                // Split on pattern like ", " (comma + space) or multiple spaces to separate RGB groups
+                const input = e.target.value.trim();
+                if (input) {
+                    item.Firework.fadeColors = input.split(/,\s+|\s{2,}/).filter(c => c.trim());
+                } else {
+                    item.Firework.fadeColors = [];
+                }
                 this.editor.markDirty();
             });
         }
@@ -2112,7 +2997,97 @@ class ItemEditor {
                 this.editor.markDirty();
             });
         }
+
+        // Firework power input
+        const fireworkPower = document.getElementById('firework-power');
+        if (fireworkPower) {
+            fireworkPower.addEventListener('input', (e) => {
+                if (!item.Firework) item.Firework = {};
+                item.Firework.power = parseInt(e.target.value) || 1;
+                this.editor.markDirty();
+            });
+        }
+
+        // Firework color picker - adds RGB to colors field
+        const fireworkColorPicker = document.getElementById('firework-color-picker');
+        if (fireworkColorPicker) {
+            fireworkColorPicker.addEventListener('change', (e) => {
+                const hex = e.target.value;
+                const r = parseInt(hex.substring(1, 3), 16);
+                const g = parseInt(hex.substring(3, 5), 16);
+                const b = parseInt(hex.substring(5, 7), 16);
+                const rgb = `${r},${g},${b}`;
+                
+                const colorsInput = document.getElementById('firework-colors');
+                if (colorsInput) {
+                    const currentColors = colorsInput.value.trim();
+                    colorsInput.value = currentColors ? `${currentColors}, ${rgb}` : rgb;
+                    
+                    // Trigger the colors input event - parse properly
+                    if (!item.Firework) item.Firework = {};
+                    item.Firework.colors = colorsInput.value.split(/,\s+|\s{2,}/).filter(c => c.trim());
+                    this.editor.markDirty();
+                }
+            });
+        }
+
+        // Firework fade color picker - adds RGB to fade colors field
+        const fireworkFadeColorPicker = document.getElementById('firework-fade-color-picker');
+        if (fireworkFadeColorPicker) {
+            fireworkFadeColorPicker.addEventListener('change', (e) => {
+                const hex = e.target.value;
+                const r = parseInt(hex.substring(1, 3), 16);
+                const g = parseInt(hex.substring(3, 5), 16);
+                const b = parseInt(hex.substring(5, 7), 16);
+                const rgb = `${r},${g},${b}`;
+                
+                const fadeColorsInput = document.getElementById('firework-fade-colors');
+                if (fadeColorsInput) {
+                    const currentColors = fadeColorsInput.value.trim();
+                    fadeColorsInput.value = currentColors ? `${currentColors}, ${rgb}` : rgb;
+                    
+                    // Trigger the fade colors input event - parse properly
+                    if (!item.Firework) item.Firework = {};
+                    item.Firework.fadeColors = fadeColorsInput.value.split(/,\s+|\s{2,}/).filter(c => c.trim());
+                    this.editor.markDirty();
+                }
+            });
+        }
+
+        // Book event handlers
+        const bookTitle = document.getElementById('book-title');
+        if (bookTitle) {
+            bookTitle.addEventListener('input', (e) => {
+                if (!item.Book) item.Book = {};
+                item.Book.title = e.target.value;
+                this.editor.markDirty();
+            });
+        }
+
+        const bookAuthor = document.getElementById('book-author');
+        if (bookAuthor) {
+            bookAuthor.addEventListener('input', (e) => {
+                if (!item.Book) item.Book = {};
+                item.Book.author = e.target.value;
+                this.editor.markDirty();
+            });
+        }
+
+        // Update existing book pages handler to also update preview
+        if (bookPages) {
+            // Remove old listener by cloning
+            const newBookPages = bookPages.cloneNode(true);
+            bookPages.parentNode.replaceChild(newBookPages, bookPages);
+            
+            newBookPages.addEventListener('input', (e) => {
+                if (!item.Book) item.Book = {};
+                item.Book.pages = e.target.value.split('\n').filter(p => p.trim());
+                this.editor.markDirty();
+            });
+        }
     }
+
+
 
     /**
      * Set nested property using dot notation

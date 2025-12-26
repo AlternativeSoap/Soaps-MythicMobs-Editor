@@ -527,12 +527,13 @@ class YAMLParser {
             dropOptions.ItemVFXByDefault = dropOptionsData.ItemVFXByDefault;
         }
 
-        // ItemVFX settings
-        if (dropOptionsData.ItemVFX) dropOptions.ItemVFX = dropOptionsData.ItemVFX;
-        if (dropOptionsData.ItemVFXMaterial) dropOptions.ItemVFXMaterial = dropOptionsData.ItemVFXMaterial;
-        if (dropOptionsData.ItemVFXData) dropOptions.ItemVFXData = dropOptionsData.ItemVFXData;
-        if (dropOptionsData.ItemVFXModel) dropOptions.ItemVFXModel = dropOptionsData.ItemVFXModel;
-        if (dropOptionsData.ItemVFXColor) dropOptions.ItemVFXColor = dropOptionsData.ItemVFXColor;
+        // ItemVFX settings - handle as nested object
+        if (dropOptionsData.ItemVFX && typeof dropOptionsData.ItemVFX === 'object') {
+            dropOptions.ItemVFX = {
+                Material: dropOptionsData.ItemVFX.Material,
+                Model: dropOptionsData.ItemVFX.Model
+            };
+        }
 
         // Other options
         if (dropOptionsData.RequiredDamagePercent !== undefined) {
@@ -542,12 +543,22 @@ class YAMLParser {
             dropOptions.HologramTimeout = dropOptionsData.HologramTimeout;
         }
 
-        // Messages
+        // Messages - handle as arrays
         if (dropOptionsData.HologramMessage) {
-            dropOptions.HologramMessage = dropOptionsData.HologramMessage;
+            if (Array.isArray(dropOptionsData.HologramMessage)) {
+                dropOptions.HologramMessage = dropOptionsData.HologramMessage;
+            } else if (typeof dropOptionsData.HologramMessage === 'string') {
+                // If it's a single string, convert to array
+                dropOptions.HologramMessage = [dropOptionsData.HologramMessage];
+            }
         }
         if (dropOptionsData.ChatMessage) {
-            dropOptions.ChatMessage = dropOptionsData.ChatMessage;
+            if (Array.isArray(dropOptionsData.ChatMessage)) {
+                dropOptions.ChatMessage = dropOptionsData.ChatMessage;
+            } else if (typeof dropOptionsData.ChatMessage === 'string') {
+                // If it's a single string, convert to array
+                dropOptions.ChatMessage = [dropOptionsData.ChatMessage];
+            }
         }
 
         return dropOptions;

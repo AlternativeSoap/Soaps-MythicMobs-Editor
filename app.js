@@ -107,6 +107,10 @@ class MythicMobsEditor {
             // Load settings
             this.loadSettings();
             
+            // Apply default mode from settings BEFORE loading files
+            this.state.currentMode = this.settings.defaultMode;
+            document.body.setAttribute('data-mode', this.state.currentMode);
+            
             // Initialize pack manager
             this.packManager = new PackManager(this);
             
@@ -2331,26 +2335,23 @@ class MythicMobsEditor {
         if (!this.state.currentFile) {
             this.state.currentMode = this.settings.defaultMode;
             document.body.setAttribute('data-mode', this.state.currentMode);
-            
-            // Update save-status title based on mode
-            const saveStatus = document.getElementById('save-status');
-            if (saveStatus) {
-                if (this.state.currentMode === 'advanced') {
-                    saveStatus.setAttribute('title', 'Click to view recent changes');
-                    saveStatus.style.cursor = 'pointer';
-                } else {
-                    saveStatus.setAttribute('title', 'All changes saved');
-                    saveStatus.style.cursor = 'default';
-                }
+        }
+        
+        // Always update mode buttons to reflect current mode
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === this.state.currentMode);
+        });
+        
+        // Update save-status title based on mode
+        const saveStatus = document.getElementById('save-status');
+        if (saveStatus) {
+            if (this.state.currentMode === 'advanced') {
+                saveStatus.setAttribute('title', 'Click to view recent changes');
+                saveStatus.style.cursor = 'pointer';
+            } else {
+                saveStatus.setAttribute('title', 'All changes saved');
+                saveStatus.style.cursor = 'default';
             }
-            
-            document.querySelectorAll('.mode-btn').forEach(btn => {
-                if (btn.dataset.mode === this.state.currentMode) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
         }
         
         // Show/hide auto-save indicator and modified file count

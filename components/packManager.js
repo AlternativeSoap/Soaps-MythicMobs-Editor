@@ -669,6 +669,15 @@ class PackManager {
             });
         });
         
+        // Expand All / Collapse All buttons
+        document.getElementById('expand-all-btn')?.addEventListener('click', () => {
+            this.expandAllFolders();
+        });
+        
+        document.getElementById('collapse-all-btn')?.addEventListener('click', () => {
+            this.collapseAllFolders();
+        });
+        
         // Dropdown item clicks
         document.querySelectorAll('.pack-dropdown-item').forEach(item => {
             item.addEventListener('click', (e) => {
@@ -942,6 +951,115 @@ class PackManager {
         const saved = localStorage.getItem('folderStates');
         // Return empty object - folders are collapsed by default (no state = collapsed)
         return saved ? JSON.parse(saved) : {};
+    }
+    
+    /**
+     * Expand all folders and packs in the tree
+     */
+    expandAllFolders() {
+        // Expand all pack contents
+        document.querySelectorAll('.pack-content').forEach(content => {
+            content.classList.remove('collapsed');
+            content.classList.add('expanded');
+        });
+        
+        // Rotate all pack chevrons
+        document.querySelectorAll('.pack-chevron').forEach(chevron => {
+            chevron.classList.add('rotated');
+        });
+        
+        // Expand all folders
+        document.querySelectorAll('.folder-files').forEach(folderFiles => {
+            folderFiles.classList.remove('collapsed');
+        });
+        
+        // Update all folder chevrons
+        document.querySelectorAll('.folder-chevron').forEach(chevron => {
+            chevron.classList.remove('fa-chevron-right');
+            chevron.classList.add('fa-chevron-down');
+        });
+        
+        // Expand all YAML files
+        document.querySelectorAll('.yaml-file-entries').forEach(entries => {
+            entries.classList.remove('collapsed');
+        });
+        
+        // Update YAML file chevrons
+        document.querySelectorAll('.yaml-file-chevron').forEach(chevron => {
+            chevron.classList.remove('fa-chevron-right');
+            chevron.classList.add('fa-chevron-down');
+        });
+        
+        // Save states
+        const folderStates = {};
+        document.querySelectorAll('.folder-item').forEach(item => {
+            const folderName = item.dataset.folderName;
+            if (folderName) {
+                folderStates[folderName] = true;
+            }
+        });
+        localStorage.setItem('folderStates', JSON.stringify(folderStates));
+        
+        // Save pack states
+        const packStates = {};
+        document.querySelectorAll('.pack-item').forEach(item => {
+            const packId = item.dataset.packId;
+            if (packId) {
+                packStates[packId] = false; // false = expanded
+            }
+        });
+        localStorage.setItem('packCollapsedStates', JSON.stringify(packStates));
+    }
+    
+    /**
+     * Collapse all folders and packs in the tree
+     */
+    collapseAllFolders() {
+        // Collapse all pack contents
+        document.querySelectorAll('.pack-content').forEach(content => {
+            content.classList.remove('expanded');
+            content.classList.add('collapsed');
+        });
+        
+        // Reset all pack chevrons
+        document.querySelectorAll('.pack-chevron').forEach(chevron => {
+            chevron.classList.remove('rotated');
+        });
+        
+        // Collapse all folders
+        document.querySelectorAll('.folder-files').forEach(folderFiles => {
+            folderFiles.classList.add('collapsed');
+        });
+        
+        // Update all folder chevrons
+        document.querySelectorAll('.folder-chevron').forEach(chevron => {
+            chevron.classList.remove('fa-chevron-down');
+            chevron.classList.add('fa-chevron-right');
+        });
+        
+        // Collapse all YAML files
+        document.querySelectorAll('.yaml-file-entries').forEach(entries => {
+            entries.classList.add('collapsed');
+        });
+        
+        // Update YAML file chevrons
+        document.querySelectorAll('.yaml-file-chevron').forEach(chevron => {
+            chevron.classList.remove('fa-chevron-down');
+            chevron.classList.add('fa-chevron-right');
+        });
+        
+        // Clear folder states (collapsed is default)
+        localStorage.setItem('folderStates', JSON.stringify({}));
+        
+        // Save pack states as all collapsed
+        const packStates = {};
+        document.querySelectorAll('.pack-item').forEach(item => {
+            const packId = item.dataset.packId;
+            if (packId) {
+                packStates[packId] = true; // true = collapsed
+            }
+        });
+        localStorage.setItem('packCollapsedStates', JSON.stringify(packStates));
     }
     
     /**
@@ -2560,6 +2678,26 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
         await this.saveRecentFiles();
         this.renderRecentFiles();
     }
+
+    /**
+     * Remove a file from recent files
+     */
+    async removeFromRecentFiles(fileId) {
+        this.recentFiles = this.recentFiles.filter(f => f.fileId !== fileId);
+        await this.saveRecentFiles();
+        this.renderRecentFiles();
+    }
+
+    /**
+     * Clear all recent files
+     */
+    async clearAllRecentFiles() {
+        if (this.recentFiles.length === 0) return;
+        
+        this.recentFiles = [];
+        await this.saveRecentFiles();
+        this.renderRecentFiles();
+    }
     
     /**
      * Render recent files section
@@ -2602,6 +2740,9 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
                         <div class="recent-file-name">${file.fileName}</div>
                         <div class="recent-file-meta">${file.packName} • ${file.fileType}</div>
                     </div>
+                    <button class="remove-item-btn" data-action="remove-recent" title="Remove from recent files">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
             `;
         }).join('');
@@ -2657,6 +2798,18 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
         
         // Use event delegation on the list container
         list.addEventListener('click', (e) => {
+            // Check if remove button was clicked
+            const removeBtn = e.target.closest('.remove-item-btn[data-action="remove-recent"]');
+            if (removeBtn) {
+                e.stopPropagation();
+                const item = removeBtn.closest('.recent-file-item');
+                if (item) {
+                    const fileId = item.dataset.fileId;
+                    this.removeFromRecentFiles(fileId);
+                }
+                return;
+            }
+            
             const item = e.target.closest('.recent-file-item');
             if (!item) return;
             
@@ -2666,6 +2819,15 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
                 this.openFile(fileId, fileType);
             }
         });
+        
+        // Setup Clear All button
+        const clearAllBtn = document.getElementById('clear-recent-files-btn');
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.clearAllRecentFiles();
+            });
+        }
         
         // Only set flag after successfully attaching listener
         this._recentFilesClickDelegationSetup = true;
@@ -2742,7 +2904,21 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
     isFavorited(fileId) {
         return this.favorites.has(fileId);
     }
-    
+
+    /**
+     * Clear all favorites
+     */
+    async clearAllFavorites() {
+        if (this.favorites.size === 0) return;
+        
+        this.favorites.clear();
+        await this.saveFavorites();
+        await this.editor.storage.set('favoritesMetadata', {});
+        this._favoritesMetadataCache = null;
+        this.renderPackTree();
+        this.renderFavorites();
+    }
+
     /**
      * Render favorites section
      */
@@ -2794,12 +2970,17 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
             return `
                 <div class="favorite-item ${isActive ? 'active' : ''}" 
                      data-file-id="${file.fileId}" 
-                     data-file-type="${file.fileType}">
+                     data-file-type="${file.fileType}"
+                     data-file-name="${file.fileName}"
+                     data-pack-name="${file.packName}">
                     <i class="fas ${icons[file.fileType] || 'fa-file'} favorite-icon"></i>
                     <div class="favorite-info">
                         <div class="favorite-name">${file.fileName}</div>
                         <div class="favorite-meta">${file.packName} • ${file.fileType}</div>
                     </div>
+                    <button class="favorite-star-toggle" data-action="toggle-favorite" title="Remove from favorites">
+                        <i class="fas fa-star"></i>
+                    </button>
                 </div>
             `;
         }).join('');
@@ -2855,6 +3036,21 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
         
         // Use event delegation on the list container
         list.addEventListener('click', (e) => {
+            // Check if star toggle button was clicked
+            const starBtn = e.target.closest('.favorite-star-toggle[data-action="toggle-favorite"]');
+            if (starBtn) {
+                e.stopPropagation();
+                const item = starBtn.closest('.favorite-item');
+                if (item) {
+                    const fileId = item.dataset.fileId;
+                    const fileName = item.dataset.fileName;
+                    const fileType = item.dataset.fileType;
+                    const packName = item.dataset.packName;
+                    this.toggleFavorite(fileId, fileName, fileType, packName);
+                }
+                return;
+            }
+            
             const item = e.target.closest('.favorite-item');
             if (!item) return;
             
@@ -2864,6 +3060,15 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
                 this.openFile(fileId, fileType);
             }
         });
+        
+        // Setup Clear All button
+        const clearAllBtn = document.getElementById('clear-favorites-btn');
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.clearAllFavorites();
+            });
+        }
         
         // Only set flag after successfully attaching listener
         this._favoritesClickDelegationSetup = true;

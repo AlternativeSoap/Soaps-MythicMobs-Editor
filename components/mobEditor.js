@@ -67,6 +67,7 @@ class MobEditor {
                 ${isAdvanced ? this.renderAITargetSelectorsSection(mob) : ''}
                 ${isAdvanced ? this.renderModulesSection(mob) : ''}
                 ${isAdvanced ? this.renderLevelModifiersSection(mob) : ''}
+                ${isAdvanced ? this.renderTotemSection(mob) : ''}
 
                 ${this.renderSkillsSection(mob)}
                 ${this.renderDropsSection(mob)}
@@ -2227,9 +2228,428 @@ class MobEditor {
         `;
     }
     
+    renderTotemSection(mob) {
+        const totem = mob.totem || mob.Totem || {};
+        const headBlock = totem.head || totem.Head || 'PLAYER_HEAD';
+        const pattern = totem.pattern || totem.Pattern || [];
+        const replacement = totem.replacement || totem.Replacement || [];
+        const hasTotem = pattern.length > 0 || headBlock !== 'PLAYER_HEAD';
+        
+        return `
+            <div class="card collapsible-card collapsed" id="totem-section">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-monument"></i> Totem Summoning
+                        ${hasTotem ? '<span class="card-badge">Configured</span>' : ''}
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <div class="alert alert-info" style="margin-bottom: 24px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(99, 102, 241, 0.15) 100%); border: 2px solid rgba(139, 92, 246, 0.5); padding: 16px; border-radius: 10px;">
+                        <div style="display: flex; align-items: start; gap: 12px;">
+                            <i class="fas fa-lightbulb" style="color: #a78bfa; font-size: 20px; margin-top: 2px;"></i>
+                            <div style="flex: 1;">
+                                <strong style="color: #e9d5ff; font-size: 15px; display: block; margin-bottom: 6px;">About Totems:</strong>
+                                <p style="margin: 0; color: #ddd6fe; line-height: 1.6; font-size: 14px;">
+                                    Build a structure in-game that summons this mob. The <strong style="color: #a78bfa;">Head</strong> block triggers the check. Use the visual grid builder below to paint your totem structure.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 16px; background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.15) 100%); border: 2px solid rgba(99,102,241,0.4); border-radius: 10px; padding: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-lightbulb" style="color: #fbbf24; font-size: 18px;"></i>
+                            <div style="flex: 1;">
+                                <strong style="color: #818cf8; font-size: 13px; display: block; margin-bottom: 4px;">Quick Start:</strong>
+                                <span style="color: #c4b5fd; font-size: 12px;">Click a template below to instantly load a pre-made totem structure!</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- QUICK TEMPLATES - ALWAYS VISIBLE -->
+                    <div style="margin-bottom: 20px; background: linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(139,92,246,0.12) 100%); border: 2px solid rgba(99,102,241,0.5); border-radius: 12px; padding: 16px; box-shadow: 0 4px 16px rgba(99,102,241,0.3);">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                            <i class="fas fa-th-large" style="color: #6366f1; font-size: 16px;"></i>
+                            <span style="font-weight: 700; font-size: 13px; color: #818cf8; text-transform: uppercase; letter-spacing: 0.5px;">Quick Templates</span>
+                            <span style="margin-left: auto; font-size: 10px; background: rgba(99,102,241,0.3); padding: 3px 8px; border-radius: 10px; color: #a5b4fc; font-weight: 600;">6 presets</span>
+                        </div>
+                        <div id="totem-templates" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                            <!-- Templates rendered here by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Visual Builder (Manual Entry removed) -->
+                    
+                    <div style="display: grid; grid-template-columns: 340px 1fr 1fr; gap: 20px;">
+                        <!-- LEFT SIDEBAR: Controls & Configuration -->
+                        <div style="display: flex; flex-direction: column; gap: 12px; max-height: 85vh; overflow-y: auto; overflow-x: hidden; padding-right: 8px;">
+                            
+                            <!-- Head Block Configuration -->
+                            <div class="totem-section" style="background: linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(99,102,241,0.08) 100%); border: 2px solid rgba(139,92,246,0.25); border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                                <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 12px; font-size: 13px; color: #c4b5fd; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <i class="fas fa-cube" style="color: #a78bfa; font-size: 16px;"></i>
+                                    Trigger Block
+                                    <i class="fas fa-question-circle" style="margin-left: auto; font-size: 12px; opacity: 0.6; cursor: help;" title="The block that activates this totem structure when placed"></i>
+                                </label>
+                                <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px; padding: 12px;">
+                                    <div id="totem-head-dropdown"></div>
+                                </div>
+                                <small class="form-hint" style="margin-top: 8px; display: block; font-size: 10px; background: rgba(139,92,246,0.1); padding: 6px 8px; border-radius: 6px; border-left: 3px solid #a78bfa;">
+                                    <i class="fas fa-lightbulb" style="color: #fbbf24;"></i>
+                                    <strong>Tip:</strong> Use PLAYER_HEAD for custom totem structures
+                                </small>
+                            </div>
+                            
+                            <!-- Enhanced Statistics (Prominent Display) -->
+                            <div class="totem-section" style="background: linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(5,150,105,0.08) 100%); border: 2px solid rgba(16,185,129,0.25); border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                                <label style="display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 12px; font-size: 13px; color: #6ee7b7; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <i class="fas fa-chart-bar" style="color: #10b981; font-size: 16px;"></i>
+                                    Structure Stats
+                                </label>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <div id="totem-block-stats" style="background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 10px; display: flex; align-items: center; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: #6ee7b7;">
+                                            <i class="fas fa-cubes"></i> Total Blocks
+                                        </span>
+                                        <span id="totem-total-blocks" style="font-size: 20px; font-weight: 700; color: #10b981; font-family: var(--font-mono);">${pattern.length}</span>
+                                    </div>
+                                    <div id="totem-dimensions-stats" style="background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 10px; display: flex; align-items: center; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: #93c5fd;">
+                                            <i class="fas fa-ruler-combined"></i> Dimensions
+                                        </span>
+                                        <span id="totem-size" style="font-size: 14px; font-weight: 700; color: #3b82f6; font-family: var(--font-mono);">0×0×0</span>
+                                    </div>
+                                    <div id="totem-layers-stats" style="background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px; padding: 10px; display: flex; align-items: center; justify-content: space-between;">
+                                        <span style="font-size: 11px; font-weight: 600; color: #d8b4fe;">
+                                            <i class="fas fa-layer-group"></i> Y Layers
+                                        </span>
+                                        <span id="totem-layer-count" style="font-size: 14px; font-weight: 700; color: #a855f7; font-family: var(--font-mono);">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Tools (Collapsible) -->
+                            <div class="totem-section" style="background: linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(37,99,235,0.08) 100%); border: 2px solid rgba(59,130,246,0.25); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                                <button type="button" class="totem-toggle-section" data-section="tools" style="width: 100%; background: none; border: none; padding: 14px 16px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; color: white;">
+                                    <i class="fas fa-chevron-down totem-toggle-icon" style="color: #3b82f6; font-size: 12px; transition: transform 0.3s;"></i>
+                                    <i class="fas fa-tools" style="color: #3b82f6; font-size: 16px;"></i>
+                                    <span style="font-weight: 700; font-size: 13px; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Transform Tools</span>
+                                </button>
+                                <div id="totem-tools-content" style="padding: 0 16px 16px 16px;">
+                                    <!-- History Controls -->
+                                    <div style="margin-bottom: 10px;">
+                                        <small style="display: block; font-size: 10px; font-weight: 600; color: #93c5fd; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            <i class="fas fa-history"></i> History
+                                        </small>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                            <button type="button" class="btn totem-undo-btn" data-interactive="true" style="padding: 8px; font-size: 11px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; border-radius: 6px; font-weight: 600; transition: all 0.2s;">
+                                                <i class="fas fa-undo"></i> Undo
+                                                <small style="opacity: 0.6; font-size: 9px; margin-left: 4px;">Ctrl+Z</small>
+                                            </button>
+                                            <button type="button" class="btn totem-redo-btn" data-interactive="true" style="padding: 8px; font-size: 11px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; border-radius: 6px; font-weight: 600; transition: all 0.2s;">
+                                                <i class="fas fa-redo"></i> Redo
+                                                <small style="opacity: 0.6; font-size: 9px; margin-left: 4px;">Ctrl+Y</small>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Transform Operations -->
+                                    <div style="margin-bottom: 10px;">
+                                        <small style="display: block; font-size: 10px; font-weight: 600; color: #93c5fd; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            <i class="fas fa-magic"></i> Transform
+                                        </small>
+                                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+                                            <button type="button" class="btn totem-rotate-btn" data-interactive="true" title="Rotate 90° clockwise" style="padding: 8px; font-size: 10px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; border-radius: 6px; font-weight: 600;">
+                                                <i class="fas fa-sync-alt"></i><br><span style="font-size: 9px;">Rotate</span>
+                                            </button>
+                                            <button type="button" class="btn totem-mirror-x-btn" data-interactive="true" title="Mirror along X axis" style="padding: 8px; font-size: 10px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; border-radius: 6px; font-weight: 600;">
+                                                <i class="fas fa-arrows-alt-h"></i><br><span style="font-size: 9px;">Flip X</span>
+                                            </button>
+                                            <button type="button" class="btn totem-mirror-z-btn" data-interactive="true" title="Mirror along Z axis" style="padding: 8px; font-size: 10px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; border-radius: 6px; font-weight: 600;">
+                                                <i class="fas fa-arrows-alt-v"></i><br><span style="font-size: 9px;">Flip Z</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Utility -->
+                                    <div>
+                                        <small style="display: block; font-size: 10px; font-weight: 600; color: #93c5fd; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            <i class="fas fa-sliders-h"></i> Utility
+                                        </small>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                            <button type="button" class="btn totem-center-grid-btn" data-interactive="true" title="Center structure" style="padding: 8px; font-size: 11px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; border-radius: 6px; font-weight: 600;">
+                                                <i class="fas fa-compress-arrows-alt"></i> Center
+                                            </button>
+                                            <button type="button" class="btn totem-clear-grid-btn" data-interactive="true" title="Clear everything" style="padding: 8px; font-size: 11px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; border-radius: 6px; font-weight: 600;">
+                                                <i class="fas fa-eraser"></i> Clear
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Paint Material Selector (Enhanced) -->
+                            <div class="totem-section" style="background: linear-gradient(135deg, rgba(251,146,60,0.12) 0%, rgba(249,115,22,0.08) 100%); border: 2px solid rgba(251,146,60,0.25); border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; color: #fdba74; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        <i class="fas fa-paint-brush" style="color: #fb923c; font-size: 16px;"></i>
+                                        Paint Tool
+                                    </label>
+                                    <label style="font-size: 10px; color: #fdba74; cursor: pointer; background: rgba(251,146,60,0.2); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(251,146,60,0.3);" title="Auto-mirror blocks along X-axis">
+                                        <input type="checkbox" id="totem-symmetry-mode" style="margin-right: 4px;">
+                                        <i class="fas fa-reflect"></i> Symmetry
+                                    </label>
+                                </div>
+                                <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(251,146,60,0.3); border-radius: 8px; padding: 10px; margin-bottom: 10px;">
+                                    <div id="totem-paint-material-dropdown"></div>
+                                </div>
+                                <div>
+                                    <small style="display: block; font-size: 10px; font-weight: 600; color: #fdba74; margin-bottom: 6px;">
+                                        <i class="fas fa-clock"></i> Recent Materials
+                                    </small>
+                                    <div id="totem-recent-materials" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;">
+                                        <!-- Recent materials will appear here as larger blocks -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- View Controls -->
+                            <div class="totem-section" style="background: linear-gradient(135deg, rgba(236,72,153,0.12) 0%, rgba(219,39,119,0.08) 100%); border: 2px solid rgba(236,72,153,0.25); border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                                <label style="display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 10px; font-size: 13px; color: #f9a8d4; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <i class="fas fa-eye" style="color: #ec4899; font-size: 16px;"></i>
+                                    View Angle
+                                </label>
+                                <div style="display: flex; flex-direction: column; gap: 6px;">
+                                    <button type="button" class="totem-view-btn active" data-view="top" data-interactive="true" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); border: none; border-radius: 6px; color: white; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 6px rgba(236,72,153,0.3);">
+                                        <i class="fas fa-arrow-down"></i> Top View (X-Z)
+                                    </button>
+                                    <button type="button" class="totem-view-btn" data-view="front" data-interactive="true" style="width: 100%; padding: 10px; background: rgba(236,72,153,0.1); border: 1px solid rgba(236,72,153,0.3); border-radius: 6px; color: #f9a8d4; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                                        <i class="fas fa-arrows-alt-h"></i> Front View (X-Y)
+                                    </button>
+                                    <button type="button" class="totem-view-btn" data-view="side" data-interactive="true" style="width: 100%; padding: 10px; background: rgba(236,72,153,0.1); border: 1px solid rgba(236,72,153,0.3); border-radius: 6px; color: #f9a8d4; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                                        <i class="fas fa-arrows-alt-v"></i> Side View (Z-Y)
+                                    </button>
+                                </div>
+
+                                <!-- Y Level Control -->
+                                <div id="totem-y-control" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(236,72,153,0.3); border-radius: 8px; padding: 12px; margin-top: 12px;">
+                                    <label style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 600; color: #f9a8d4; margin-bottom: 8px;">
+                                        <span><i class="fas fa-layer-group"></i> Y Level</span>
+                                        <span id="totem-y-display" style="font-family: var(--font-mono); font-size: 16px; color: #ec4899; font-weight: 700;">0</span>
+                                    </label>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                                        <button type="button" class="btn totem-y-down-btn" data-interactive="true" style="padding: 8px; background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 11px;">
+                                            <i class="fas fa-arrow-down"></i> Down
+                                        </button>
+                                        <button type="button" class="btn totem-y-up-btn" data-interactive="true" style="padding: 8px; background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 11px;">
+                                            <i class="fas fa-arrow-up"></i> Up
+                                        </button>
+                                    </div>
+                                    <small style="display: block; color: rgba(249,168,212,0.7); font-size: 9px; text-align: center; margin-top: 6px;">
+                                        Y=0 is spawn point • Range: -5 to +5
+                                    </small>
+                                </div>
+                            </div>
+                        </div> <!-- End LEFT SIDEBAR -->
+
+                        <!-- CENTER COLUMN: Interactive Grid Builder with Coordinate Labels -->
+                        <div style="background: linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(15,23,42,0.5) 100%); border: 2px solid rgba(139,92,246,0.25); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 700px; position: relative; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
+                            <!-- Grid Header -->
+                            <div style="position: absolute; top: 12px; left: 12px; right: 12px; display: flex; align-items: center; justify-content: space-between;">
+                                <div style="background: linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(99,102,241,0.2) 100%); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px; padding: 6px 12px; font-size: 11px; font-weight: 700; color: #a78bfa; letter-spacing: 0.5px;">
+                                    <i class="fas fa-grip-horizontal" style="margin-right: 6px;"></i>
+                                    INTERACTIVE GRID
+                                </div>
+                                <div id="totem-current-view-indicator" style="background: rgba(236,72,153,0.2); border: 1px solid rgba(236,72,153,0.3); border-radius: 8px; padding: 6px 12px; font-size: 11px; font-weight: 700; color: #f9a8d4;">
+                                    <i class="fas fa-arrow-down"></i> TOP VIEW
+                                </div>
+                            </div>
+                            
+                            <!-- Grid with axis labels -->
+                            <div id="totem-grid-container" style="position: relative; margin-top: 40px;">
+                                <div id="totem-grid" style="display: inline-grid; gap: 2px;">
+                                    <!-- Grid cells generated by JavaScript -->
+                                </div>
+                                <!-- Coordinate labels will be added by JavaScript -->
+                            </div>
+                            
+                            <!-- Grid Instructions -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; width: 100%; max-width: 500px;">
+                                <div style="background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); border-radius: 8px; padding: 10px; text-align: center;">
+                                    <i class="fas fa-mouse-pointer" style="color: #a78bfa; font-size: 18px; margin-bottom: 4px; display: block;"></i>
+                                    <strong style="display: block; font-size: 11px; color: #c4b5fd; margin-bottom: 2px;">Left-Click</strong>
+                                    <small style="font-size: 9px; color: var(--text-tertiary);">Place block</small>
+                                </div>
+                                <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 10px; text-align: center;">
+                                    <i class="fas fa-eraser" style="color: #ef4444; font-size: 18px; margin-bottom: 4px; display: block;"></i>
+                                    <strong style="display: block; font-size: 11px; color: #fca5a5; margin-bottom: 2px;">Right-Click</strong>
+                                    <small style="font-size: 9px; color: var(--text-tertiary);">Remove block</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- RIGHT COLUMN: Live Preview Canvas with Controls -->
+                        <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 50%, rgba(15, 23, 42, 0.95) 100%); border: 2px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 16px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05); position: relative; min-height: 700px; display: flex; flex-direction: column; overflow: hidden;">
+                            <!-- Corner decorations -->
+                            <div style="position: absolute; top: 0; left: 0; width: 40px; height: 40px; border-top: 2px solid rgba(139, 92, 246, 0.4); border-left: 2px solid rgba(139, 92, 246, 0.4); border-radius: 12px 0 0 0;"></div>
+                            <div style="position: absolute; top: 0; right: 0; width: 40px; height: 40px; border-top: 2px solid rgba(139, 92, 246, 0.4); border-right: 2px solid rgba(139, 92, 246, 0.4); border-radius: 0 12px 0 0;"></div>
+                            <div style="position: absolute; bottom: 0; left: 0; width: 40px; height: 40px; border-bottom: 2px solid rgba(139, 92, 246, 0.4); border-left: 2px solid rgba(139, 92, 246, 0.4); border-radius: 0 0 0 12px;"></div>
+                            <div style="position: absolute; bottom: 0; right: 0; width: 40px; height: 40px; border-bottom: 2px solid rgba(139, 92, 246, 0.4); border-right: 2px solid rgba(139, 92, 246, 0.4); border-radius: 0 0 12px 0;"></div>
+                            
+                            <!-- Preview Header -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(99, 102, 241, 0.3) 100%); border: 1px solid rgba(139, 92, 246, 0.5); border-radius: 8px; padding: 6px 12px; font-size: 11px; font-weight: 700; color: #a78bfa; letter-spacing: 0.5px;">
+                                    <i class="fas fa-eye" style="margin-right: 6px;"></i>
+                                    LIVE PREVIEW
+                                </div>
+                                <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(99, 102, 241, 0.3) 100%); border: 1px solid rgba(139, 92, 246, 0.5); border-radius: 8px; padding: 6px 12px; font-size: 11px; font-weight: 700; color: #a78bfa; letter-spacing: 0.5px;">
+                                    <i class="fas fa-cube" style="margin-right: 6px;"></i>
+                                    MINECRAFT
+                                </div>
+                            </div>
+                            
+                            <!-- Canvas Container -->
+                            <div style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative;">
+                                <canvas id="totem-preview-canvas" style="border-radius: 8px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(139, 92, 246, 0.2); max-width: 100%; max-height: 100%;"></canvas>
+                            </div>
+                            
+                            <!-- Preview Info Footer -->
+                            <div style="margin-top: 12px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); border-radius: 8px; padding: 10px;">
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 16px; font-size: 10px; color: #c4b5fd;">
+                                    <span>
+                                        <i class="fas fa-info-circle" style="color: #a78bfa; margin-right: 4px;"></i>
+                                        Updates in real-time
+                                    </span>
+                                    <span style="opacity: 0.6;">•</span>
+                                    <span>
+                                        <i class="fas fa-crosshairs" style="color: #fbbf24; margin-right: 4px;"></i>
+                                        ⊕ = Spawn Point (0,0,0)
+                                    </span>
+                                </div>
+                            </div>
+                        </div> <!-- End RIGHT COLUMN -->
+                    </div> <!-- End 3-column grid layout -->
+                    
+                    <!-- Replacement Blocks Section (Full-Width Below 3-Column Layout) -->
+                    <div>
+                        <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 12px;">
+                            <i class="fas fa-exchange-alt" style="color: #fbbf24;"></i>
+                            Replacement Blocks (Optional)
+                            <small style="font-weight: normal; color: var(--text-secondary); margin-left: auto;">
+                                ${replacement.length} replacements
+                            </small>
+                        </label>
+                        
+                        <div id="totem-replacement-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; padding: 12px; background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 8px; margin-bottom: 12px;">
+                            ${replacement.length === 0 ? `
+                                <small style="color: var(--text-secondary); text-align: center; padding: 12px;">
+                                    No replacements (all blocks become AIR)
+                                </small>
+                            ` : ''}
+                            ${replacement.map((entry, index) => this.generateTotemReplacementCard(entry, index)).join('')}
+                        </div>
+                        
+                        <button type="button" class="add-item-btn add-totem-replacement-btn" data-interactive="true" style="width: 100%; background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); border: none; padding: 10px; font-weight: 600; font-size: 13px;">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Add Replacement</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Generate individual totem pattern block card
+     */
+    generateTotemPatternCard(entry, index) {
+        const parts = entry.trim().split(/\s+/);
+        const coords = parts[0] || '0,0,0';
+        const material = parts.slice(1).join(' ') || 'STONE';
+        const [x, y, z] = coords.split(',').map(v => parseInt(v) || 0);
+        
+        return `
+            <div class="totem-pattern-card" data-index="${index}" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 8px; padding: 12px; display: grid; grid-template-columns: 100px 1fr auto auto; gap: 10px; align-items: center; transition: all 0.2s ease;">
+                <div>
+                    <label style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block;">
+                        <i class="fas fa-map-marker-alt" style="margin-right: 2px;"></i>
+                        Coords
+                    </label>
+                    <input 
+                        type="text" 
+                        class="form-input totem-pattern-coords" 
+                        data-index="${index}"
+                        data-interactive="true"
+                        value="${coords}"
+                        placeholder="x,y,z"
+                        style="font-family: var(--font-mono); font-size: 12px; padding: 6px 8px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(139, 92, 246, 0.3);"
+                    >
+                </div>
+                <div>
+                    <label style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block;">
+                        <i class="fas fa-cube" style="margin-right: 2px;"></i>
+                        Material
+                    </label>
+                    <input 
+                        type="text" 
+                        class="form-input totem-pattern-material" 
+                        data-index="${index}"
+                        data-interactive="true"
+                        value="${material}"
+                        placeholder="NETHERITE_BLOCK"
+                        readonly
+                        style="font-family: var(--font-mono); font-size: 12px; padding: 6px 8px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(139, 92, 246, 0.3); cursor: default;"
+                    >
+                </div>
+                <button type="button" class="btn browse-pattern-material-btn" data-index="${index}" data-interactive="true" style="padding: 6px 12px; background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); border: none; border-radius: 6px; color: white; font-weight: 600; font-size: 11px; white-space: nowrap;">
+                    <i class="fas fa-search"></i> Browse
+                </button>
+                <button type="button" class="btn-icon btn-danger remove-totem-pattern" data-index="${index}" data-interactive="true" style="width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 13px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    }
+    
+    /**
+     * Generate individual totem replacement card
+     */
+    generateTotemReplacementCard(entry, index) {
+        const parts = entry.trim().split(/\s+/);
+        const coords = parts[0] || '0,0,0';
+        const material = parts.slice(1).join(' ') || 'AIR';
+        
+        return `
+            <div class="totem-replacement-card" data-index="${index}" style="background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 6px; padding: 10px; display: grid; grid-template-columns: 100px 1fr auto; gap: 10px; align-items: center;">
+                <input 
+                    type="text" 
+                    class="form-input totem-replacement-coords" 
+                    data-index="${index}"
+                    data-interactive="true"
+                    value="${coords}"
+                    placeholder="x,y,z"
+                    style="font-family: var(--font-mono); font-size: 12px; padding: 6px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(251, 191, 36, 0.3);"
+                >
+                <input 
+                    type="text" 
+                    class="form-input totem-replacement-material" 
+                    data-index="${index}"
+                    data-interactive="true"
+                    value="${material}"
+                    placeholder="AIR"
+                    style="font-family: var(--font-mono); font-size: 12px; padding: 6px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(251, 191, 36, 0.3);"
+                >
+                <button type="button" class="btn-icon btn-danger remove-totem-replacement" data-index="${index}" data-interactive="true" style="width: 28px; height: 28px; padding: 0; font-size: 12px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    }
+    
     renderSkillsSection(mob) {
         return `
-            <div class="card collapsible-card">
+            <div class="card collapsible-card collapsed">
                 <div class="card-header collapsible-header">
                     <h3 class="card-title">
                         <i class="fas fa-magic"></i> Skills
@@ -2247,7 +2667,7 @@ class MobEditor {
     
     renderDropsSection(mob) {
         return `
-            <div class="card collapsible-card">
+            <div class="card collapsible-card collapsed">
                 <div class="card-header collapsible-header">
                     <h3 class="card-title">
                         <i class="fas fa-box"></i> Drops
@@ -2284,7 +2704,7 @@ class MobEditor {
                         <i class="fas fa-chevron-down collapse-icon"></i>
                     </h3>
                 </div>
-                <div class="card-body collapsible-card-body" style="display: none;">
+                <div class="card-body collapsible-card-body">
                     <p class="help-text">Configure fancy drops system with visual effects, holograms, and per-player drops. Set DropMethod to FANCY to enable these features.</p>
                     
                     <div class="form-group">
@@ -2312,32 +2732,34 @@ class MobEditor {
         let html = '';
 
         // Group fields by section
-        const sections = {
-            general: { title: 'General Options', icon: 'cog', fields: [] },
-            perPlayer: { title: 'Per-Player Options', icon: 'users', fields: [] },
-            visualDefaults: { title: 'Visual Defaults', icon: 'eye', fields: [] },
-            itemVFX: { title: 'Item VFX Settings', icon: 'magic', fields: [] },
-            messages: { title: 'Messages', icon: 'comment', fields: [] }
-        };
-
-        // Categorize fields
+        const sections = {};
+        
         Object.entries(allFields).forEach(([key, field]) => {
             if (field.name === 'DropMethod') return; // Skip, already handled
 
-            // Determine section based on field name patterns
-            if (['ShowDeathChatMessage', 'ShowDeathHologram', 'Lootsplosion', 'HologramItemNames', 'RequiredDamagePercent', 'HologramTimeout'].includes(field.name)) {
-                sections.general.fields.push({ key, field });
-            } else if (['PerPlayerDrops', 'ClientSideDrops'].includes(field.name)) {
-                sections.perPlayer.fields.push({ key, field });
-            } else if (['ItemGlowByDefault', 'ItemBeamByDefault', 'ItemVFXByDefault'].includes(field.name)) {
-                sections.visualDefaults.fields.push({ key, field });
-            } else if (field.name.startsWith('ItemVFX')) {
-                sections.itemVFX.fields.push({ key, field });
-            } else if (['HologramMessage', 'ChatMessage'].includes(field.name)) {
-                sections.messages.fields.push({ key, field });
-            } else {
-                sections.general.fields.push({ key, field });
+            const sectionKey = field.section || 'Other';
+            if (!sections[sectionKey]) {
+                sections[sectionKey] = {
+                    title: field.section,
+                    icon: field.sectionIcon || 'cog',
+                    fields: []
+                };
             }
+            
+            // Get the value for this field, handling nested properties
+            let value;
+            if (field.name.includes('.')) {
+                // Handle nested fields like ItemVFX.Material
+                const parts = field.name.split('.');
+                value = dropOptions;
+                for (const part of parts) {
+                    value = value?.[part];
+                }
+            } else {
+                value = dropOptions[field.name];
+            }
+            
+            sections[sectionKey].fields.push({ key, field, value });
         });
 
         // Render each section
@@ -2346,19 +2768,18 @@ class MobEditor {
 
             html += `
                 <div class="card collapsible-card collapsed" style="margin-top: 1rem;">
-                    <div class="card-header collapsible-header" style="background: #f8f9fa; padding: 0.75rem 1rem;">
-                        <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600;">
+                    <div class="card-header collapsible-header" style="background: var(--bg-secondary); padding: 0.75rem 1rem;">
+                        <h4 class="card-title" style="margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--text-primary);">
                             <i class="fas fa-${section.icon}"></i> ${section.title}
                             <i class="fas fa-chevron-down collapse-icon"></i>
                         </h4>
                     </div>
-                    <div class="collapsible-card-body" style="display: none; padding: 1rem;">
-                        <div class="row">
+                    <div class="card-body collapsible-card-body">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
             `;
 
-            section.fields.forEach(({ key, field }) => {
-                const value = dropOptions[field.name];
-                html += `<div class="col-md-6">`;
+            section.fields.forEach(({ key, field, value }) => {
+                html += `<div>`;
                 html += this.renderDropOptionField(field, value);
                 html += `</div>`;
             });
@@ -2374,7 +2795,7 @@ class MobEditor {
     }
 
     renderDropOptionField(field, value) {
-        const fieldId = `drop-option-${field.name}`;
+        const fieldId = `drop-option-${field.name.replace(/\./g, '-')}`;
         const currentValue = value !== undefined ? value : field.default;
 
         let inputHtml = '';
@@ -2392,31 +2813,48 @@ class MobEditor {
             case 'number':
                 inputHtml = `
                     <label class="form-label" for="${fieldId}">${field.label}</label>
-                    <input type="number" class="form-input drop-option-field" id="${fieldId}" data-field="${field.name}" value="${currentValue || ''}" step="any">
+                    <input type="number" class="form-input drop-option-field" id="${fieldId}" data-field="${field.name}" value="${currentValue !== undefined ? currentValue : ''}" step="any">
                 `;
                 break;
 
-            case 'text':
             case 'select':
-                if (field.type === 'select' && field.options) {
+                if (field.options) {
                     inputHtml = `
                         <label class="form-label" for="${fieldId}">${field.label}</label>
                         <select class="form-select drop-option-field" id="${fieldId}" data-field="${field.name}">
                             ${field.options.map(opt => `<option value="${opt}" ${currentValue === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                         </select>
                     `;
-                } else {
-                    inputHtml = `
-                        <label class="form-label" for="${fieldId}">${field.label}</label>
-                        <input type="text" class="form-input drop-option-field" id="${fieldId}" data-field="${field.name}" value="${currentValue || ''}">
-                    `;
                 }
                 break;
 
-            case 'textarea':
+            case 'text':
                 inputHtml = `
                     <label class="form-label" for="${fieldId}">${field.label}</label>
-                    <textarea class="form-input drop-option-field" id="${fieldId}" data-field="${field.name}" rows="2">${currentValue || ''}</textarea>
+                    <input type="text" class="form-input drop-option-field" id="${fieldId}" data-field="${field.name}" value="${currentValue || ''}" placeholder="${field.placeholder || ''}">
+                `;
+                break;
+
+            case 'stringlist':
+                // For HologramMessage and ChatMessage - render as a list editor
+                const listValue = Array.isArray(currentValue) ? currentValue : [];
+                inputHtml = `
+                    <label class="form-label">${field.label}</label>
+                    <div class="stringlist-editor" data-field="${field.name}">
+                        <div class="stringlist-items" id="${fieldId}-items">
+                            ${listValue.map((line, idx) => `
+                                <div class="stringlist-item" data-index="${idx}">
+                                    <input type="text" class="form-input stringlist-line" value="${this.escapeHtml(line)}" placeholder="Enter line ${idx + 1}...">
+                                    <button type="button" class="btn btn-sm btn-danger stringlist-remove" title="Remove line">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline stringlist-add" data-field="${field.name}">
+                            <i class="fas fa-plus"></i> Add Line
+                        </button>
+                    </div>
                 `;
                 break;
         }
@@ -2426,13 +2864,34 @@ class MobEditor {
             paperWarning = '<small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Requires Paper server</small>';
         }
 
+        let placeholderInfo = '';
+        if (field.placeholders && field.placeholders.length > 0) {
+            placeholderInfo = `
+                <details class="mt-2">
+                    <summary style="cursor: pointer; color: var(--primary-color); font-size: 0.85rem;">
+                        <i class="fas fa-info-circle"></i> Available Placeholders
+                    </summary>
+                    <ul style="font-size: 0.8rem; margin: 0.5rem 0; padding-left: 1.5rem; color: var(--text-secondary);">
+                        ${field.placeholders.map(ph => `<li>${this.escapeHtml(ph)}</li>`).join('')}
+                    </ul>
+                </details>
+            `;
+        }
+
         return `
             <div class="form-group">
                 ${inputHtml}
                 <small class="form-text text-muted">${field.description}</small>
                 ${paperWarning}
+                ${placeholderInfo}
             </div>
         `;
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
     renderEntityTypes(selected, inheritedType = null) {
@@ -2873,17 +3332,122 @@ class MobEditor {
                     value = field.value || undefined;
                 }
 
-                if (value !== undefined && value !== '') {
-                    this.currentMob.dropOptions[fieldName] = value;
+                // Handle nested fields like ItemVFX.Material
+                if (fieldName.includes('.')) {
+                    const parts = fieldName.split('.');
+                    let current = this.currentMob.dropOptions;
+                    
+                    // Navigate to the parent object, creating it if needed
+                    for (let i = 0; i < parts.length - 1; i++) {
+                        if (!current[parts[i]]) {
+                            current[parts[i]] = {};
+                        }
+                        current = current[parts[i]];
+                    }
+                    
+                    // Set the final value
+                    const lastPart = parts[parts.length - 1];
+                    if (value !== undefined && value !== '') {
+                        current[lastPart] = value;
+                    } else {
+                        delete current[lastPart];
+                    }
                 } else {
-                    delete this.currentMob.dropOptions[fieldName];
+                    // Regular field
+                    if (value !== undefined && value !== '') {
+                        this.currentMob.dropOptions[fieldName] = value;
+                    } else {
+                        delete this.currentMob.dropOptions[fieldName];
+                    }
                 }
+                
+                this.editor.markDirty();
             });
+        });
+        
+        // DropOptions - stringlist handlers (for HologramMessage and ChatMessage)
+        document.querySelectorAll('.stringlist-add').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const fieldName = e.target.closest('button').dataset.field;
+                const container = e.target.closest('.stringlist-editor');
+                const itemsContainer = container.querySelector('.stringlist-items');
+                
+                if (!this.currentMob.dropOptions) {
+                    this.currentMob.dropOptions = { DropMethod: 'VANILLA' };
+                }
+                
+                // Initialize array if needed
+                if (!Array.isArray(this.currentMob.dropOptions[fieldName])) {
+                    this.currentMob.dropOptions[fieldName] = [];
+                }
+                
+                const currentLines = this.currentMob.dropOptions[fieldName];
+                const newIndex = currentLines.length;
+                
+                // Add new line
+                currentLines.push('');
+                
+                // Add DOM element
+                const newItem = document.createElement('div');
+                newItem.className = 'stringlist-item';
+                newItem.dataset.index = newIndex;
+                newItem.innerHTML = `
+                    <input type="text" class="form-input stringlist-line" value="" placeholder="Enter line ${newIndex + 1}...">
+                    <button type="button" class="btn btn-sm btn-danger stringlist-remove" title="Remove line">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                itemsContainer.appendChild(newItem);
+                
+                // Attach event listeners to the new elements
+                this.attachStringlistItemListeners(newItem, fieldName);
+                
+                this.editor.markDirty();
+            });
+        });
+        
+        // Attach listeners to existing stringlist items
+        document.querySelectorAll('.stringlist-item').forEach(item => {
+            const fieldName = item.closest('.stringlist-editor').dataset.field;
+            this.attachStringlistItemListeners(item, fieldName);
         });
         
         // Note: Skills and Drops add buttons are handled by their respective editor components
         // SkillBuilderEditor handles #add-skill-line-btn internally
         // MobDropsEditor handles #add-mobdrop-btn internally
+    }
+    
+    attachStringlistItemListeners(item, fieldName) {
+        const input = item.querySelector('.stringlist-line');
+        const removeBtn = item.querySelector('.stringlist-remove');
+        
+        if (input) {
+            input.addEventListener('input', (e) => {
+                const index = parseInt(item.dataset.index);
+                if (!this.currentMob.dropOptions) {
+                    this.currentMob.dropOptions = { DropMethod: 'VANILLA' };
+                }
+                if (!Array.isArray(this.currentMob.dropOptions[fieldName])) {
+                    this.currentMob.dropOptions[fieldName] = [];
+                }
+                this.currentMob.dropOptions[fieldName][index] = e.target.value;
+                this.editor.markDirty();
+            });
+        }
+        
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+                const index = parseInt(item.dataset.index);
+                if (this.currentMob.dropOptions && Array.isArray(this.currentMob.dropOptions[fieldName])) {
+                    this.currentMob.dropOptions[fieldName].splice(index, 1);
+                    
+                    // Re-render to update indices
+                    window.collapsibleManager.saveStates();
+                    this.render(this.currentMob);
+                    this.editor.markDirty();
+                }
+            });
+        }
     }
     
     updateMob(field, value) {
@@ -3290,7 +3854,1441 @@ class MobEditor {
             });
         }
         
+        // Initialize Totem handlers
+        this.attachTotemHandlers(mob);
+        
 
+    }
+    
+    /**
+     * Attach totem section event handlers
+     */
+    attachTotemHandlers(mob) {
+        // Add handler for when Totem Summoning section is expanded
+        const totemSection = document.getElementById('totem-section');
+        if (totemSection) {
+            const header = totemSection.querySelector('.collapsible-header');
+            if (header) {
+                header.addEventListener('click', () => {
+                    // When totem section is opened, ensure templates and dropdowns are rendered
+                    setTimeout(() => {
+                        // Render templates
+                        if (this.TOTEM_TEMPLATES) {
+                            this.renderTotemTemplates(this.TOTEM_TEMPLATES);
+                        }
+                        
+                        // Initialize head dropdown if not already done
+                        const headContainer = document.getElementById('totem-head-dropdown');
+                        if (headContainer && !headContainer.querySelector('.searchable-dropdown')) {
+                            const headBlock = mob?.totem?.head || mob?.totem?.Head || mob?.Totem?.head || mob?.Totem?.Head || 'PLAYER_HEAD';
+                            if (window.MINECRAFT_ITEMS && typeof SearchableDropdown !== 'undefined') {
+                                try {
+                                    new SearchableDropdown('totem-head-dropdown', {
+                                        categories: window.getCombinedItemCategories ? window.getCombinedItemCategories(true) : null,
+                                        items: !window.getCombinedItemCategories ? window.MINECRAFT_ITEMS : null,
+                                        useIcons: true,
+                                        storageKey: 'totem-head-material',
+                                        placeholder: 'Search trigger block...',
+                                        value: headBlock,
+                                        onSelect: (value) => {
+                                            if (!mob.totem) mob.totem = {};
+                                            mob.totem.Head = value;
+                                            this.updateTotemPreview(mob);
+                                            this.editor.markDirty();
+                                            this.editor.updateYAMLPreview();
+                                        }
+                                    });
+                                    console.log('✅ Head dropdown initialized on section expand');
+                                } catch(e) {
+                                    console.error('❌ Failed to init head dropdown on expand:', e);
+                                }
+                            }
+                        }
+                        
+                        // Initialize paint dropdown if not already done
+                        const paintContainer = document.getElementById('totem-paint-material-dropdown');
+                        if (paintContainer && !paintContainer.querySelector('.searchable-dropdown')) {
+                            if (window.MINECRAFT_ITEMS && typeof SearchableDropdown !== 'undefined') {
+                                try {
+                                    new SearchableDropdown('totem-paint-material-dropdown', {
+                                        categories: window.getCombinedItemCategories ? window.getCombinedItemCategories(true) : null,
+                                        items: !window.getCombinedItemCategories ? window.MINECRAFT_ITEMS : null,
+                                        useIcons: true,
+                                        storageKey: 'totem-paint-material',
+                                        placeholder: 'Search paint material...',
+                                        value: this.totemGridState.currentMaterial,
+                                        onSelect: (value) => {
+                                            this.totemGridState.currentMaterial = value;
+                                            this.addToRecentMaterials(value);
+                                            this.renderRecentMaterials();
+                                        }
+                                    });
+                                    console.log('✅ Paint dropdown initialized on section expand');
+                                } catch(e) {
+                                    console.error('❌ Failed to init paint dropdown on expand:', e);
+                                }
+                            }
+                        }
+                    }, 150);
+                });
+            }
+        }
+        
+        // Initialize totem renderer
+        const canvas = document.getElementById('totem-preview-canvas');
+        if (canvas) {
+            // Ensure Totem Renderer class is available
+            if (typeof TotemRenderer === 'undefined') {
+                console.error('❌ TotemRenderer class not loaded');
+                return;
+            }
+            
+            if (!this.totemRenderer) {
+                this.totemRenderer = new TotemRenderer('totem-preview-canvas');
+                console.log('✅ TotemRenderer initialized');
+            }
+            
+            // Initial render
+            this.updateTotemPreview(mob);
+        }
+
+        // Initialize totem visual builder state
+        if (!this.totemGridState) {
+            this.totemGridState = {
+                currentView: 'top',
+                currentY: 0,
+                currentMaterial: 'PLAYER_HEAD',
+                gridSize: 7,
+                blocks: new Map(), // key: "x,y,z", value: "MATERIAL"
+                history: [], // Undo history
+                historyIndex: -1, // Current position in history
+                recentMaterials: ['PLAYER_HEAD', 'GOLD_BLOCK', 'DIAMOND_BLOCK', 'EMERALD_BLOCK', 'IRON_BLOCK'], // Recent materials palette
+                symmetryMode: false // Symmetry painting mode
+            };
+        }
+        
+        // Totem templates library (store as instance property for later access)
+        this.TOTEM_TEMPLATES = {
+            't_shape': {
+                name: 'T-Shape',
+                icon: '⊤',
+                description: 'Classic T totem',
+                pattern: [
+                    '0,0,0 PLAYER_HEAD',
+                    '-1,0,0 GOLD_BLOCK',
+                    '1,0,0 GOLD_BLOCK',
+                    '0,-1,0 GOLD_BLOCK',
+                    '0,-2,0 GOLD_BLOCK'
+                ]
+            },
+            'cross': {
+                name: 'Cross',
+                icon: '✚',
+                description: '3D cross shape',
+                pattern: [
+                    '0,0,0 PLAYER_HEAD',
+                    '1,0,0 DIAMOND_BLOCK',
+                    '-1,0,0 DIAMOND_BLOCK',
+                    '0,1,0 DIAMOND_BLOCK',
+                    '0,-1,0 DIAMOND_BLOCK',
+                    '0,0,1 DIAMOND_BLOCK',
+                    '0,0,-1 DIAMOND_BLOCK'
+                ]
+            },
+            'pillar': {
+                name: 'Pillar',
+                icon: '▌',
+                description: 'Vertical tower',
+                pattern: [
+                    '0,0,0 PLAYER_HEAD',
+                    '0,-1,0 GOLD_BLOCK',
+                    '0,-2,0 GOLD_BLOCK',
+                    '0,-3,0 GOLD_BLOCK',
+                    '0,-4,0 GOLD_BLOCK'
+                ]
+            },
+            'platform': {
+                name: 'Platform',
+                icon: '▢',
+                description: '3x3 square',
+                pattern: [
+                    '0,0,0 PLAYER_HEAD',
+                    '-1,0,-1 EMERALD_BLOCK', '0,0,-1 EMERALD_BLOCK', '1,0,-1 EMERALD_BLOCK',
+                    '-1,0,0 EMERALD_BLOCK', '1,0,0 EMERALD_BLOCK',
+                    '-1,0,1 EMERALD_BLOCK', '0,0,1 EMERALD_BLOCK', '1,0,1 EMERALD_BLOCK'
+                ]
+            },
+            'pyramid': {
+                name: 'Pyramid',
+                icon: '▲',
+                description: 'Small pyramid',
+                pattern: [
+                    '0,0,0 PLAYER_HEAD',
+                    // Layer -1
+                    '-1,-1,-1 GOLD_BLOCK', '0,-1,-1 GOLD_BLOCK', '1,-1,-1 GOLD_BLOCK',
+                    '-1,-1,0 GOLD_BLOCK', '0,-1,0 GOLD_BLOCK', '1,-1,0 GOLD_BLOCK',
+                    '-1,-1,1 GOLD_BLOCK', '0,-1,1 GOLD_BLOCK', '1,-1,1 GOLD_BLOCK',
+                    // Layer -2
+                    '-1,-2,-1 DIAMOND_BLOCK', '0,-2,-1 DIAMOND_BLOCK', '1,-2,-1 DIAMOND_BLOCK',
+                    '-1,-2,0 DIAMOND_BLOCK', '1,-2,0 DIAMOND_BLOCK',
+                    '-1,-2,1 DIAMOND_BLOCK', '0,-2,1 DIAMOND_BLOCK', '1,-2,1 DIAMOND_BLOCK'
+                ]
+            },
+            'ring': {
+                name: 'Ring',
+                icon: '◯',
+                description: 'Circular ring',
+                pattern: [
+                    '0,0,0 PLAYER_HEAD',
+                    // Ring around center
+                    '-1,0,-1 IRON_BLOCK', '0,0,-1 IRON_BLOCK', '1,0,-1 IRON_BLOCK',
+                    '-1,0,0 IRON_BLOCK', '1,0,0 IRON_BLOCK',
+                    '-1,0,1 IRON_BLOCK', '0,0,1 IRON_BLOCK', '1,0,1 IRON_BLOCK',
+                    // Second layer
+                    '-1,-1,-1 IRON_BLOCK', '0,-1,-1 IRON_BLOCK', '1,-1,-1 IRON_BLOCK',
+                    '-1,-1,0 IRON_BLOCK', '1,-1,0 IRON_BLOCK',
+                    '-1,-1,1 IRON_BLOCK', '0,-1,1 IRON_BLOCK', '1,-1,1 IRON_BLOCK'
+                ]
+            }
+        };
+        
+        // Defer totem initialization until section is expanded
+        // This prevents warnings about missing DOM elements
+        this.totemInitialized = false;
+
+        // Load existing pattern into grid state
+        const pattern = mob?.totem?.Pattern || mob?.Totem?.Pattern || [];
+        this.totemGridState.blocks.clear();
+        pattern.forEach(entry => {
+            const parts = entry.trim().split(/\s+/);
+            const coords = parts[0];
+            const material = parts.slice(1).join(' ');
+            this.totemGridState.blocks.set(coords, material);
+        });
+
+        // Skip head dropdown initialization - will be done when section is expanded
+
+        // Initialize Paint material SearchableDropdown
+        setTimeout(() => {
+            const paintContainer = document.getElementById('totem-paint-material-dropdown');
+            if (paintContainer && window.MINECRAFT_ITEMS) {
+                paintContainer.innerHTML = '';
+                new SearchableDropdown('totem-paint-material-dropdown', {
+                    categories: window.getCombinedItemCategories ? window.getCombinedItemCategories(true) : null,
+                    items: !window.getCombinedItemCategories ? window.MINECRAFT_ITEMS : null,
+                    useIcons: true,
+                    storageKey: 'totem-paint-material',
+                    placeholder: 'Search paint material...',
+                    value: this.totemGridState.currentMaterial,
+                    onSelect: (value) => {
+                        this.totemGridState.currentMaterial = value;
+                    }
+                });
+            }
+        }, 100);
+
+        // View switcher buttons
+        document.querySelectorAll('.totem-view-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const view = btn.dataset.view;
+                this.totemGridState.currentView = view;
+                
+                // Update totem renderer view (for preview canvas)
+                if (this.totemRenderer) {
+                    this.totemRenderer.setView(view);
+                }
+                
+                // Update button styles
+                document.querySelectorAll('.totem-view-btn').forEach(b => {
+                    if (b.dataset.view === view) {
+                        b.style.background = 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)';
+                        b.style.border = 'none';
+                        b.style.color = 'white';
+                        b.style.boxShadow = '0 2px 6px rgba(236,72,153,0.3)';
+                    } else {
+                        b.style.background = 'rgba(236,72,153,0.1)';
+                        b.style.border = '1px solid rgba(236,72,153,0.3)';
+                        b.style.color = '#f9a8d4';
+                        b.style.boxShadow = 'none';
+                    }
+                });
+
+                // Show/hide Y control
+                const yControl = document.getElementById('totem-y-control');
+                if (yControl) {
+                    yControl.style.display = view === 'top' ? 'flex' : 'none';
+                }
+
+                this.renderTotemGrid();
+                this.updateTotemPreview(mob);
+                
+                // Update view indicator in grid header
+                const viewIndicator = document.getElementById('totem-current-view-indicator');
+                if (viewIndicator) {
+                    const viewNames = {
+                        'top': '<i class="fas fa-arrow-down"></i> TOP VIEW',
+                        'front': '<i class="fas fa-arrows-alt-h"></i> FRONT VIEW',
+                        'side': '<i class="fas fa-arrows-alt-v"></i> SIDE VIEW'
+                    };
+                    viewIndicator.innerHTML = viewNames[view] || 'TOP VIEW';
+                }
+            }, true);
+        });
+        
+        // Collapsible sections toggle
+        document.querySelectorAll('.totem-toggle-section').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const section = btn.dataset.section;
+                const content = document.getElementById(`totem-${section}-content`);
+                const icon = btn.querySelector('.totem-toggle-icon');
+                
+                if (content) {
+                    const isCollapsed = content.style.display === 'none';
+                    content.style.display = isCollapsed ? 'block' : 'none';
+                    if (icon) {
+                        icon.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
+                    }
+                    
+                    // Render templates when templates section is expanded
+                    if (section === 'templates' && isCollapsed && this.TOTEM_TEMPLATES) {
+                        setTimeout(() => this.renderTotemTemplates(this.TOTEM_TEMPLATES), 10);
+                    }
+                    
+                    // Save state to localStorage
+                    localStorage.setItem(`totem-section-${section}`, isCollapsed ? 'expanded' : 'collapsed');
+                }
+            });
+            
+            // Restore saved state from localStorage
+            const section = btn.dataset.section;
+            const savedState = localStorage.getItem(`totem-section-${section}`);
+            const content = document.getElementById(`totem-${section}-content`);
+            const icon = btn.querySelector('.totem-toggle-icon');
+            
+            if (savedState === 'collapsed' && content) {
+                content.style.display = 'none';
+                if (icon) icon.style.transform = 'rotate(-90deg)';
+            } else if (content) {
+                // Default: Both Templates and Tools expanded for better discoverability
+                content.style.display = 'block';
+                if (icon) icon.style.transform = 'rotate(0deg)';
+            }
+        });
+
+        // Y level controls
+        const yUpBtn = document.querySelector('.totem-y-up-btn');
+        const yDownBtn = document.querySelector('.totem-y-down-btn');
+        if (yUpBtn) {
+            yUpBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.totemGridState.currentY++;
+                this.updateYDisplay();
+                this.renderTotemGrid();
+            }, true);
+        }
+        if (yDownBtn) {
+            yDownBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.totemGridState.currentY--;
+                this.updateYDisplay();
+                this.renderTotemGrid();
+            }, true);
+        }
+
+        // Clear grid button
+        const clearBtn = document.querySelector('.totem-clear-grid-btn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                
+                const confirmed = await this.editor.showConfirmDialog(
+                    'Clear Totem Structure?',
+                    'This will remove all blocks from your totem design.',
+                    'Clear All',
+                    'Cancel'
+                );
+                
+                if (confirmed) {
+                    this.saveTotemHistory();
+                    this.totemGridState.blocks.clear();
+                    this.syncTotemToMob();
+                    this.renderTotemGrid();
+                    this.updateTotemPreview(mob);
+                    this.updateTotemStatistics();
+                }
+            }, true);
+        }
+
+        // Center grid button
+        const centerBtn = document.querySelector('.totem-center-grid-btn');
+        if (centerBtn) {
+            centerBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Find bounds and recenter all blocks
+                const coords = Array.from(this.totemGridState.blocks.keys());
+                if (coords.length === 0) return;
+
+                this.saveTotemHistory();
+                
+                const positions = coords.map(c => c.split(',').map(Number));
+                const minX = Math.min(...positions.map(p => p[0]));
+                const minY = Math.min(...positions.map(p => p[1]));
+                const minZ = Math.min(...positions.map(p => p[2]));
+                
+                const newBlocks = new Map();
+                this.totemGridState.blocks.forEach((material, coord) => {
+                    const [x, y, z] = coord.split(',').map(Number);
+                    const newCoord = `${x - minX},${y - minY},${z - minZ}`;
+                    newBlocks.set(newCoord, material);
+                });
+                
+                this.totemGridState.blocks = newBlocks;
+                this.syncTotemToMob();
+                this.renderTotemGrid();
+                this.updateTotemPreview(mob);
+                this.updateTotemStatistics();
+            }, true);
+        }
+        
+        // Undo button
+        const undoBtn = document.querySelector('.totem-undo-btn');
+        if (undoBtn) {
+            undoBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.undoTotem();
+            }, true);
+        }
+        
+        // Redo button
+        const redoBtn = document.querySelector('.totem-redo-btn');
+        if (redoBtn) {
+            redoBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.redoTotem();
+            }, true);
+        }
+        
+        // Mirror X button
+        const mirrorXBtn = document.querySelector('.totem-mirror-x-btn');
+        if (mirrorXBtn) {
+            mirrorXBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.mirrorTotemX();
+            }, true);
+        }
+        
+        // Mirror Z button
+        const mirrorZBtn = document.querySelector('.totem-mirror-z-btn');
+        if (mirrorZBtn) {
+            mirrorZBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.mirrorTotemZ();
+            }, true);
+        }
+        
+        // Rotate button
+        const rotateBtn = document.querySelector('.totem-rotate-btn');
+        if (rotateBtn) {
+            rotateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.rotateTotem();
+            }, true);
+        }
+        
+        // Symmetry mode checkbox
+        const symmetryCheckbox = document.getElementById('totem-symmetry-mode');
+        if (symmetryCheckbox) {
+            symmetryCheckbox.addEventListener('change', (e) => {
+                this.totemGridState.symmetryMode = e.target.checked;
+            });
+        }
+        
+        // Initialize recent materials palette
+        this.renderRecentMaterials();
+        this.updateTotemStatistics();
+        this.updateUndoRedoButtons();
+        
+        // Add keyboard shortcuts for undo/redo
+        const handleTotemKeyboard = (e) => {
+            if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                this.undoTotem();
+            } else if (e.ctrlKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+                e.preventDefault();
+                this.redoTotem();
+            }
+        };
+        
+        // Attach to visual mode container
+        const visualMode = document.getElementById('totem-visual-mode');
+        if (visualMode) {
+            visualMode.addEventListener('keydown', handleTotemKeyboard);
+        }
+        
+        // Store for cleanup
+        if (!this._totemKeyboardHandler) {
+            this._totemKeyboardHandler = handleTotemKeyboard;
+        }
+
+        // Initial grid render
+        this.renderTotemGrid();
+        
+        // Add pattern button
+        const addPatternBtn = document.querySelector('.add-totem-pattern-btn');
+        if (addPatternBtn) {
+            addPatternBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                // Save scroll position BEFORE render
+                const container = document.querySelector('.mob-editor-container') || document.querySelector('.editor-content');
+                const scrollTop = container ? container.scrollTop : 0;
+                
+                if (!mob.totem) mob.totem = {};
+                if (!mob.totem.Pattern) mob.totem.Pattern = [];
+                mob.totem.Pattern.push('0,0,0 STONE');
+                
+                window.collapsibleManager.saveStates();
+                this.render(mob);
+                
+                // Keep section expanded and restore scroll
+                requestAnimationFrame(() => {
+                    const totemSection = document.getElementById('totem-section');
+                    if (totemSection) {
+                        totemSection.classList.remove('collapsed');
+                    }
+                    
+                    // Restore scroll position
+                    if (container) {
+                        container.scrollTop = scrollTop;
+                    }
+                    
+                    // Update preview
+                    this.updateTotemPreview(mob);
+                });
+            }, true);
+        }
+        
+        // Remove pattern buttons
+        document.querySelectorAll('.remove-totem-pattern').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                // Save scroll position BEFORE render
+                const container = document.querySelector('.mob-editor-container') || document.querySelector('.editor-content');
+                const scrollTop = container ? container.scrollTop : 0;
+                
+                const index = parseInt(e.currentTarget.dataset.index);
+                if (mob.totem && mob.totem.Pattern) {
+                    mob.totem.Pattern.splice(index, 1);
+                    window.collapsibleManager.saveStates();
+                    this.render(mob);
+                    
+                    // Keep section expanded and restore scroll
+                    requestAnimationFrame(() => {
+                        const totemSection = document.getElementById('totem-section');
+                        if (totemSection) {
+                            totemSection.classList.remove('collapsed');
+                        }
+                        
+                        // Restore scroll position
+                        if (container) {
+                            container.scrollTop = scrollTop;
+                        }
+                    });
+                }
+            }, true);
+        });
+        
+        // Pattern input handlers
+        document.querySelectorAll('.totem-pattern-coords, .totem-pattern-material').forEach(input => {
+            input.addEventListener('input', (e) => {
+                e.stopPropagation();
+                const index = parseInt(e.currentTarget.dataset.index);
+                const isCoords = e.currentTarget.classList.contains('totem-pattern-coords');
+                
+                if (mob.totem && mob.totem.Pattern && mob.totem.Pattern[index]) {
+                    const parts = mob.totem.Pattern[index].split(/\s+/);
+                    if (isCoords) {
+                        const coords = e.target.value.trim();
+                        const material = parts.slice(1).join(' ') || 'STONE';
+                        mob.totem.Pattern[index] = `${coords} ${material}`;
+                    } else {
+                        const coords = parts[0] || '0,0,0';
+                        const material = e.target.value.trim().toUpperCase() || 'STONE';
+                        mob.totem.Pattern[index] = `${coords} ${material}`;
+                    }
+                    
+                    this.updateTotemPreview(mob);
+                    this.editor.markDirty();
+                }
+            }, true);
+        });
+        
+        // Add replacement button
+        const addReplacementBtn = document.querySelector('.add-totem-replacement-btn');
+        if (addReplacementBtn) {
+            addReplacementBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                // Save scroll position BEFORE render
+                const container = document.querySelector('.mob-editor-container') || document.querySelector('.editor-content');
+                const scrollTop = container ? container.scrollTop : 0;
+                
+                if (!mob.totem) mob.totem = {};
+                if (!mob.totem.Replacement) mob.totem.Replacement = [];
+                mob.totem.Replacement.push('0,0,0 AIR');
+                
+                window.collapsibleManager.saveStates();
+                this.render(mob);
+                
+                // Keep section expanded and restore scroll
+                requestAnimationFrame(() => {
+                    const totemSection = document.getElementById('totem-section');
+                    if (totemSection) {
+                        totemSection.classList.remove('collapsed');
+                    }
+                    
+                    // Restore scroll position
+                    if (container) {
+                        container.scrollTop = scrollTop;
+                    }
+                });
+            }, true);
+        }
+        
+        // Remove replacement buttons
+        document.querySelectorAll('.remove-totem-replacement').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                // Save scroll position BEFORE render
+                const container = document.querySelector('.mob-editor-container') || document.querySelector('.editor-content');
+                const scrollTop = container ? container.scrollTop : 0;
+                
+                const index = parseInt(e.currentTarget.dataset.index);
+                if (mob.totem && mob.totem.Replacement) {
+                    mob.totem.Replacement.splice(index, 1);
+                    window.collapsibleManager.saveStates();
+                    this.render(mob);
+                    
+                    // Keep section expanded and restore scroll
+                    requestAnimationFrame(() => {
+                        const totemSection = document.getElementById('totem-section');
+                        if (totemSection) {
+                            totemSection.classList.remove('collapsed');
+                        }
+                        
+                        // Restore scroll position
+                        if (container) {
+                            container.scrollTop = scrollTop;
+                        }
+                    });
+                }
+            }, true);
+        });
+        
+        // Replacement input handlers
+        document.querySelectorAll('.totem-replacement-coords, .totem-replacement-material').forEach(input => {
+            input.addEventListener('input', (e) => {
+                e.stopPropagation();
+                const index = parseInt(e.currentTarget.dataset.index);
+                const isCoords = e.currentTarget.classList.contains('totem-replacement-coords');
+                
+                if (mob.totem && mob.totem.Replacement && mob.totem.Replacement[index]) {
+                    const parts = mob.totem.Replacement[index].split(/\s+/);
+                    if (isCoords) {
+                        const coords = e.target.value.trim();
+                        const material = parts.slice(1).join(' ') || 'AIR';
+                        mob.totem.Replacement[index] = `${coords} ${material}`;
+                    } else {
+                        const coords = parts[0] || '0,0,0';
+                        const material = e.target.value.trim().toUpperCase() || 'AIR';
+                        mob.totem.Replacement[index] = `${coords} ${material}`;
+                    }
+                    
+                    this.editor.markDirty();
+                }
+            }, true);
+        });
+    }
+    
+    /**
+     * Update Y level display
+     */
+    updateYDisplay() {
+        const yDisplay = document.getElementById('totem-y-display');
+        if (yDisplay) {
+            yDisplay.textContent = `Y = ${this.totemGridState.currentY}`;
+        }
+    }
+    
+    /**
+     * Render totem template library
+     */
+    renderTotemTemplates(templates) {
+        const container = document.getElementById('totem-templates');
+        if (!container) {
+            console.warn('⚠️ Totem templates container not found - will render when section is expanded');
+            return;
+        }
+        
+        console.log('✅ Rendering totem templates:', Object.keys(templates).length);
+        
+        container.innerHTML = Object.entries(templates).map(([key, template]) => `
+            <button type="button" class="totem-template-btn" data-template="${key}" data-interactive="true" 
+                    style="background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(99,102,241,0.1) 100%); 
+                           border: 1px solid rgba(139,92,246,0.3); border-radius: 8px; padding: 12px 8px; 
+                           cursor: pointer; transition: all 0.2s; text-align: center;"
+                    title="${template.description}"
+                    onmouseover="this.style.background='linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(99,102,241,0.2) 100%)'; this.style.borderColor='rgba(139,92,246,0.5)'; this.style.transform='translateY(-2px)'"
+                    onmouseout="this.style.background='linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(99,102,241,0.1) 100%)'; this.style.borderColor='rgba(139,92,246,0.3)'; this.style.transform='translateY(0)'">
+                <div style="font-size: 24px; margin-bottom: 4px;">${template.icon}</div>
+                <div style="font-size: 10px; font-weight: 600; color: #a78bfa;">${template.name}</div>
+                <div style="font-size: 9px; color: var(--text-tertiary); margin-top: 2px;">${template.pattern.length} blocks</div>
+            </button>
+        `).join('');
+        
+        // Attach template click handlers
+        container.querySelectorAll('.totem-template-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const templateKey = btn.dataset.template;
+                this.loadTotemTemplate(templates[templateKey]);
+            });
+        });
+    }
+    
+    /**
+     * Load a totem template
+     */
+    loadTotemTemplate(template) {
+        this.saveTotemHistory(); // Save current state for undo
+        this.totemGridState.blocks.clear();
+        
+        template.pattern.forEach(entry => {
+            const parts = entry.trim().split(/\s+/);
+            const coords = parts[0];
+            const material = parts.slice(1).join(' ');
+            this.totemGridState.blocks.set(coords, material);
+            
+            // Add to recent materials
+            this.addToRecentMaterials(material);
+        });
+        
+        this.renderTotemGrid();
+        this.updateTotemPreview(this.currentMob);
+        this.syncTotemToMob();
+        this.updateTotemStatistics();
+    }
+    
+    /**
+     * Save current totem state to history for undo
+     */
+    saveTotemHistory() {
+        const state = this.totemGridState;
+        
+        // Remove any redo states
+        state.history = state.history.slice(0, state.historyIndex + 1);
+        
+        // Save current state
+        const snapshot = new Map(state.blocks);
+        state.history.push(snapshot);
+        state.historyIndex++;
+        
+        // Limit history to 50 states
+        if (state.history.length > 50) {
+            state.history.shift();
+            state.historyIndex--;
+        }
+        
+        this.updateUndoRedoButtons();
+    }
+    
+    /**
+     * Undo totem change
+     */
+    undoTotem() {
+        const state = this.totemGridState;
+        if (state.historyIndex <= 0) return;
+        
+        state.historyIndex--;
+        state.blocks = new Map(state.history[state.historyIndex]);
+        
+        this.renderTotemGrid();
+        this.updateTotemPreview(this.currentMob);
+        this.syncTotemToMob();
+        this.updateTotemStatistics();
+        this.updateUndoRedoButtons();
+    }
+    
+    /**
+     * Redo totem change
+     */
+    redoTotem() {
+        const state = this.totemGridState;
+        if (state.historyIndex >= state.history.length - 1) return;
+        
+        state.historyIndex++;
+        state.blocks = new Map(state.history[state.historyIndex]);
+        
+        this.renderTotemGrid();
+        this.updateTotemPreview(this.currentMob);
+        this.syncTotemToMob();
+        this.updateTotemStatistics();
+        this.updateUndoRedoButtons();
+    }
+    
+    /**
+     * Update undo/redo button states
+     */
+    updateUndoRedoButtons() {
+        const state = this.totemGridState;
+        const undoBtn = document.querySelector('.totem-undo-btn');
+        const redoBtn = document.querySelector('.totem-redo-btn');
+        
+        if (undoBtn) {
+            undoBtn.disabled = state.historyIndex <= 0;
+            undoBtn.style.opacity = undoBtn.disabled ? '0.4' : '1';
+        }
+        if (redoBtn) {
+            redoBtn.disabled = state.historyIndex >= state.history.length - 1;
+            redoBtn.style.opacity = redoBtn.disabled ? '0.4' : '1';
+        }
+    }
+    
+    /**
+     * Mirror totem along X axis
+     */
+    mirrorTotemX() {
+        this.saveTotemHistory();
+        const newBlocks = new Map();
+        
+        this.totemGridState.blocks.forEach((material, coords) => {
+            const [x, y, z] = coords.split(',').map(Number);
+            const newCoords = `${-x},${y},${z}`;
+            newBlocks.set(newCoords, material);
+        });
+        
+        this.totemGridState.blocks = newBlocks;
+        this.renderTotemGrid();
+        this.updateTotemPreview(this.currentMob);
+        this.syncTotemToMob();
+    }
+    
+    /**
+     * Mirror totem along Z axis
+     */
+    mirrorTotemZ() {
+        this.saveTotemHistory();
+        const newBlocks = new Map();
+        
+        this.totemGridState.blocks.forEach((material, coords) => {
+            const [x, y, z] = coords.split(',').map(Number);
+            const newCoords = `${x},${y},${-z}`;
+            newBlocks.set(newCoords, material);
+        });
+        
+        this.totemGridState.blocks = newBlocks;
+        this.renderTotemGrid();
+        this.updateTotemPreview(this.currentMob);
+        this.syncTotemToMob();
+    }
+    
+    /**
+     * Rotate totem 90° around Y axis
+     */
+    rotateTotem() {
+        this.saveTotemHistory();
+        const newBlocks = new Map();
+        
+        this.totemGridState.blocks.forEach((material, coords) => {
+            const [x, y, z] = coords.split(',').map(Number);
+            // Rotate 90° clockwise: (x,z) -> (z,-x)
+            const newCoords = `${z},${y},${-x}`;
+            newBlocks.set(newCoords, material);
+        });
+        
+        this.totemGridState.blocks = newBlocks;
+        this.renderTotemGrid();
+        this.updateTotemPreview(this.currentMob);
+        this.syncTotemToMob();
+    }
+    
+    /**
+     * Add material to recent materials palette
+     */
+    addToRecentMaterials(material) {
+        const state = this.totemGridState;
+        
+        // Remove if already exists
+        const index = state.recentMaterials.indexOf(material);
+        if (index > -1) {
+            state.recentMaterials.splice(index, 1);
+        }
+        
+        // Add to front
+        state.recentMaterials.unshift(material);
+        
+        // Keep only 8 recent materials
+        state.recentMaterials = state.recentMaterials.slice(0, 8);
+        
+        this.renderRecentMaterials();
+    }
+    
+    /**
+     * Render recent materials palette (Enhanced Grid Display)
+     */
+    renderRecentMaterials() {
+        const container = document.getElementById('totem-recent-materials');
+        if (!container) return;
+        
+        const state = this.totemGridState;
+        const currentMaterial = state.currentMaterial;
+        
+        if (state.recentMaterials.length === 0) {
+            container.innerHTML = '<small style="grid-column: span 4; text-align: center; color: var(--text-tertiary); font-size: 9px; padding: 8px;">No recent materials yet</small>';
+            return;
+        }
+        
+        container.innerHTML = state.recentMaterials.map(material => {
+            const isActive = material === currentMaterial;
+            return `
+                <button type="button" class="totem-recent-material-btn" data-material="${material}" 
+                        style="aspect-ratio: 1; background: ${isActive ? 'linear-gradient(135deg, rgba(251,146,60,0.4) 0%, rgba(249,115,22,0.3) 100%)' : 'rgba(0,0,0,0.3)'}; 
+                               border: ${isActive ? '2px solid rgba(251,146,60,0.6)' : '1px solid rgba(251,146,60,0.25)'}; 
+                               border-radius: 8px; padding: 6px; font-size: 9px; color: ${isActive ? '#fdba74' : '#fb923c'}; 
+                               cursor: pointer; transition: all 0.2s; font-family: var(--font-mono); 
+                               display: flex; flex-direction: column; align-items: center; justify-content: center;
+                               font-weight: ${isActive ? '700' : '500'}; overflow: hidden; position: relative;
+                               box-shadow: ${isActive ? '0 0 12px rgba(251,146,60,0.3)' : 'none'};"
+                        title="${material} - Click to use"
+                        onmouseover="this.style.transform='scale(1.1)'; this.style.borderColor='rgba(251,146,60,0.6)';"
+                        onmouseout="this.style.transform='scale(1)'; this.style.borderColor='${isActive ? 'rgba(251,146,60,0.6)' : 'rgba(251,146,60,0.25)'}';">
+                    <i class="fas fa-cube" style="font-size: 14px; margin-bottom: 2px; opacity: 0.8;"></i>
+                    <span style="font-size: 7px; text-align: center; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        ${material.replace(/_/g, ' ').substring(0, 10)}
+                    </span>
+                    ${isActive ? '<div style="position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; background: #fb923c; border-radius: 50%; box-shadow: 0 0 6px #fb923c;"></div>' : ''}
+                </button>
+            `;
+        }).join('');
+        
+        // Attach click handlers
+        container.querySelectorAll('.totem-recent-material-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.totemGridState.currentMaterial = btn.dataset.material;
+                this.renderRecentMaterials(); // Update active state
+            });
+        });
+    }
+    
+    /**
+     * Update totem statistics display
+     */
+    updateTotemStatistics() {
+        const totalElement = document.getElementById('totem-total-blocks');
+        const sizeElement = document.getElementById('totem-size');
+        const layersElement = document.getElementById('totem-layer-count');
+        
+        if (!totalElement || !sizeElement || !layersElement) return;
+        
+        const state = this.totemGridState;
+        const blocks = Array.from(state.blocks.keys()).map(coords => {
+            const [x, y, z] = coords.split(',').map(Number);
+            return { x, y, z };
+        });
+        
+        if (blocks.length === 0) {
+            totalElement.textContent = '0';
+            sizeElement.textContent = '0x0x0';
+            layersElement.textContent = '0';
+            return;
+        }
+        
+        const minX = Math.min(...blocks.map(b => b.x));
+        const maxX = Math.max(...blocks.map(b => b.x));
+        const minY = Math.min(...blocks.map(b => b.y));
+        const maxY = Math.max(...blocks.map(b => b.y));
+        const minZ = Math.min(...blocks.map(b => b.z));
+        const maxZ = Math.max(...blocks.map(b => b.z));
+        
+        const width = maxX - minX + 1;
+        const height = maxY - minY + 1;
+        const depth = maxZ - minZ + 1;
+        const layers = new Set(blocks.map(b => b.y)).size;
+        
+        totalElement.textContent = blocks.length;
+        sizeElement.textContent = `${width}×${height}×${depth}`;
+        layersElement.textContent = layers;
+    }
+    
+    /**
+     * Sync totem blocks to mob data
+     */
+    syncTotemToMob() {
+        const pattern = [];
+        this.totemGridState.blocks.forEach((material, coords) => {
+            pattern.push(`${coords} ${material}`);
+        });
+        
+        if (!this.currentMob.totem) this.currentMob.totem = {};
+        this.currentMob.totem.Pattern = pattern;
+        
+        this.editor.markDirty();
+        this.editor.updateYAMLPreview();
+    }
+
+    /**
+     * Render the visual totem grid based on current view
+     */
+    renderTotemGrid() {
+        const gridContainer = document.getElementById('totem-grid');
+        if (!gridContainer) return;
+
+        const state = this.totemGridState;
+        const size = state.gridSize;
+        const half = Math.floor(size / 2);
+
+        let html = '';
+        const view = state.currentView;
+        
+        // Calculate block statistics
+        const totalBlocks = state.blocks.size;
+        const blocksByY = {};
+        state.blocks.forEach((material, coord) => {
+            const y = parseInt(coord.split(',')[1]);
+            blocksByY[y] = (blocksByY[y] || 0) + 1;
+        });
+        const currentYBlocks = blocksByY[state.currentY] || 0;
+
+        if (view === 'top') {
+            // Top view: X-Z plane showing all Y levels with current highlighted
+            gridContainer.style.gridTemplateColumns = `repeat(${size}, 30px)`;
+            
+            for (let z = -half; z <= half; z++) {
+                for (let x = -half; x <= half; x++) {
+                    // Check for blocks at current Y and other Y levels
+                    const currentCoord = `${x},${state.currentY},${z}`;
+                    const hasBlockAtCurrentY = state.blocks.has(currentCoord);
+                    const currentMaterial = state.blocks.get(currentCoord) || '';
+                    
+                    // Check for blocks at other Y levels
+                    let hasBlockOtherY = false;
+                    let otherYLevels = [];
+                    for (let y = -half; y <= half; y++) {
+                        if (y !== state.currentY) {
+                            const coord = `${x},${y},${z}`;
+                            if (state.blocks.has(coord)) {
+                                hasBlockOtherY = true;
+                                otherYLevels.push(y);
+                            }
+                        }
+                    }
+                    
+                    const isSpawnPoint = x === 0 && z === 0 && state.currentY === 0;
+                    
+                    // Determine cell styling
+                    let bgColor, borderColor, borderWidth;
+                    if (hasBlockAtCurrentY) {
+                        bgColor = 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)';
+                        borderColor = '#a78bfa';
+                        borderWidth = '2px';
+                    } else if (hasBlockOtherY) {
+                        bgColor = 'rgba(139, 92, 246, 0.15)';
+                        borderColor = 'rgba(139, 92, 246, 0.3)';
+                        borderWidth = '1px';
+                    } else if (isSpawnPoint) {
+                        bgColor = 'rgba(239,68,68,0.2)';
+                        borderColor = '#ef4444';
+                        borderWidth = '2px';
+                    } else {
+                        bgColor = 'rgba(255,255,255,0.05)';
+                        borderColor = 'rgba(255,255,255,0.1)';
+                        borderWidth = '1px';
+                    }
+                    
+                    const tooltipText = isSpawnPoint && !hasBlockAtCurrentY ? 
+                        'Spawn Point (0,0,0)' : 
+                        hasBlockAtCurrentY ? 
+                        `${currentCoord}: ${currentMaterial}` : 
+                        hasBlockOtherY ? 
+                        `${x},?,${z} - Blocks at Y: ${otherYLevels.join(', ')}` : 
+                        `${currentCoord} (Empty)`;
+                    
+                    html += `
+                        <div 
+                            class="totem-grid-cell" 
+                            data-coord="${currentCoord}"
+                            data-x="${x}" 
+                            data-y="${state.currentY}" 
+                            data-z="${z}"
+                            data-has-other="${hasBlockOtherY}"
+                            style="
+                                width: 30px;
+                                height: 30px;
+                                background: ${bgColor};
+                                border: ${borderWidth} solid ${borderColor};
+                                cursor: pointer;
+                                transition: all 0.15s ease;
+                                position: relative;
+                                border-radius: 3px;
+                            "
+                            title="${tooltipText}"
+                        >
+                            ${isSpawnPoint && !hasBlockAtCurrentY ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 10px; color: #ef4444;">⊕</div>' : ''}
+                            ${hasBlockAtCurrentY ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; color: white; font-weight: bold;">▣</div>' : ''}
+                            ${hasBlockOtherY && !hasBlockAtCurrentY ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 8px; color: #a78bfa;">○</div>' : ''}
+                        </div>
+                    `;
+                }
+            }
+        } else if (view === 'front') {
+            // Front view: X-Y plane showing all Z with current highlighted
+            gridContainer.style.gridTemplateColumns = `repeat(${size}, 30px)`;
+            
+            for (let y = half; y >= -half; y--) {
+                for (let x = -half; x <= half; x++) {
+                    // Show all blocks collapsed onto X-Y plane
+                    let hasBlock = false;
+                    let materials = [];
+                    let zLevels = [];
+                    
+                    for (let z = -half; z <= half; z++) {
+                        const coord = `${x},${y},${z}`;
+                        if (state.blocks.has(coord)) {
+                            hasBlock = true;
+                            materials.push(state.blocks.get(coord));
+                            zLevels.push(z);
+                        }
+                    }
+                    
+                    const isSpawnPoint = x === 0 && y === 0;
+                    const coord = `${x},${y},0`;
+                    
+                    html += `
+                        <div 
+                            class="totem-grid-cell" 
+                            data-coord="${coord}"
+                            data-x="${x}" 
+                            data-y="${y}" 
+                            data-z="0"
+                            style="
+                                width: 30px;
+                                height: 30px;
+                                background: ${hasBlock ? 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)' : (isSpawnPoint ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.05)')};
+                                border: 1px solid ${hasBlock ? '#a78bfa' : (isSpawnPoint ? '#ef4444' : 'rgba(255,255,255,0.1)')};
+                                cursor: pointer;
+                                transition: all 0.15s ease;
+                                position: relative;
+                                border-radius: 3px;
+                                opacity: ${hasBlock ? 1 : 0.6};
+                            "
+                            title="${isSpawnPoint && !hasBlock ? 'Spawn Point (0,0,0)' : hasBlock ? `X=${x}, Y=${y}, Z: ${zLevels.join(', ')}` : `${coord} (Empty)`}"
+                        >
+                            ${isSpawnPoint && !hasBlock ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 10px; color: #ef4444;">⊕</div>' : ''}
+                            ${hasBlock ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; color: white;">▣</div>' : ''}
+                        </div>
+                    `;
+                }
+            }
+        } else { // 'side'
+            // Side view: Z-Y plane showing all X with current highlighted
+            gridContainer.style.gridTemplateColumns = `repeat(${size}, 30px)`;
+            
+            for (let y = half; y >= -half; y--) {
+                for (let z = -half; z <= half; z++) {
+                    // Show all blocks collapsed onto Z-Y plane
+                    let hasBlock = false;
+                    let materials = [];
+                    let xLevels = [];
+                    
+                    for (let x = -half; x <= half; x++) {
+                        const coord = `${x},${y},${z}`;
+                        if (state.blocks.has(coord)) {
+                            hasBlock = true;
+                            materials.push(state.blocks.get(coord));
+                            xLevels.push(x);
+                        }
+                    }
+                    
+                    const isSpawnPoint = z === 0 && y === 0;
+                    const coord = `0,${y},${z}`;
+                    
+                    html += `
+                        <div 
+                            class="totem-grid-cell" 
+                            data-coord="${coord}"
+                            data-x="0" 
+                            data-y="${y}" 
+                            data-z="${z}"
+                            style="
+                                width: 30px;
+                                height: 30px;
+                                background: ${hasBlock ? 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)' : (isSpawnPoint ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.05)')};
+                                border: 1px solid ${hasBlock ? '#a78bfa' : (isSpawnPoint ? '#ef4444' : 'rgba(255,255,255,0.1)')};
+                                cursor: pointer;
+                                transition: all 0.15s ease;
+                                position: relative;
+                                border-radius: 3px;
+                                opacity: ${hasBlock ? 1 : 0.6};
+                            "
+                            title="${isSpawnPoint && !hasBlock ? 'Spawn Point (0,0,0)' : hasBlock ? `Z=${z}, Y=${y}, X: ${xLevels.join(', ')}` : `${coord} (Empty)`}"
+                        >
+                            ${isSpawnPoint && !hasBlock ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 10px; color: #ef4444;">⊕</div>' : ''}
+                            ${hasBlock ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; color: white;">▣</div>' : ''}
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        gridContainer.innerHTML = html;
+        
+        // Update stats display
+        const statsElement = document.getElementById('totem-block-stats');
+        if (statsElement) {
+            statsElement.textContent = view === 'top' ? 
+                `Total: ${totalBlocks} blocks • Layer Y=${state.currentY}: ${currentYBlocks} blocks` :
+                `Total: ${totalBlocks} blocks`;
+        }
+
+        // Attach cell click handlers
+        gridContainer.querySelectorAll('.totem-grid-cell').forEach(cell => {
+            // Left click to place
+            cell.addEventListener('click', (e) => {
+                e.preventDefault();
+                const coord = cell.dataset.coord;
+                const currentMaterial = state.currentMaterial;
+                
+                // Save history before modification
+                this.saveTotemHistory();
+                
+                if (state.blocks.has(coord)) {
+                    // Already has a block - remove it
+                    state.blocks.delete(coord);
+                    
+                    // Remove symmetry block if enabled
+                    if (state.symmetryMode) {
+                        const [x, y, z] = coord.split(',').map(Number);
+                        const mirrorCoord = `${-x},${y},${z}`;
+                        state.blocks.delete(mirrorCoord);
+                    }
+                } else {
+                    // Place new block
+                    state.blocks.set(coord, currentMaterial);
+                    this.addToRecentMaterials(currentMaterial);
+                    
+                    // Place symmetry block if enabled
+                    if (state.symmetryMode) {
+                        const [x, y, z] = coord.split(',').map(Number);
+                        const mirrorCoord = `${-x},${y},${z}`;
+                        if (mirrorCoord !== coord) { // Don't duplicate if on center axis
+                            state.blocks.set(mirrorCoord, currentMaterial);
+                        }
+                    }
+                }
+                
+                this.syncTotemToMob();
+                this.renderTotemGrid();
+                this.updateTotemPreview(this.currentMob);
+                this.updateTotemStatistics();
+            });
+
+            // Right click to remove
+            cell.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const coord = cell.dataset.coord;
+                
+                // Save history before modification
+                this.saveTotemHistory();
+                
+                state.blocks.delete(coord);
+                
+                // Remove symmetry block if enabled
+                if (state.symmetryMode) {
+                    const [x, y, z] = coord.split(',').map(Number);
+                    const mirrorCoord = `${-x},${y},${z}`;
+                    state.blocks.delete(mirrorCoord);
+                }
+                
+                this.syncTotemToMob();
+                this.renderTotemGrid();
+                this.updateTotemPreview(this.currentMob);
+                this.updateTotemStatistics();
+            });
+
+            // Hover effects
+            cell.addEventListener('mouseenter', () => {
+                if (!state.blocks.has(cell.dataset.coord)) {
+                    cell.style.background = 'rgba(139, 92, 246, 0.4)';
+                    cell.style.borderColor = '#a78bfa';
+                    cell.style.transform = 'scale(1.15)';
+                    cell.style.zIndex = '10';
+                }
+            });
+
+            cell.addEventListener('mouseleave', () => {
+                if (!state.blocks.has(cell.dataset.coord)) {
+                    const hasOther = cell.dataset.hasOther === 'true';
+                    const x = cell.dataset.x;
+                    const y = cell.dataset.y;
+                    const z = cell.dataset.z;
+                    const isSpawnPoint = x === '0' && y === '0' && z === '0';
+                    
+                    if (hasOther) {
+                        cell.style.background = 'rgba(139, 92, 246, 0.15)';
+                        cell.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                    } else if (isSpawnPoint) {
+                        cell.style.background = 'rgba(239,68,68,0.2)';
+                        cell.style.borderColor = '#ef4444';
+                    } else {
+                        cell.style.background = 'rgba(255,255,255,0.05)';
+                        cell.style.borderColor = 'rgba(255,255,255,0.1)';
+                    }
+                    cell.style.transform = 'scale(1)';
+                    cell.style.zIndex = '1';
+                }
+            });
+        });
+    }
+
+    /**
+     * Sync grid state to mob pattern array
+     */
+    syncGridToPattern(mob) {
+        if (!mob.totem) mob.totem = {};
+        mob.totem.Pattern = Array.from(this.totemGridState.blocks.entries())
+            .map(([coord, material]) => `${coord} ${material}`)
+            .sort(); // Sort for consistency
+        this.editor.markDirty();
+    }
+
+    /**
+     * Show material browser modal
+     */
+    showMaterialBrowser(callback) {
+        // Import materials list
+        if (typeof window.minecraftMaterials === 'undefined') {
+            // Fallback materials
+            const materials = ['STONE', 'COBBLESTONE', 'NETHERITE_BLOCK', 'DIAMOND_BLOCK', 'GOLD_BLOCK', 'IRON_BLOCK', 'EMERALD_BLOCK', 'PLAYER_HEAD', 'PLAYER_WALL_HEAD', 'OBSIDIAN', 'BEDROCK', 'QUARTZ_BLOCK'];
+            this.showMaterialModal(materials, callback);
+            return;
+        }
+        
+        this.showMaterialModal(window.minecraftMaterials, callback);
+    }
+
+    /**
+     * Show material selection modal
+     */
+    showMaterialModal(materials, callback) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+        
+        modal.innerHTML = `
+            <div style="background: var(--bg-secondary); border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; display: flex; flex-direction: column;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                    <h3 style="margin: 0; color: var(--text-primary);">
+                        <i class="fas fa-cube" style="color: #8b5cf6; margin-right: 8px;"></i>
+                        Select Material
+                    </h3>
+                    <button class="material-modal-close" style="background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 0; width: 32px; height: 32px;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <input 
+                    type="text" 
+                    class="material-search" 
+                    placeholder="Search materials..."
+                    style="width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px; color: white; margin-bottom: 16px; font-size: 14px;"
+                >
+                
+                <div class="material-list" style="flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px;">
+                    ${materials.slice(0, 100).map(mat => `
+                        <div class="material-item" data-material="${mat}" style="padding: 12px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px; cursor: pointer; transition: all 0.2s; font-family: var(--font-mono); font-size: 12px; text-align: center;">
+                            ${mat}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        const searchInput = modal.querySelector('.material-search');
+        const materialList = modal.querySelector('.material-list');
+        const closeBtn = modal.querySelector('.material-modal-close');
+        
+        // Search functionality
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = materials.filter(m => m.toLowerCase().includes(query));
+            materialList.innerHTML = filtered.slice(0, 100).map(mat => `
+                <div class="material-item" data-material="${mat}" style="padding: 12px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px; cursor: pointer; transition: all 0.2s; font-family: var(--font-mono); font-size: 12px; text-align: center;">
+                    ${mat}
+                </div>
+            `).join('');
+            
+            // Reattach click handlers
+            attachMaterialHandlers();
+        });
+        
+        // Material selection
+        const attachMaterialHandlers = () => {
+            modal.querySelectorAll('.material-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    callback(item.dataset.material);
+                    document.body.removeChild(modal);
+                });
+                
+                item.addEventListener('mouseenter', () => {
+                    item.style.background = 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)';
+                    item.style.transform = 'scale(1.05)';
+                });
+                
+                item.addEventListener('mouseleave', () => {
+                    item.style.background = 'rgba(139,92,246,0.1)';
+                    item.style.transform = 'scale(1)';
+                });
+            });
+        };
+        
+        attachMaterialHandlers();
+        
+        // Close handlers
+        closeBtn.addEventListener('click', () => document.body.removeChild(modal));
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) document.body.removeChild(modal);
+        });
+        
+        // Focus search
+        searchInput.focus();
+    }
+
+    /**
+     * Update totem preview canvas
+     */
+    updateTotemPreview(mob) {
+        if (!this.totemRenderer) return;
+        
+        const pattern = mob?.totem?.Pattern || mob?.Totem?.Pattern || [];
+        const head = mob?.totem?.Head || mob?.Totem?.Head || 'PLAYER_HEAD';
+        
+        this.totemRenderer.renderTotem(pattern, head);
     }
     
     addSkill() {

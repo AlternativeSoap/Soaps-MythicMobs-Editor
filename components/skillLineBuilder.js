@@ -66,8 +66,8 @@ class SkillLineBuilder {
         };
         this.maxHistory = 50;
         
-        // Track last logged context to reduce spam
-        this.lastLoggedContext = null;
+        // Track last logged context to reduce spam (initialize to match default state.context)
+        this.lastLoggedContext = 'mob';
         
         // ========================================
         // BROWSER & CALLBACK REFERENCES

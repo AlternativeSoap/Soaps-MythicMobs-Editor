@@ -1762,6 +1762,70 @@ body[data-mode="advanced"] .advanced-only {
     gap: var(--spacing-sm);
 }
 
+/* Banner Layer Card */
+.banner-layer-card:hover {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%) !important;
+    border-color: rgba(139, 92, 246, 0.4) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.2);
+}
+
+/* Color Swatch Hover Effects */
+.color-swatch:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.5), inset 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.color-swatch:active {
+    transform: scale(0.95);
+}
+
+/* Add Layer Button Hover */
+.add-banner-layer-btn:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%) !important;
+    box-shadow: 0 8px 28px rgba(139, 92, 246, 0.6) !important;
+    transform: translateY(-3px) scale(1.02);
+}
+
+.add-banner-layer-btn:active {
+    transform: translateY(-1px) scale(0.98);
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4) !important;
+}
+
+/* Pulse animation for empty state */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.01);
+    }
+}
+
+/* Banner Pattern Dropdown Styling */
+.banner-pattern {
+    transition: all 0.2s ease;
+}
+
+.banner-pattern:hover {
+    border-color: rgba(139, 92, 246, 0.5) !important;
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
+}
+
+.banner-pattern:focus {
+    outline: none;
+    border-color: rgba(139, 92, 246, 0.6) !important;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.banner-pattern option {
+    background: #1e1e2e;
+    color: var(--text-primary);
+    padding: 8px;
+}
+
 /* NBT Item */
 .nbt-item {
     display: grid;
@@ -3181,4 +3245,121 @@ body[data-mode="advanced"] .advanced-only {
 .owner-badge.owner-you {
     background: var(--success-color);
     color: white;
+}
+/* =================================
+   Stringlist Editor for Fancy Drops
+   ================================= */
+
+.stringlist-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.stringlist-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.stringlist-item {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.stringlist-item .stringlist-line {
+    flex: 1;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.85rem;
+}
+
+.stringlist-item .stringlist-remove {
+    flex-shrink: 0;
+    padding: 0.4rem 0.6rem;
+}
+
+.stringlist-add {
+    align-self: flex-start;
+    margin-top: 0.25rem;
+}
+
+/* =================================
+   Custom Switch Controls
+   ================================= */
+
+.custom-control {
+    position: relative;
+    display: block;
+    min-height: 1.5rem;
+    padding-left: 0;
+}
+
+.custom-control.custom-switch {
+    padding-left: 2.5rem;
+}
+
+.custom-control-input {
+    position: absolute;
+    left: 0;
+    z-index: -1;
+    width: 1rem;
+    height: 1.25rem;
+    opacity: 0;
+}
+
+.custom-control-label {
+    position: relative;
+    margin-bottom: 0;
+    vertical-align: top;
+    cursor: pointer;
+    color: var(--text-primary);
+    user-select: none;
+}
+
+.custom-control.custom-switch .custom-control-label::before {
+    content: '';
+    position: absolute;
+    left: -2.5rem;
+    top: 0.125rem;
+    display: block;
+    width: 2rem;
+    height: 1.25rem;
+    pointer-events: none;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: 0.625rem;
+    transition: all 0.15s ease-in-out;
+}
+
+.custom-control.custom-switch .custom-control-label::after {
+    content: '';
+    position: absolute;
+    left: calc(-2.5rem + 2px);
+    top: calc(0.125rem + 2px);
+    display: block;
+    width: calc(1.25rem - 4px);
+    height: calc(1.25rem - 4px);
+    background-color: var(--text-secondary);
+    border-radius: 50%;
+    transition: all 0.15s ease-in-out;
+}
+
+.custom-control-input:checked ~ .custom-control-label::before {
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.custom-control-input:checked ~ .custom-control-label::after {
+    background-color: white;
+    transform: translateX(0.75rem);
+}
+
+.custom-control-input:focus ~ .custom-control-label::before {
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
+}
+
+.custom-control-input:disabled ~ .custom-control-label {
+    opacity: 0.5;
+    cursor: not-allowed;
 }

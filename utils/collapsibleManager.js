@@ -13,20 +13,57 @@ class CollapsibleManager {
      */
     initializeCollapsible() {
         // Attach click handlers to all collapsible headers
+        // DON'T clone - it breaks event handler timing!
         document.querySelectorAll('.collapsible-header').forEach(header => {
-            // Remove any existing listeners by cloning
-            const newHeader = header.cloneNode(true);
-            header.parentNode.replaceChild(newHeader, header);
+            // Remove old listener if exists
+            if (header._collapsibleListener) {
+                header.removeEventListener('click', header._collapsibleListener);
+            }
             
-            newHeader.addEventListener('click', () => {
-                const card = newHeader.closest('.collapsible-card');
+            // Create new listener and store reference
+            header._collapsibleListener = (e) => {
+                const target = e.target;
                 
+                // Check if ANY element in the click path has data-interactive attribute
+                const path = e.composedPath ? e.composedPath() : [target];
+                const hasInteractive = path.some(el => {
+                    return el.dataset?.interactive === 'true' ||
+                           el.tagName === 'BUTTON' ||
+                           el.tagName === 'INPUT' ||
+                           el.tagName === 'SELECT' ||
+                           el.tagName === 'TEXTAREA' ||
+                           el.tagName === 'A' ||
+                           (el.classList && (
+                               el.classList.contains('btn') ||
+                               el.classList.contains('btn-icon') ||
+                               el.classList.contains('add-item-btn') ||
+                               el.classList.contains('remove-potion-effect')
+                           ));
+                });
+                
+                if (hasInteractive) {
+                    return; // Don't collapse if interactive element clicked
+                }
+                
+                // Also ignore if not clicking on header or card-title
+                if (target.closest('button, input, select, textarea, a')) {
+                    return;
+                }
+                
+                // Only toggle if clicking on header itself or card-title
+                if (target !== header && !target.classList.contains('card-title') && !target.closest('.card-title')) {
+                    return;
+                }
+                
+                const card = header.closest('.collapsible-card');
                 if (card.classList.contains('collapsed')) {
                     card.classList.remove('collapsed');
                 } else {
                     card.classList.add('collapsed');
                 }
-            });
+            };
+            
+            header.addEventListener('click', header._collapsibleListener);
         });
     }
 

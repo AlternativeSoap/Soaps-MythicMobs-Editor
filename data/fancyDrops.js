@@ -6,16 +6,14 @@
 const DROP_OPTIONS_CONFIG = {
     general: {
         label: 'General Settings',
+        icon: 'cog',
         fields: [
             {
                 name: 'DropMethod',
                 label: 'Drop Method',
                 type: 'select',
                 default: 'VANILLA',
-                options: [
-                    { value: 'VANILLA', label: 'Vanilla - Normal drop behavior' },
-                    { value: 'FANCY', label: 'Fancy - Advanced drops with tracking' }
-                ],
+                options: ['VANILLA', 'FANCY'],
                 description: 'FANCY is required for damage tracking, scoreboards, and other fancy drop features'
             },
             {
@@ -35,26 +33,45 @@ const DROP_OPTIONS_CONFIG = {
                 requiresFancy: true
             },
             {
+                name: 'Lootsplosion',
+                label: 'Lootsplosion',
+                type: 'boolean',
+                default: false,
+                description: 'Drops spread outward by default',
+                requiresFancy: true
+            },
+            {
                 name: 'RequiredDamagePercent',
                 label: 'Required Damage %',
                 type: 'number',
                 min: 0,
                 max: 100,
-                placeholder: '0',
-                description: 'Minimum damage % required for drops (0-100)',
+                default: 1,
+                placeholder: '1',
+                description: 'Minimum damage % required for drops (decimal, e.g., 0.1 = 10%)',
+                requiresFancy: true
+            },
+            {
+                name: 'HologramTimeout',
+                label: 'Hologram Timeout (ticks)',
+                type: 'number',
+                default: 6000,
+                placeholder: '6000',
+                description: 'Time in ticks before hologram disappears (20 ticks = 1 second)',
                 requiresFancy: true
             }
         ]
     },
     perPlayer: {
         label: 'Per-Player Drops',
+        icon: 'users',
         fields: [
             {
                 name: 'PerPlayerDrops',
                 label: 'Per Player Drops',
                 type: 'boolean',
                 default: false,
-                description: 'Calculate drops separately for each player (Paper only)',
+                description: 'Calculate drops separately for each player',
                 requiresFancy: true,
                 paperOnly: true
             },
@@ -70,16 +87,9 @@ const DROP_OPTIONS_CONFIG = {
     },
     visualDefaults: {
         label: 'Visual Defaults',
+        icon: 'eye',
         description: 'Default visual effects for all drops',
         fields: [
-            {
-                name: 'Lootsplosion',
-                label: 'Lootsplosion',
-                type: 'boolean',
-                default: false,
-                description: 'Drops spread outward by default',
-                requiresFancy: true
-            },
             {
                 name: 'HologramItemNames',
                 label: 'Hologram Item Names',
@@ -93,7 +103,7 @@ const DROP_OPTIONS_CONFIG = {
                 label: 'Item Glow By Default',
                 type: 'boolean',
                 default: false,
-                description: 'Make items glow by default (unstackable!)',
+                description: 'Make items glow by default (WARNING: makes items unstackable!)',
                 requiresFancy: true
             },
             {
@@ -116,85 +126,75 @@ const DROP_OPTIONS_CONFIG = {
     },
     itemVFX: {
         label: 'Default Item VFX',
-        description: 'Default visual effects configuration',
+        icon: 'magic',
+        description: 'Default visual effects configuration for dropped items',
         fields: [
             {
                 name: 'ItemVFX.Material',
                 label: 'VFX Material',
                 type: 'text',
                 placeholder: 'POTION',
-                description: 'Material for item VFX',
+                description: 'Material for item VFX (e.g., POTION, DIAMOND, etc.)',
                 requiresFancy: true
             },
             {
-                name: 'ItemVFX.Data',
+                name: 'ItemVFX.Model',
                 label: 'VFX Custom Model Data',
                 type: 'number',
                 placeholder: '0',
                 description: 'Custom model data for VFX',
-                requiresFancy: true
-            },
-            {
-                name: 'ItemVFX.Color',
-                label: 'VFX Color',
-                type: 'text',
-                placeholder: '#55ff55',
-                description: 'Color for VFX (hex or color name)',
                 requiresFancy: true
             }
         ]
     },
     messages: {
         label: 'Messages',
+        icon: 'comment',
+        description: 'Customize hologram and chat messages',
         fields: [
-            {
-                name: 'HologramTimeout',
-                label: 'Hologram Timeout',
-                type: 'number',
-                default: 6000,
-                placeholder: '6000',
-                description: 'Time in ticks before hologram disappears',
-                requiresFancy: true
-            },
             {
                 name: 'HologramMessage',
                 label: 'Hologram Message',
-                type: 'textarea',
-                placeholder: '&6Top Damagers:\n&e1. <trigger.damage_rank.1.name>\n&e2. <trigger.damage_rank.2.name>',
-                description: 'Hologram message (supports placeholders)',
+                type: 'stringlist',
+                placeholder: '<#FF9B00>========================\n<mob.name> - <mob.hp>HP\n\n<#FFA300>1st Place | <1.name> | <1.damage>',
+                description: 'Multi-line hologram message (one line per entry)',
                 requiresFancy: true,
                 placeholders: [
-                    '<trigger.damage_rank.N.name>',
-                    '<trigger.damage_rank.N.uuid>',
-                    '<trigger.damage_rank.N.damage>',
-                    '<trigger.damage_rank.N.damagePercent>'
+                    '<mob.name> - Mob display name',
+                    '<mob.hp> - Mob max health',
+                    '<N.name> - Nth place player name',
+                    '<N.damage> - Nth place damage dealt',
+                    '<player.rank> - Player\'s rank',
+                    '<player.damage> - Player\'s damage'
                 ]
             },
             {
                 name: 'ChatMessage',
                 label: 'Chat Message',
-                type: 'textarea',
-                placeholder: '&6You dealt &e<trigger.damage_percent>% &6damage!',
-                description: 'Chat message sent to players (supports placeholders)',
+                type: 'stringlist',
+                placeholder: '<#F28800>====================================\n<#FFA300>BOSS DEFEATED!\n<#F2B600><mob.name>',
+                description: 'Multi-line chat message sent to players (one line per entry)',
                 requiresFancy: true,
                 placeholders: [
-                    '<trigger.damage>',
-                    '<trigger.damage_percent>',
-                    '<trigger.name>',
-                    '<caster.name>'
+                    '<mob.name> - Mob display name',
+                    '<N.name> - Nth place player name',
+                    '<N.damage> - Nth place damage dealt',
+                    '<player.rank> - Player\'s rank',
+                    '<player.damage> - Player\'s damage',
+                    '<pity> - Pity value'
                 ]
             }
         ]
     }
 };
 
-// Helper function to get all DropOptions fields
+// Helper function to get all DropOptions fields as a flat object
 function getAllDropOptionsFields() {
     const fields = {};
     Object.values(DROP_OPTIONS_CONFIG).forEach(section => {
         if (section.fields) {
             section.fields.forEach(field => {
-                fields[field.name] = field;
+                fields[field.name] = { ...field, section: section.label, sectionIcon: section.icon };
             });
         }
     });

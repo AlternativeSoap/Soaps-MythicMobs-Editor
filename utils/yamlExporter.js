@@ -254,6 +254,11 @@ class YAMLExporter {
             yaml += this.exportDropOptions(mob.dropOptions);
         }
         
+        // Totem - if configured
+        if (mob.totem || mob.Totem) {
+            yaml += this.exportTotemSection(mob.totem || mob.Totem);
+        }
+        
         return yaml;
     }
     
@@ -673,6 +678,35 @@ class YAMLExporter {
             yaml += this.exportDropOptions(mob.dropOptions);
         }
         
+        // === PHASE 5: Totem (Totem configuration) ===
+        if (mob.totem || mob.Totem) {
+            const totem = mob.totem || mob.Totem;
+            yaml += `  Totem:\n`;
+            
+            // Head block (required)
+            if (totem.Head || totem.head) {
+                yaml += `    Head: ${totem.Head || totem.head}\n`;
+            } else {
+                yaml += `    Head: PLAYER_HEAD\n`; // Default
+            }
+            
+            // Pattern (array of coordinates and blocks)
+            if (totem.Pattern && Array.isArray(totem.Pattern) && totem.Pattern.length > 0) {
+                yaml += `    Pattern:\n`;
+                totem.Pattern.forEach(entry => {
+                    yaml += `    - ${entry}\n`;
+                });
+            }
+            
+            // Replacement blocks (optional)
+            if (totem.Replacement && Array.isArray(totem.Replacement) && totem.Replacement.length > 0) {
+                yaml += `    Replacement:\n`;
+                totem.Replacement.forEach(entry => {
+                    yaml += `    - ${entry}\n`;
+                });
+            }
+        }
+        
         return yaml;
     }
 
@@ -896,12 +930,16 @@ class YAMLExporter {
             yaml += `    ItemVFXByDefault: ${dropOptions.ItemVFXByDefault}\n`;
         }
 
-        // ItemVFX settings
-        if (dropOptions.ItemVFX) yaml += `    ItemVFX: ${dropOptions.ItemVFX}\n`;
-        if (dropOptions.ItemVFXMaterial) yaml += `    ItemVFXMaterial: ${dropOptions.ItemVFXMaterial}\n`;
-        if (dropOptions.ItemVFXData) yaml += `    ItemVFXData: ${dropOptions.ItemVFXData}\n`;
-        if (dropOptions.ItemVFXModel) yaml += `    ItemVFXModel: ${dropOptions.ItemVFXModel}\n`;
-        if (dropOptions.ItemVFXColor) yaml += `    ItemVFXColor: ${dropOptions.ItemVFXColor}\n`;
+        // ItemVFX settings - handle as nested object
+        if (dropOptions.ItemVFX && typeof dropOptions.ItemVFX === 'object') {
+            yaml += `    ItemVFX:\n`;
+            if (dropOptions.ItemVFX.Material !== undefined) {
+                yaml += `      Material: ${dropOptions.ItemVFX.Material}\n`;
+            }
+            if (dropOptions.ItemVFX.Model !== undefined) {
+                yaml += `      Model: ${dropOptions.ItemVFX.Model}\n`;
+            }
+        }
 
         // Other options
         if (dropOptions.RequiredDamagePercent !== undefined) {
@@ -911,12 +949,24 @@ class YAMLExporter {
             yaml += `    HologramTimeout: ${dropOptions.HologramTimeout}\n`;
         }
 
-        // Messages
-        if (dropOptions.HologramMessage) {
-            yaml += `    HologramMessage: '${dropOptions.HologramMessage}'\n`;
+        // Messages - handle as arrays
+        if (dropOptions.HologramMessage && Array.isArray(dropOptions.HologramMessage) && dropOptions.HologramMessage.length > 0) {
+            yaml += `    HologramMessage:\n`;
+            dropOptions.HologramMessage.forEach(line => {
+                // Only add non-empty lines
+                if (line !== undefined && line !== '') {
+                    yaml += `    - '${this.escapeYamlString(line)}'\n`;
+                }
+            });
         }
-        if (dropOptions.ChatMessage) {
-            yaml += `    ChatMessage: '${dropOptions.ChatMessage}'\n`;
+        if (dropOptions.ChatMessage && Array.isArray(dropOptions.ChatMessage) && dropOptions.ChatMessage.length > 0) {
+            yaml += `    ChatMessage:\n`;
+            dropOptions.ChatMessage.forEach(line => {
+                // Only add non-empty lines
+                if (line !== undefined && line !== '') {
+                    yaml += `    - '${this.escapeYamlString(line)}'\n`;
+                }
+            });
         }
 
         return yaml;
@@ -1166,6 +1216,39 @@ class YAMLExporter {
         drops.forEach(drop => {
             yaml += `  - ${this.exportDrop(drop)}\n`;
         });
+        return yaml;
+    }
+    
+    /**
+     * Export Totem section
+     */
+    exportTotemSection(totem) {
+        if (!totem) return '';
+        let yaml = `  Totem:\n`;
+        
+        // Head block (required)
+        if (totem.Head || totem.head) {
+            yaml += `    Head: ${totem.Head || totem.head}\n`;
+        } else {
+            yaml += `    Head: PLAYER_HEAD\n`; // Default
+        }
+        
+        // Pattern (array of coordinates and blocks)
+        if (totem.Pattern && Array.isArray(totem.Pattern) && totem.Pattern.length > 0) {
+            yaml += `    Pattern:\n`;
+            totem.Pattern.forEach(entry => {
+                yaml += `    - ${entry}\n`;
+            });
+        }
+        
+        // Replacement blocks (optional)
+        if (totem.Replacement && Array.isArray(totem.Replacement) && totem.Replacement.length > 0) {
+            yaml += `    Replacement:\n`;
+            totem.Replacement.forEach(entry => {
+                yaml += `    - ${entry}\n`;
+            });
+        }
+        
         return yaml;
     }
     
