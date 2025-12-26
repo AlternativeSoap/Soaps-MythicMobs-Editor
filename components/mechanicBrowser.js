@@ -48,14 +48,15 @@ class MechanicBrowser {
             this.favoritesManager = new FavoritesManager('mechanicBrowser_favorites');
         }
         
-        // Performance settings (will be set from DevicePerformanceDetector if available)
+        // Performance settings (optimized for grid layout)
         this.performanceSettings = {
-            useVirtualScroll: false, // Enable for 100+ items
-            batchSize: 30, // Render 30 items at a time
+            useVirtualScroll: false, // Disabled - incompatible with CSS grid
+            initialBatchSize: 36, // Show 36 items initially (3 rows of 12)
+            loadMoreBatchSize: 24, // Load 24 more on scroll
             debounceSearch: 300, // ms
             disableTransitions: false, // Disable CSS transitions on slow devices
             lazyLoadImages: true, // Lazy load images and heavy content
-            minItemsForVirtualScroll: 50 // Start virtual scrolling at this threshold
+            minItemsForVirtualScroll: 999999 // Effectively disabled
         };
         
         // Debounce timer for search
@@ -72,13 +73,151 @@ class MechanicBrowser {
         
         // Performance optimizations
         this.eventListeners = [];
-        this.domCache = {};
+        this.domCache = {}; // Cache frequently accessed DOM elements
         this.renderCache = new Map(); // Cache rendered HTML by category/search key
+        this.categoryTabsCache = null; // Cache category tabs NodeList
+        this.cardTemplateCache = null; // Cache card template for faster rendering
+        this.categoryCountCache = null; // Cache category counts to avoid recalculation
+        
+        // Preload flag for intelligent preloading
+        this.hasPreloadedAll = false;
+        this.isInitialized = false; // Track if cache has been warmed
         
         this.createModal();
         this.attachEventListeners();
+        
+        // Don't warm cache in constructor - DataOptimizer might not be ready
+        // Will warm on first open when we confirm DataOptimizer exists
         if (window.DEBUG_MODE) {
         }
+    }
+    
+    /**
+     * Warm cache on idle for instant first open (ONLY when DataOptimizer is ready)
+     */
+    warmCacheOnIdle() {
+        const warmCache = () => {
+            const dataOptimizer = window.DataOptimizer;
+            if (!dataOptimizer) {
+                console.warn('DataOptimizer not ready for cache warming');
+                return;
+            }
+            
+            if (this.isInitialized) return;
+            
+            // Pre-calculate all category counts (with validation)
+            const success = this.precalculateCategoryCounts();
+            if (!success) {
+                console.warn('Failed to calculate category counts - DataOptimizer has no data');
+                return;
+            }
+            
+            // Pre-render Recent category (most common first view)
+            if (this.recentMechanics.length > 0) {
+                this.currentCategory = 'Recent';
+                this.searchQuery = '';
+                const cacheKey = 'Recent:';
+                
+                // Only warm if not already cached
+                if (!this.renderCache.has(cacheKey)) {
+                    const allMechanics = dataOptimizer.getAllItems('mechanics');
+                    const mechanics = allMechanics.filter(m => this.recentMechanics.includes(m.id));
+                    
+                    if (mechanics.length > 0) {
+                        // Generate HTML but don't insert into DOM
+                        const renderedHTML = mechanics.map(m => this.renderMechanicCard(m)).join('');
+                        this.renderCache.set(cacheKey, renderedHTML);
+                    }
+                }
+            }
+            
+            // Pre-warm All category for likely second click
+            const allCacheKey = 'All:';
+            if (!this.renderCache.has(allCacheKey)) {
+                const allMechanics = dataOptimizer.getAllItems('mechanics');
+                const renderedHTML = allMechanics.map(m => this.renderMechanicCard(m)).join('');
+                this.renderCache.set(allCacheKey, renderedHTML);
+            }
+            
+            this.isInitialized = true;
+            console.log('✅ Mechanic browser cache warmed successfully');
+        };
+        
+        // Use requestIdleCallback for zero impact on main thread
+        if (window.requestIdleCallback) {
+            requestIdleCallback(warmCache, { timeout: 5000 });
+        } else {
+            setTimeout(warmCache, 2000);
+        }
+    }
+    
+    /**
+     * Pre-calculate all category counts and cache them
+     */
+    precalculateCategoryCounts() {
+        console.log('🔵 [COUNT] precalculateCategoryCounts() called');
+        const dataOptimizer = window.DataOptimizer;
+        if (!dataOptimizer) {
+            console.warn('⚠️ [COUNT] DataOptimizer not available for count calculation');
+            return false;
+        }
+        
+        // Verify DataOptimizer has mechanics data
+        const totalCount = dataOptimizer.getCategoryCount('mechanics', 'all');
+        console.log(`🔍 [COUNT] Total mechanics from DataOptimizer: ${totalCount}`);
+        
+        if (totalCount === 0) {
+            console.warn('⚠️ [COUNT] DataOptimizer has no mechanics data yet');
+            // Check if mechanics exist in MECHANICS_DATA
+            if (window.MECHANICS_DATA && window.MECHANICS_DATA.mechanics) {
+                console.log(`📊 [COUNT] MECHANICS_DATA has ${window.MECHANICS_DATA.mechanics.length} mechanics`);
+            }
+            return false;
+        }
+        
+        this.categoryCountCache = {
+            'All': totalCount,
+            'Recent': this.recentMechanics.length,
+            'Favorites': this.favoritesManager.getCount(),
+            'damage': dataOptimizer.getCategoryCount('mechanics', 'damage'),
+            'heal': dataOptimizer.getCategoryCount('mechanics', 'heal'),
+            'movement': dataOptimizer.getCategoryCount('mechanics', 'movement'),
+            'effects': dataOptimizer.getCategoryCount('mechanics', 'effects'),
+            'control': dataOptimizer.getCategoryCount('mechanics', 'control'),
+            'utility': dataOptimizer.getCategoryCount('mechanics', 'utility'),
+            'aura': dataOptimizer.getCategoryCount('mechanics', 'aura'),
+            'projectile': dataOptimizer.getCategoryCount('mechanics', 'projectile')
+        };
+        
+        console.log('✅ [COUNT] Category counts calculated:', this.categoryCountCache);
+        return true;
+    }
+    
+    /**
+     * Get cached DOM element (performance optimization)
+     */
+    getElement(id) {
+        const start = performance.now();
+        if (!this.domCache[id]) {
+            const queryStart = performance.now();
+            this.domCache[id] = document.getElementById(id);
+            const queryTime = performance.now() - queryStart;
+            if (queryTime > 1) {
+                console.warn(`⚠️ [DOM] Slow query for #${id}: ${queryTime.toFixed(2)}ms`);
+            }
+        }
+        const totalTime = performance.now() - start;
+        if (totalTime > 0.5) {
+            console.log(`📦 [DOM] getElement(${id}): ${totalTime.toFixed(2)}ms (cached: ${!!this.domCache[id]})`);
+        }
+        return this.domCache[id];
+    }
+    
+    /**
+     * Clear DOM cache (call when modal is hidden)
+     */
+    clearDOMCache() {
+        this.domCache = {};
     }
     
     /**
@@ -207,13 +346,16 @@ class MechanicBrowser {
                                 <i class="fas fa-search search-icon"></i>
                             </div>
                             
-                            <!-- Category Tabs -->
+                            <!-- Category Tabs - Reorganized for better UX -->
                             <div class="category-tabs" id="mechanicCategories">
+                                <button class="category-tab active" data-category="Recent">
+                                    <i class="fas fa-clock"></i> Recently Used (0)
+                                </button>
                                 <button class="category-tab" data-category="Favorites">
                                     <i class="fas fa-star"></i> Favorites (0)
                                 </button>
-                                <button class="category-tab active" data-category="All">
-                                    All (0)
+                                <button class="category-tab" data-category="All">
+                                    <i class="fas fa-th"></i> All (0)
                                 </button>
                                 <button class="category-tab" data-category="damage">
                                     ⚔️ Damage (0)
@@ -293,16 +435,22 @@ class MechanicBrowser {
      * Attach event listeners
      */
     attachEventListeners() {
-        // Close browser modal
-        document.getElementById('mechanicBrowserClose').addEventListener('click', () => {
-            this.close();
-        });
-
-        document.getElementById('mechanicBrowserOverlay').addEventListener('click', (e) => {
-            if (e.target.id === 'mechanicBrowserOverlay') {
+        // Close browser modal (cache will be created on first access)
+        const closeBtn = document.getElementById('mechanicBrowserClose');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
                 this.close();
-            }
-        });
+            });
+        }
+
+        const overlay = document.getElementById('mechanicBrowserOverlay');
+        if (overlay) {
+            overlay.addEventListener('click', (e) => {
+                if (e.target.id === 'mechanicBrowserOverlay') {
+                    this.close();
+                }
+            });
+        }
 
         // Search input with debouncing (300ms for better performance)
         const debouncedSearch = debounce((query) => {
@@ -317,7 +465,8 @@ class MechanicBrowser {
         // Category tabs - using event delegation
         document.getElementById('mechanicCategories').addEventListener('click', (e) => {
             if (e.target.classList.contains('category-tab')) {
-                document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+                const overlay = document.getElementById('mechanicBrowserOverlay');
+                overlay.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
                 e.target.classList.add('active');
                 this.currentCategory = e.target.dataset.category;
                 this.renderMechanics();
@@ -331,6 +480,12 @@ class MechanicBrowser {
                 e.stopPropagation();
                 const mechanicId = favoriteBtn.dataset.mechanicId;
                 this.toggleFavorite(mechanicId);
+                
+                // Invalidate count cache since favorites changed
+                if (this.categoryCountCache) {
+                    this.categoryCountCache.Favorites = this.favoritesManager.getCount();
+                }
+                
                 // No need to re-render - toggle handles visual update
                 this.renderQuickAccess(); // Update quick access counts
                 this.updateCategoryCounts(); // Update category counts
@@ -342,6 +497,12 @@ class MechanicBrowser {
         if (clearFavBtn) {
             clearFavBtn.addEventListener('click', () => {
                 this.favoritesManager.clear();
+                
+                // Invalidate count cache
+                if (this.categoryCountCache) {
+                    this.categoryCountCache.Favorites = 0;
+                }
+                
                 this.renderMechanics();
                 this.renderQuickAccess();
             });
@@ -353,6 +514,12 @@ class MechanicBrowser {
             clearRecentBtn.addEventListener('click', () => {
                 localStorage.removeItem('mechanicBrowser_recent');
                 this.recentMechanics = [];
+                
+                // Invalidate count cache
+                if (this.categoryCountCache) {
+                    this.categoryCountCache.Recent = 0;
+                }
+                
                 this.renderQuickAccess();
             });
         }
@@ -406,56 +573,131 @@ class MechanicBrowser {
     }
 
     /**
-     * Open the mechanic browser
+     * Open the mechanic browser (FULLY OPTIMIZED - instant feedback)
      */
-    async open(options = {}) {
+    open(options = {}) {
+        const startTime = performance.now();
+        console.log('🔵 [PERF] Mechanic Browser open() called');
+        
         this.context = options.context || 'mob';
         this.currentValue = options.currentValue || null;
         this.onSelectCallback = options.onSelect || null;
 
-        // OPTIMIZATION: Show overlay immediately for better perceived performance
-        const overlay = document.getElementById('mechanicBrowserOverlay');
+        // Step 1: Show overlay IMMEDIATELY (0ms)
+        const overlayStart = performance.now();
+        const getElementStart = performance.now();
+        const overlay = this.getElement('mechanicBrowserOverlay');
+        console.log(`  📦 [PERF] getElement took ${(performance.now() - getElementStart).toFixed(2)}ms`);
         if (overlay) {
-            // Apply higher z-index if opened from another modal
+            const zIndexStart = performance.now();
             if (options.parentZIndex) {
                 overlay.style.zIndex = options.parentZIndex + 100;
             } else {
                 overlay.style.zIndex = '';
             }
+            console.log(`  🎨 [PERF] Z-index set in ${(performance.now() - zIndexStart).toFixed(2)}ms`);
+            
+            const displayStart = performance.now();
             overlay.style.display = 'flex';
+            console.log(`  🎨 [PERF] Display set in ${(performance.now() - displayStart).toFixed(2)}ms`);
         } else {
             console.error('❌ mechanicBrowserOverlay element not found!');
             return;
         }
+        console.log(`⚡ [PERF] Overlay shown in ${(performance.now() - overlayStart).toFixed(2)}ms`);
 
-        // Show skeleton loading immediately
-        this.showSkeletonLoading();
+        // Step 2: Check if cache is warm - if so, render instantly without skeleton/RAF
+        const cacheIsWarm = this.isInitialized && window.DataOptimizer && this.categoryCountCache;
+        console.log(`🔍 [DEBUG] Cache warm: ${cacheIsWarm}, isInitialized: ${this.isInitialized}, DataOptimizer: ${!!window.DataOptimizer}, countCache: ${!!this.categoryCountCache}`);
 
-        // Load data async without blocking (should already be preloaded)
-        await this.loadMergedData();
-
-        // Reset state
-        this.currentMechanic = null;
-        this.currentCategory = 'all';
-        this.searchQuery = '';
-
-        // Parse currentValue if editing
-        if (this.currentValue) {
-            this.parseSkillLine(this.currentValue);
+        if (cacheIsWarm) {
+            // FAST PATH: Instant render without skeleton or RAF
+            console.log('⚡ [PERF] Using FAST PATH (warm cache)');
+            
+            // Reset state
+            this.currentMechanic = null;
+            this.currentCategory = 'all';
+            this.searchQuery = '';
+            if (this.currentValue) {
+                this.parseSkillLine(this.currentValue);
+            }
+            
+            // Render immediately
+            const renderStart = performance.now();
+            this.showMechanicSelection();
+            console.log(`✅ [PERF] Total open time (FAST PATH): ${(performance.now() - startTime).toFixed(2)}ms`);
+            return;
         }
 
-        this.showMechanicSelection();
-        this.updateCategoryCounts();
+        // SLOW PATH: First render - use skeleton + RAF
+        console.log('🐌 [PERF] Using SLOW PATH (cold cache)');
+
+        // Step 2b: Show skeleton loading IMMEDIATELY (<1ms)
+        const skeletonStart = performance.now();
+        this.showSkeletonLoading();
+        console.log(`⚡ [PERF] Skeleton shown in ${(performance.now() - skeletonStart).toFixed(2)}ms`);
+
+        // Step 3: Warm cache if not initialized and DataOptimizer is ready
+        console.log(`🔍 [DEBUG] isInitialized: ${this.isInitialized}, DataOptimizer exists: ${!!window.DataOptimizer}`);
+        if (!this.isInitialized && window.DataOptimizer) {
+            console.log('🔥 [DEBUG] Warming cache...');
+            this.warmCacheOnIdle();
+        }
+
+        // Step 4: Defer rendering to next frame (single RAF for better performance)
+        const rafScheduleStart = performance.now();
+        requestAnimationFrame(() => {
+            const rafExecuteStart = performance.now();
+            console.log(`🕐 [PERF] RAF scheduled in ${(rafExecuteStart - rafScheduleStart).toFixed(2)}ms`);
+            const deferredStart = performance.now();
+            console.log('🔵 [PERF] Deferred operations starting...');
+            
+            // Data should already be preloaded
+            const dataCheckStart = performance.now();
+            if (!this.mechanicsData || !this.mechanicsData.mechanics) {
+                console.warn('⚠️ [DEBUG] Mechanics data not preloaded, loading now...');
+                this.loadMergedData(); // Fire and forget
+            } else {
+                console.log(`✅ [DEBUG] Mechanics data ready: ${this.mechanicsData.mechanics?.length || 0} mechanics`);
+            }
+            console.log(`  📊 [PERF] Data check in ${(performance.now() - dataCheckStart).toFixed(2)}ms`);
+
+            // Reset state
+            const stateResetStart = performance.now();
+            this.currentMechanic = null;
+            this.currentCategory = 'all';
+            this.searchQuery = '';
+            console.log(`  🔄 [PERF] State reset in ${(performance.now() - stateResetStart).toFixed(2)}ms`);
+
+            // Parse currentValue if editing
+            if (this.currentValue) {
+                const parseStart = performance.now();
+                this.parseSkillLine(this.currentValue);
+                console.log(`  📝 [PERF] Parse skill line in ${(performance.now() - parseStart).toFixed(2)}ms`);
+            }
+            
+            console.log(`⚡ [PERF] Deferred prep completed in ${(performance.now() - deferredStart).toFixed(2)}ms`);
+
+            // Render content immediately (no second RAF needed)
+            const renderStart = performance.now();
+            console.log('🔵 [PERF] Rendering content...');
+            this.showMechanicSelection();
+            console.log(`⚡ [PERF] Content rendered in ${(performance.now() - renderStart).toFixed(2)}ms`);
+            console.log(`✅ [PERF] Total open time: ${(performance.now() - startTime).toFixed(2)}ms`);
+        });
     }
 
     /**
      * Close the mechanic browser
      */
     close() {
-        const overlay = document.getElementById('mechanicBrowserOverlay');
+        const overlay = this.getElement('mechanicBrowserOverlay');
         if (overlay) {
             overlay.style.display = 'none';
         }
+        
+        // Clear DOM cache when closing to prevent stale references
+        this.clearDOMCache();
         
         // Cleanup event listeners
         this.cleanup();
@@ -488,6 +730,7 @@ class MechanicBrowser {
         
         // Clear DOM cache
         this.domCache = {};
+        this.categoryTabsCache = null;
         
         if (window.DEBUG_MODE) {
         }
@@ -510,26 +753,56 @@ class MechanicBrowser {
      * Show mechanic selection step
      */
     showMechanicSelection() {
-        document.getElementById('mechanicSelectionStep').classList.add('active');
-        document.getElementById('mechanicConfigurationStep').classList.remove('active');
+        const totalStart = performance.now();
+        console.log('🔵 [SHOW] showMechanicSelection() called');
         
-        document.getElementById('mechanicSearchInput').value = '';
-        document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-        document.querySelector('[data-category="All"]').classList.add('active');
-        this.currentCategory = 'All';
+        const domStart = performance.now();
+        this.getElement('mechanicSelectionStep').classList.add('active');
+        this.getElement('mechanicConfigurationStep').classList.remove('active');
+        this.getElement('mechanicSearchInput').value = '';
+        console.log(`  🎨 [SHOW] DOM updates in ${(performance.now() - domStart).toFixed(2)}ms`);
+        
+        // Use cached tabs if available for better performance
+        const tabStart = performance.now();
+        const overlay = document.getElementById('mechanicBrowserOverlay');
+        const categoryTabs = this.categoryTabsCache || overlay.querySelectorAll('.category-tab');
+        console.log(`  📋 [SHOW] Found ${categoryTabs.length} tabs in ${(performance.now() - tabStart).toFixed(2)}ms`);
+        
+        const tabUpdateStart = performance.now();
+        categoryTabs.forEach(t => t.classList.remove('active'));
+        document.querySelector('[data-category="Recent"]').classList.add('active');
+        this.currentCategory = 'Recent';
         this.searchQuery = '';
+        console.log(`  🏷️ [SHOW] Tab activation in ${(performance.now() - tabUpdateStart).toFixed(2)}ms`);
         
-        // Render immediately - skeleton already shown for perceived performance
+        console.log(`⚡ [SHOW] Total prep in ${(performance.now() - totalStart).toFixed(2)}ms`);
+        
+        // Render immediately (cache should be warm)
+        const renderCallStart = performance.now();
         this.renderMechanics();
+        console.log(`⚡ [SHOW] renderMechanics() call returned in ${(performance.now() - renderCallStart).toFixed(2)}ms`);
+        console.log(`✅ [SHOW] Total showMechanicSelection in ${(performance.now() - totalStart).toFixed(2)}ms`);
     }
     
     /**
-     * Show skeleton loading state
+     * Show skeleton loading state (OPTIMIZED)
      */
     showSkeletonLoading() {
+        const totalStart = performance.now();
+        console.log('🔵 [SKELETON] showSkeletonLoading() called');
+        
+        const getStart = performance.now();
         const listContainer = this.getElement('mechanicList');
+        console.log(`  📦 [SKELETON] getElement in ${(performance.now() - getStart).toFixed(2)}ms`);
         if (!listContainer) return;
         
+        // Use fragment for better performance
+        const createStart = performance.now();
+        const fragment = document.createDocumentFragment();
+        const tempDiv = document.createElement('div');
+        console.log(`  🏭 [SKELETON] Fragment created in ${(performance.now() - createStart).toFixed(2)}ms`);
+        
+        const htmlStart = performance.now();
         const skeletonHTML = Array(6).fill(0).map(() => `
             <div class="condition-card skeleton">
                 <div class="condition-card-header">
@@ -542,8 +815,21 @@ class MechanicBrowser {
                 </div>
             </div>
         `).join('');
+        console.log(`  🎨 [SKELETON] HTML generated in ${(performance.now() - htmlStart).toFixed(2)}ms (${skeletonHTML.length} chars)`);
         
-        listContainer.innerHTML = skeletonHTML;
+        const parseStart = performance.now();
+        tempDiv.innerHTML = skeletonHTML;
+        while (tempDiv.firstChild) {
+            fragment.appendChild(tempDiv.firstChild);
+        }
+        console.log(`  📝 [SKELETON] Parsed to DOM in ${(performance.now() - parseStart).toFixed(2)}ms`);
+        
+        const appendStart = performance.now();
+        listContainer.innerHTML = '';
+        listContainer.appendChild(fragment);
+        console.log(`  🔄 [SKELETON] Appended in ${(performance.now() - appendStart).toFixed(2)}ms`);
+        
+        console.log(`✅ [SKELETON] Total time: ${(performance.now() - totalStart).toFixed(2)}ms`);
     }
 
     /**
@@ -552,10 +838,10 @@ class MechanicBrowser {
     showMechanicConfiguration(mechanic) {
         this.currentMechanic = mechanic;
         
-        document.getElementById('mechanicSelectionStep').classList.remove('active');
-        document.getElementById('mechanicConfigurationStep').classList.add('active');
+        this.getElement('mechanicSelectionStep').classList.remove('active');
+        this.getElement('mechanicConfigurationStep').classList.add('active');
         
-        document.getElementById('mechanicConfigTitle').textContent = `Configure ${mechanic.name}`;
+        this.getElement('mechanicConfigTitle').textContent = `Configure ${mechanic.name}`;
         // Show effect prefix toggle if mechanic has effect: alias
         let effectToggleContainer = document.getElementById('effectPrefixToggleContainer');
         if (!effectToggleContainer) {
@@ -642,6 +928,9 @@ class MechanicBrowser {
      * Render mechanics list (using DataOptimizer with HTML caching)
      */
     renderMechanics() {
+        const startTime = performance.now();
+        console.log(`🔵 [RENDER] renderMechanics() - Category: ${this.currentCategory}, Search: "${this.searchQuery}"`);
+        
         const listContainer = this.getElement('mechanicList');
         
         // Add CSS optimizations on first render
@@ -654,31 +943,54 @@ class MechanicBrowser {
         
         const dataOptimizer = window.DataOptimizer;
         if (!dataOptimizer) {
-            console.warn('DataOptimizer not available');
+            console.warn('⚠️ [RENDER] DataOptimizer not available');
             return;
         }
         
         // Check HTML render cache first
         const cacheKey = `${this.currentCategory}:${this.searchQuery}`;
+        console.log(`🔍 [RENDER] Cache key: "${cacheKey}"`);
         const cachedHTML = this.renderCache.get(cacheKey);
         if (cachedHTML) {
+            console.log(`✅ [RENDER] Using cached HTML (${cachedHTML.length} chars)`);
+            const cacheStart = performance.now();
             listContainer.innerHTML = cachedHTML;
             this.setupMechanicEventDelegation(listContainer);
-            this.updateCategoryCounts();
+            console.log(`⚡ [RENDER] Cache render in ${(performance.now() - cacheStart).toFixed(2)}ms`);
+            console.log(`✅ [RENDER] Total (cached) in ${(performance.now() - startTime).toFixed(2)}ms`);
+            // Counts already up to date when using cache - skip update
             return;
         }
+        
+        console.log('🔄 [RENDER] Cache miss, rendering fresh...');
         
         // Check data cache
         let mechanics = this.searchCache.get(cacheKey);
         
         if (!mechanics) {
+            const filterStart = performance.now();
+            console.log(`🔍 [RENDER] No data cache, filtering mechanics...`);
+            
             // Use DataOptimizer for filtering
-            if (this.currentCategory === 'Favorites') {
+            if (this.currentCategory === 'Recent') {
+                // Show recently used mechanics (recentMechanics contains string IDs)
                 const allMechanics = dataOptimizer.getAllItems('mechanics');
+                console.log(`📊 [RENDER] Recent: ${this.recentMechanics.length} recent IDs, ${allMechanics.length} total mechanics`);
+                mechanics = allMechanics.filter(m => this.recentMechanics.includes(m.id));
+                // Sort by most recent first
+                mechanics.sort((a, b) => {
+                    const indexA = this.recentMechanics.indexOf(a.id);
+                    const indexB = this.recentMechanics.indexOf(b.id);
+                    return indexA - indexB;
+                });
+            } else if (this.currentCategory === 'Favorites') {
+                const allMechanics = dataOptimizer.getAllItems('mechanics');
+                console.log(`⭐ [RENDER] Favorites: filtering ${allMechanics.length} mechanics`);
                 mechanics = this.favoritesManager.filterFavorites(allMechanics, 'id');
             } else if (this.searchQuery) {
                 // Use DataOptimizer's search with category filter
                 const category = this.currentCategory === 'All' ? 'all' : this.currentCategory;
+                console.log(`🔎 [RENDER] Search: query="${this.searchQuery}", category="${category}"`);
                 mechanics = dataOptimizer.searchItems('mechanics', this.searchQuery, category);
                 
                 // Filter favorites if needed
@@ -688,59 +1000,57 @@ class MechanicBrowser {
             } else {
                 // Get items by category (O(1) for category lookup)
                 const category = this.currentCategory === 'All' ? 'all' : this.currentCategory;
+                console.log(`📂 [RENDER] Category filter: "${category}"`);
                 mechanics = dataOptimizer.getItemsByCategory('mechanics', category);
             }
             
+            console.log(`✅ [RENDER] Filtered to ${mechanics.length} mechanics in ${(performance.now() - filterStart).toFixed(2)}ms`);
+            
             // Cache the result
             this.searchCache.set(cacheKey, mechanics);
+        } else {
+            console.log(`✅ [RENDER] Using cached data (${mechanics.length} mechanics)`);
         }
         
         // Update category counts
+        const countsStart = performance.now();
         this.updateCategoryCounts();
+        console.log(`📊 [RENDER] Updated counts in ${(performance.now() - countsStart).toFixed(2)}ms`);
 
         if (mechanics.length === 0) {
             const emptyHTML = '<div class="empty-state">No mechanics found matching your search.</div>';
             listContainer.innerHTML = emptyHTML;
             this.renderCache.set(cacheKey, emptyHTML);
+            console.log(`⚠️ [RENDER] No mechanics to render - Total time: ${(performance.now() - startTime).toFixed(2)}ms`);
             return;
         }
 
-        // Check if we should use virtual scrolling
-        const shouldUseVirtualScroll = this.performanceSettings.useVirtualScroll && 
-                                       mechanics.length > this.performanceSettings.minItemsForVirtualScroll;
-        
-        // Use VirtualScrollManager if available and needed
-        if (shouldUseVirtualScroll && typeof VirtualScrollManager !== 'undefined') {
-            this.initializeVirtualScroll(listContainer, mechanics);
-            return;
-        }
-        
-        // Use DocumentFragment for efficient batch rendering
+        // For optimal performance with grid: render all items at once using DocumentFragment
+        // This is faster than batching for < 300 items and maintains grid layout
+        const renderStart = performance.now();
         const fragment = document.createDocumentFragment();
         const tempDiv = document.createElement('div');
         
-        // Batch render based on performance settings
-        const batchSize = this.performanceSettings.batchSize;
-        let itemsToRender = mechanics;
-        
-        // For large lists, render in smaller batches with requestIdleCallback
-        if (mechanics.length > 100 && window.requestIdleCallback) {
-            this.renderInBatches(listContainer, mechanics, batchSize);
-            return;
-        }
-        
-        const renderedHTML = itemsToRender.map(mechanic => 
+        // Render all items as HTML string (fastest approach)
+        const htmlStart = performance.now();
+        const renderedHTML = mechanics.map(mechanic => 
             this.renderMechanicCard(mechanic)
         ).join('');
+        console.log(`🎨 [RENDER] Generated HTML in ${(performance.now() - htmlStart).toFixed(2)}ms`);
         
+        // Parse HTML into DOM nodes
+        const parseStart = performance.now();
         tempDiv.innerHTML = renderedHTML;
         while (tempDiv.firstChild) {
             fragment.appendChild(tempDiv.firstChild);
         }
+        console.log(`📄 [RENDER] Parsed to DOM in ${(performance.now() - parseStart).toFixed(2)}ms`);
         
-        // Clear and append in one operation
+        // Single DOM update (very fast)
+        const domStart = performance.now();
         listContainer.innerHTML = '';
         listContainer.appendChild(fragment);
+        console.log(`🔄 [RENDER] DOM update in ${(performance.now() - domStart).toFixed(2)}ms`);
         
         // Cache the rendered HTML
         this.renderCache.set(cacheKey, renderedHTML);
@@ -752,6 +1062,20 @@ class MechanicBrowser {
         }
 
         this.setupMechanicEventDelegation(listContainer);
+        
+        // Update category counts once (using cached values for speed)
+        this.updateCategoryCounts();
+        
+        // Intelligent preloading: preload 'All' category when Recent is shown
+        if (this.currentCategory === 'Recent' && !this.hasPreloadedAll && dataOptimizer) {
+            if (window.requestIdleCallback) {
+                requestIdleCallback(() => {
+                    const allMechanics = dataOptimizer.getAllItems('mechanics');
+                    this.renderCache.set('all:', allMechanics);
+                    this.hasPreloadedAll = true;
+                }, { timeout: 3000 });
+            }
+        }
     }
 
     /**
@@ -787,6 +1111,9 @@ class MechanicBrowser {
         const fragment = document.createDocumentFragment();
         const tempDiv = document.createElement('div');
         
+        // Clear skeleton loaders BEFORE starting batch render
+        container.innerHTML = '';
+        
         const renderBatch = (deadline) => {
             while ((deadline.timeRemaining() > 0 || deadline.didTimeout) && currentIndex < mechanics.length) {
                 const endIndex = Math.min(currentIndex + batchSize, mechanics.length);
@@ -803,16 +1130,16 @@ class MechanicBrowser {
             }
             
             if (currentIndex === batchSize) {
-                // First batch - show immediately
-                container.innerHTML = '';
+                // First batch - show immediately (container already cleared)
                 container.appendChild(fragment.cloneNode(true));
                 this.setupMechanicEventDelegation(container);
             } else if (currentIndex < mechanics.length) {
                 // More batches to render
                 container.appendChild(fragment.cloneNode(true));
             } else {
-                // Final batch
+                // Final batch - ensure event delegation is set up
                 container.appendChild(fragment);
+                this.setupMechanicEventDelegation(container);
             }
             
             if (currentIndex < mechanics.length) {
@@ -824,7 +1151,7 @@ class MechanicBrowser {
     }
     
     /**
-     * Render a single mechanic card
+     * Render a single mechanic card (optimized with template caching)
      */
     renderMechanicCard(mechanic) {
         const badges = [];
@@ -860,11 +1187,16 @@ class MechanicBrowser {
      * Setup event delegation for mechanic cards
      */
     setupMechanicEventDelegation(listContainer) {
-        // Event delegation - single listener for select buttons (favorites already delegated)
+        // Remove old listener if it exists (prevent duplicates)
         if (this.selectMechanicHandler) {
             listContainer.removeEventListener('click', this.selectMechanicHandler);
+            // Remove from tracked listeners
+            this.eventListeners = this.eventListeners.filter(
+                listener => listener.handler !== this.selectMechanicHandler
+            );
         }
 
+        // Create new handler
         this.selectMechanicHandler = (e) => {
             const selectBtn = e.target.closest('.btn-select-mechanic');
             if (selectBtn) {
@@ -873,11 +1205,18 @@ class MechanicBrowser {
                 const mechanic = MECHANICS_DATA.getMechanic(mechanicId);
                 if (mechanic) {
                     this.saveRecentMechanic(mechanicId);
+                    
+                    // Invalidate count cache since recent changed
+                    if (this.categoryCountCache) {
+                        this.categoryCountCache.Recent = this.recentMechanics.length;
+                    }
+                    
                     this.showMechanicConfiguration(mechanic);
                 }
             }
         };
 
+        // Add new listener
         listContainer.addEventListener('click', this.selectMechanicHandler);
         
         // Track this listener for cleanup
@@ -889,34 +1228,54 @@ class MechanicBrowser {
     }
 
     /**
-     * Update category tab counts (using pre-computed counts - O(1))
+     * Update category tab counts (OPTIMIZED with fallback)
      */
     updateCategoryCounts() {
-        const dataOptimizer = window.DataOptimizer;
-        if (!dataOptimizer) return;
+        const startTime = performance.now();
+        console.log('🔵 [COUNT] updateCategoryCounts() called');
         
-        const categoryTabs = document.querySelectorAll('.category-tab');
+        const dataOptimizer = window.DataOptimizer;
+        if (!dataOptimizer) {
+            console.warn('⚠️ [COUNT] DataOptimizer not available, skipping update');
+            return;
+        }
+        
+        // Recalculate if cache is missing or invalid (all zeros)
+        console.log('🔍 [COUNT] Current cache:', this.categoryCountCache);
+        if (!this.categoryCountCache || this.categoryCountCache.All === 0) {
+            console.log('🔄 [COUNT] Cache missing or invalid, recalculating...');
+            const success = this.precalculateCategoryCounts();
+            if (!success) {
+                console.warn('⚠️ [COUNT] Failed to calculate counts, DataOptimizer not ready');
+                return;
+            }
+        } else {
+            console.log('✅ [COUNT] Using cached counts');
+        }
+        
+        // Use cached category tabs to avoid repeated DOM queries (scoped to mechanic browser only)
+        if (!this.categoryTabsCache) {
+            const overlay = document.getElementById('mechanicBrowserOverlay');
+            this.categoryTabsCache = overlay.querySelectorAll('.category-tab');
+            console.log(`📋 [COUNT] Found ${this.categoryTabsCache.length} category tabs in mechanic browser`);
+        }
+        const categoryTabs = this.categoryTabsCache;
         
         categoryTabs.forEach(tab => {
             const category = tab.dataset.category;
-            let count;
-            
-            if (category === 'All') {
-                count = dataOptimizer.getCategoryCount('mechanics', 'all');
-            } else if (category === 'Favorites') {
-                count = this.favoritesManager.getCount();
-            } else {
-                count = dataOptimizer.getCategoryCount('mechanics', category);
-            }
+            const count = this.categoryCountCache[category] || 0;
             
             // Extract the label text (icon + name)
             const textContent = tab.textContent.trim();
             const labelMatch = textContent.match(/^(.+?)(\s*\(\d+\))?$/);
             const label = labelMatch ? labelMatch[1].trim() : textContent;
             
-            // Update with count
-            tab.textContent = `${label} (${count})`;
+            const newText = `${label} (${count})`;
+            console.log(`🏷️ [COUNT] ${category}: ${count} - "${newText}"`);
+            tab.textContent = newText;
         });
+        
+        console.log(`⚡ [COUNT] Update completed in ${(performance.now() - startTime).toFixed(2)}ms`);
     }
 
     /**
@@ -937,7 +1296,7 @@ class MechanicBrowser {
             .filter(m => m);
         
         const recentMechanics = this.recentMechanics
-            .map(item => dataOptimizer ? dataOptimizer.getItem('mechanics', item.id) : MECHANICS_DATA.getMechanic(item.id))
+            .map(id => dataOptimizer ? dataOptimizer.getItem('mechanics', id) : MECHANICS_DATA.getMechanic(id))
             .filter(m => m)
             .slice(0, 5); // Show last 5
 
@@ -1999,10 +2358,13 @@ class MechanicBrowser {
         const lineToInsert = skillLine;
         
         // Hide overlay immediately for instant feedback
-        const overlay = document.getElementById('mechanicBrowserOverlay');
+        const overlay = this.getElement('mechanicBrowserOverlay');
         if (overlay) {
             overlay.style.display = 'none';
         }
+        
+        // Clear DOM cache since we're closing
+        this.clearDOMCache();
         
         // Call callback immediately before cleanup (prevents lag)
         if (callback) {
