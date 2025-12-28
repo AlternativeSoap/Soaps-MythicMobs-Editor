@@ -573,17 +573,6 @@
     font-family: monospace;
 }
 
-.info-icon {
-    color: var(--text-secondary, #94a3b8);
-    cursor: help;
-    font-size: 0.875rem;
-    transition: color 0.2s;
-}
-
-.info-icon:hover {
-    color: var(--accent-primary, #7c3aed);
-}
-
 .mb-attribute-input {
     width: 100%;
     padding: 0.5rem 0.75rem;

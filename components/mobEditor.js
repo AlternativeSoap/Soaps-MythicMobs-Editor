@@ -2158,6 +2158,22 @@ class MobEditor {
         const lm = mob.levelModifiers || {};
         const hasModifiers = Object.values(lm).some(v => v && v !== 0);
         const isCollapsed = this.editor.state.justSwitchedToAdvanced !== false;
+        
+        // Helper to render a stat modifier card
+        const renderStatCard = (id, icon, label, value, step, color) => {
+            const hasValue = value && value !== 0;
+            return `
+                <div class="level-mod-card ${hasValue ? 'active' : ''}" data-stat="${id.replace('level-', '')}">
+                    <div class="level-mod-header">
+                        <div class="level-mod-icon"><i class="fas fa-${icon}"></i></div>
+                        <span class="level-mod-name">${label}</span>
+                    </div>
+                    <input type="number" id="${id}" class="level-mod-input" 
+                           value="${value || 0}" step="${step}" min="0" placeholder="0">
+                </div>
+            `;
+        };
+        
         return `
             <div class="card collapsible-card ${isCollapsed ? 'collapsed' : ''}">
                 <div class="card-header collapsible-header">
@@ -2168,60 +2184,72 @@ class MobEditor {
                     </h3>
                 </div>
                 <div class="card-body collapsible-card-body">
-                    <p class="help-text">Stats increase per level. Example: Health 10 means +10 HP per level (Lvl 2 = +10 HP, Lvl 3 = +20 HP).</p>
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label class="form-label">Health per Level</label>
-                            <input type="number" id="level-health" class="form-input" 
-                                   value="${lm.health || 0}" step="0.5" min="0" placeholder="0">
-                            <span class="help-text">Additional health per level</span>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Damage per Level</label>
-                            <input type="number" id="level-damage" class="form-input" 
-                                   value="${lm.damage || 0}" step="0.1" min="0" placeholder="0">
-                            <span class="help-text">Additional damage per level</span>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Power per Level</label>
-                            <input type="number" id="level-power" class="form-input" 
-                                   value="${lm.power || 0}" step="0.1" min="0" placeholder="0">
-                            <span class="help-text">Power multiplier for skill mechanics</span>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Armor per Level</label>
-                            <input type="number" id="level-armor" class="form-input" 
-                                   value="${lm.armor || 0}" step="0.5" min="0" placeholder="0">
-                            <span class="help-text">Additional armor per level</span>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Knockback Resistance per Level</label>
-                            <input type="number" id="level-knockback" class="form-input" 
-                                   value="${lm.knockbackResistance || 0}" step="0.01" min="0" max="1" placeholder="0">
-                            <span class="help-text">0.0 to 1.0 (0% to 100%)</span>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Movement Speed per Level</label>
-                            <input type="number" id="level-movement" class="form-input" 
-                                   value="${lm.movementSpeed || 0}" step="0.01" min="0" placeholder="0">
-                            <span class="help-text">Additional movement speed per level</span>
-                        </div>
+                    <p class="help-text" style="margin-bottom: 1rem;">Stats added per mob level. Values are multiplied by (level - 1).</p>
+                    
+                    <div class="level-mod-grid">
+                        ${renderStatCard('level-health', 'heart', 'Health', lm.health, '0.5', '#ef4444')}
+                        ${renderStatCard('level-damage', 'sword', 'Damage', lm.damage, '0.1', '#f97316')}
+                        ${renderStatCard('level-power', 'bolt', 'Power', lm.power, '0.1', '#eab308')}
+                        ${renderStatCard('level-armor', 'shield-alt', 'Armor', lm.armor, '0.5', '#3b82f6')}
+                        ${renderStatCard('level-knockback', 'hand-rock', 'KB Resist', lm.knockbackResistance, '0.01', '#8b5cf6')}
+                        ${renderStatCard('level-movement', 'running', 'Speed', lm.movementSpeed, '0.01', '#10b981')}
                     </div>
                     
-                    <div class="level-preview-compact" style="margin-top: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem; border: 1px solid var(--border-primary);">
-                        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                            <label style="font-weight: 600; color: var(--text-primary); white-space: nowrap;">Preview at Level:</label>
-                            <input type="number" id="level-preview-input" class="form-input" 
-                                   value="5" min="1" max="999" style="width: 80px;">
-                            <div id="level-preview-stats" style="font-size: 0.9rem; color: var(--text-secondary); flex: 1;">
-                                Health: ${mob.health || 10} • Damage: ${mob.damage || 1} • Power: 0 • Armor: 0 • KB Res: 0.0 • Speed: ${mob.options?.movementSpeed || 0.3}
+                    <div class="level-preview-card">
+                        <div class="level-preview-header">
+                            <div class="level-preview-title">
+                                <i class="fas fa-eye"></i>
+                                <span>Stats Preview</span>
+                            </div>
+                            <div class="level-input-group">
+                                <span class="level-input-label">Level</span>
+                                <input type="number" id="level-preview-input" class="level-input" value="5" min="1" max="999">
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="alert alert-info" style="margin-top: 1rem;">
-                        <strong>About Power:</strong> Power affects skill mechanics (damage, leap, projectile) - not base stats. 
-                        Combine with mob levels using spawners or the SetLevel mechanic.
+                        <div class="level-preview-stats" id="level-preview-stats">
+                            <div class="preview-stat-item" data-stat="health">
+                                <i class="fas fa-heart"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Health</span>
+                                    <span class="stat-value">${mob.health || 10}</span>
+                                </div>
+                            </div>
+                            <div class="preview-stat-item" data-stat="damage">
+                                <i class="fas fa-sword"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Damage</span>
+                                    <span class="stat-value">${mob.damage || 1}</span>
+                                </div>
+                            </div>
+                            <div class="preview-stat-item" data-stat="power">
+                                <i class="fas fa-bolt"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Power</span>
+                                    <span class="stat-value">0</span>
+                                </div>
+                            </div>
+                            <div class="preview-stat-item" data-stat="armor">
+                                <i class="fas fa-shield-alt"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Armor</span>
+                                    <span class="stat-value">0</span>
+                                </div>
+                            </div>
+                            <div class="preview-stat-item" data-stat="kbresist">
+                                <i class="fas fa-hand-rock"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">KB Resist</span>
+                                    <span class="stat-value">0.0</span>
+                                </div>
+                            </div>
+                            <div class="preview-stat-item" data-stat="speed">
+                                <i class="fas fa-running"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Speed</span>
+                                    <span class="stat-value">${mob.options?.movementSpeed || 0.3}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2803,9 +2831,12 @@ class MobEditor {
         switch (field.type) {
             case 'boolean':
                 inputHtml = `
-                    <div class="custom-control custom-switch">
-                        <input type="checkbox" class="custom-control-input drop-option-field" id="${fieldId}" data-field="${field.name}" ${currentValue ? 'checked' : ''}>
-                        <label class="custom-control-label" for="${fieldId}">${field.label}</label>
+                    <div class="toggle-option-row">
+                        <span class="toggle-option-label">${field.label}</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" class="drop-option-field" id="${fieldId}" data-field="${field.name}" ${currentValue ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
                     </div>
                 `;
                 break;
@@ -3656,37 +3687,37 @@ class MobEditor {
         if (!mob) return;
         
         // Initialize AI Goals Editor
+        // Always create fresh instance since DOM is re-rendered each time
         const aiGoalsContainer = document.getElementById('mob-ai-goals-editor');
         if (aiGoalsContainer) {
-            if (!this.aiGoalsEditor) {
-                this.aiGoalsEditor = new AIEditor('mob-ai-goals-editor', 'goals', mob);
-                this.aiGoalsEditor.onChange((goals) => {
-                    this.currentMob.aiGoalSelectors = goals;
-                    this.editor.markDirty();
-                    // Update count badge
-                    const badge = document.querySelector('.card-title .fas.fa-brain')?.parentElement.querySelector('.count-badge');
-                    if (badge) badge.textContent = goals ? goals.length : 0;
-                });
-            } else {
-                this.aiGoalsEditor.setValue(mob.aiGoalSelectors || []);
-            }
+            this.aiGoalsEditor = new AIEditor('mob-ai-goals-editor', 'goals', mob);
+            this.aiGoalsEditor.onChange((goals) => {
+                this.currentMob.aiGoalSelectors = goals;
+                this.editor.markDirty();
+                // Update count badge
+                const badge = document.querySelector('.card-title .fas.fa-brain')?.parentElement.querySelector('.count-badge');
+                if (badge) badge.textContent = goals ? goals.length : 0;
+            });
+            this.aiGoalsEditor.setValue(mob.aiGoalSelectors || []);
+        } else {
+            this.aiGoalsEditor = null;
         }
         
         // Initialize AI Targets Editor
+        // Always create fresh instance since DOM is re-rendered each time
         const aiTargetsContainer = document.getElementById('mob-ai-targets-editor');
         if (aiTargetsContainer) {
-            if (!this.aiTargetsEditor) {
-                this.aiTargetsEditor = new AIEditor('mob-ai-targets-editor', 'targets', mob);
-                this.aiTargetsEditor.onChange((targets) => {
-                    this.currentMob.aiTargetSelectors = targets;
-                    this.editor.markDirty();
-                    // Update count badge
-                    const badge = document.querySelector('.card-title .fas.fa-crosshairs')?.parentElement.querySelector('.count-badge');
-                    if (badge) badge.textContent = targets ? targets.length : 0;
-                });
-            } else {
-                this.aiTargetsEditor.setValue(mob.aiTargetSelectors || []);
-            }
+            this.aiTargetsEditor = new AIEditor('mob-ai-targets-editor', 'targets', mob);
+            this.aiTargetsEditor.onChange((targets) => {
+                this.currentMob.aiTargetSelectors = targets;
+                this.editor.markDirty();
+                // Update count badge
+                const badge = document.querySelector('.card-title .fas.fa-crosshairs')?.parentElement.querySelector('.count-badge');
+                if (badge) badge.textContent = targets ? targets.length : 0;
+            });
+            this.aiTargetsEditor.setValue(mob.aiTargetSelectors || []);
+        } else {
+            this.aiTargetsEditor = null;
         }
         
         // Modules checkboxes

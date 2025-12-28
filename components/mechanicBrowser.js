@@ -1248,17 +1248,22 @@ class MechanicBrowser {
                     ${this.createEntityPickerHTML(inputId)}
                 `;
             } else if (attr.type === 'boolean') {
-                // Checkbox for boolean with dynamic true/false label
+                // Enhanced toggle switch for boolean values
                 const defaultChecked = attr.default === true || attr.default === 'true';
                 inputHTML = `
-                    <label class="checkbox-container">
-                        <input type="checkbox" 
-                               class="mechanic-attribute-input mechanic-attribute-checkbox" 
-                               data-attr="${attr.name}"
-                               data-modified="false"
-                               ${defaultChecked ? 'checked' : ''}>
-                        <span class="checkbox-value">${defaultChecked ? 'true' : 'false'}</span>
-                    </label>
+                    <div class="boolean-toggle-wrapper">
+                        <label class="boolean-toggle">
+                            <input type="checkbox" 
+                                   class="mechanic-attribute-input boolean-toggle-input" 
+                                   data-attr="${attr.name}"
+                                   data-modified="false"
+                                   ${defaultChecked ? 'checked' : ''}>
+                            <span class="boolean-toggle-track">
+                                <span class="boolean-toggle-thumb"></span>
+                            </span>
+                            <span class="boolean-toggle-label ${defaultChecked ? 'is-true' : 'is-false'}">${defaultChecked ? 'true' : 'false'}</span>
+                        </label>
+                    </div>
                 `;
             } else if (attr.type === 'particleSelect') {
                 // Smart particle type selector with categories
@@ -1316,7 +1321,6 @@ class MechanicBrowser {
                 <div class="mechanic-attribute-field ${conditionalClass}" ${conditionalData} data-tooltip="${tooltipContent.replace(/"/g, '&quot;')}">
                     <label class="attribute-label">
                         ${attr.name}${aliasText} ${requiredMark}
-                        <span class="info-icon" title="Click for details">ℹ️</span>
                     </label>
                     ${inputHTML}
                     <small class="attribute-description">${attr.description}${defaultText}</small>
@@ -1565,14 +1569,21 @@ class MechanicBrowser {
             
             let inputHTML = '';
             if (attr.type === 'boolean') {
+                const defaultChecked = attr.default === true || attr.default === 'true';
                 inputHTML = `
-                    <label class="checkbox-container">
-                        <input type="checkbox" 
-                               class="mechanic-attribute-input mechanic-attribute-checkbox" 
-                               data-attr="${attr.name}"
-                               data-modified="false">
-                        <span class="checkbox-value">false</span>
-                    </label>
+                    <div class="boolean-toggle-wrapper">
+                        <label class="boolean-toggle">
+                            <input type="checkbox" 
+                                   class="mechanic-attribute-input boolean-toggle-input" 
+                                   data-attr="${attr.name}"
+                                   data-modified="false"
+                                   ${defaultChecked ? 'checked' : ''}>
+                            <span class="boolean-toggle-track">
+                                <span class="boolean-toggle-thumb"></span>
+                            </span>
+                            <span class="boolean-toggle-label ${defaultChecked ? 'is-true' : 'is-false'}">${defaultChecked ? 'true' : 'false'}</span>
+                        </label>
+                    </div>
                 `;
             } else if (attr.type === 'particleSelect') {
                 inputHTML = this.renderParticleSelector(attr);
@@ -1624,7 +1635,6 @@ class MechanicBrowser {
                 <div class="mechanic-attribute-field ${conditionalClass}" ${conditionalData} data-tooltip="${tooltipContent.replace(/"/g, '&quot;')}">
                     <label class="attribute-label">
                         ${attr.name}${aliasText}
-                        <span class="info-icon" title="Click for details">ℹ️</span>
                     </label>
                     ${inputHTML}
                     <small class="attribute-description">${attr.description}${defaultText}</small>
@@ -1820,12 +1830,22 @@ class MechanicBrowser {
      */
     attachAttributeListeners(formContainer) {
         formContainer.querySelectorAll('.mechanic-attribute-input').forEach(input => {
-            if (input.type === 'checkbox') {
-                // For checkboxes: update label and mark as modified
+            if (input.type === 'checkbox' || input.classList.contains('boolean-toggle-input')) {
+                // For boolean toggles: update label text and styling
                 input.addEventListener('change', (e) => {
-                    const label = e.target.nextElementSibling;
-                    if (label && label.classList.contains('checkbox-value')) {
-                        label.textContent = e.target.checked ? 'true' : 'false';
+                    // Find the label sibling (after the track span)
+                    const toggle = e.target.closest('.boolean-toggle');
+                    const label = toggle?.querySelector('.boolean-toggle-label');
+                    if (label) {
+                        const isChecked = e.target.checked;
+                        label.textContent = isChecked ? 'true' : 'false';
+                        label.classList.remove('is-true', 'is-false');
+                        label.classList.add(isChecked ? 'is-true' : 'is-false');
+                    }
+                    // Legacy support for old checkbox-value
+                    const legacyLabel = e.target.nextElementSibling;
+                    if (legacyLabel && legacyLabel.classList.contains('checkbox-value')) {
+                        legacyLabel.textContent = e.target.checked ? 'true' : 'false';
                     }
                     e.target.dataset.modified = 'true';
                     this.updateSkillLinePreview();

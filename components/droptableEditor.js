@@ -169,47 +169,118 @@ class DropTableEditor {
         const config = droptable.config || {};
         
         return `
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Total Items</label>
-                    <input type="number" id="config-totalitems" value="${config.TotalItems || ''}" 
-                           placeholder="Leave empty for no limit" min="0" class="form-input">
-                    <span class="help-text">Exact number of drops (makes chances into weights)</span>
+            <!-- Drop Quantity Settings -->
+            <div class="droptable-config-section quantity-section">
+                <div class="config-section-header">
+                    <div class="config-section-title">
+                        <i class="fas fa-boxes"></i>
+                        Drop Quantity
+                    </div>
+                    <span class="config-section-badge">3 Options</span>
                 </div>
-                <div class="form-group">
-                    <label>Min Items</label>
-                    <input type="number" id="config-minitems" value="${config.MinItems || ''}" 
-                           placeholder="0" min="0" class="form-input">
-                    <span class="help-text">Minimum drops to generate</span>
+                <div class="config-section-description">
+                    <i class="fas fa-info-circle"></i>
+                    Control how many items can drop from this table
                 </div>
-                <div class="form-group">
-                    <label>Max Items</label>
-                    <input type="number" id="config-maxitems" value="${config.MaxItems || ''}" 
-                           placeholder="No max" min="0" class="form-input">
-                    <span class="help-text">Maximum drops to generate</span>
+                <div class="config-cards-grid">
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <i class="fas fa-equals"></i>
+                            <span class="config-card-label">Total Items</span>
+                        </div>
+                        <input type="number" id="config-totalitems" value="${config.TotalItems || ''}" 
+                               placeholder="Not set" min="0" class="config-card-input">
+                        <div class="config-card-hint">
+                            <i class="fas fa-magic"></i>
+                            Exact drops count - converts chances to weights
+                        </div>
+                    </div>
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <i class="fas fa-arrow-down"></i>
+                            <span class="config-card-label">Min Items</span>
+                        </div>
+                        <input type="number" id="config-minitems" value="${config.MinItems || ''}" 
+                               placeholder="0" min="0" class="config-card-input">
+                        <div class="config-card-hint">
+                            <i class="fas fa-shield-alt"></i>
+                            Guaranteed minimum drops
+                        </div>
+                    </div>
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <i class="fas fa-arrow-up"></i>
+                            <span class="config-card-label">Max Items</span>
+                        </div>
+                        <input type="number" id="config-maxitems" value="${config.MaxItems || ''}" 
+                               placeholder="No limit" min="0" class="config-card-input">
+                        <div class="config-card-hint">
+                            <i class="fas fa-hand-paper"></i>
+                            Upper limit on drops
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Bonus Level Items</label>
-                    <input type="text" id="config-bonuslevelitems" value="${config.BonusLevelItems || ''}" 
-                           placeholder="0.2 or 0.2to0.5" class="form-input">
-                    <span class="help-text">Modifier based on mob level (can be range)</span>
+
+            <!-- Bonus Modifiers -->
+            <div class="droptable-config-section bonus-section">
+                <div class="config-section-header">
+                    <div class="config-section-title">
+                        <i class="fas fa-star"></i>
+                        Bonus Modifiers
+                    </div>
+                    <span class="config-section-badge">2 Options</span>
                 </div>
-                <div class="form-group">
-                    <label>Bonus Luck Items</label>
-                    <input type="text" id="config-bonusluckitems" value="${config.BonusLuckItems || ''}" 
-                           placeholder="0.15 or 0.15to8" class="form-input">
-                    <span class="help-text">Modifier based on killer's luck stat</span>
+                <div class="config-section-description">
+                    <i class="fas fa-calculator"></i>
+                    Dynamic modifiers that increase drop quantity
+                </div>
+                <div class="config-cards-grid two-column">
+                    <div class="config-card bonus-card">
+                        <div class="config-card-header">
+                            <i class="fas fa-level-up-alt"></i>
+                            <span class="config-card-label">Bonus Level Items</span>
+                        </div>
+                        <input type="text" id="config-bonuslevelitems" value="${config.BonusLevelItems || ''}" 
+                               placeholder="e.g., 0.2 or 0.2to0.5" class="config-card-input">
+                        <div class="config-card-hint">
+                            <i class="fas fa-skull"></i>
+                            Per mob level: +0.2 means Level 10 adds 2 items
+                        </div>
+                        <div class="config-card-example">
+                            <code>0.5</code> = +5 items at level 10
+                        </div>
+                    </div>
+                    <div class="config-card bonus-card">
+                        <div class="config-card-header">
+                            <i class="fas fa-clover"></i>
+                            <span class="config-card-label">Bonus Luck Items</span>
+                        </div>
+                        <input type="text" id="config-bonusluckitems" value="${config.BonusLuckItems || ''}" 
+                               placeholder="e.g., 0.15 or 0.15to0.8" class="config-card-input">
+                        <div class="config-card-hint">
+                            <i class="fas fa-user"></i>
+                            Based on killer's luck attribute
+                        </div>
+                        <div class="config-card-example">
+                            <code>0.15</code> = +1.5 items at 10 luck
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <div class="info-box">
-                <i class="fas fa-lightbulb"></i>
-                <div>
-                    <strong>Weighted Drops:</strong> When TotalItems, MinItems, or MaxItems are set, 
-                    drop chances become weights. Higher weights = more likely to drop.
+
+            <!-- Weighted Drops Info Banner -->
+            <div class="config-info-banner">
+                <div class="info-banner-icon">
+                    <i class="fas fa-lightbulb"></i>
+                </div>
+                <div class="info-banner-content">
+                    <div class="info-banner-title">Weighted Drops Mode</div>
+                    <div class="info-banner-text">
+                        When <strong>Total Items</strong>, <strong>Min Items</strong>, or <strong>Max Items</strong> are set, 
+                        drop chances become <em>weights</em>. Higher weight values mean that item is more likely to be selected 
+                        from the pool.
+                    </div>
                 </div>
             </div>
         `;

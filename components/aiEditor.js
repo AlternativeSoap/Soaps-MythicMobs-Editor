@@ -1,6 +1,6 @@
 /**
  * AIEditor - Component for editing MythicMobs AI (Goals and Targets)
- * Manages AIGoalSelectors and AITargetSelectors with priority ordering
+ * Manages AIGoalSelectors and AITargetSelectors with presets and visual tree
  */
 
 class AIEditor {
@@ -13,6 +13,7 @@ class AIEditor {
         this.searchQuery = '';
         this.selectedCategory = 'All';
         this.draggedIndex = null;
+        this.showPresets = true;
     }
 
     render() {
@@ -22,35 +23,82 @@ class AIEditor {
         const isGoals = this.type === 'goals';
         const dataSource = isGoals ? ALL_AI_GOALS : ALL_AI_TARGETS;
         const categories = ['All', ...(isGoals ? AI_GOAL_CATEGORIES : AI_TARGET_CATEGORIES)];
+        const presets = isGoals ? AI_GOAL_PRESETS : AI_TARGET_PRESETS;
 
         container.innerHTML = `
-            <div class="ai-editor">
-                <div class="ai-editor-header">
-                    <div class="form-group" style="flex: 1; margin: 0;">
-                        <input type="text" 
-                               id="ai-search-${this.type}" 
-                               class="form-input" 
-                               placeholder="Search ${isGoals ? 'goals' : 'targets'}..."
-                               value="${this.searchQuery}">
+            <div class="ai-editor-v2">
+                <!-- Presets Section -->
+                <div class="ai-presets-section">
+                    <div class="ai-presets-header" data-toggle="ai-presets-${this.type}">
+                        <i class="fas fa-magic"></i>
+                        <span>Quick Presets</span>
+                        <i class="fas fa-chevron-down ai-presets-toggle ${this.showPresets ? '' : 'rotated'}"></i>
                     </div>
-                    <select id="ai-category-${this.type}" class="form-input" style="width: 180px; margin-left: 0.5rem;">
-                        ${categories.map(cat => 
-                            `<option value="${cat}" ${this.selectedCategory === cat ? 'selected' : ''}>${cat}</option>`
-                        ).join('')}
-                    </select>
+                    <div class="ai-presets-grid ${this.showPresets ? '' : 'collapsed'}" id="ai-presets-grid-${this.type}">
+                        ${Object.entries(presets).map(([key, preset]) => `
+                            <button class="ai-preset-card" data-preset="${key}" title="${preset.description}">
+                                <div class="ai-preset-icon">
+                                    <i class="fas fa-${preset.icon || 'cog'}"></i>
+                                </div>
+                                <div class="ai-preset-info">
+                                    <div class="ai-preset-name">${preset.name}</div>
+                                    <div class="ai-preset-count">${preset[isGoals ? 'goals' : 'targets'].length} ${isGoals ? 'goals' : 'targets'}</div>
+                                </div>
+                            </button>
+                        `).join('')}
+                    </div>
                 </div>
 
-                <div class="ai-current-list" id="ai-current-${this.type}">
-                    <h4 class="ai-list-title">
-                        Current ${isGoals ? 'Goals' : 'Targets'} 
-                        <span class="count-badge">${this.items.length}</span>
-                    </h4>
-                    ${this.renderCurrentItems()}
+                <!-- Current Items Section -->
+                <div class="ai-current-section">
+                    <div class="ai-section-header">
+                        <div class="ai-section-title">
+                            <i class="fas fa-${isGoals ? 'brain' : 'crosshairs'}"></i>
+                            <span>Active ${isGoals ? 'Goals' : 'Targets'}</span>
+                            <span class="ai-count-badge">${this.items.length}</span>
+                        </div>
+                        <button class="btn btn-sm btn-secondary ai-clear-all" ${this.items.length === 0 ? 'disabled' : ''}>
+                            <i class="fas fa-trash-alt"></i> Clear All
+                        </button>
+                    </div>
+                    <div class="ai-current-list" id="ai-current-${this.type}">
+                        ${this.renderCurrentItems()}
+                    </div>
                 </div>
 
-                <div class="ai-available-list">
-                    <h4 class="ai-list-title">Available ${isGoals ? 'Goals' : 'Targets'}</h4>
-                    ${this.renderAvailableItems(dataSource)}
+                <!-- Add New Section -->
+                <div class="ai-add-section">
+                    <div class="ai-section-header">
+                        <div class="ai-section-title">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Add ${isGoals ? 'Goal' : 'Target'}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Search and Filter -->
+                    <div class="ai-search-bar">
+                        <div class="ai-search-input-wrapper">
+                            <i class="fas fa-search"></i>
+                            <input type="text" 
+                                   id="ai-search-${this.type}" 
+                                   class="ai-search-input" 
+                                   placeholder="Search ${isGoals ? 'goals' : 'targets'}..."
+                                   value="${this.searchQuery}">
+                        </div>
+                        <div class="ai-category-chips">
+                            ${categories.map(cat => `
+                                <button class="ai-category-chip ${this.selectedCategory === cat ? 'active' : ''}" 
+                                        data-category="${cat}">
+                                    ${cat}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Available Items -->
+                    <div class="ai-available-list">
+                        ${this.renderAvailableItems(dataSource)}
+                    </div>
                 </div>
             </div>
         `;
@@ -60,11 +108,19 @@ class AIEditor {
 
     renderCurrentItems() {
         if (this.items.length === 0) {
-            return `<div class="empty-state">No ${this.type === 'goals' ? 'goals' : 'targets'} configured. Add from the list below.</div>`;
+            return `
+                <div class="ai-empty-state">
+                    <div class="ai-empty-icon">
+                        <i class="fas fa-${this.type === 'goals' ? 'brain' : 'crosshairs'}"></i>
+                    </div>
+                    <h4>No ${this.type === 'goals' ? 'Goals' : 'Targets'} Configured</h4>
+                    <p>Use a preset above or add from the list below</p>
+                </div>
+            `;
         }
 
         return `
-            <div class="ai-items-container">
+            <div class="ai-items-tree">
                 ${this.items.map((item, index) => this.renderCurrentItem(item, index)).join('')}
             </div>
         `;
@@ -73,37 +129,43 @@ class AIEditor {
     renderCurrentItem(item, index) {
         const isGoal = this.type === 'goals';
         const itemData = isGoal 
-            ? ALL_AI_GOALS.find(g => g.goal === item.name)
-            : ALL_AI_TARGETS.find(t => t.target === item.name);
+            ? ALL_AI_GOALS.find(g => g.goal.toLowerCase() === item.name.toLowerCase())
+            : ALL_AI_TARGETS.find(t => t.target.toLowerCase() === item.name.toLowerCase());
+
+        const isFirst = index === 0;
+        const isClear = item.name.toLowerCase() === 'clear';
 
         return `
-            <div class="ai-item current-ai-item" 
+            <div class="ai-tree-item ${isClear ? 'is-clear' : ''} ${isFirst ? 'first' : ''}" 
                  data-index="${index}" 
                  draggable="true">
-                <div class="ai-item-drag-handle">
+                <div class="ai-tree-drag">
                     <i class="fas fa-grip-vertical"></i>
                 </div>
-                <div class="ai-item-priority">
-                    <input type="number" 
-                           class="form-input ai-priority-input" 
-                           data-index="${index}"
-                           value="${item.priority || 0}" 
-                           min="0" 
-                           max="99">
+                <div class="ai-tree-badge ${isClear ? 'badge-clear' : itemData?.important ? 'badge-important' : ''}">
+                    <i class="fas fa-${itemData?.icon || (isGoal ? 'cog' : 'crosshairs')}"></i>
                 </div>
-                <div class="ai-item-info">
-                    <div class="ai-item-name">
+                <div class="ai-tree-content">
+                    <div class="ai-tree-name">
                         ${item.name}
-                        ${item.params ? `<span class="ai-params">{${item.params}}</span>` : ''}
-                        ${itemData?.premium ? '<span class="premium-badge">Premium</span>' : ''}
+                        ${item.params ? `<span class="ai-tree-params">${item.params}</span>` : ''}
+                        ${itemData?.premium ? '<span class="premium-tag">Premium</span>' : ''}
                     </div>
-                    <div class="ai-item-description">
-                        ${itemData?.description || 'No description available'}
-                    </div>
+                    <div class="ai-tree-desc">${itemData?.description || 'Custom selector'}</div>
                 </div>
-                <button class="btn btn-icon ai-item-remove" data-index="${index}">
-                    <i class="fas fa-times"></i>
-                </button>
+                <div class="ai-tree-actions">
+                    ${!isClear ? `
+                        <button class="ai-tree-btn ai-move-up" data-index="${index}" ${index === 0 || (index === 1 && this.items[0]?.name.toLowerCase() === 'clear') ? 'disabled' : ''}>
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                        <button class="ai-tree-btn ai-move-down" data-index="${index}" ${index === this.items.length - 1 ? 'disabled' : ''}>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    ` : ''}
+                    <button class="ai-tree-btn ai-remove-btn" data-index="${index}">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
             </div>
         `;
     }
@@ -128,60 +190,118 @@ class AIEditor {
         }
 
         if (filtered.length === 0) {
-            return '<div class="empty-state">No items found</div>';
+            return `<div class="ai-no-results"><i class="fas fa-search"></i> No matches found</div>`;
         }
 
-        return `
-            <div class="ai-available-items">
-                ${filtered.map(item => this.renderAvailableItem(item)).join('')}
-            </div>
-        `;
+        // Group by category for better organization
+        const grouped = {};
+        filtered.forEach(item => {
+            if (!grouped[item.category]) grouped[item.category] = [];
+            grouped[item.category].push(item);
+        });
+
+        let html = '';
+        for (const [category, items] of Object.entries(grouped)) {
+            if (this.selectedCategory === 'All') {
+                html += `<div class="ai-category-label">${category}</div>`;
+            }
+            html += items.map(item => this.renderAvailableItem(item)).join('');
+        }
+
+        return html;
     }
 
     renderAvailableItem(item) {
         const name = this.type === 'goals' ? item.goal : item.target;
-        const isAdded = this.items.some(i => i.name === name);
+        const isAdded = this.items.some(i => i.name.toLowerCase() === name.toLowerCase());
 
         return `
-            <div class="ai-available-item ${isAdded ? 'added' : ''}" data-name="${name}">
-                <div class="ai-item-info">
-                    <div class="ai-item-name">
-                        ${name}
-                        ${item.aliases.length > 0 ? `<span class="ai-aliases">(${item.aliases.join(', ')})</span>` : ''}
-                        ${item.premium ? '<span class="premium-badge">Premium</span>' : ''}
-                    </div>
-                    <div class="ai-item-description">${item.description}</div>
-                    ${item.params ? `<div class="ai-item-params">Parameters: ${item.params.join(', ')}</div>` : ''}
+            <div class="ai-available-item ${isAdded ? 'is-added' : ''} ${item.important ? 'is-important' : ''}" data-name="${name}">
+                <div class="ai-item-badge ${item.important ? 'badge-important' : ''}">
+                    <i class="fas fa-${item.icon || 'cog'}"></i>
                 </div>
-                <button class="btn btn-sm ${isAdded ? 'btn-secondary' : 'btn-primary'} ai-add-btn" 
+                <div class="ai-item-content">
+                    <div class="ai-item-header">
+                        <span class="ai-item-name">${name}</span>
+                        ${item.aliases.length > 0 ? `<span class="ai-item-aliases">(${item.aliases.slice(0, 2).join(', ')}${item.aliases.length > 2 ? '...' : ''})</span>` : ''}
+                        ${item.premium ? '<span class="premium-tag">Premium</span>' : ''}
+                    </div>
+                    <div class="ai-item-desc">${item.description}</div>
+                    ${item.params ? `<div class="ai-item-params"><i class="fas fa-sliders-h"></i> ${item.params.join(', ')}</div>` : ''}
+                </div>
+                <button class="btn btn-sm ${isAdded ? 'btn-added' : 'btn-add'}" 
                         data-name="${name}"
-                        data-params="${item.params ? 'true' : 'false'}"
+                        data-has-params="${item.params ? 'true' : 'false'}"
                         ${isAdded ? 'disabled' : ''}>
                     <i class="fas fa-${isAdded ? 'check' : 'plus'}"></i>
-                    ${isAdded ? 'Added' : 'Add'}
                 </button>
             </div>
         `;
     }
 
+    generateYAMLPreview() {
+        const isGoals = this.type === 'goals';
+        const key = isGoals ? 'AIGoalSelectors' : 'AITargetSelectors';
+        
+        let yaml = `${key}:\n`;
+        this.items.forEach(item => {
+            const value = item.params ? `${item.name} ${item.params}` : item.name;
+            yaml += `  - ${value}\n`;
+        });
+        
+        return yaml;
+    }
+
     attachEventListeners() {
+        // Presets toggle
+        const presetsHeader = document.querySelector(`[data-toggle="ai-presets-${this.type}"]`);
+        if (presetsHeader) {
+            presetsHeader.addEventListener('click', () => {
+                this.showPresets = !this.showPresets;
+                const grid = document.getElementById(`ai-presets-grid-${this.type}`);
+                const toggle = presetsHeader.querySelector('.ai-presets-toggle');
+                grid?.classList.toggle('collapsed');
+                toggle?.classList.toggle('rotated');
+            });
+        }
+
+        // Preset cards
+        document.querySelectorAll(`#${this.containerId} .ai-preset-card`).forEach(card => {
+            card.addEventListener('click', (e) => {
+                const presetKey = e.currentTarget.dataset.preset;
+                this.applyPreset(presetKey);
+            });
+        });
+
+        // Clear all button
+        document.querySelector(`#${this.containerId} .ai-clear-all`)?.addEventListener('click', () => {
+            if (confirm(`Clear all ${this.type}?`)) {
+                this.items = [];
+                this.render();
+                this.triggerChange();
+            }
+        });
+
         // Search
         document.getElementById(`ai-search-${this.type}`)?.addEventListener('input', (e) => {
             this.searchQuery = e.target.value;
             this.render();
         });
 
-        // Category filter
-        document.getElementById(`ai-category-${this.type}`)?.addEventListener('change', (e) => {
-            this.selectedCategory = e.target.value;
-            this.render();
+        // Category chips
+        document.querySelectorAll(`#${this.containerId} .ai-category-chip`).forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                this.selectedCategory = e.target.dataset.category;
+                this.render();
+            });
         });
 
         // Add buttons
-        document.querySelectorAll('.ai-add-btn').forEach(button => {
+        document.querySelectorAll(`#${this.containerId} .btn-add`).forEach(button => {
             button.addEventListener('click', (e) => {
-                const name = e.target.closest('button').dataset.name;
-                const hasParams = e.target.closest('button').dataset.params === 'true';
+                e.stopPropagation();
+                const name = e.currentTarget.dataset.name;
+                const hasParams = e.currentTarget.dataset.hasParams === 'true';
                 
                 if (hasParams) {
                     this.showParamsModal(name);
@@ -192,21 +312,35 @@ class AIEditor {
         });
 
         // Remove buttons
-        document.querySelectorAll('.ai-item-remove').forEach(button => {
+        document.querySelectorAll(`#${this.containerId} .ai-remove-btn`).forEach(button => {
             button.addEventListener('click', (e) => {
-                const index = parseInt(e.target.closest('button').dataset.index);
+                e.stopPropagation();
+                const index = parseInt(e.currentTarget.dataset.index);
                 this.removeItem(index);
             });
         });
 
-        // Priority inputs
-        document.querySelectorAll('.ai-priority-input').forEach(input => {
-            input.addEventListener('change', (e) => {
-                const index = parseInt(e.target.dataset.index);
-                const priority = parseInt(e.target.value) || 0;
-                if (this.items[index]) {
-                    this.items[index].priority = priority;
-                    this.triggerChange();
+        // Move up/down buttons
+        document.querySelectorAll(`#${this.containerId} .ai-move-up`).forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const index = parseInt(e.currentTarget.dataset.index);
+                if (index > 0) {
+                    // Don't move above clear
+                    const targetIndex = this.items[0]?.name.toLowerCase() === 'clear' && index === 1 ? 1 : index - 1;
+                    if (targetIndex !== index) {
+                        this.reorderItems(index, targetIndex);
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll(`#${this.containerId} .ai-move-down`).forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const index = parseInt(e.currentTarget.dataset.index);
+                if (index < this.items.length - 1) {
+                    this.reorderItems(index, index + 1);
                 }
             });
         });
@@ -215,54 +349,55 @@ class AIEditor {
         this.attachDragListeners();
     }
 
+    applyPreset(presetKey) {
+        const isGoals = this.type === 'goals';
+        const presets = isGoals ? AI_GOAL_PRESETS : AI_TARGET_PRESETS;
+        const preset = presets[presetKey];
+        
+        if (!preset) return;
+
+        const itemsKey = isGoals ? 'goals' : 'targets';
+        this.items = preset[itemsKey].map((name, index) => ({
+            name: name,
+            priority: index
+        }));
+
+        this.render();
+        this.triggerChange();
+    }
+
     attachDragListeners() {
-        const items = document.querySelectorAll('.current-ai-item');
+        const items = document.querySelectorAll(`#${this.containerId} .ai-tree-item`);
         
         items.forEach(item => {
             item.addEventListener('dragstart', (e) => {
                 this.draggedIndex = parseInt(item.dataset.index);
                 item.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
             });
 
-            item.addEventListener('dragend', (e) => {
+            item.addEventListener('dragend', () => {
                 item.classList.remove('dragging');
                 this.draggedIndex = null;
             });
 
             item.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                const afterElement = this.getDragAfterElement(e.clientY);
-                const container = document.querySelector('.ai-items-container');
-                if (afterElement == null) {
-                    container.appendChild(item);
-                } else {
-                    container.insertBefore(item, afterElement);
-                }
+                e.dataTransfer.dropEffect = 'move';
             });
 
             item.addEventListener('drop', (e) => {
                 e.preventDefault();
                 const dropIndex = parseInt(item.dataset.index);
                 if (this.draggedIndex !== null && this.draggedIndex !== dropIndex) {
+                    // Don't allow dropping before clear
+                    if (this.items[0]?.name.toLowerCase() === 'clear' && dropIndex === 0 && this.draggedIndex !== 0) {
+                        return;
+                    }
                     this.reorderItems(this.draggedIndex, dropIndex);
                 }
             });
         });
-    }
-
-    getDragAfterElement(y) {
-        const draggableElements = [...document.querySelectorAll('.current-ai-item:not(.dragging)')];
-        
-        return draggableElements.reduce((closest, child) => {
-            const box = child.getBoundingClientRect();
-            const offset = y - box.top - box.height / 2;
-            
-            if (offset < 0 && offset > closest.offset) {
-                return { offset: offset, element: child };
-            } else {
-                return closest;
-            }
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
     reorderItems(fromIndex, toIndex) {
@@ -274,7 +409,7 @@ class AIEditor {
 
     addItem(name, params = '') {
         // Check if already exists
-        if (this.items.some(i => i.name === name)) {
+        if (this.items.some(i => i.name.toLowerCase() === name.toLowerCase())) {
             return;
         }
 
@@ -284,7 +419,13 @@ class AIEditor {
             params: params || undefined
         };
 
-        this.items.push(newItem);
+        // If it's clear, add at the beginning
+        if (name.toLowerCase() === 'clear') {
+            this.items.unshift(newItem);
+        } else {
+            this.items.push(newItem);
+        }
+
         this.render();
         this.triggerChange();
     }
@@ -296,37 +437,56 @@ class AIEditor {
     }
 
     showParamsModal(name) {
+        const isGoal = this.type === 'goals';
+        const itemData = isGoal 
+            ? ALL_AI_GOALS.find(g => g.goal === name)
+            : ALL_AI_TARGETS.find(t => t.target === name);
+
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div class="modal-dialog" style="max-width: 500px;">
+            <div class="modal-dialog" style="max-width: 450px;">
                 <div class="modal-header">
-                    <h3>Configure: ${name}</h3>
+                    <h3><i class="fas fa-${itemData?.icon || 'cog'}"></i> Configure: ${name}</h3>
                     <button class="modal-close"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="modal-body">
+                    <p class="modal-desc">${itemData?.description || ''}</p>
                     <div class="form-group">
                         <label class="form-label">Parameters</label>
                         <input type="text" id="ai-params-input" class="form-input" 
-                               placeholder="e.g., faction_name or x,y,z">
-                        <small class="form-hint">Enter required parameters for this AI selector</small>
+                               placeholder="${itemData?.params?.join(', ') || 'Enter parameters'}">
+                        <small class="form-hint">
+                            ${itemData?.params ? `Expected: ${itemData.params.join(', ')}` : 'Enter required parameters'}
+                        </small>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary modal-cancel">Cancel</button>
-                    <button class="btn btn-primary modal-save">Add</button>
+                    <button class="btn btn-primary modal-save"><i class="fas fa-plus"></i> Add</button>
                 </div>
             </div>
         `;
 
         document.body.appendChild(modal);
 
+        const input = document.getElementById('ai-params-input');
+        setTimeout(() => input?.focus(), 100);
+
         modal.querySelector('.modal-close')?.addEventListener('click', () => modal.remove());
         modal.querySelector('.modal-cancel')?.addEventListener('click', () => modal.remove());
         modal.querySelector('.modal-save')?.addEventListener('click', () => {
-            const params = document.getElementById('ai-params-input')?.value.trim();
+            const params = input?.value.trim();
             this.addItem(name, params);
             modal.remove();
+        });
+
+        input?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const params = input.value.trim();
+                this.addItem(name, params);
+                modal.remove();
+            }
         });
 
         modal.addEventListener('click', (e) => {

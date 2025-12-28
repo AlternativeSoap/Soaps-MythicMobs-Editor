@@ -21,11 +21,16 @@ const GLOW_COLORS = [
     { value: 'YELLOW', label: 'Yellow', hex: '#FFFF55' }
 ];
 
-// Drop types that support inline fancy attributes
-const INLINE_FANCY_SUPPORTED = ['item', 'mythicmob', 'mmoitems', 'itemvariable'];
+// Drop types that support inline ITEM attributes (name, lore, enchants, skullTexture, etc.)
+// Only vanilla items support these - e.g., DIAMOND_SWORD{name="...";lore="...";enchants=...}
+const INLINE_ITEM_SUPPORTED = ['item'];
+
+// Drop types that support fancy drop attributes (lootsplosion, hologramname, itemvfx, etc.)
+// Only MythicItems support these visual effects
+const INLINE_FANCY_SUPPORTED = ['item'];
 
 // Drop types that don't support fancy attributes at all
-const NO_FANCY_SUPPORT = ['exp', 'command'];
+const NO_FANCY_SUPPORT = ['exp', 'mcmmo-exp', 'money', 'command', 'nothing', 'vanillaLootTable', 'itemvariable', 'mythicmob', 'mmoitems'];
 
 class MobDropsEditor {
     constructor(containerId, drops = []) {
@@ -196,62 +201,38 @@ class MobDropsEditor {
         drop.inlineAttributes = drop.inlineAttributes || {};
         drop.fancyAttributes = drop.fancyAttributes || {};
         
-        // Create modal with tabs
+        // Store reference for data collection
+        this._currentEditingDrop = drop;
+        
+        // Create modal - streamlined design
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
-        modal.dataset.currentTab = 'basic';
         modal.innerHTML = `
-            <div class="modal-content drop-editor-modal large-modal" style="max-width: 1600px;">
-                <div class="modal-header">
-                    <div>
-                        <h3><i class="fas fa-box"></i> ${index !== null ? 'Edit' : 'Add'} Drop</h3>
-                        <div class="breadcrumb">
-                            <span id="drop-breadcrumb-text">Configuration</span>
-                        </div>
-                    </div>
+            <div class="modal-content drop-editor-modal-v2">
+                <div class="drop-modal-header">
+                    <h3><i class="fas fa-box"></i> ${index !== null ? 'Edit' : 'Add'} Drop</h3>
                     <button class="modal-close" id="close-mobdrop-editor">&times;</button>
                 </div>
                 
-                <div class="modal-body">
-                    ${this.renderDropTypeSelector(drop)}
-                    
-                    <div class="drop-editor-tabs">
-                        <button class="drop-tab active" data-tab="basic">
-                            <i class="fas fa-sliders"></i> Basic
-                        </button>
-                        <button class="drop-tab" data-tab="attributes">
-                            <i class="fas fa-cogs"></i> Attributes
-                        </button>
-                        <button class="drop-tab" data-tab="inline">
-                            <i class="fas fa-tags"></i> Inline
-                        </button>
-                        <button class="drop-tab" data-tab="fancy">
-                            <i class="fas fa-sparkles"></i> Fancy
-                        </button>
-                    </div>
+                <div class="drop-modal-body">
+                    ${this.renderDropTypeChips(drop)}
                     
                     <div id="drop-config-container">
-                        ${this.renderDropConfigurationTabs(drop)}
-                    </div>
-                    
-                    <!-- Persistent YAML Preview Section -->
-                    <div class="drop-preview-persistent" id="drop-preview-persistent">
-                        <div class="preview-header">
-                            <h4><i class="fas fa-eye"></i> YAML Preview</h4>
-                            <button class="btn btn-outline" id="copy-yaml-btn"><i class="fas fa-copy"></i> Copy</button>
-                        </div>
-                        <pre class="yaml-preview"><code id="yaml-preview-code">${this.escapeHtml(this.generateYAMLPreview(drop, (window.DROP_TYPES || []).find(t => t.id === drop.type)))}</code></pre>
-                        <div class="preview-info">
-                            <i class="fas fa-info-circle"></i> This YAML will be added to your Drops section
-                        </div>
+                        ${this.renderDropContent(drop)}
                     </div>
                 </div>
                 
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" id="cancel-mobdrop-btn">Cancel</button>
-                    <button class="btn btn-primary" id="save-mobdrop-btn">
-                        <i class="fas fa-save"></i> ${index !== null ? 'Update' : 'Add'} Drop
-                    </button>
+                <div class="drop-modal-footer">
+                    <div class="yaml-preview-inline">
+                        <code id="yaml-preview-code">${this.escapeHtml(this.generateYAMLPreview(drop, (window.DROP_TYPES || []).find(t => t.id === drop.type)))}</code>
+                        <button class="copy-btn" id="copy-yaml-btn" title="Copy"><i class="fas fa-copy"></i></button>
+                    </div>
+                    <div class="footer-actions">
+                        <button class="btn btn-ghost" id="cancel-mobdrop-btn">Cancel</button>
+                        <button class="btn btn-primary" id="save-mobdrop-btn">
+                            <i class="fas fa-save"></i> ${index !== null ? 'Save' : 'Add'}
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -263,338 +244,373 @@ class MobDropsEditor {
         setTimeout(() => this.initializeItemDropdown(), 50);
     }
     
-    renderDropTypeSelector(drop) {
+    renderDropTypeChips(drop) {
         return `
-            <div class="form-group">
-                <label class="form-label">
-                    <i class="fas fa-layer-group"></i> Drop Type
-                </label>
-                <div class="drop-type-cards">
-                    ${(window.DROP_TYPES || []).map(type => `
-                        <div class="drop-type-card ${drop.type === type.id ? 'selected' : ''}" data-type="${type.id}">
-                            <i class="fas fa-${type.icon}"></i>
-                            <div class="drop-type-info">
-                                <strong>${type.name}</strong>
-                                <small>${type.description}</small>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <input type="hidden" id="mobdrop-type-select" value="${drop.type}">
+            <div class="drop-type-row">
+                ${(window.DROP_TYPES || []).map(type => `
+                    <button class="drop-chip ${drop.type === type.id ? 'active' : ''}" 
+                            data-type="${type.id}" title="${type.description}">
+                        <i class="fas fa-${type.icon}"></i>
+                        <span>${type.name}</span>
+                    </button>
+                `).join('')}
             </div>
+            <input type="hidden" id="mobdrop-type-select" value="${drop.type}">
         `;
     }
     
+    // Alias for compatibility
+    renderDropTypeSelector(drop) { return this.renderDropTypeChips(drop); }
+    
+    renderDropTabs(drop) {
+        // V2 design uses collapsible sections instead of tabs - return empty
+        return '';
+    }
+    
     renderDropConfigurationTabs(drop) {
+        return this.renderDropContent(drop);
+    }
+    
+    renderDropContent(drop) {
         const dropType = (window.DROP_TYPES || []).find(t => t.id === drop.type) || (window.DROP_TYPES || [])[0];
-        let html = '<div class="drop-tabs-content">';
+        const supportsInline = INLINE_ITEM_SUPPORTED.includes(drop.type);
+        const supportsFancy = !NO_FANCY_SUPPORT.includes(drop.type);
         
         if (!dropType || !dropType.fields) {
-            html += '<div class="alert alert-warning">Drop configuration not loaded. Please refresh the page.</div>';
-            html += '</div>';
-            return html;
+            return '<div class="alert alert-warning">Drop configuration not loaded.</div>';
         }
         
-        // Basic Tab
-        html += '<div class="drop-tab-content active" data-tab-content="basic">';
-        html += this.renderBasicTab(drop, dropType);
-        html += '</div>';
+        let html = '<div class="drop-config-v2">';
         
-        // Attributes Tab
-        html += '<div class="drop-tab-content" data-tab-content="attributes">';
-        html += this.renderAttributesTab(drop, dropType);
-        html += '</div>';
+        // Core fields row - always visible, compact
+        html += this.renderCoreFieldsRow(drop, dropType);
         
-        // Inline Tab
-        html += '<div class="drop-tab-content" data-tab-content="inline">';
-        html += this.renderInlineTab(drop, dropType);
-        html += '</div>';
+        // Type-specific options (if any attributes exist) - collapsible, start EXPANDED
+        if (dropType.attributes && dropType.attributes.length > 0) {
+            html += this.renderOptionsAccordion(drop, dropType, 'type-options', 
+                `<i class="fas fa-sliders-h"></i> ${dropType.name} Options`, 
+                dropType.attributes, 'attributes', '', true);
+        }
         
-        // Fancy Tab
-        html += '<div class="drop-tab-content" data-tab-content="fancy">';
-        html += this.renderFancyTab(drop, dropType);
-        html += '</div>';
+        // Item Styling section (only for items) - collapsible
+        if (supportsInline && window.INLINE_ITEM_ATTRIBUTES) {
+            const allInlineAttrs = INLINE_ITEM_ATTRIBUTES.flatMap(c => c.attributes);
+            html += this.renderOptionsAccordion(drop, dropType, 'styling', 
+                `<i class="fas fa-palette"></i> Item Styling`, 
+                allInlineAttrs, 'inlineAttributes', 'name, lore, enchants');
+        }
+        
+        // Visual Effects section (only for item type)
+        if (supportsFancy && drop.type === 'item' && window.FANCY_DROP_ATTRIBUTES) {
+            const allFancyAttrs = FANCY_DROP_ATTRIBUTES.flatMap(c => c.attributes);
+            html += this.renderOptionsAccordion(drop, dropType, 'effects', 
+                `<i class="fas fa-sparkles"></i> Visual Effects`, 
+                allFancyAttrs, 'fancyAttributes', 'lootsplosion, glow');
+        }
         
         html += '</div>';
         return html;
     }
     
-    renderBasicTab(drop, dropType) {
-        let html = '<div class="config-section">';
-        html += '<h4><i class="fas fa-sliders"></i> Basic Configuration</h4>';
+    renderCoreFieldsRow(drop, dropType) {
+        let html = '<div class="core-row">';
         
+        // Primary field first (like mob type for mythicmob)
+        if (dropType.basicFields && dropType.basicFields.length > 0) {
+            dropType.basicFields.forEach(field => {
+                const value = drop.attributes && drop.attributes[field.name];
+                html += this.renderCoreField(field, value, 'attributes', true);
+            });
+        }
+        
+        // Main fields (item selector, amount, chance)
         dropType.fields.forEach(field => {
             const value = field.name === 'amount' ? drop.amount : 
                          field.name === 'chance' ? drop.chance :
                          field.name === 'table' ? drop.table :
                          drop.item;
             
-            html += this.renderField(field, value);
+            html += this.renderCoreField(field, value, null, field.required);
         });
         
-        // Render basicFields (e.g., mob type for mythicmob drops)
-        if (dropType.basicFields && dropType.basicFields.length > 0) {
-            dropType.basicFields.forEach(field => {
-                const value = drop.attributes && drop.attributes[field.name];
-                html += this.renderField(field, value, 'attributes');
-            });
-        }
-        
         html += '</div>';
         return html;
     }
     
-    renderAttributesTab(drop, dropType) {
-        let html = '<div class="config-section">';
+    renderCoreField(field, value, namespace = null, isRequired = false) {
+        const fieldId = namespace ? `drop-${namespace}-${field.name}` : `drop-${field.name}`;
+        const dataAttr = namespace ? `data-namespace="${namespace}"` : '';
         
-        if (dropType.attributes && dropType.attributes.length > 0) {
-            html += `<h4><i class="fas fa-cogs"></i> ${dropType.name} Attributes</h4>`;
-            html += '<p class="help-text">Type-specific configuration options</p>';
-            
-            dropType.attributes.forEach(attr => {
-                const value = drop.attributes[attr.name];
-                html += this.renderField(attr, value, 'attributes');
-            });
-        } else {
-            html += '<div class="empty-state">No type-specific attributes for this drop type.</div>';
+        // Width class based on field importance
+        let widthClass = 'core-field';
+        if (field.name === 'amount' || field.name === 'chance') {
+            widthClass = 'core-field narrow';
+        } else if (field.name === 'item' || field.name === 'command' || field.name === 'table' || field.name === 'type' || field.name === 'variable') {
+            widthClass = 'core-field wide';
         }
         
-        html += '</div>';
-        return html;
-    }
-    
-    renderInlineTab(drop, dropType) {
-        let html = '<div class="config-section">';
-        html += '<h4><i class="fas fa-tags"></i> Inline Item Attributes</h4>';
-        html += '<p class="help-text">Item-specific attributes like enchantments, lore, etc.</p>';
+        let html = `<div class="${widthClass}" ${dataAttr} data-field="${field.name}">`;
+        html += `<label>${field.label}${isRequired ? '<span class="req">*</span>' : ''}</label>`;
         
-        if (window.INLINE_ITEM_ATTRIBUTES && INLINE_ITEM_ATTRIBUTES.length > 0) {
-            INLINE_ITEM_ATTRIBUTES.forEach(category => {
-                html += `<div class="attribute-category"><strong>${category.category}</strong></div>`;
-                category.attributes.forEach(attr => {
-                    const value = drop.inlineAttributes[attr.name];
-                    html += this.renderField(attr, value, 'inlineAttributes');
-                });
-            });
-        } else {
-            html += '<div class="empty-state">Inline attributes not loaded.</div>';
-        }
-        
-        html += '</div>';
-        return html;
-    }
-    
-    renderFancyTab(drop, dropType) {
-        let html = '<div class="config-section">';
-        html += '<h4><i class="fas fa-sparkles"></i> Fancy Drop Attributes</h4>';
-        
-        // Check if this drop type supports fancy attributes
-        const supportsFancy = INLINE_FANCY_SUPPORTED.includes(drop.type);
-        const noFancy = NO_FANCY_SUPPORT.includes(drop.type);
-        
-        if (noFancy) {
-            html += '<div class="alert alert-warning">';
-            html += '<i class="fas fa-exclamation-triangle"></i> ';
-            html += `This drop type (${dropType.name}) does not support fancy attributes.`;
-            html += '</div>';
-        } else {
-            if (!supportsFancy) {
-                html += '<div class="alert alert-info">';
-                html += '<i class="fas fa-info-circle"></i> ';
-                html += 'Some fancy attributes may not work with this drop type.';
-                html += '</div>';
-            }
+        // Special handling for item field with dropdown
+        if (field.name === 'item' && !namespace) {
+            html += `<div class="item-combo">`;
+            html += `<div id="${fieldId}" class="item-dropdown-slot"></div>`;
+            html += `<input type="text" class="core-input sub" id="${fieldId}-custom" 
+                    value="${value || ''}" placeholder="or type custom...">`;
+            html += `</div>`;
             
-            html += '<p class="help-text">Visual effects and special behaviors (requires DropMethod: FANCY at mob level)</p>';
-            
-            if (window.FANCY_DROP_ATTRIBUTES && FANCY_DROP_ATTRIBUTES.length > 0) {
-                FANCY_DROP_ATTRIBUTES.forEach(category => {
-                    html += `<div class="attribute-category"><strong>${category.category}</strong></div>`;
-                    category.attributes.forEach(attr => {
-                        const value = drop.fancyAttributes[attr.name];
-                        html += this.renderField(attr, value, 'fancyAttributes');
-                    });
-                });
-            } else {
-                html += '<div class="empty-state">Fancy attributes not loaded.</div>';
+            this._pendingItemDropdown = {
+                containerId: fieldId,
+                value: value,
+                customInputId: `${fieldId}-custom`
+            };
+        } else {
+            switch(field.type) {
+                case 'number':
+                    html += `<input type="number" class="core-input" id="${fieldId}" 
+                            value="${value !== undefined && value !== '' ? value : (field.default || '')}" 
+                            placeholder="${field.placeholder || ''}"
+                            ${field.min !== undefined ? `min="${field.min}"` : ''}
+                            ${field.max !== undefined ? `max="${field.max}"` : ''}
+                            ${field.step !== undefined ? `step="${field.step}"` : ''}>`;
+                    break;
+                case 'boolean':
+                    html += `<label class="core-toggle">
+                            <input type="checkbox" id="${fieldId}" ${value ? 'checked' : ''}>
+                            <span class="toggle-track"></span>
+                        </label>`;
+                    break;
+                default:
+                    html += `<input type="text" class="core-input" id="${fieldId}" 
+                            value="${value || ''}" placeholder="${field.placeholder || ''}">`;
             }
         }
         
         html += '</div>';
         return html;
     }
+    
+    renderOptionsAccordion(drop, dropType, sectionId, title, attributes, namespace, subtitle = '', startExpanded = false) {
+        const hasValues = attributes.some(attr => {
+            const val = namespace === 'attributes' ? drop.attributes?.[attr.name] :
+                       namespace === 'inlineAttributes' ? drop.inlineAttributes?.[attr.name] :
+                       drop.fancyAttributes?.[attr.name];
+            return val !== undefined && val !== '' && val !== false;
+        });
+        
+        // Start expanded if has values OR if explicitly requested
+        const isExpanded = hasValues || startExpanded;
+        
+        let html = `
+            <div class="accordion ${hasValues ? 'has-values' : ''} ${isExpanded ? 'expanded' : ''}" data-section="${sectionId}">
+                <div class="accordion-header">
+                    <div class="accordion-title">
+                        ${title}
+                        ${subtitle ? `<small>${subtitle}</small>` : ''}
+                        ${hasValues ? '<span class="has-data-badge">●</span>' : ''}
+                    </div>
+                    <i class="fas fa-chevron-down accordion-arrow"></i>
+                </div>
+                <div class="accordion-body">
+                    <div class="options-flow">
+        `;
+        
+        attributes.forEach(attr => {
+            const value = namespace === 'attributes' ? drop.attributes?.[attr.name] :
+                         namespace === 'inlineAttributes' ? drop.inlineAttributes?.[attr.name] :
+                         drop.fancyAttributes?.[attr.name];
+            html += this.renderOptionItem(attr, value, namespace);
+        });
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+        return html;
+    }
+    
+    renderOptionItem(attr, value, namespace) {
+        const fieldId = `drop-${namespace}-${attr.name}`;
+        
+        // Boolean fields render differently
+        if (attr.type === 'boolean') {
+            return `
+                <div class="option-item toggle-item" data-namespace="${namespace}" data-field="${attr.name}">
+                    <span class="option-name">${attr.label}</span>
+                    <label class="core-toggle">
+                        <input type="checkbox" id="${fieldId}" ${value ? 'checked' : ''}>
+                        <span class="toggle-track"></span>
+                    </label>
+                </div>
+            `;
+        }
+        
+        let inputHtml;
+        if (attr.type === 'textarea') {
+            inputHtml = `<textarea class="option-input" id="${fieldId}" rows="1" 
+                        placeholder="${attr.placeholder || ''}">${value || ''}</textarea>`;
+        } else if (attr.type === 'number') {
+            inputHtml = `<input type="number" class="option-input" id="${fieldId}" 
+                        value="${value || ''}" placeholder="${attr.placeholder || ''}"
+                        ${attr.min !== undefined ? `min="${attr.min}"` : ''}
+                        ${attr.max !== undefined ? `max="${attr.max}"` : ''}>`;
+        } else {
+            inputHtml = `<input type="text" class="option-input" id="${fieldId}" 
+                        value="${value || ''}" placeholder="${attr.placeholder || ''}">`;
+        }
+        
+        return `
+            <div class="option-item" data-namespace="${namespace}" data-field="${attr.name}">
+                <label>${attr.label}${attr.required ? '<span class="req">*</span>' : ''}</label>
+                ${inputHtml}
+            </div>
+        `;
+    }
+
+    // Legacy compatibility methods
+    renderConfigTab(drop, dropType) { return this.renderDropContent(drop); }
+    renderCompactField(field, value, namespace, isPrimary) { return this.renderCoreField(field, value, namespace, isPrimary); }
+    renderBasicTab(drop, dropType) { return ''; }
+    renderBasicField(field, value, namespace) { return this.renderCoreField(field, value, namespace); }
+    renderAttributesTab(drop, dropType) { return ''; }
+    renderInlineTab(drop, dropType) { return ''; }
+    renderFancyTab(drop, dropType) { return ''; }
     
     generateYAMLPreview(drop, dropType) {
-        // Handle different drop types differently
-        let yaml = '  - ';
+        // MythicMobs drop format: - type{key=value;key=value} amount chance
+        // No space between type and curly braces, semicolon separator inside braces
+        
+        let yaml = '- ';
+        const amount = drop.amount || '1';
+        const chance = drop.chance || '1';
+        
+        // Collect all attributes for this drop type
+        const collectAttrs = (obj, skipKeys = []) => {
+            const attrs = [];
+            if (obj) {
+                Object.entries(obj).forEach(([key, value]) => {
+                    if (skipKeys.includes(key)) return;
+                    if (value === '' || value === false || value === null || value === undefined) return;
+                    
+                    // Handle attribute key name mapping for shorthand
+                    let attrKey = key;
+                    if (key === 'onSurface') attrKey = 'os';
+                    if (key === 'yRadiusUpOnly') attrKey = 'yro';
+                    if (key === 'ascaster') attrKey = 'ac';
+                    if (key === 'astrigger') attrKey = 'at';
+                    if (key === 'asop') attrKey = 'op';
+                    if (key === 'sendmessage') attrKey = 'sm';
+                    if (key === 'unidentified') attrKey = 'u';
+                    
+                    if (typeof value === 'boolean') {
+                        attrs.push(`${attrKey}=true`);
+                    } else if (typeof value === 'string' && value.includes('\n')) {
+                        attrs.push(`${attrKey}=${value.split('\n').join('|')}`);
+                    } else {
+                        attrs.push(`${attrKey}=${value}`);
+                    }
+                });
+            }
+            return attrs;
+        };
         
         switch(drop.type) {
-            case 'item':
-                // Format: - ITEM_NAME AMOUNT CHANCE {attributes}
-                yaml += drop.item || '???';
-                yaml += ` ${drop.amount || '1'}`;
-                yaml += ` ${drop.chance || '1.0'}`;
+            case 'item': {
+                // Format: - ITEM_NAME{attrs} amount chance
+                const item = drop.item || '???';
+                const attrs = [
+                    ...collectAttrs(drop.attributes),
+                    ...collectAttrs(drop.inlineAttributes),
+                    ...collectAttrs(drop.fancyAttributes)
+                ];
+                yaml += item;
+                if (attrs.length > 0) yaml += `{${attrs.join(';')}}`;
+                yaml += ` ${amount} ${chance}`;
                 break;
-                
-            case 'mythicmob':
-                // Format: - mythicmob MOB_TYPE AMOUNT CHANCE {attributes}
+            }
+            
+            case 'mythicmob': {
+                // Format: - mythicmob{type=MOB;level=5;os=true} amount chance
                 const mobType = drop.attributes?.type || '???';
-                yaml += `mythicmob ${mobType}`;
-                yaml += ` ${drop.amount || '1'}`;
-                yaml += ` ${drop.chance || '1.0'}`;
+                const attrs = [`type=${mobType}`, ...collectAttrs(drop.attributes, ['type'])];
+                yaml += `mythicmob{${attrs.join(';')}}`;
+                yaml += ` ${amount} ${chance}`;
                 break;
-                
+            }
+            
             case 'exp':
-                // Format: - exp AMOUNT CHANCE
-                yaml += `exp ${drop.amount || '10'}`;
-                yaml += ` ${drop.chance || '1.0'}`;
-                return yaml;
+                // Format: - exp amount chance
+                yaml += `exp ${amount} ${chance}`;
+                break;
                 
             case 'mcmmo-exp':
-                // Format: - mcmmo-exp AMOUNT CHANCE
-                yaml += `mcmmo-exp ${drop.amount || '20'}`;
-                yaml += ` ${drop.chance || '1.0'}`;
-                return yaml;
-                
-            case 'money':
-                // Format: - money AMOUNT CHANCE {sendmessage=...}
-                yaml += `money ${drop.amount || '100'}`;
-                yaml += ` ${drop.chance || '1.0'}`;
+                // Format: - mcmmo-exp amount chance
+                yaml += `mcmmo-exp ${amount} ${chance}`;
                 break;
                 
-            case 'command':
-                // Format: - cmd{c="COMMAND";ascaster=true} AMOUNT CHANCE
+            case 'money': {
+                // Format: - money{sm=false} amount chance
+                const attrs = collectAttrs(drop.attributes);
+                yaml += 'money';
+                if (attrs.length > 0) yaml += `{${attrs.join(';')}}`;
+                yaml += ` ${amount} ${chance}`;
+                break;
+            }
+            
+            case 'command': {
+                // Format: - cmd{c="COMMAND";ac=true} amount chance
                 const cmd = drop.attributes?.command || '???';
-                yaml += `cmd{c="${cmd}"`;
-                // Add command-specific attributes
-                if (drop.attributes?.ascaster) yaml += `;ascaster=true`;
-                if (drop.attributes?.astrigger) yaml += `;astrigger=true`;
-                if (drop.attributes?.asop) yaml += `;asop=true`;
-                yaml += '}';
-                yaml += ` ${drop.amount || '1'}`;
-                yaml += ` ${drop.chance || '1.0'}`;
-                return yaml;
-                
-            case 'mmoitems':
-                // Format: - mmoitems{type=TYPE;id=ID} AMOUNT CHANCE
+                const attrs = [`c="${cmd}"`, ...collectAttrs(drop.attributes, ['command'])];
+                yaml += `cmd{${attrs.join(';')}}`;
+                yaml += ` ${amount} ${chance}`;
+                break;
+            }
+            
+            case 'mmoitems': {
+                // Format: - mmoitems{type=TYPE;id=ID;u=true} amount chance
                 const mmoType = drop.attributes?.type || 'SWORD';
                 const mmoId = drop.attributes?.id || 'EXAMPLE_ITEM';
-                yaml += `mmoitems{type=${mmoType};id=${mmoId}`;
-                if (drop.attributes?.unidentified) {
-                    yaml += `;unidentified=${drop.attributes.unidentified}`;
-                }
-                yaml += '}';
-                yaml += ` ${drop.amount || '1'}`;
-                yaml += ` ${drop.chance || '1.0'}`;
-                return yaml;
-                
-            case 'vanillaLootTable':
-                // Format: - vanillaLootTable TABLE_NAME AMOUNT CHANCE
+                const attrs = [`type=${mmoType}`, `id=${mmoId}`, ...collectAttrs(drop.attributes, ['type', 'id'])];
+                yaml += `mmoitems{${attrs.join(';')}}`;
+                yaml += ` ${amount} ${chance}`;
+                break;
+            }
+            
+            case 'vanillaLootTable': {
+                // Format: - vanillaLootTable{table=minecraft:chests/simple_dungeon} amount chance
                 const table = drop.table || 'minecraft:chests/simple_dungeon';
-                yaml += `vanillaLootTable ${table}`;
-                yaml += ` ${drop.amount || '1'}`;
-                yaml += ` ${drop.chance || '1.0'}`;
-                return yaml;
-                
-            case 'itemvariable':
-                // Format: - itemvariable{variable=caster.storeditem} AMOUNT CHANCE
+                yaml += `vanillaLootTable{table=${table}}`;
+                yaml += ` ${amount} ${chance}`;
+                break;
+            }
+            
+            case 'itemvariable': {
+                // Format: - itemvariable{var=caster.storeditem} amount chance
                 const varName = drop.attributes?.variable || 'caster.storeditem';
-                yaml += `itemvariable{variable=${varName}}`;
-                yaml += ` ${drop.amount || '1'}`;
-                yaml += ` ${drop.chance || '1.0'}`;
-                return yaml;
-                
+                yaml += `itemvariable{var=${varName}}`;
+                yaml += ` ${amount} ${chance}`;
+                break;
+            }
+            
             case 'nothing':
-                // Format: - nothing CHANCE
-                yaml += 'nothing';
-                yaml += ` ${drop.chance || '1.0'}`;
-                return yaml;
+                // Format: - nothing chance
+                yaml += `nothing ${chance}`;
+                break;
                 
-            case 'droptable':
-                // Format: - droptable{table=TableName} AMOUNT CHANCE
+            case 'droptable': {
+                // Format: - droptable{table=TableName} amount chance
                 const dropTableName = drop.table || drop.item || 'TableName';
                 yaml += `droptable{table=${dropTableName}}`;
-                yaml += ` ${drop.amount || '1'}`;
-                yaml += ` ${drop.chance || '1.0'}`;
-                return yaml;
-                
-            default:
-                yaml += drop.item || drop.type || '???';
-                yaml += ` ${drop.amount || '1'}`;
-                yaml += ` ${drop.chance || '1.0'}`;
-        }
-        
-        // Collect all attributes (for item, mythicmob, and money types)
-        const attrs = [];
-        
-        // For mythicmob, add non-type attributes (level, radius, etc.)
-        if (drop.type === 'mythicmob' && drop.attributes) {
-            Object.entries(drop.attributes).forEach(([key, value]) => {
-                // Skip 'type' (already in main syntax) and 'amount' (handled separately)
-                if (key !== 'type' && key !== 'amount' && value !== '' && value !== false && value !== null && value !== undefined) {
-                    if (typeof value === 'boolean') {
-                        if (value) attrs.push(key);
-                    } else {
-                        attrs.push(`${key}=${value}`);
-                    }
-                }
-            });
-        }
-        
-        // For money type, add sendmessage if not true (true is default)
-        if (drop.type === 'money' && drop.attributes?.sendmessage !== undefined) {
-            if (!drop.attributes.sendmessage) {
-                attrs.push('sendmessage=false');
+                yaml += ` ${amount} ${chance}`;
+                break;
             }
-        }
-        
-        // For item type, handle type-specific attributes
-        if (drop.type === 'item' && drop.attributes) {
-            Object.entries(drop.attributes).forEach(([key, value]) => {
-                if (value !== '' && value !== false && value !== null && value !== undefined) {
-                    if (typeof value === 'boolean') {
-                        if (value) attrs.push(key);
-                    } else {
-                        attrs.push(`${key}=${value}`);
-                    }
-                }
-            });
-        }
-        
-        // Inline attributes (for item type)
-        if (drop.inlineAttributes) {
-            Object.entries(drop.inlineAttributes).forEach(([key, value]) => {
-                if (value !== '' && value !== false && value !== null && value !== undefined) {
-                    if (typeof value === 'boolean') {
-                        if (value) attrs.push(key);
-                    } else {
-                        // Handle multiline values
-                        if (typeof value === 'string' && value.includes('\n')) {
-                            attrs.push(`${key}=${value.split('\n').join('|')}`);
-                        } else {
-                            attrs.push(`${key}=${value}`);
-                        }
-                    }
-                }
-            });
-        }
-        
-        // Fancy attributes
-        if (drop.fancyAttributes) {
-            Object.entries(drop.fancyAttributes).forEach(([key, value]) => {
-                if (value !== '' && value !== false && value !== null && value !== undefined) {
-                    if (typeof value === 'boolean') {
-                        if (value) attrs.push(key);
-                    } else {
-                        attrs.push(`${key}=${value}`);
-                    }
-                }
-            });
-        }
-        
-        // Add attributes to YAML
-        if (attrs.length > 0) {
-            yaml += ` {${attrs.join(',')}}`;
+            
+            default: {
+                const item = drop.item || drop.type || '???';
+                yaml += `${item} ${amount} ${chance}`;
+            }
         }
         
         return yaml;
@@ -722,14 +738,16 @@ class MobDropsEditor {
         modal.querySelector('#close-mobdrop-editor')?.addEventListener('click', () => modal.remove());
         modal.querySelector('#cancel-mobdrop-btn')?.addEventListener('click', () => modal.remove());
         
-        // Drop type cards
-        modal.querySelectorAll('.drop-type-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const typeId = card.dataset.type;
+        // Drop type chips (v2 selector) - support both old and new class names
+        modal.querySelectorAll('.drop-chip, .drop-type-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const typeId = chip.dataset.type;
                 
-                // Update selection
-                modal.querySelectorAll('.drop-type-card').forEach(c => c.classList.remove('selected'));
-                card.classList.add('selected');
+                // Update selection (support both class names)
+                modal.querySelectorAll('.drop-chip, .drop-type-chip').forEach(c => {
+                    c.classList.remove('active', 'selected');
+                });
+                chip.classList.add('active');
                 
                 // Update hidden input
                 const typeSelect = modal.querySelector('#mobdrop-type-select');
@@ -738,25 +756,32 @@ class MobDropsEditor {
                 // Update drop type
                 drop.type = typeId;
                 
-                // Re-render configuration tabs
+                // Re-render content
                 const container = modal.querySelector('#drop-config-container');
-                container.innerHTML = this.renderDropConfigurationTabs(drop);
+                if (container) {
+                    container.innerHTML = this.renderDropContent(drop);
+                }
                 
                 // Re-attach listeners
                 this.attachFieldListeners(modal);
-                this.attachTabListeners(modal, drop);
+                this.attachAccordionListeners(modal);
                 this.attachLivePreviewListeners(modal);
+                
+                // Initialize item dropdown if item type
+                if (typeId === 'item') {
+                    setTimeout(() => this.initializeItemDropdown(), 50);
+                }
                 
                 // Update preview immediately
                 this.updatePersistentPreview(modal);
             });
         });
         
-        // Tab switching
-        this.attachTabListeners(modal, drop);
-        
         // Field listeners
         this.attachFieldListeners(modal);
+        
+        // Accordion listeners (v2 collapsible sections)
+        this.attachAccordionListeners(modal);
         
         // Live preview updates
         this.attachLivePreviewListeners(modal);
@@ -765,14 +790,13 @@ class MobDropsEditor {
         const copyBtn = modal.querySelector('#copy-yaml-btn');
         if (copyBtn) {
             copyBtn.addEventListener('click', () => {
-                const yamlPreview = modal.querySelector('.yaml-preview code');
-                if (yamlPreview) {
-                    const text = yamlPreview.textContent;
-                    navigator.clipboard.writeText(text).then(() => {
-                        copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                const yamlCode = modal.querySelector('#yaml-preview-code');
+                if (yamlCode) {
+                    navigator.clipboard.writeText(yamlCode.textContent).then(() => {
+                        copyBtn.innerHTML = '<i class="fas fa-check"></i>';
                         setTimeout(() => {
-                            copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
-                        }, 2000);
+                            copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+                        }, 1500);
                     });
                 }
             });
@@ -847,10 +871,11 @@ class MobDropsEditor {
                 // Update breadcrumb
                 const breadcrumbText = modal.querySelector('#drop-breadcrumb-text');
                 const tabNames = {
-                    'basic': 'Basic Configuration',
+                    'config': 'Configuration',
+                    'basic': 'Configuration',
                     'attributes': 'Type Attributes',
-                    'inline': 'Inline Attributes',
-                    'fancy': 'Fancy Attributes'
+                    'inline': 'Item Styling',
+                    'fancy': 'Visual Effects'
                 };
                 if (breadcrumbText) {
                     breadcrumbText.textContent = tabNames[tabName] || 'Configuration';
@@ -863,9 +888,10 @@ class MobDropsEditor {
     }
     
     updatePersistentPreview(modal) {
-        const currentDrop = this.collectDropData(modal);
-        const dropType = DROP_TYPES.find(t => t.id === currentDrop.type);
-        const yaml = this.generateYAMLPreview(currentDrop, dropType);
+        // Use the current editing drop for preview
+        const drop = this._currentEditingDrop || this.collectDropData(modal);
+        const dropType = DROP_TYPES.find(t => t.id === drop.type);
+        const yaml = this.generateYAMLPreview(drop, dropType);
         
         const yamlPreview = modal.querySelector('#yaml-preview-code');
         if (yamlPreview) {
@@ -874,6 +900,7 @@ class MobDropsEditor {
     }
     
     attachCollapsibleListeners(modal) {
+        // Old collapsible trigger pattern
         modal.querySelectorAll('.collapsible-trigger').forEach(trigger => {
             trigger.addEventListener('click', () => {
                 const content = trigger.nextElementSibling;
@@ -885,6 +912,32 @@ class MobDropsEditor {
                 } else {
                     content.style.display = 'none';
                     icon.style.transform = 'rotate(0deg)';
+                }
+            });
+        });
+        
+        // New config section header pattern
+        modal.querySelectorAll('.config-section-header[data-collapsible]').forEach(header => {
+            header.addEventListener('click', () => {
+                const sectionId = header.dataset.collapsible;
+                const body = modal.querySelector(`#${sectionId}-section-body`);
+                const indicator = header.querySelector('.collapse-indicator');
+                
+                if (body) {
+                    body.classList.toggle('hidden');
+                    header.classList.toggle('collapsed');
+                }
+            });
+        });
+    }
+    
+    // V2 accordion listeners for new design
+    attachAccordionListeners(modal) {
+        modal.querySelectorAll('.accordion-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const accordion = header.closest('.accordion');
+                if (accordion) {
+                    accordion.classList.toggle('expanded');
                 }
             });
         });
@@ -920,17 +973,14 @@ class MobDropsEditor {
         const itemSelect = modal.querySelector('#drop-item');
         const itemCustom = modal.querySelector('#drop-item-custom');
         
-        if (itemSelect && itemCustom) {
-            itemSelect.addEventListener('change', (e) => {
-                if (e.target.value) {
-                    itemCustom.value = '';
-                }
-            });
-            
+        if (itemCustom) {
             itemCustom.addEventListener('input', (e) => {
-                if (e.target.value.trim()) {
-                    itemSelect.value = '';
+                const value = e.target.value.trim();
+                if (value && this._currentEditingDrop) {
+                    this._currentEditingDrop.item = value;
                 }
+                // Update preview immediately
+                this.updatePersistentPreview(modal);
             });
         }
     }
@@ -945,8 +995,37 @@ class MobDropsEditor {
             const updatePreview = () => {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
+                    // Sync core fields to _currentEditingDrop
+                    if (this._currentEditingDrop) {
+                        const amountInput = modal.querySelector('#drop-amount');
+                        const chanceInput = modal.querySelector('#drop-chance');
+                        const tableInput = modal.querySelector('#drop-table');
+                        const itemCustom = modal.querySelector('#drop-item-custom');
+                        
+                        if (amountInput) this._currentEditingDrop.amount = amountInput.value;
+                        if (chanceInput) this._currentEditingDrop.chance = chanceInput.value;
+                        if (tableInput) this._currentEditingDrop.table = tableInput.value;
+                        if (itemCustom && itemCustom.value.trim()) {
+                            this._currentEditingDrop.item = itemCustom.value.trim();
+                        }
+                        
+                        // Sync attributes
+                        modal.querySelectorAll('[data-namespace="attributes"]').forEach(group => {
+                            const fieldName = group.dataset.field;
+                            const inp = group.querySelector('input, select, textarea');
+                            if (inp) {
+                                const value = inp.type === 'checkbox' ? inp.checked : inp.value;
+                                if (value !== '' && value !== false) {
+                                    this._currentEditingDrop.attributes[fieldName] = value;
+                                } else {
+                                    delete this._currentEditingDrop.attributes[fieldName];
+                                }
+                            }
+                        });
+                    }
+                    
                     this.updatePersistentPreview(modal);
-                }, 300); // 300ms debounce
+                }, 150);
             };
             
             if (input.type === 'checkbox') {
@@ -957,9 +1036,9 @@ class MobDropsEditor {
         });
         
         // Also update on drop type change
-        modal.querySelectorAll('.drop-type-card').forEach(card => {
-            const originalHandler = card.onclick;
-            card.addEventListener('click', () => {
+        modal.querySelectorAll('.drop-type-chip').forEach(chip => {
+            const originalHandler = chip.onclick;
+            chip.addEventListener('click', () => {
                 setTimeout(() => {
                     this.updatePersistentPreview(modal);
                     // Re-attach live preview listeners to new inputs
@@ -983,16 +1062,21 @@ class MobDropsEditor {
             fancyAttributes: {}
         };
         
-        // Collect basic fields
+        // Collect basic fields (both old .form-group style and new .basic-field-card style)
         dropType.fields.forEach(field => {
             let input = modal.querySelector(`#drop-${field.name}`);
             
-            // For item field, check custom input if dropdown is empty
+            // For item field, check SearchableDropdown value or custom input
             if (field.name === 'item') {
                 const customInput = modal.querySelector(`#drop-${field.name}-custom`);
-                const selectValue = input ? input.value : '';
                 const customValue = customInput ? customInput.value.trim() : '';
-                const value = customValue || selectValue;
+                // Try to get value from SearchableDropdown instance
+                let dropdownValue = '';
+                if (this._currentEditingDrop?.item) {
+                    dropdownValue = this._currentEditingDrop.item;
+                }
+                // Custom input takes priority if filled
+                const value = customValue || dropdownValue;
                 newDrop.item = value;
                 return;
             }
@@ -1012,7 +1096,7 @@ class MobDropsEditor {
             }
         });
         
-        // Collect attributes
+        // Collect attributes (from both .form-group and .basic-field-card with namespace)
         modal.querySelectorAll('[data-namespace="attributes"]').forEach(group => {
             const fieldName = group.dataset.field;
             const input = group.querySelector('input, select, textarea');
@@ -1024,7 +1108,7 @@ class MobDropsEditor {
             }
         });
         
-        // Collect inline attributes
+        // Collect inline attributes (from both .form-group and .inline-attr-card)
         modal.querySelectorAll('[data-namespace="inlineAttributes"]').forEach(group => {
             const fieldName = group.dataset.field;
             const input = group.querySelector('input, textarea');
@@ -1099,6 +1183,11 @@ class MobDropsEditor {
                 // Sync with custom input
                 if (customInput) {
                     customInput.value = itemName;
+                }
+                // Update the YAML preview
+                const modal = document.querySelector('.drop-editor-modal-v2')?.closest('.modal-overlay');
+                if (modal) {
+                    this.updatePersistentPreview(modal);
                 }
             },
             allowCustom: true

@@ -9,6 +9,15 @@ class ItemEditor {
     }
 
     /**
+     * Escape HTML special characters to prevent XSS
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    /**
      * Render the item editor with the given item data
      */
     render(item) {
@@ -839,60 +848,70 @@ class ItemEditor {
                 </div>
                 <div class="card-body collapsible-card-body">
                     
-                    <!-- Boolean Options -->
-                    <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, transparent 100%); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                            <span style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
-                                <i class="fas fa-toggle-on" style="color: #3b82f6;"></i>
-                                Toggle Settings
-                                <span style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${booleanOptions.length}</span>
-                            </span>
-                        </label>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; background: rgba(255, 255, 255, 0.5); padding: 12px; border-radius: 6px;">
+                    <!-- Boolean Options - Enhanced Toggle Grid -->
+                    <div class="item-options-section toggle-section">
+                        <div class="options-section-header">
+                            <div class="options-section-title">
+                                <i class="fas fa-toggle-on"></i>
+                                <span>Toggle Settings</span>
+                                <span class="options-count">${booleanOptions.length}</span>
+                            </div>
+                        </div>
+                        <div class="toggle-options-grid">
                             ${booleanOptions.map(opt => `
-                                <label class="checkbox-label-enhanced" title="${opt.description}">
+                                <label class="item-toggle-option" title="${opt.description}">
                                     <input 
                                         type="checkbox" 
                                         id="option-${opt.id}" 
+                                        class="item-toggle-input"
                                         ${options[opt.id] === true ? 'checked' : ''}
                                     >
-                                    <span class="checkbox-custom"></span>
-                                    <span class="checkbox-text">${opt.name}</span>
+                                    <span class="item-toggle-track">
+                                        <span class="item-toggle-thumb"></span>
+                                    </span>
+                                    <span class="item-toggle-content">
+                                        <span class="item-toggle-name">${opt.name}</span>
+                                        <span class="item-toggle-hint">${opt.description}</span>
+                                    </span>
                                 </label>
                             `).join('')}
                         </div>
                     </div>
 
-                    <!-- Number Options -->
-                    <div style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.05) 0%, transparent 100%); border: 1px solid rgba(249, 115, 22, 0.2); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-                        <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 16px;">
-                            <i class="fas fa-hashtag" style="color: #f97316;"></i>
-                            Numeric Settings
-                            <span style="background: rgba(249, 115, 22, 0.15); color: #f97316; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${numberOptions.length}</span>
-                        </label>
-                        <div class="grid-2" style="gap: 16px;">
+                    <!-- Number Options - Enhanced Cards -->
+                    <div class="item-options-section numeric-section">
+                        <div class="options-section-header">
+                            <div class="options-section-title">
+                                <i class="fas fa-hashtag"></i>
+                                <span>Numeric Settings</span>
+                                <span class="options-count">${numberOptions.length}</span>
+                            </div>
+                        </div>
+                        <div class="numeric-options-grid">
                             ${numberOptions.map(opt => `
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label for="option-${opt.id}" class="form-label" style="font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
-                                        <i class="fas fa-${opt.id === 'RepairCost' ? 'wrench' : 'layer-group'}" style="color: #f97316;"></i>
-                                        ${opt.name}
-                                    </label>
-                                    <input 
-                                        type="number" 
-                                        id="option-${opt.id}" 
-                                        class="form-input" 
-                                        value="${options[opt.id] !== undefined ? options[opt.id] : opt.default}"
-                                        min="${opt.min}"
-                                        ${opt.max ? `max="${opt.max}"` : ''}
-                                        style="font-weight: 600; font-size: 14px;"
-                                    >
-                                    <small class="form-hint" style="margin-top: 6px;">
-                                        <i class="fas fa-info-circle" style="color: #f97316; margin-right: 4px;"></i>
-                                        ${opt.description || ''}
-                                    </small>
+                                <div class="numeric-option-card">
+                                    <div class="numeric-option-header">
+                                        <i class="fas fa-${opt.id === 'RepairCost' ? 'wrench' : 'layer-group'}"></i>
+                                        <span class="numeric-option-name">${opt.name}</span>
+                                    </div>
+                                    <div class="numeric-option-input-wrapper">
+                                        <input 
+                                            type="number" 
+                                            id="option-${opt.id}" 
+                                            class="numeric-option-input" 
+                                            value="${options[opt.id] !== undefined ? options[opt.id] : opt.default}"
+                                            min="${opt.min}"
+                                            ${opt.max ? `max="${opt.max}"` : ''}
+                                        >
+                                        <span class="numeric-option-unit">${opt.id === 'StackSize' ? 'items' : 'cost'}</span>
+                                    </div>
+                                    <div class="numeric-option-description">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span>${opt.description || ''}</span>
+                                    </div>
                                     ${opt.warning ? `
-                                        <div style="background: #fff3cd; border-left: 3px solid #ffc107; padding: 10px 12px; margin-top: 10px; border-radius: 4px; font-size: 12px; color: #856404; display: flex; align-items: start; gap: 8px;">
-                                            <i class="fas fa-exclamation-triangle" style="color: #f59e0b; margin-top: 2px;"></i>
+                                        <div class="numeric-option-warning">
+                                            <i class="fas fa-exclamation-triangle"></i>
                                             <span>${opt.warning}</span>
                                         </div>
                                     ` : ''}
@@ -902,63 +921,67 @@ class ItemEditor {
                     </div>
 
                     <!-- Text Options (Collapsible) -->
-                    <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, transparent 100%); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; cursor: pointer;" id="text-options-toggle">
-                            <span style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
-                                <i class="fas fa-keyboard" style="color: #8b5cf6;"></i>
-                                Advanced Text Settings
-                                <span style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${textOptions.length}</span>
-                            </span>
-                            <i class="fas fa-chevron-down" id="text-options-chevron" style="color: #8b5cf6; transition: transform 0.2s;"></i>
-                        </label>
-                        <small class="form-hint" style="margin-bottom: 12px; display: block;">
-                            <i class="fas fa-info-circle" style="color: #8b5cf6; margin-right: 4px;"></i>
-                            Click to show/hide advanced options (rarely used)
-                        </small>
-                        <div id="text-options-content" style="display: none; margin-top: 12px;">
-                            <div class="grid-2" style="gap: 16px;">
+                    <div class="item-options-section text-section">
+                        <div class="options-section-header clickable" id="text-options-toggle">
+                            <div class="options-section-title">
+                                <i class="fas fa-keyboard"></i>
+                                <span>Advanced Text Settings</span>
+                                <span class="options-count">${textOptions.length}</span>
+                            </div>
+                            <div class="options-section-toggle">
+                                <span class="toggle-hint">Click to expand</span>
+                                <i class="fas fa-chevron-down" id="text-options-chevron"></i>
+                            </div>
+                        </div>
+                        <div id="text-options-content" class="text-options-content" style="display: none;">
+                            <div class="text-options-grid">
                                 ${textOptions.map(opt => `
-                                    <div class="form-group" id="option-${opt.id}-group" style="margin-bottom: 0;">
-                                        <label for="option-${opt.id}" class="form-label" style="font-size: 13px; font-weight: 500;">
-                                            <i class="fas fa-text-height" style="color: #8b5cf6; margin-right: 6px;"></i>
+                                    <div class="text-option-card" id="option-${opt.id}-group">
+                                        <label for="option-${opt.id}" class="text-option-label">
+                                            <i class="fas fa-font"></i>
                                             ${opt.name}
                                         </label>
                                         <input 
                                             type="text" 
                                             id="option-${opt.id}" 
-                                            class="form-input" 
+                                            class="text-option-input" 
                                             value="${options[opt.id] || ''}"
-                                            placeholder="Optional"
+                                            placeholder="Enter value..."
                                         >
-                                        <small class="form-hint" style="margin-top: 6px;">${opt.description}</small>
+                                        <small class="text-option-hint">${opt.description}</small>
                                     </div>
                                 `).join('')}
                             </div>
                         </div>
                     </div>
 
-                    <!-- Hide Flags -->
-                    <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, transparent 100%); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 16px;">
-                        <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 12px;">
-                            <i class="fas fa-eye-slash" style="color: #ef4444;"></i>
-                            Visibility Controls
-                            <span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">${hideFlags.length}</span>
-                        </label>
-                        <small class="form-hint" style="margin-bottom: 12px; display: block;">
-                            <i class="fas fa-info-circle" style="color: #ef4444; margin-right: 4px;"></i>
+                    <!-- Hide Flags - Enhanced -->
+                    <div class="item-options-section visibility-section">
+                        <div class="options-section-header">
+                            <div class="options-section-title">
+                                <i class="fas fa-eye-slash"></i>
+                                <span>Visibility Controls</span>
+                                <span class="options-count">${hideFlags.length}</span>
+                            </div>
+                        </div>
+                        <div class="options-section-description">
+                            <i class="fas fa-info-circle"></i>
                             Hide specific information from item tooltip
-                        </small>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; background: rgba(255, 255, 255, 0.5); padding: 12px; border-radius: 6px;">
+                        </div>
+                        <div class="visibility-options-grid">
                             ${hideFlags.map(flag => `
-                                <label class="checkbox-label-enhanced" title="${flag.description}">
+                                <label class="visibility-option" title="${flag.description}">
                                     <input 
                                         type="checkbox" 
-                                        class="hide-flag-checkbox" 
+                                        class="hide-flag-checkbox visibility-checkbox" 
                                         data-flag="${flag.id}"
                                         ${(item?.Hide || []).includes(flag.id) ? 'checked' : ''}
                                     >
-                                    <span class="checkbox-custom"></span>
-                                    <span class="checkbox-text">${flag.name}</span>
+                                    <span class="visibility-checkbox-custom">
+                                        <i class="fas fa-eye"></i>
+                                        <i class="fas fa-eye-slash"></i>
+                                    </span>
+                                    <span class="visibility-option-name">${flag.name}</span>
                                 </label>
                             `).join('')}
                         </div>
@@ -1294,48 +1317,151 @@ class ItemEditor {
     }
 
     /**
-     * NBT Section
+     * NBT Section - Enhanced with hierarchical support and templates
      */
     generateNBTSection(item) {
         const nbtTags = item?.NBT || {};
+        const tagCount = this.countNBTTags(nbtTags);
         
         return `
             <div class="card collapsible-card collapsed">
                 <div class="card-header collapsible-header">
                     <h3 class="card-title">
                         <i class="fas fa-code"></i> NBT Tags
-                        ${Object.keys(nbtTags).length > 0 ? `<span class="card-badge">${Object.keys(nbtTags).length}</span>` : ''}
+                        ${tagCount > 0 ? `<span class="card-badge">${tagCount}</span>` : ''}
                         <i class="fas fa-chevron-down collapse-icon"></i>
                     </h3>
                 </div>
                 <div class="card-body collapsible-card-body">
-                    <div class="nbt-editor">
-                        <div class="form-group">
-                            <label class="form-label">Custom NBT Tags</label>
-                            <small class="form-hint">Advanced: Use type prefixes (int:, str:, double:, etc.)</small>
-                            <div id="item-nbt-list" class="list-editor">
-                                ${Object.entries(nbtTags).map(([key, value], index) => `
-                                    <div class="list-item nbt-item" data-index="${index}">
-                                        <input 
-                                            type="text" 
-                                            class="form-input nbt-key" 
-                                            value="${key}"
-                                            placeholder="Tag name"
-                                        >
-                                        <input 
-                                            type="text" 
-                                            class="form-input nbt-value" 
-                                            value="${value}"
-                                            placeholder="Value (use prefix: int:10, str:text)"
-                                        >
-                                        <button type="button" class="btn-icon btn-danger remove-nbt" data-index="${index}">
-                                            <i class="fas fa-times"></i>
-                                        </button>
+                    <div class="nbt-editor-v2">
+                        <!-- Type Reference Card -->
+                        <div class="nbt-type-reference">
+                            <div class="nbt-type-header" data-toggle="nbt-types">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Type Prefixes Reference</span>
+                                <i class="fas fa-chevron-down nbt-type-toggle"></i>
+                            </div>
+                            <div class="nbt-type-content" id="nbt-types-content">
+                                <div class="nbt-type-grid">
+                                    <div class="nbt-type-item" data-type="int">
+                                        <span class="nbt-type-badge int"><i class="fas fa-hashtag"></i></span>
+                                        <div class="nbt-type-info">
+                                            <code>int/123</code>
+                                            <span>Integer (-2B to 2B)</span>
+                                        </div>
                                     </div>
-                                `).join('')}
-                                <button type="button" class="add-item-btn add-nbt-btn">
-                                    <i class="fas fa-plus-circle"></i>
-                                    <span>Add NBT Tag</span>
+                                    <div class="nbt-type-item" data-type="float">
+                                        <span class="nbt-type-badge float"><i class="fas fa-percentage"></i></span>
+                                        <div class="nbt-type-info">
+                                            <code>float/1.5</code>
+                                            <span>Float (decimals)</span>
+                                        </div>
+                                    </div>
+                                    <div class="nbt-type-item" data-type="double">
+                                        <span class="nbt-type-badge double"><i class="fas fa-divide"></i></span>
+                                        <div class="nbt-type-info">
+                                            <code>double/0.25</code>
+                                            <span>Double (precise)</span>
+                                        </div>
+                                    </div>
+                                    <div class="nbt-type-item" data-type="byte">
+                                        <span class="nbt-type-badge byte"><i class="fas fa-microchip"></i></span>
+                                        <div class="nbt-type-info">
+                                            <code>byte/1</code>
+                                            <span>Byte (-128 to 127)</span>
+                                        </div>
+                                    </div>
+                                    <div class="nbt-type-item" data-type="bool">
+                                        <span class="nbt-type-badge bool"><i class="fas fa-toggle-on"></i></span>
+                                        <div class="nbt-type-info">
+                                            <code>bool/true</code>
+                                            <span>Boolean (true/false)</span>
+                                        </div>
+                                    </div>
+                                    <div class="nbt-type-item" data-type="string">
+                                        <span class="nbt-type-badge string"><i class="fas fa-font"></i></span>
+                                        <div class="nbt-type-info">
+                                            <code>text</code>
+                                            <span>String (no prefix)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- NBT Tree Editor -->
+                        <div class="nbt-tree-container">
+                            <div class="nbt-tree-header">
+                                <div class="nbt-tree-title">
+                                    <i class="fas fa-sitemap"></i>
+                                    <span>NBT Structure</span>
+                                    ${tagCount > 0 ? `<span class="nbt-count-badge">${tagCount} tag${tagCount !== 1 ? 's' : ''}</span>` : ''}
+                                </div>
+                                <div class="nbt-tree-actions">
+                                    <button type="button" class="btn btn-sm btn-primary" id="add-nbt-root-tag" title="Add a simple key-value tag">
+                                        <i class="fas fa-plus"></i> Tag
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-secondary" id="add-nbt-root-group" title="Add a nested group for organizing tags">
+                                        <i class="fas fa-folder-plus"></i> Group
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline" id="add-nbt-root-array" title="Add an array of values">
+                                        <i class="fas fa-list"></i> Array
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="item-nbt-tree" class="nbt-tree">
+                                ${this.renderNBTTree(nbtTags)}
+                            </div>
+                        </div>
+                        
+                        <!-- Template Gallery -->
+                        <div class="nbt-template-gallery">
+                            <div class="nbt-template-header">
+                                <i class="fas fa-magic"></i>
+                                <span>Quick Templates</span>
+                            </div>
+                            <div class="nbt-template-grid">
+                                <button type="button" class="nbt-template-card" data-template="mythic_type" title="Identifies this as a MythicMobs item">
+                                    <div class="nbt-template-icon"><i class="fas fa-fingerprint"></i></div>
+                                    <div class="nbt-template-info">
+                                        <span class="nbt-template-name">MYTHIC_TYPE</span>
+                                        <span class="nbt-template-desc">Item identifier</span>
+                                    </div>
+                                </button>
+                                <button type="button" class="nbt-template-card" data-template="can_destroy" title="List of blocks this item can break in adventure mode">
+                                    <div class="nbt-template-icon"><i class="fas fa-hammer"></i></div>
+                                    <div class="nbt-template-info">
+                                        <span class="nbt-template-name">CanDestroy</span>
+                                        <span class="nbt-template-desc">Breakable blocks</span>
+                                    </div>
+                                </button>
+                                <button type="button" class="nbt-template-card" data-template="can_place" title="List of blocks this item can be placed on in adventure mode">
+                                    <div class="nbt-template-icon"><i class="fas fa-cube"></i></div>
+                                    <div class="nbt-template-info">
+                                        <span class="nbt-template-name">CanPlaceOn</span>
+                                        <span class="nbt-template-desc">Placeable blocks</span>
+                                    </div>
+                                </button>
+                                <button type="button" class="nbt-template-card" data-template="custom_stats" title="Nested structure for custom stat values">
+                                    <div class="nbt-template-icon"><i class="fas fa-chart-bar"></i></div>
+                                    <div class="nbt-template-info">
+                                        <span class="nbt-template-name">Custom Stats</span>
+                                        <span class="nbt-template-desc">Stat modifiers</span>
+                                    </div>
+                                </button>
+                                <button type="button" class="nbt-template-card" data-template="gem_slots" title="MMOItems-style gem slot structure">
+                                    <div class="nbt-template-icon"><i class="fas fa-gem"></i></div>
+                                    <div class="nbt-template-info">
+                                        <span class="nbt-template-name">Gem Slots</span>
+                                        <span class="nbt-template-desc">Socket system</span>
+                                    </div>
+                                </button>
+                                <button type="button" class="nbt-template-card" data-template="plugin_data" title="Common plugin integration tags">
+                                    <div class="nbt-template-icon"><i class="fas fa-plug"></i></div>
+                                    <div class="nbt-template-info">
+                                        <span class="nbt-template-name">Plugin Data</span>
+                                        <span class="nbt-template-desc">Integration tags</span>
+                                    </div>
                                 </button>
                             </div>
                         </div>
@@ -1344,44 +1470,223 @@ class ItemEditor {
             </div>
         `;
     }
+    
+    /**
+     * Count total NBT tags including nested
+     */
+    countNBTTags(obj, count = 0) {
+        for (const key in obj) {
+            if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+                count = this.countNBTTags(obj[key], count);
+            } else {
+                count++;
+            }
+        }
+        return count;
+    }
+    
+    /**
+     * Render NBT tree recursively with improved UI
+     */
+    renderNBTTree(nbtObj, path = '', depth = 0) {
+        if (!nbtObj || Object.keys(nbtObj).length === 0) {
+            return `
+                <div class="nbt-empty-state">
+                    <div class="nbt-empty-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <h4>No NBT Tags</h4>
+                    <p>Add tags manually or use a template below</p>
+                </div>
+            `;
+        }
+        
+        let html = '';
+        const entries = Object.entries(nbtObj);
+        
+        entries.forEach(([key, value], index) => {
+            const currentPath = path ? `${path}.${key}` : key;
+            const isObject = typeof value === 'object' && value !== null && !Array.isArray(value);
+            const isArray = Array.isArray(value);
+            const isLast = index === entries.length - 1;
+            
+            if (isObject) {
+                // Nested group (compound)
+                const childCount = Object.keys(value).length;
+                html += `
+                    <div class="nbt-node nbt-group ${isLast ? 'last' : ''}" data-path="${currentPath}" data-depth="${depth}">
+                        <div class="nbt-node-row">
+                            <button type="button" class="nbt-expand-btn expanded" title="Collapse">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                            <div class="nbt-type-badge folder"><i class="fas fa-folder-open"></i></div>
+                            <input type="text" class="nbt-key-input" value="${this.escapeHtml(key)}" placeholder="Group name" data-path="${currentPath}">
+                            <span class="nbt-child-count">${childCount} item${childCount !== 1 ? 's' : ''}</span>
+                            <div class="nbt-node-actions">
+                                <button type="button" class="btn-icon nbt-add-child" data-path="${currentPath}" title="Add tag">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <button type="button" class="btn-icon nbt-add-child-group" data-path="${currentPath}" title="Add group">
+                                    <i class="fas fa-folder-plus"></i>
+                                </button>
+                                <button type="button" class="btn-icon nbt-add-child-array" data-path="${currentPath}" title="Add array">
+                                    <i class="fas fa-list"></i>
+                                </button>
+                                <button type="button" class="btn-icon btn-danger nbt-remove-node" data-path="${currentPath}" title="Remove">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="nbt-children">
+                            ${this.renderNBTTree(value, currentPath, depth + 1)}
+                        </div>
+                    </div>
+                `;
+            } else if (isArray) {
+                // Array of values
+                html += `
+                    <div class="nbt-node nbt-array ${isLast ? 'last' : ''}" data-path="${currentPath}" data-depth="${depth}">
+                        <div class="nbt-node-row">
+                            <button type="button" class="nbt-expand-btn expanded" title="Collapse">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                            <div class="nbt-type-badge array"><i class="fas fa-list"></i></div>
+                            <input type="text" class="nbt-key-input" value="${this.escapeHtml(key)}" placeholder="Array name" data-path="${currentPath}">
+                            <span class="nbt-child-count">${value.length} item${value.length !== 1 ? 's' : ''}</span>
+                            <div class="nbt-node-actions">
+                                <button type="button" class="btn-icon nbt-add-array-item" data-path="${currentPath}" title="Add item">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <button type="button" class="btn-icon btn-danger nbt-remove-node" data-path="${currentPath}" title="Remove">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="nbt-children nbt-array-items">
+                            ${value.map((item, i) => `
+                                <div class="nbt-array-item ${i === value.length - 1 ? 'last' : ''}" data-path="${currentPath}[${i}]">
+                                    <span class="nbt-array-index">[${i}]</span>
+                                    <input type="text" class="nbt-value-input nbt-array-value" value="${this.escapeHtml(String(item))}" data-path="${currentPath}[${i}]" placeholder="Value">
+                                    <button type="button" class="btn-icon btn-danger nbt-remove-array-item" data-index="${i}" data-path="${currentPath}" title="Remove item">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            `).join('')}
+                            ${value.length === 0 ? '<div class="nbt-array-empty">Empty array - click + to add items</div>' : ''}
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Simple value
+                const typeInfo = this.getNBTTypeIcon(value);
+                html += `
+                    <div class="nbt-node nbt-value ${isLast ? 'last' : ''}" data-path="${currentPath}" data-depth="${depth}">
+                        <div class="nbt-node-row">
+                            <span class="nbt-line-spacer"></span>
+                            <div class="nbt-type-badge ${typeInfo.type.toLowerCase()}" title="${typeInfo.type}">
+                                <i class="fas fa-${typeInfo.icon}"></i>
+                            </div>
+                            <input type="text" class="nbt-key-input" value="${this.escapeHtml(key)}" placeholder="Tag name" data-path="${currentPath}">
+                            <span class="nbt-separator">:</span>
+                            <div class="nbt-value-wrapper">
+                                <input type="text" class="nbt-value-input" value="${this.escapeHtml(String(value))}" placeholder="Value" data-path="${currentPath}">
+                                <select class="nbt-type-select" data-path="${currentPath}" title="Change type">
+                                    <option value="" ${!this.hasTypePrefix(value) ? 'selected' : ''}>String</option>
+                                    <option value="int/" ${String(value).startsWith('int/') ? 'selected' : ''}>Integer</option>
+                                    <option value="float/" ${String(value).startsWith('float/') ? 'selected' : ''}>Float</option>
+                                    <option value="double/" ${String(value).startsWith('double/') ? 'selected' : ''}>Double</option>
+                                    <option value="byte/" ${String(value).startsWith('byte/') ? 'selected' : ''}>Byte</option>
+                                    <option value="bool/" ${String(value).startsWith('bool/') || String(value).startsWith('boolean/') ? 'selected' : ''}>Boolean</option>
+                                </select>
+                            </div>
+                            <button type="button" class="btn-icon btn-danger nbt-remove-node" data-path="${currentPath}" title="Remove">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        
+        return html;
+    }
+    
+    /**
+     * Check if value has a type prefix
+     */
+    hasTypePrefix(value) {
+        const str = String(value);
+        return str.startsWith('int/') || str.startsWith('float/') || str.startsWith('double/') || 
+               str.startsWith('byte/') || str.startsWith('bool/') || str.startsWith('boolean/');
+    }
+    
+    /**
+     * Get icon for NBT value type
+     */
+    getNBTTypeIcon(value) {
+        const strValue = String(value);
+        if (strValue.startsWith('int/')) return { icon: 'hashtag', color: '#3b82f6', type: 'Integer' };
+        if (strValue.startsWith('float/')) return { icon: 'percentage', color: '#10b981', type: 'Float' };
+        if (strValue.startsWith('double/')) return { icon: 'divide', color: '#f59e0b', type: 'Double' };
+        if (strValue.startsWith('byte/')) return { icon: 'memory', color: '#ef4444', type: 'Byte' };
+        if (strValue.startsWith('bool/') || strValue.startsWith('boolean/')) return { icon: 'toggle-on', color: '#8b5cf6', type: 'Boolean' };
+        return { icon: 'font', color: '#64748b', type: 'String' };
+    }
 
     /**
-     * Skills Section (Crucible)
+     * Skills Section (Crucible) - Using SkillLineBuilder
      */
     generateSkillsSection(item) {
         const skills = item?.Skills || [];
+        const skillCount = skills.length;
         
         return `
             <div class="card collapsible-card collapsed">
                 <div class="card-header collapsible-header">
                     <h3 class="card-title">
                         <i class="fas fa-magic"></i> Skills (Crucible)
+                        ${skillCount > 0 ? `<span class="card-badge">${skillCount}</span>` : ''}
                         <i class="fas fa-chevron-down collapse-icon"></i>
                     </h3>
                 </div>
                 <div class="card-body collapsible-card-body">
-                    <div class="form-group">
-                        <label class="form-label">Crucible Skills</label>
-                        <small class="form-hint">Format: ~onConsume @trigger skill_name</small>
-                        <div id="item-skills-list" class="list-editor">
-                            ${skills.map((skill, index) => `
-                                <div class="list-item skill-item" data-index="${index}">
-                                    <input 
-                                        type="text" 
-                                        class="form-input skill-line" 
-                                        value="${skill}"
-                                        placeholder="~onConsume @trigger my_skill"
-                                    >
-                                    <button type="button" class="btn-icon btn-danger remove-skill" data-index="${index}">
+                    <div class="crucible-skills-info">
+                        <p class="help-text" style="margin-bottom: 1rem;">
+                            <i class="fas fa-info-circle"></i> Crucible skills let items trigger MythicMobs mechanics. 
+                            Format: <code>~onTrigger @targeter mechanic{args}</code>
+                        </p>
+                    </div>
+                    
+                    <div id="item-skills-list" class="skill-lines-container">
+                        ${skills.length === 0 ? `
+                            <div class="empty-skills-state">
+                                <i class="fas fa-magic"></i>
+                                <p>No skills added yet</p>
+                            </div>
+                        ` : skills.map((skill, index) => `
+                            <div class="skill-line-row" data-index="${index}">
+                                <div class="skill-line-content">
+                                    <code class="skill-line-code">${this.escapeHtml(skill)}</code>
+                                </div>
+                                <div class="skill-line-actions">
+                                    <button type="button" class="btn-icon edit-skill-btn" data-index="${index}" title="Edit">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                    <button type="button" class="btn-icon btn-danger remove-skill" data-index="${index}" title="Remove">
                                         <i class="fas fa-times"></i>
                                     </button>
                                 </div>
-                            `).join('')}
-                            <button type="button" class="add-item-btn add-skill-btn">
-                                <i class="fas fa-plus-circle"></i>
-                                <span>Add Skill</span>
-                            </button>
-                        </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="skill-add-actions">
+                        <button type="button" class="btn btn-primary add-skill-builder-btn" id="open-crucible-skill-builder">
+                            <i class="fas fa-wand-magic-sparkles"></i> Add with Builder
+                        </button>
+                        <button type="button" class="btn btn-outline add-skill-manual-btn" id="add-crucible-skill-manual">
+                            <i class="fas fa-keyboard"></i> Manual Entry
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1714,12 +2019,16 @@ class ItemEditor {
         const textOptionsToggle = document.getElementById('text-options-toggle');
         const textOptionsContent = document.getElementById('text-options-content');
         const textOptionsChevron = document.getElementById('text-options-chevron');
+        const toggleHint = textOptionsToggle?.querySelector('.toggle-hint');
+        const sectionToggle = textOptionsToggle?.querySelector('.options-section-toggle');
         
         if (textOptionsToggle && textOptionsContent && textOptionsChevron) {
             textOptionsToggle.addEventListener('click', () => {
                 const isHidden = textOptionsContent.style.display === 'none';
                 textOptionsContent.style.display = isHidden ? 'block' : 'none';
                 textOptionsChevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+                if (toggleHint) toggleHint.textContent = isHidden ? 'Click to collapse' : 'Click to expand';
+                if (sectionToggle) sectionToggle.classList.toggle('expanded', isHidden);
             });
         }
     }
@@ -2757,83 +3066,566 @@ class ItemEditor {
     }
 
     /**
-     * Attach NBT handlers
+     * Attach NBT handlers - Updated for tree-based editor
      */
     attachNBTHandlers(item) {
-        const addBtn = document.querySelector('.add-nbt-btn');
-        if (addBtn) {
-            addBtn.addEventListener('click', () => {
-                if (!item.NBT) item.NBT = {};
-                const newKey = `custom_tag_${Object.keys(item.NBT).length + 1}`;
-                item.NBT[newKey] = 'str:value';
-                this.editor.markDirty();
-                // Use partial update instead of full render
-                this.updateNBTList(item);
-            });
-        }
-
-        document.querySelectorAll('.remove-nbt').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const nbtItem = e.currentTarget.closest('.nbt-item');
-                const key = nbtItem.querySelector('.nbt-key').value;
-                delete item.NBT[key];
-                this.editor.markDirty();
-                // Use partial update instead of full render
-                this.updateNBTList(item);
-            });
-        });
-
-        document.querySelectorAll('.nbt-item').forEach(nbtItem => {
-            const keyInput = nbtItem.querySelector('.nbt-key');
-            const valueInput = nbtItem.querySelector('.nbt-value');
-            const originalKey = keyInput.value;
-            
-            keyInput.addEventListener('change', (e) => {
-                const newKey = e.target.value;
-                if (newKey !== originalKey && item.NBT[originalKey]) {
-                    item.NBT[newKey] = item.NBT[originalKey];
-                    delete item.NBT[originalKey];
-                    this.editor.markDirty();
-                    // Use partial update instead of full render
-                    this.updateNBTList(item);
+        // Initialize NBT if needed
+        if (!item.NBT) item.NBT = {};
+        
+        // Get the NBT editor container to scope our selectors
+        const nbtEditor = document.querySelector('.nbt-editor-v2');
+        if (!nbtEditor) return;
+        
+        // Type reference toggle
+        const typeToggle = nbtEditor.querySelector('[data-toggle="nbt-types"]');
+        if (typeToggle && !typeToggle.dataset.bound) {
+            typeToggle.dataset.bound = 'true';
+            typeToggle.addEventListener('click', () => {
+                const content = document.getElementById('nbt-types-content');
+                const icon = typeToggle.querySelector('.nbt-type-toggle');
+                if (content) {
+                    content.classList.toggle('collapsed');
+                    icon?.classList.toggle('rotated');
                 }
             });
-            
-            valueInput.addEventListener('input', (e) => {
-                item.NBT[keyInput.value] = e.target.value;
+        }
+        
+        // Add root tag button
+        const addTagBtn = document.getElementById('add-nbt-root-tag');
+        if (addTagBtn && !addTagBtn.dataset.bound) {
+            addTagBtn.dataset.bound = 'true';
+            addTagBtn.addEventListener('click', () => {
+                const newKey = `tag_${Object.keys(item.NBT).length + 1}`;
+                item.NBT[newKey] = 'value';
                 this.editor.markDirty();
+                this.updateNBTTree(item);
+            });
+        }
+        
+        // Add root group button
+        const addGroupBtn = document.getElementById('add-nbt-root-group');
+        if (addGroupBtn && !addGroupBtn.dataset.bound) {
+            addGroupBtn.dataset.bound = 'true';
+            addGroupBtn.addEventListener('click', () => {
+                const newKey = `Group_${Object.keys(item.NBT).length + 1}`;
+                item.NBT[newKey] = {};
+                this.editor.markDirty();
+                this.updateNBTTree(item);
+            });
+        }
+        
+        // Add root array button
+        const addArrayBtn = document.getElementById('add-nbt-root-array');
+        if (addArrayBtn && !addArrayBtn.dataset.bound) {
+            addArrayBtn.dataset.bound = 'true';
+            addArrayBtn.addEventListener('click', () => {
+                const newKey = `array_${Object.keys(item.NBT).length + 1}`;
+                item.NBT[newKey] = [];
+                this.editor.markDirty();
+                this.updateNBTTree(item);
+            });
+        }
+        
+        // Template cards - scope to nbt editor
+        nbtEditor.querySelectorAll('.nbt-template-card').forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = 'true';
+            btn.addEventListener('click', (e) => {
+                const template = e.currentTarget.dataset.template;
+                this.applyNBTTemplate(item, template);
+            });
+        });
+        
+        // For tree elements, we need to rebind after each render
+        // Expand/collapse buttons
+        nbtEditor.querySelectorAll('.nbt-expand-btn').forEach(btn => {
+            // Clone and replace to remove old listeners
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const node = newBtn.closest('.nbt-node');
+                const children = node.querySelector('.nbt-children');
+                const icon = newBtn.querySelector('i');
+                newBtn.classList.toggle('expanded');
+                icon?.classList.toggle('fa-chevron-right');
+                icon?.classList.toggle('fa-chevron-down');
+                if (children) {
+                    children.style.display = newBtn.classList.contains('expanded') ? 'block' : 'none';
+                }
+                // Update folder icon
+                const folderIcon = node.querySelector('.nbt-type-badge.folder i');
+                if (folderIcon) {
+                    folderIcon.classList.toggle('fa-folder-open');
+                    folderIcon.classList.toggle('fa-folder');
+                }
+            });
+        });
+        
+        // Add child tag buttons - clone and replace to remove old listeners
+        nbtEditor.querySelectorAll('.nbt-add-child').forEach(btn => {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', (e) => {
+                const path = e.currentTarget.dataset.path;
+                this.addNBTChild(item, path, 'tag');
+            });
+        });
+        
+        // Add child group buttons
+        nbtEditor.querySelectorAll('.nbt-add-child-group').forEach(btn => {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', (e) => {
+                const path = e.currentTarget.dataset.path;
+                this.addNBTChild(item, path, 'group');
+            });
+        });
+        
+        // Add child array buttons
+        nbtEditor.querySelectorAll('.nbt-add-child-array').forEach(btn => {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', (e) => {
+                const path = e.currentTarget.dataset.path;
+                this.addNBTChild(item, path, 'array');
+            });
+        });
+        
+        // Remove node buttons
+        nbtEditor.querySelectorAll('.nbt-remove-node').forEach(btn => {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', (e) => {
+                const path = e.currentTarget.dataset.path;
+                this.removeNBTNode(item, path);
+            });
+        });
+        
+        // Add array item buttons
+        nbtEditor.querySelectorAll('.nbt-add-array-item').forEach(btn => {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', (e) => {
+                const path = e.currentTarget.dataset.path;
+                this.addNBTArrayItem(item, path);
+            });
+        });
+        
+        // Remove array item buttons
+        nbtEditor.querySelectorAll('.nbt-remove-array-item').forEach(btn => {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', (e) => {
+                const path = e.currentTarget.dataset.path;
+                const index = parseInt(e.currentTarget.dataset.index);
+                this.removeNBTArrayItem(item, path, index);
+            });
+        });
+        
+        // Key input changes
+        nbtEditor.querySelectorAll('.nbt-key-input').forEach(input => {
+            const newInput = input.cloneNode(true);
+            input.parentNode.replaceChild(newInput, input);
+            newInput.addEventListener('change', (e) => {
+                const path = e.target.dataset.path;
+                const newKey = e.target.value.trim();
+                if (newKey) {
+                    this.renameNBTKey(item, path, newKey);
+                }
+            });
+        });
+        
+        // Value input changes
+        nbtEditor.querySelectorAll('.nbt-value-input').forEach(input => {
+            const newInput = input.cloneNode(true);
+            input.parentNode.replaceChild(newInput, input);
+            newInput.addEventListener('input', (e) => {
+                const path = e.target.dataset.path;
+                this.setNBTValue(item, path, e.target.value);
+            });
+        });
+        
+        // Type select changes
+        nbtEditor.querySelectorAll('.nbt-type-select').forEach(select => {
+            const newSelect = select.cloneNode(true);
+            select.parentNode.replaceChild(newSelect, select);
+            newSelect.addEventListener('change', (e) => {
+                const path = e.target.dataset.path;
+                const prefix = e.target.value;
+                const input = e.target.parentElement.querySelector('.nbt-value-input');
+                if (input) {
+                    let currentValue = input.value;
+                    // Remove existing prefix
+                    currentValue = currentValue.replace(/^(int|float|double|byte|bool|boolean)\//, '');
+                    // Add new prefix
+                    const newValue = prefix ? `${prefix}${currentValue}` : currentValue;
+                    input.value = newValue;
+                    this.setNBTValue(item, path, newValue);
+                }
             });
         });
     }
+    
+    /**
+     * Update NBT tree display
+     */
+    updateNBTTree(item) {
+        const tree = document.getElementById('item-nbt-tree');
+        if (tree) {
+            tree.innerHTML = this.renderNBTTree(item.NBT || {});
+            this.attachNBTHandlers(item);
+        }
+    }
+    
+    /**
+     * Apply NBT template
+     */
+    applyNBTTemplate(item, template) {
+        if (!item.NBT) item.NBT = {};
+        
+        switch(template) {
+            case 'mythic_type':
+                const itemName = this.editor.state.currentItemId || 'my_item';
+                item.NBT.MYTHIC_TYPE = itemName;
+                break;
+            case 'can_destroy':
+                if (!item.NBT.CanDestroy) {
+                    item.NBT.CanDestroy = ['minecraft:stone', 'minecraft:dirt', 'minecraft:grass_block'];
+                }
+                break;
+            case 'can_place':
+                if (!item.NBT.CanPlaceOn) {
+                    item.NBT.CanPlaceOn = ['minecraft:stone', 'minecraft:dirt', 'minecraft:grass_block'];
+                }
+                break;
+            case 'custom_stats':
+                if (!item.NBT.Stats) {
+                    item.NBT.Stats = {
+                        Damage: 'int/10',
+                        CritChance: 'float/0.15',
+                        AttackSpeed: 'double/1.6'
+                    };
+                }
+                break;
+            case 'gem_slots':
+                if (!item.NBT.GemSlots) {
+                    item.NBT.GemSlots = {
+                        Slot1: 'empty',
+                        Slot2: 'empty',
+                        Slot3: 'empty'
+                    };
+                }
+                break;
+            case 'plugin_data':
+                if (!item.NBT.PluginData) {
+                    item.NBT.PluginData = {
+                        Source: 'MythicMobs',
+                        Version: 'int/1',
+                        CustomFlags: {
+                            Soulbound: 'bool/false',
+                            Untradeable: 'bool/false'
+                        }
+                    };
+                }
+                break;
+        }
+        
+        this.editor.markDirty();
+        this.updateNBTTree(item);
+    }
+    
+    /**
+     * Get NBT value at path
+     */
+    getNBTAtPath(obj, path) {
+        const parts = path.split('.');
+        let current = obj;
+        for (const part of parts) {
+            if (current === undefined) return undefined;
+            current = current[part];
+        }
+        return current;
+    }
+    
+    /**
+     * Set NBT value at path
+     */
+    setNBTAtPath(obj, path, value) {
+        // Handle array index notation
+        const arrayMatch = path.match(/^(.+)\[(\d+)\]$/);
+        if (arrayMatch) {
+            const [, arrayPath, index] = arrayMatch;
+            const arr = this.getNBTAtPath(obj, arrayPath);
+            if (Array.isArray(arr)) {
+                arr[parseInt(index)] = value;
+            }
+            return;
+        }
+        
+        const parts = path.split('.');
+        let current = obj;
+        for (let i = 0; i < parts.length - 1; i++) {
+            if (current[parts[i]] === undefined) {
+                current[parts[i]] = {};
+            }
+            current = current[parts[i]];
+        }
+        current[parts[parts.length - 1]] = value;
+    }
+    
+    /**
+     * Remove NBT at path
+     */
+    removeNBTAtPath(obj, path) {
+        const parts = path.split('.');
+        let current = obj;
+        for (let i = 0; i < parts.length - 1; i++) {
+            if (current[parts[i]] === undefined) return;
+            current = current[parts[i]];
+        }
+        delete current[parts[parts.length - 1]];
+    }
+    
+    /**
+     * Add child to NBT node
+     */
+    addNBTChild(item, path, type) {
+        const parent = this.getNBTAtPath(item.NBT, path);
+        if (typeof parent === 'object' && !Array.isArray(parent)) {
+            const count = Object.keys(parent).length + 1;
+            let newKey, newValue;
+            
+            switch(type) {
+                case 'group':
+                    newKey = `SubGroup_${count}`;
+                    newValue = {};
+                    break;
+                case 'array':
+                    newKey = `array_${count}`;
+                    newValue = [];
+                    break;
+                default: // tag
+                    newKey = `tag_${count}`;
+                    newValue = 'value';
+                    break;
+            }
+            
+            parent[newKey] = newValue;
+            this.editor.markDirty();
+            this.updateNBTTree(item);
+        }
+    }
+    
+    /**
+     * Remove NBT node
+     */
+    removeNBTNode(item, path) {
+        this.removeNBTAtPath(item.NBT, path);
+        this.editor.markDirty();
+        this.updateNBTTree(item);
+    }
+    
+    /**
+     * Add item to NBT array
+     */
+    addNBTArrayItem(item, path) {
+        const arr = this.getNBTAtPath(item.NBT, path);
+        if (Array.isArray(arr)) {
+            arr.push('new_item');
+            this.editor.markDirty();
+            this.updateNBTTree(item);
+        }
+    }
+    
+    /**
+     * Remove item from NBT array
+     */
+    removeNBTArrayItem(item, path, index) {
+        const arr = this.getNBTAtPath(item.NBT, path);
+        if (Array.isArray(arr)) {
+            arr.splice(index, 1);
+            this.editor.markDirty();
+            this.updateNBTTree(item);
+        }
+    }
+    
+    /**
+     * Rename NBT key
+     */
+    renameNBTKey(item, path, newKey) {
+        const parts = path.split('.');
+        const oldKey = parts.pop();
+        const parentPath = parts.join('.');
+        const parent = parentPath ? this.getNBTAtPath(item.NBT, parentPath) : item.NBT;
+        
+        if (parent && parent[oldKey] !== undefined && oldKey !== newKey) {
+            parent[newKey] = parent[oldKey];
+            delete parent[oldKey];
+            this.editor.markDirty();
+            this.updateNBTTree(item);
+        }
+    }
+    
+    /**
+     * Set NBT value
+     */
+    setNBTValue(item, path, value) {
+        this.setNBTAtPath(item.NBT, path, value);
+        this.editor.markDirty();
+    }
 
     /**
-     * Attach skill handlers
+     * Attach skill handlers - Updated for SkillLineBuilder integration
      */
     attachSkillHandlers(item) {
-        const addBtn = document.querySelector('.add-skill-btn');
-        if (addBtn) {
-            addBtn.addEventListener('click', () => {
-                if (!item.Skills) item.Skills = [];
-                item.Skills.push('~onConsume @trigger my_skill');
-                window.collapsibleManager.saveStates();
-                this.render(item);
+        // Open Skill Builder button
+        const builderBtn = document.getElementById('open-crucible-skill-builder');
+        if (builderBtn) {
+            builderBtn.addEventListener('click', () => {
+                this.openCrucibleSkillBuilder(item);
+            });
+        }
+        
+        // Manual entry button
+        const manualBtn = document.getElementById('add-crucible-skill-manual');
+        if (manualBtn) {
+            manualBtn.addEventListener('click', () => {
+                this.showManualSkillEntry(item);
             });
         }
 
+        // Edit skill buttons
+        document.querySelectorAll('.edit-skill-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = parseInt(e.currentTarget.dataset.index);
+                this.editCrucibleSkill(item, index);
+            });
+        });
+
+        // Remove skill buttons
         document.querySelectorAll('.remove-skill').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const index = parseInt(e.currentTarget.dataset.index);
                 item.Skills.splice(index, 1);
-                window.collapsibleManager.saveStates();
+                window.collapsibleManager?.saveStates();
                 this.render(item);
             });
         });
-
-        document.querySelectorAll('.skill-line').forEach(input => {
-            input.addEventListener('input', (e) => {
-                const index = parseInt(e.target.closest('.list-item').dataset.index);
-                item.Skills[index] = e.target.value;
+    }
+    
+    /**
+     * Open Crucible Skill Builder
+     */
+    openCrucibleSkillBuilder(item) {
+        if (!window.skillLineBuilder) {
+            console.error('SkillLineBuilder not available');
+            this.showManualSkillEntry(item);
+            return;
+        }
+        
+        window.skillLineBuilder.open({
+            context: 'item', // Item context for Crucible
+            mechanicBrowser: window.mechanicBrowser,
+            targeterBrowser: window.targeterBrowser,
+            triggerBrowser: window.triggerBrowser,
+            onAdd: (skillLine) => {
+                if (!item.Skills) item.Skills = [];
+                item.Skills.push(skillLine);
+                window.collapsibleManager?.saveStates();
+                this.render(item);
                 this.editor.markDirty();
+            },
+            onAddMultiple: (skillLines) => {
+                if (!item.Skills) item.Skills = [];
+                item.Skills.push(...skillLines);
+                window.collapsibleManager?.saveStates();
+                this.render(item);
+                this.editor.markDirty();
+            }
+        });
+    }
+    
+    /**
+     * Edit existing Crucible skill
+     */
+    editCrucibleSkill(item, index) {
+        const currentSkill = item.Skills[index];
+        this.showManualSkillEntry(item, currentSkill, index);
+    }
+    
+    /**
+     * Show manual skill entry modal
+     */
+    showManualSkillEntry(item, existingSkill = null, editIndex = null) {
+        const isEdit = editIndex !== null;
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-magic"></i> ${isEdit ? 'Edit' : 'Add'} Crucible Skill</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <div class="crucible-format-help">
+                        <p><strong>Format:</strong> <code>~onTrigger @targeter mechanic{args}</code></p>
+                        <div class="crucible-triggers">
+                            <span class="crucible-trigger-chip">~onUse</span>
+                            <span class="crucible-trigger-chip">~onConsume</span>
+                            <span class="crucible-trigger-chip">~onHit</span>
+                            <span class="crucible-trigger-chip">~onBowHit</span>
+                            <span class="crucible-trigger-chip">~onShoot</span>
+                            <span class="crucible-trigger-chip">~onEquip</span>
+                            <span class="crucible-trigger-chip">~onUnequip</span>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label class="form-label">Skill Line</label>
+                        <textarea id="crucible-skill-input" class="form-input" rows="3" 
+                            placeholder="~onUse @self message{msg=&quot;Hello!&quot;}"
+                            style="font-family: 'Consolas', monospace;">${existingSkill || ''}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-ghost modal-cancel">Cancel</button>
+                    <button class="btn btn-primary modal-save">
+                        <i class="fas fa-${isEdit ? 'save' : 'plus'}"></i> ${isEdit ? 'Save' : 'Add'}
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        const input = modal.querySelector('#crucible-skill-input');
+        input.focus();
+        
+        modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+        modal.querySelector('.modal-cancel').addEventListener('click', () => modal.remove());
+        modal.querySelector('.modal-save').addEventListener('click', () => {
+            const value = input.value.trim();
+            if (value) {
+                if (!item.Skills) item.Skills = [];
+                if (isEdit) {
+                    item.Skills[editIndex] = value;
+                } else {
+                    item.Skills.push(value);
+                }
+                window.collapsibleManager?.saveStates();
+                this.render(item);
+                this.editor.markDirty();
+            }
+            modal.remove();
+        });
+        
+        // Click trigger chips to insert
+        modal.querySelectorAll('.crucible-trigger-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const trigger = chip.textContent;
+                input.value = trigger + ' @self ';
+                input.focus();
             });
         });
     }

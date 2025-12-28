@@ -579,11 +579,20 @@ class TargeterBrowser {
                     ${this.createEntityPickerHTML(inputId)}
                 `;
             } else if (attr.type === 'boolean') {
+                const defaultChecked = attr.default === true || attr.default === 'true';
                 inputHTML = `
-                    <select class="targeter-attribute-input mechanic-attribute-input" data-attr="${attr.name}">
-                        <option value="true" ${attr.default === true ? 'selected' : ''}>true</option>
-                        <option value="false" ${attr.default === false || !attr.default ? 'selected' : ''}>false</option>
-                    </select>
+                    <div class="boolean-toggle-wrapper">
+                        <label class="boolean-toggle">
+                            <input type="checkbox" 
+                                   class="targeter-attribute-input mechanic-attribute-input boolean-toggle-input" 
+                                   data-attr="${attr.name}"
+                                   ${defaultChecked ? 'checked' : ''}>
+                            <span class="boolean-toggle-track">
+                                <span class="boolean-toggle-thumb"></span>
+                            </span>
+                            <span class="boolean-toggle-label ${defaultChecked ? 'is-true' : 'is-false'}">${defaultChecked ? 'true' : 'false'}</span>
+                        </label>
+                    </div>
                 `;
             } else if (attr.type === 'number') {
                 inputHTML = `
@@ -610,7 +619,6 @@ class TargeterBrowser {
                             <span class="attribute-name">${attr.name}</span>
                             ${aliasText}
                             ${requiredMark}
-                            <span class="info-icon" title="Click for details">ℹ️</span>
                         </label>
                         <div class="attribute-input-wrapper">
                             ${inputHTML}
@@ -629,8 +637,23 @@ class TargeterBrowser {
 
         // Attach input listeners
         formContainer.querySelectorAll('.targeter-attribute-input').forEach(input => {
-            input.addEventListener('input', () => this.updateTargeterPreview());
-            input.addEventListener('change', () => this.updateTargeterPreview());
+            if (input.type === 'checkbox' || input.classList.contains('boolean-toggle-input')) {
+                // Boolean toggle handler
+                input.addEventListener('change', () => {
+                    const toggle = input.closest('.boolean-toggle');
+                    const label = toggle?.querySelector('.boolean-toggle-label');
+                    if (label) {
+                        const isChecked = input.checked;
+                        label.textContent = isChecked ? 'true' : 'false';
+                        label.classList.remove('is-true', 'is-false');
+                        label.classList.add(isChecked ? 'is-true' : 'is-false');
+                    }
+                    this.updateTargeterPreview();
+                });
+            } else {
+                input.addEventListener('input', () => this.updateTargeterPreview());
+                input.addEventListener('change', () => this.updateTargeterPreview());
+            }
         });
     }
 
@@ -646,7 +669,20 @@ class TargeterBrowser {
         const attributes = [];
         inputs.forEach(input => {
             const attrName = input.dataset.attr;
-            const value = input.value.trim();
+            // Handle checkbox/boolean inputs
+            let value;
+            if (input.type === 'checkbox' || input.classList.contains('boolean-toggle-input')) {
+                value = input.checked ? 'true' : 'false';
+                // Find the attribute definition to check if it's different from default
+                const attrDef = this.currentTargeter.attributes.find(a => a.name === attrName);
+                const defaultVal = attrDef?.default === true || attrDef?.default === 'true';
+                // Only include if different from default
+                if (input.checked === defaultVal) {
+                    return; // Skip if same as default
+                }
+            } else {
+                value = input.value.trim();
+            }
             
             if (value) {
                 // Find the attribute definition to get preferred alias

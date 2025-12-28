@@ -1,5 +1,6 @@
 // AI Target Selectors from MythicMobs wiki
 // Determines what mobs target/attack
+// Reference: https://git.mythiccraft.io/mythiccraft/MythicMobs/-/wikis/Mobs/Custom-AI
 
 const AI_TARGETS = {
   // All Creatures
@@ -7,153 +8,175 @@ const AI_TARGETS = {
     {
       target: 'clear',
       aliases: ['reset'],
-      description: 'Removes all AI targets from the mob',
+      description: 'Removes all AI targets from the mob. Always use this first.',
       category: 'All Creatures',
-      priority: 0
-    },
-    {
-      target: 'attacker',
-      aliases: [],
-      description: 'Target whatever last attacked the mob',
-      category: 'All Creatures',
-      priority: 1
-    },
-    {
-      target: 'damager',
-      aliases: [],
-      description: 'Target whatever last damaged the mob',
-      category: 'All Creatures',
-      priority: 1
+      priority: 0,
+      icon: 'eraser',
+      important: true
     },
     {
       target: 'hurtbytarget',
-      aliases: [],
-      description: 'Target whatever attacks the mob (will retaliate)',
+      aliases: ['attacker', 'damager'],
+      description: 'Targets whatever attacks/damages the mob (retaliation)',
       category: 'All Creatures',
-      priority: 1
+      priority: 1,
+      icon: 'shield-alt',
+      important: true
     },
     {
-      target: 'nearestplayer',
-      aliases: [],
-      description: 'Target the nearest player',
+      target: 'monsters',
+      aliases: ['monster'],
+      description: 'Targets all hostile monsters',
       category: 'All Creatures',
-      priority: 2
+      priority: 2,
+      icon: 'skull'
     },
     {
       target: 'players',
-      aliases: [],
-      description: 'Target any players',
+      aliases: ['player'],
+      description: 'Targets all players',
       category: 'All Creatures',
-      priority: 2
+      priority: 2,
+      icon: 'user',
+      important: true
     },
     {
-      target: 'randomtarget',
-      aliases: [],
-      description: 'Target a random nearby entity',
+      target: 'villagers',
+      aliases: ['villager'],
+      description: 'Targets all villagers',
       category: 'All Creatures',
-      priority: 2
+      priority: 2,
+      icon: 'user-tie'
+    },
+    {
+      target: 'irongolem',
+      aliases: ['iron_golems', 'iron_golem', 'golems'],
+      description: 'Targets Iron Golems',
+      category: 'All Creatures',
+      priority: 2,
+      icon: 'robot'
+    },
+    {
+      target: 'nearestConditionalTarget',
+      aliases: ['nearestConditional', 'nearestIf'],
+      description: 'Targets the nearest entity that meets provided conditions',
+      category: 'All Creatures',
+      premium: true,
+      priority: 2,
+      icon: 'filter',
+      params: ['conditions']
+    },
+    {
+      target: 'OwnerAttacker',
+      aliases: ['ownerHurtBy', 'ownerHurtByTarget', 'ownerDamager'],
+      description: 'Targets whatever attacks the mob\'s owner',
+      category: 'All Creatures',
+      priority: 1,
+      icon: 'user-shield'
+    },
+    {
+      target: 'OwnerTarget',
+      aliases: ['ownerAttack', 'ownerhurt'],
+      description: 'Targets whatever the mob\'s owner attacks',
+      category: 'All Creatures',
+      priority: 1,
+      icon: 'user-tag'
+    },
+    {
+      target: 'ParentHurtBy',
+      aliases: ['parentHurtByTarget', 'parentDamager', 'parentAttacker'],
+      description: 'Targets the entity that attacks the mob\'s parent',
+      category: 'All Creatures',
+      priority: 1,
+      icon: 'sitemap'
+    },
+    {
+      target: 'ParentTarget',
+      aliases: ['parentHurt', 'parentAttack'],
+      description: 'Targets the entity being hit by the caster\'s parent',
+      category: 'All Creatures',
+      priority: 1,
+      icon: 'project-diagram'
     }
   ],
   
   // Faction Support
   FACTION_TARGETS: [
     {
-      target: 'monsters',
-      aliases: [],
-      description: 'Target any monsters',
+      target: 'NearestOtherFaction',
+      aliases: ['OtherFaction'],
+      description: 'Targets ANY entities that are in a different faction',
       category: 'Faction Support',
-      priority: 2
+      priority: 2,
+      icon: 'users-slash'
     },
     {
-      target: 'villagers',
-      aliases: [],
-      description: 'Target any villagers',
+      target: 'NearestOtherFactionMonsters',
+      aliases: ['OtherFactionMonsters'],
+      description: 'Targets any monsters that are in a different faction',
       category: 'Faction Support',
-      priority: 2
-    },
-    {
-      target: 'golems',
-      aliases: [],
-      description: 'Target any iron golems',
-      category: 'Faction Support',
-      priority: 2
-    },
-    {
-      target: 'OtherFaction',
-      aliases: [],
-      description: 'Target entities from other factions',
-      category: 'Faction Support',
-      priority: 2
-    },
-    {
-      target: 'OtherFactionMobs',
-      aliases: [],
-      description: 'Target mobs from other factions',
-      category: 'Faction Support',
-      priority: 2
-    },
-    {
-      target: 'OtherFactionPlayers',
-      aliases: [],
-      description: 'Target players from other factions',
-      category: 'Faction Support',
-      priority: 2
+      priority: 2,
+      icon: 'skull-crossbones'
     },
     {
       target: 'SpecificFaction',
       aliases: [],
-      description: 'Target entities in a specific faction',
+      description: 'Targets any entities that are in the given faction',
       category: 'Faction Support',
       priority: 2,
+      icon: 'users',
       params: ['faction_name']
-    },
-    {
-      target: 'SpecificFactionMobs',
-      aliases: [],
-      description: 'Target mobs in a specific faction',
-      category: 'Faction Support',
-      priority: 2,
-      params: ['faction_name']
-    },
-    {
-      target: 'SpecificFactionPlayers',
-      aliases: [],
-      description: 'Target players in a specific faction',
-      category: 'Faction Support',
-      priority: 2,
-      params: ['faction_name']
-    },
-    {
-      target: 'NotSpecificFaction',
-      aliases: [],
-      description: 'Target entities NOT in a specific faction',
-      category: 'Faction Support',
-      priority: 2,
-      params: ['faction_name']
-    },
-    {
-      target: 'OtherFactionMonsters',
-      aliases: [],
-      description: 'Target monsters from other factions',
-      category: 'Faction Support',
-      priority: 2
-    },
-    {
-      target: 'otherfactionmonsters',
-      aliases: [],
-      description: 'Target any monsters that are not in the same faction',
-      category: 'Faction Support',
-      priority: 2
     },
     {
       target: 'SpecificFactionMonsters',
       aliases: [],
-      description: 'Target any monsters that are in the given faction',
+      description: 'Targets any monsters that are in the given faction',
       category: 'Faction Support',
       priority: 2,
+      icon: 'skull',
       params: ['faction_name']
     }
   ]
+};
+
+// AI Target Presets - Common configurations
+const AI_TARGET_PRESETS = {
+  none: {
+    name: 'No Targets',
+    description: 'Mob targets nothing',
+    icon: 'ban',
+    targets: ['clear']
+  },
+  hostile: {
+    name: 'Hostile to Players',
+    description: 'Targets players on sight',
+    icon: 'user-slash',
+    targets: ['clear', 'players']
+  },
+  defensive: {
+    name: 'Defensive',
+    description: 'Only targets attackers (retaliation)',
+    icon: 'shield-alt',
+    targets: ['clear', 'hurtbytarget']
+  },
+  guardian: {
+    name: 'Guardian',
+    description: 'Defends owner by targeting their attackers',
+    icon: 'user-shield',
+    targets: ['clear', 'OwnerAttacker', 'OwnerTarget']
+  },
+  monster_hunter: {
+    name: 'Monster Hunter',
+    description: 'Targets all hostile monsters',
+    icon: 'skull-crossbones',
+    targets: ['clear', 'monsters']
+  },
+  faction_enemy: {
+    name: 'Faction Enemy',
+    description: 'Targets entities from other factions',
+    icon: 'users-slash',
+    targets: ['clear', 'NearestOtherFaction']
+  }
 };
 
 // Flatten all targets into a single array
