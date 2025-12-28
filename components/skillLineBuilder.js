@@ -1731,26 +1731,14 @@ class SkillLineBuilder {
             return;
         }
         
-        // Use singleton browser manager instead of creating new instances
+        // PERFORMANCE FIX: Always use singleton browser manager - NEVER create new instances
         if (window.browserManager) {
             this.browsers.mechanic = window.browserManager.getMechanicBrowser();
             this.browsers.targeter = window.browserManager.getTargeterBrowser();
             this.browsers.trigger = window.browserManager.getTriggerBrowser();
         } else {
-            // Fallback: Lazy initialization - create browsers if they don't exist
-            if (!this.browsers.targeter && window.TargeterBrowser) {
-                this.browsers.targeter = new TargeterBrowser();
-            }
-            if (!this.browsers.trigger && window.TriggerBrowser) {
-                this.browsers.trigger = new TriggerBrowser(window.editor);
-            }
-            if (!this.browsers.mechanic && window.MechanicBrowser) {
-                this.browsers.mechanic = new MechanicBrowser(
-                    this.browsers.targeter,
-                    this.browsers.trigger,
-                    null
-                );
-            }
+            console.error('❌ BrowserManager not available - browsers may not work correctly');
+            return;
         }
         
         if (!this.browsers.mechanic) {
@@ -1857,26 +1845,14 @@ class SkillLineBuilder {
             this.setState({ activeBrowser: null, isLoading: false });
         }
         
-        // Use singleton browser manager instead of creating new instances
+        // PERFORMANCE FIX: Always use singleton browser manager - NEVER create new instances
         if (window.browserManager) {
             this.browsers.targeter = window.browserManager.getTargeterBrowser();
             this.browsers.trigger = window.browserManager.getTriggerBrowser();
             this.browsers.mechanic = window.browserManager.getMechanicBrowser();
         } else {
-            // Fallback: Lazy initialization - create if doesn't exist
-            if (!this.browsers.targeter && window.TargeterBrowser) {
-                this.browsers.targeter = new TargeterBrowser();
-            }
-            if (!this.browsers.trigger && window.TriggerBrowser) {
-                this.browsers.trigger = new TriggerBrowser(window.editor);
-            }
-            if (!this.browsers.mechanic && window.MechanicBrowser) {
-                this.browsers.mechanic = new MechanicBrowser(
-                    this.browsers.targeter,
-                    this.browsers.trigger,
-                    null
-                );
-            }
+            console.error('❌ BrowserManager not available - browsers may not work correctly');
+            return;
         }
         
         if (!this.browsers.targeter) {
@@ -1958,26 +1934,14 @@ class SkillLineBuilder {
             this.setState({ activeBrowser: null, isLoading: false });
         }
         
-        // Use singleton browser manager instead of creating new instances
+        // PERFORMANCE FIX: Always use singleton browser manager - NEVER create new instances
         if (window.browserManager) {
             this.browsers.targeter = window.browserManager.getTargeterBrowser();
             this.browsers.trigger = window.browserManager.getTriggerBrowser();
             this.browsers.mechanic = window.browserManager.getMechanicBrowser();
         } else {
-            // Fallback: Lazy initialization - create if doesn't exist
-            if (!this.browsers.targeter && window.TargeterBrowser) {
-                this.browsers.targeter = new TargeterBrowser();
-            }
-            if (!this.browsers.trigger && window.TriggerBrowser) {
-                this.browsers.trigger = new TriggerBrowser(window.editor);
-            }
-            if (!this.browsers.mechanic && window.MechanicBrowser) {
-                this.browsers.mechanic = new MechanicBrowser(
-                    this.browsers.targeter,
-                    this.browsers.trigger,
-                    null
-                );
-            }
+            console.error('❌ BrowserManager not available - browsers may not work correctly');
+            return;
         }
         
         if (!this.browsers.trigger) {
@@ -2071,22 +2035,12 @@ class SkillLineBuilder {
             return;
         }
         
-        // Use singleton browser manager instead of creating new instance
+        // PERFORMANCE FIX: Always use singleton browser manager - NEVER create new instances
         if (window.browserManager) {
             window.conditionBrowser = window.browserManager.getConditionBrowser();
         } else {
-            // Fallback: Initialize condition browser if needed (synchronous for reliability)
-            try {
-                if (!window.conditionBrowser) {
-                    window.conditionBrowser = new ConditionBrowser();
-                }
-            } catch (error) {
-                console.error('❌ Error creating ConditionBrowser:', error);
-                if (this.editor && this.editor.showAlert) {
-                    this.editor.showAlert('Failed to initialize Condition Browser: ' + error.message, 'error', 'Initialization Error');
-                }
-                return;
-            }
+            console.error('❌ BrowserManager not available - condition browser may not work correctly');
+            return;
         }
         
         // Track active browser

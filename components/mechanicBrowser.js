@@ -84,6 +84,7 @@ class MechanicBrowser {
         
         // PERFORMANCE: Track event delegation attachment
         this.mechanicDelegationAttached = false;
+        this.quickAccessDelegationAttached = false; // Track quick access delegation
         
         // PERFORMANCE: Cache category labels (avoid regex parsing on every update)
         this.categoryLabels = null;
@@ -623,7 +624,7 @@ class MechanicBrowser {
                 const showMark = performance.getEntriesByName('browser-show-start');
                 const renderMark = performance.getEntriesByName('browser-render-start');
                 
-                if (clickMark.length && openMark.length) {
+                if (window.DEBUG_MODE && clickMark.length && openMark.length) {
                     const times = {
                         click_to_open: ((openMark[0].startTime - clickMark[0].startTime)).toFixed(2),
                         open_to_visible: ((visibleMark[0].startTime - openMark[0].startTime)).toFixed(2),
@@ -671,7 +672,7 @@ class MechanicBrowser {
             const showMark = performance.getEntriesByName('browser-show-start');
             const renderMark = performance.getEntriesByName('browser-render-start');
             
-            if (clickMark.length && openMark.length) {
+            if (window.DEBUG_MODE && clickMark.length && openMark.length) {
                 const times = {
                     click_to_open: ((openMark[0].startTime - clickMark[0].startTime)).toFixed(2),
                     open_to_visible: ((visibleMark[0].startTime - openMark[0].startTime)).toFixed(2),
@@ -970,8 +971,10 @@ class MechanicBrowser {
      * New implementation is in renderMechanics() directly
      */
     initializeVirtualScroll(container, mechanics) {
-        console.warn('⚠️ initializeVirtualScroll() is LEGACY CODE - should not be called');
-        console.warn('⚠️ Virtual scroll is now handled in renderMechanics() directly');
+        if (window.DEBUG_MODE) {
+            console.warn('⚠️ initializeVirtualScroll() is LEGACY CODE - should not be called');
+            console.warn('⚠️ Virtual scroll is now handled in renderMechanics() directly');
+        }
         // Do nothing - renderMechanics() handles virtual scroll now
     }
     
@@ -980,8 +983,10 @@ class MechanicBrowser {
      * Virtual scroll handles efficient rendering automatically
      */
     renderInBatches(container, mechanics, batchSize) {
-        console.warn('⚠️ renderInBatches() is LEGACY CODE - should not be called');
-        console.warn('⚠️ Virtual scroll handles rendering now');
+        if (window.DEBUG_MODE) {
+            console.warn('⚠️ renderInBatches() is LEGACY CODE - should not be called');
+            console.warn('⚠️ Virtual scroll handles rendering now');
+        }
         // Do nothing - renderMechanics() with virtual scroll handles this
     }
     
@@ -1108,6 +1113,7 @@ class MechanicBrowser {
 
     /**
      * Render quick access panel (favorites and recent)
+     * PERFORMANCE FIX: Uses event delegation instead of per-item listeners
      */
     renderQuickAccess() {
         const quickAccessContainer = document.getElementById('mechanicQuickAccess');
@@ -1138,17 +1144,6 @@ class MechanicBrowser {
                         <span class="quick-mechanic-category">${MECHANICS_DATA.categories[mechanic.category].icon}</span>
                     </button>
                 `).join('');
-
-                // Attach click handlers
-                favoritesList.querySelectorAll('.quick-mechanic-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        const mechanicId = item.dataset.mechanic;
-                        const mechanic = MECHANICS_DATA.getMechanic(mechanicId);
-                        if (mechanic) {
-                            this.showMechanicConfiguration(mechanic);
-                        }
-                    });
-                });
             } else {
                 favoritesSection.style.display = 'none';
                 favoritesList.innerHTML = '';
@@ -1165,22 +1160,14 @@ class MechanicBrowser {
                         <span class="quick-mechanic-category">${MECHANICS_DATA.categories[mechanic.category].icon}</span>
                     </button>
                 `).join('');
-
-                // Attach click handlers
-                recentList.querySelectorAll('.quick-mechanic-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        const mechanicId = item.dataset.mechanic;
-                        const mechanic = MECHANICS_DATA.getMechanic(mechanicId);
-                        if (mechanic) {
-                            this.showMechanicConfiguration(mechanic);
-                        }
-                    });
-                });
             } else {
                 recentSection.style.display = 'none';
                 recentList.innerHTML = '';
             }
         }
+
+        // PERFORMANCE: Setup event delegation ONCE for quick access (not per render)
+        this.setupQuickAccessDelegation();
 
         // Show/hide entire quick access panel
         if (quickAccessContainer) {
@@ -1189,6 +1176,30 @@ class MechanicBrowser {
             } else {
                 quickAccessContainer.style.display = 'none';
             }
+        }
+    }
+    
+    /**
+     * PERFORMANCE: Setup event delegation for quick access panel (called once)
+     */
+    setupQuickAccessDelegation() {
+        if (this.quickAccessDelegationAttached) return;
+        
+        const { signal } = this.abortController;
+        const quickAccessContainer = document.getElementById('mechanicQuickAccess');
+        
+        if (quickAccessContainer) {
+            quickAccessContainer.addEventListener('click', (e) => {
+                const item = e.target.closest('.quick-mechanic-item');
+                if (item) {
+                    const mechanicId = item.dataset.mechanic;
+                    const mechanic = MECHANICS_DATA.getMechanic(mechanicId);
+                    if (mechanic) {
+                        this.showMechanicConfiguration(mechanic);
+                    }
+                }
+            }, { signal });
+            this.quickAccessDelegationAttached = true;
         }
     }
 

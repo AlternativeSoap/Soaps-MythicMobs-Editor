@@ -390,21 +390,31 @@ class TargeterBrowser {
     }
 
     /**
-     * Update category tab counts
+     * Update category tab counts (OPTIMIZED - single pass instead of multiple .filter() calls)
      */
     updateCategoryCounts() {
         const targeters = this.targetersData.targeters || [];
         const categoryTabs = document.querySelectorAll('#targeterCategories .category-tab');
         
+        // PERFORMANCE: Use cached counts if available and data hasn't changed
+        if (!this._categoryCountsCache || this._categoryCountsCacheKey !== targeters.length) {
+            // Compute counts in a single pass instead of separate .filter() calls
+            const counts = { all: targeters.length };
+            
+            for (let i = 0; i < targeters.length; i++) {
+                const category = targeters[i].category;
+                counts[category] = (counts[category] || 0) + 1;
+            }
+            
+            this._categoryCountsCache = counts;
+            this._categoryCountsCacheKey = targeters.length;
+        }
+        
+        const counts = this._categoryCountsCache;
+        
         categoryTabs.forEach(tab => {
             const category = tab.dataset.category;
-            let count;
-            
-            if (category === 'all') {
-                count = targeters.length;
-            } else {
-                count = targeters.filter(t => t.category === category).length;
-            }
+            const count = counts[category] || 0;
             
             // Extract the label text (icon + name)
             const textContent = tab.textContent.trim();

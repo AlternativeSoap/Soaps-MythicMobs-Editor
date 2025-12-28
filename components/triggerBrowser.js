@@ -13,6 +13,13 @@ class TriggerBrowser {
         this.currentMobType = null;
         this.searchCache = new LRUCache(10);
         
+        // Phase 2 Critical: Event listener cleanup
+        this.abortController = new AbortController();
+        
+        // Phase 2 Critical: Debounce timers
+        this.searchDebounce = null;
+        this.categoryDebounce = null;
+        
         // Initialize browser data merger
         if (window.supabase && typeof BrowserDataMerger !== 'undefined') {
             this.browserDataMerger = new BrowserDataMerger(window.supabase);
@@ -117,60 +124,65 @@ class TriggerBrowser {
      * Attach event listeners
      */
     attachEventListeners() {
+        const { signal } = this.abortController;
+        
         // Close browser modal
         document.getElementById('triggerBrowserClose').addEventListener('click', () => {
             this.close();
-        });
+        }, { signal });
 
         document.getElementById('triggerBrowserOverlay').addEventListener('click', (e) => {
             if (e.target.id === 'triggerBrowserOverlay') {
                 this.close();
             }
-        });
+        }, { signal });
 
-        // Search input with debouncing (150ms)
-        const debouncedSearch = debounce((query) => {
-            this.searchQuery = query;
-            this.renderTriggers();
-        }, 150);
-        
+        // Search input with inline debouncing (cleaner than external debounce function)
         document.getElementById('triggerSearchInput').addEventListener('input', (e) => {
-            debouncedSearch(e.target.value);
-        });
+            clearTimeout(this.searchDebounce);
+            this.searchDebounce = setTimeout(() => {
+                this.searchQuery = e.target.value;
+                this.renderTriggers();
+            }, 150);
+        }, { signal });
 
-        // Category tabs
+        // Category tabs with delegation
         document.getElementById('triggerCategories').addEventListener('click', (e) => {
             if (e.target.classList.contains('category-tab')) {
                 document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
                 e.target.classList.add('active');
                 this.currentCategory = e.target.dataset.category;
-                this.renderTriggers();
+                
+                clearTimeout(this.categoryDebounce);
+                this.categoryDebounce = setTimeout(() => {
+                    this.renderTriggers();
+                }, 50);
             }
-        });
+        }, { signal });
 
         // Parameter modal buttons
         document.getElementById('triggerParamCancel').addEventListener('click', () => {
             this.closeParamModal();
-        });
+        }, { signal });
 
         document.getElementById('triggerParamConfirm').addEventListener('click', () => {
             this.confirmParameter();
-        });
+        }, { signal });
 
         document.getElementById('triggerParamInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.confirmParameter();
             }
-        });
+        }, { signal });
 
         // Confirmation modal buttons
         document.getElementById('triggerConfirmCancel').addEventListener('click', () => {
             this.closeConfirmModal();
-        });
+        }, { signal });
 
         document.getElementById('triggerConfirmEnable').addEventListener('click', () => {
             this.confirmAutoEnable();
-        });
+        }, { signal });
 
         // Enhanced keyboard navigation
         document.addEventListener('keydown', (e) => {
@@ -230,7 +242,27 @@ class TriggerBrowser {
                 const triggerName = focusedCard.dataset.trigger;
                 this.handleTriggerSelection(triggerName);
             }
-        });
+        }, { signal });
+    }
+
+    /**
+     * Cleanup resources
+     */
+    cleanup() {
+        // Remove all event listeners automatically
+        this.abortController.abort();
+        this.abortController = new AbortController(); // Reset for next open
+        
+        // Clear debounce timers
+        clearTimeout(this.searchDebounce);
+        clearTimeout(this.categoryDebounce);
+        
+        // Clear search cache
+        if (this.searchCache) {
+            this.searchCache.clear();
+        }
+        
+        if (window.DEBUG_MODE) console.log('✅ TriggerBrowser cleanup complete');
     }
 
     /**
@@ -282,21 +314,31 @@ class TriggerBrowser {
     }
 
     /**
-     * Update category tab counts
+     * Update category tab counts (OPTIMIZED - single pass instead of 7 .filter() calls)
      */
     updateCategoryCounts() {
         const triggers = this.triggersData.triggers || [];
         const categoryTabs = document.querySelectorAll('#triggerCategories .category-tab');
         
+        // PERFORMANCE: Use cached counts if available and data hasn't changed
+        if (!this._categoryCountsCache || this._categoryCountsCacheKey !== triggers.length) {
+            // Compute counts in a single pass instead of separate .filter() calls
+            const counts = { all: triggers.length };
+            
+            for (let i = 0; i < triggers.length; i++) {
+                const category = triggers[i].category;
+                counts[category] = (counts[category] || 0) + 1;
+            }
+            
+            this._categoryCountsCache = counts;
+            this._categoryCountsCacheKey = triggers.length;
+        }
+        
+        const counts = this._categoryCountsCache;
+        
         categoryTabs.forEach(tab => {
             const category = tab.dataset.category;
-            let count;
-            
-            if (category === 'all') {
-                count = triggers.length;
-            } else {
-                count = triggers.filter(t => t.category === category).length;
-            }
+            const count = counts[category] || 0;
             
             // Extract the label text (icon + name)
             const textContent = tab.textContent.trim();

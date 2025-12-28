@@ -111,8 +111,8 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.85);
+    /* PERFORMANCE: Removed backdrop-filter: blur(8px) - extremely expensive, causes GPU work every frame */
     z-index: 1000;
     align-items: center;
     justify-content: center;
@@ -298,6 +298,7 @@
 }
 
 /* Compact list item (replaces bulky cards) */
+/* PERFORMANCE FIX: Removed expensive transition and transform animations */
 .mechanic-list-item {
     display: flex;
     align-items: center;
@@ -310,8 +311,12 @@
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    /* PERFORMANCE: Only transition border-color and background - NOT all properties */
+    transition: background-color 0.1s ease, border-color 0.1s ease;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    /* PERFORMANCE: GPU compositing layer hints */
+    contain: layout style paint;
+    will-change: background-color, border-color;
 }
 
 .mechanic-list-item:hover,
@@ -320,7 +325,7 @@
     border-color: var(--primary);
     outline: none;
     box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
-    transform: translateX(4px);
+    /* PERFORMANCE: Removed transform: translateX(4px) - causes layout thrashing */
 }
 
 .mechanic-item-main {

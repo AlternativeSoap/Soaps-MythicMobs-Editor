@@ -42,23 +42,21 @@ class VirtualScrollManager {
         this.scrollRaf = null;
         
         // ALWAYS log constructor (critical for debugging)
-        console.log(`🎯 VirtualScrollManager constructor complete: ${this.totalItems} items @ ${this.itemHeight}px each`);
+        if (window.DEBUG_MODE) console.log(`🎯 VirtualScrollManager constructor complete: ${this.totalItems} items @ ${this.itemHeight}px each`);
     }
     
     /**
      * Initialize virtual scroller with container element
+     * PERFORMANCE FIX: Removed excessive console.log calls
      * @param {HTMLElement} containerElement - Scrollable container
      */
     init(containerElement) {
-        console.log(`🎯 [VSCROLL] init() CALLED with container:`, containerElement);
         this.container = containerElement;
         
         if (!this.container) {
             console.error(`❌ [VSCROLL] Container element is null or undefined!`);
             return;
         }
-        
-        console.log(`🎯 [VSCROLL] Container is valid, configuring... Total items: ${this.totalItems}`);
         
         // Configure container for virtual scrolling
         this.container.innerHTML = '';
@@ -109,20 +107,16 @@ class VirtualScrollManager {
         this.container.appendChild(this.spacer);
         this.container.appendChild(this.viewport);
         
-        console.log(`🎯 [VSCROLL] DOM structure created (spacer + viewport)`);
-        
         // Attach scroll listener with RAF throttling
         this.container.addEventListener('scroll', () => this.handleScroll(), {
             passive: true,
             signal: this.abortController.signal
         });
         
-        console.log(`🎯 [VSCROLL] Scroll listener attached, calling initial render()...`);
-        
         // Initial render
         this.render();
         
-        console.log(`✅ [VSCROLL] init() COMPLETE, rendered ${this.renderedNodes.size} nodes`);
+        if (window.DEBUG_MODE) console.log(`✅ [VSCROLL] init() COMPLETE, rendered ${this.renderedNodes.size} nodes`);
     }
     
     /**
@@ -143,9 +137,9 @@ class VirtualScrollManager {
     /**
      * Calculate visible range and render ONLY those items
      * GUARANTEES: Max 50 DOM nodes at any time
+     * PERFORMANCE FIX: Removed excessive console.log calls from hot path
      */
     render() {
-        console.log(`🎯 [VSCROLL] render() CALLED - scrollTop: ${this.scrollTop}, totalItems: ${this.totalItems}`);
         const startTime = window.DEBUG_MODE ? performance.now() : 0;
         
         // Calculate visible range based on scroll position
@@ -159,13 +153,8 @@ class VirtualScrollManager {
             Math.ceil((scrollTop + viewportHeight) / this.itemHeight) + this.overscanCount
         );
         
-        console.log(`🎯 [VSCROLL] Range: start=${startIndex}, end=${endIndex}, visible=${this.visibleStart}-${this.visibleEnd}`);
-        
         // Skip if range unchanged (optimization)
         if (startIndex === this.visibleStart && endIndex === this.visibleEnd) {
-            if (window.DEBUG_MODE) {
-                console.log(`⏭️ [VSCROLL] Range unchanged, skipping render`);
-            }
             return;
         }
         
@@ -184,24 +173,18 @@ class VirtualScrollManager {
         
         // RENDER items in visible range (only if not already rendered)
         const fragment = document.createDocumentFragment();
-        console.log(`🎨 [VSCROLL] Starting render loop: items ${startIndex}-${endIndex}`);
         for (let i = startIndex; i <= endIndex; i++) {
             if (!this.renderedNodes.has(i)) {
                 const item = this.items[i];
-                console.log(`🎨 [VSCROLL] Rendering item ${i}:`, item?.id || item?.name || 'unknown');
                 const node = this.createItemNode(item, i);
                 this.renderedNodes.set(i, node);
                 fragment.appendChild(node);
             }
         }
         
-        console.log(`📦 [VSCROLL] Fragment has ${fragment.childNodes.length} nodes to append`);
-        
         // Single DOM update (ONE reflow)
         if (fragment.childNodes.length > 0) {
-            console.log(`🔧 [VSCROLL] Appending ${fragment.childNodes.length} nodes to viewport...`);
             this.viewport.appendChild(fragment);
-            console.log(`✅ [VSCROLL] Appended! viewport now has ${this.viewport.children.length} children`);
         }
         
         // Offset grid using padding-top to align with scroll position
@@ -209,11 +192,9 @@ class VirtualScrollManager {
         this.viewport.style.paddingTop = `${offsetY + 8}px`; // +8 for base padding
         
         const nodeCount = this.renderedNodes.size;
-        const renderTime = (performance.now() - startTime).toFixed(2);
-        console.log(`🎯 VirtualScroll render: ${nodeCount} nodes (items ${startIndex}-${endIndex}), ${renderTime}ms`);
         
-        // ENFORCE MAX 50 NODE BUDGET
-        if (nodeCount > 50) {
+        // ENFORCE MAX 50 NODE BUDGET (only log in debug mode)
+        if (window.DEBUG_MODE && nodeCount > 50) {
             console.error(`❌ BUDGET VIOLATION: ${nodeCount} > 50 DOM nodes!`);
         }
     }
@@ -234,19 +215,18 @@ class VirtualScrollManager {
         if (this.renderItemCallback) {
             try {
                 const html = this.renderItemCallback(item, index);
-                console.log(`🔍 [VSCROLL] Item ${index} HTML length: ${html?.length || 0}, first 100 chars:`, html?.substring(0, 100));
                 if (html) {
                     wrapper.innerHTML = html;
                 } else {
-                    console.error(`❌ [VSCROLL] renderItemCallback returned empty for item ${index}`);
+                    if (window.DEBUG_MODE) console.error(`❌ [VSCROLL] renderItemCallback returned empty for item ${index}`);
                     wrapper.innerHTML = '<div>Error: No content</div>';
                 }
             } catch (error) {
-                console.error(`❌ [VSCROLL] Error rendering item ${index}:`, error);
+                if (window.DEBUG_MODE) console.error(`❌ [VSCROLL] Error rendering item ${index}:`, error);
                 wrapper.innerHTML = `<div>Error rendering item</div>`;
             }
         } else {
-            console.error(`❌ [VSCROLL] renderItemCallback is not defined!`);
+            if (window.DEBUG_MODE) console.error(`❌ [VSCROLL] renderItemCallback is not defined!`);
             wrapper.innerHTML = '<div>No render callback</div>';
         }
         

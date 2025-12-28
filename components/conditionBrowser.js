@@ -470,52 +470,57 @@ class ConditionBrowser {
 
     /**
      * Update category tab counts (using pre-computed counts - O(1) with fallback)
+     * OPTIMIZED: Compute counts once and cache them instead of 9+ .filter() calls
      */
     updateCategoryCounts() {
         const categoryTabs = document.querySelectorAll('#conditionCategories .category-tab');
         
         // Use the conditionsData we already have loaded (which is ALL_CONDITIONS)
-        // This ensures consistency between what's displayed and what's counted
         const allConditions = this.conditionsData || window.ALL_CONDITIONS || [];
         
-        // Debug: Log sample condition to see structure
-        if (allConditions.length > 0) {
-            console.log('📊 Sample condition:', allConditions[0]);
-            console.log('📊 All unique categories:', [...new Set(allConditions.map(c => c.category))]);
-        } else {
-            console.warn('⚠️ No conditions loaded! this.conditionsData:', this.conditionsData?.length);
-            console.warn('⚠️ window.ALL_CONDITIONS:', window.ALL_CONDITIONS?.length);
+        // PERFORMANCE: Use cached counts if available and data hasn't changed
+        if (!this._categoryCountsCache || this._categoryCountsCacheKey !== allConditions.length) {
+            // Compute counts in a single pass instead of 9 separate .filter() calls
+            const counts = {
+                all: allConditions.length,
+                favorites: 0, // Updated below
+                'Entity State': 0,
+                'Entity Type': 0,
+                'Player': 0,
+                'Location': 0,
+                'Time & Weather': 0,
+                'Combat': 0,
+                'Variables & Data': 0,
+                'Server & World': 0,
+                'Logic & Meta': 0
+            };
+            
+            // Single pass through data - O(n) instead of O(9n)
+            for (let i = 0; i < allConditions.length; i++) {
+                const category = allConditions[i].category;
+                if (counts.hasOwnProperty(category)) {
+                    counts[category]++;
+                }
+            }
+            
+            this._categoryCountsCache = counts;
+            this._categoryCountsCacheKey = allConditions.length;
         }
         
-        const counts = {
-            all: allConditions.length,
-            favorites: this.favoritesManager.getCount(),
-            'Entity State': allConditions.filter(c => c.category === 'Entity State').length,
-            'Entity Type': allConditions.filter(c => c.category === 'Entity Type').length,
-            'Player': allConditions.filter(c => c.category === 'Player').length,
-            'Location': allConditions.filter(c => c.category === 'Location').length,
-            'Time & Weather': allConditions.filter(c => c.category === 'Time & Weather').length,
-            'Combat': allConditions.filter(c => c.category === 'Combat').length,
-            'Variables & Data': allConditions.filter(c => c.category === 'Variables & Data').length,
-            'Server & World': allConditions.filter(c => c.category === 'Server & World').length,
-            'Logic & Meta': allConditions.filter(c => c.category === 'Logic & Meta').length
-        };
-        
-        console.log('📊 Calculated counts:', counts);
-        console.log('📊 Found', categoryTabs.length, 'category tabs');
+        // Update favorites count (this changes frequently, don't cache)
+        const counts = { ...this._categoryCountsCache };
+        counts.favorites = this.favoritesManager.getCount();
 
         // Update tab labels
         categoryTabs.forEach(tab => {
             const category = tab.dataset.category;
             const count = counts[category] || 0;
-            console.log(`   Updating ${category}: ${count}`);
             
             // Get the original tab content (with emoji/icon)
             const parts = tab.innerHTML.split('(');
             if (parts.length > 0) {
                 const originalText = parts[0].trim();
                 tab.innerHTML = `${originalText} (${count})`;
-                console.log(`   ✅ Updated tab: ${originalText} (${count})`);
             }
         });
     }
@@ -540,8 +545,6 @@ class ConditionBrowser {
 
         const dataOptimizer = window.DataOptimizer;
         const useOptimizer = dataOptimizer && dataOptimizer.conditionsMap && dataOptimizer.conditionsMap.size > 0;
-        
-        console.log('📊 Data source:', useOptimizer ? 'DataOptimizer' : 'Fallback (window.ALL_CONDITIONS)');
         
         // Check cache first
         const cacheKey = `${this.currentCategory}:${this.searchQuery}`;
@@ -664,10 +667,8 @@ class ConditionBrowser {
             // Handle select button
             const selectBtn = e.target.closest('.btn-select-condition');
             if (selectBtn) {
-                console.log('🎯 Condition Select button clicked!', e.target);
                 const card = selectBtn.closest('.mechanic-list-item');
                 const conditionId = card.dataset.condition;
-                console.log('📋 Condition ID:', conditionId, 'Card:', card);
                 this.handleConditionSelection(conditionId);
                 return;
             }
@@ -689,17 +690,14 @@ class ConditionBrowser {
      * Handle condition selection
      */
     handleConditionSelection(conditionId) {
-        console.log('🎯 handleConditionSelection called with ID:', conditionId);
         const condition = window.ConditionHelpers.findCondition(conditionId);
-        console.log('📦 Found condition:', condition);
         if (!condition) {
-            console.error('❌ Condition not found for ID:', conditionId);
+            if (window.DEBUG_MODE) console.error('❌ Condition not found for ID:', conditionId);
             return;
         }
 
         // Store current condition
         this.currentCondition = condition;
-        console.log('✅ Stored current condition, opening attribute config...');
 
         // If condition has attributes, show configuration modal
         if (condition.attributes && condition.attributes.length > 0) {
@@ -714,12 +712,10 @@ class ConditionBrowser {
      * Show attribute configuration modal
      */
     showAttributeConfiguration(condition) {
-        console.log('🎨 showAttributeConfiguration called for:', condition.name);
         const modal = document.getElementById('conditionAttributeOverlay');
         const title = document.getElementById('conditionAttributeTitle');
         const description = document.getElementById('conditionAttributeDescription');
         const form = document.getElementById('conditionAttributeForm');
-        console.log('📋 Modal elements found:', {modal: !!modal, title: !!title, description: !!description, form: !!form});
         
         title.textContent = `Configure ${condition.name}`;
         description.textContent = condition.description;
@@ -886,13 +882,8 @@ class ConditionBrowser {
      * Confirm configuration and return condition string
      */
     confirmConfiguration() {
-        console.log('✅ confirmConfiguration called!');
-        console.log('📊 Current condition:', this.currentCondition);
-        console.log('🎭 Usage mode:', this.usageMode);
-        console.log('🔗 Callback exists:', !!this.onSelectCallback);
-        
         if (!this.currentCondition) {
-            console.error('❌ No current condition!');
+            if (window.DEBUG_MODE) console.error('❌ No current condition!');
             return;
         }
 
@@ -919,9 +910,7 @@ class ConditionBrowser {
         }
 
         // Callback with result based on usage mode (BEFORE closing!)
-        console.log('🔔 About to invoke callback...');
         if (this.onSelectCallback) {
-            console.log('✅ Callback exists, usage mode:', this.usageMode);
             if (this.usageMode === 'inline') {
                 // Inline mode: return full inline format with prefix
                 const prefixSelect = document.getElementById('inlinePrefixSelect');
@@ -936,10 +925,8 @@ class ConditionBrowser {
                     condition: this.currentCondition
                 };
                 
-                console.log('📤 Invoking callback with inline result:', result);
                 this.callbackInvoked = true;  // Mark as invoked
                 this.onSelectCallback(result);
-                console.log('✅ Callback invoked successfully!');
             } else {
                 // YAML mode: return condition + action separately
                 const actionSelect = document.getElementById('conditionActionSelect');
