@@ -53,14 +53,13 @@
     background: var(--bg-primary);
     border: 2px solid var(--border-primary);
     border-radius: var(--radius-md);
-    transition: all var(--transition-base);
+    contain: layout style paint;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
     cursor: pointer;
 }
 
 .condition-item:hover {
     border-color: var(--accent-primary);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
     background: var(--bg-elevated);
 }
 
@@ -118,7 +117,6 @@
     align-items: center;
     justify-content: center;
     padding: var(--spacing-lg);
-    animation: modalFadeIn var(--transition-base);
 }
 
 /* Nested modals (browsers opened from skill line builder) need higher z-index */
@@ -144,7 +142,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    animation: modalSlideIn var(--transition-base);
+    contain: layout style paint;
 }
 
 @keyframes modalSlideIn {
@@ -196,13 +194,12 @@
     align-items: center;
     justify-content: center;
     border-radius: var(--radius-md);
-    transition: all var(--transition-base);
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .btn-close:hover {
     background: var(--error);
     color: white;
-    transform: rotate(90deg) scale(1.1);
 }
 
 /* Condition Browser */
@@ -226,14 +223,13 @@
     border-radius: var(--radius-lg);
     background: var(--bg-primary);
     color: var(--text-primary);
-    transition: all var(--transition-base);
+    transition: border-color 0.15s ease;
 }
 
 .search-input:focus {
     outline: none;
     border-color: var(--accent-primary);
     box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
-    transform: translateY(-1px);
 }
 
 .search-icon {
@@ -281,15 +277,140 @@
 
 /* Condition Grid - Optimized for performance */
 .condition-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-    gap: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     max-height: 500px;
     overflow-y: auto;
-    padding: 8px;
+    overflow-x: auto;
+    padding: 4px;
     /* Performance optimizations */
     contain: layout style paint;
-    will-change: contents; /* Optimize for frequent content changes during category switches */
+    will-change: scroll-position;
+    content-visibility: auto;
+    /* GPU acceleration for 60fps scrolling */
+    transform: translateZ(0);
+}
+
+/* Hidden state for conditional fields (performance: class toggle vs style manipulation) */
+.conditional-field.hidden {
+    display: none !important;
+}
+
+/* Compact list item (replaces bulky cards) */
+.mechanic-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 16px;
+    height: 44px;
+    margin-bottom: 2px;
+    background: var(--bg-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.mechanic-list-item:hover,
+.mechanic-list-item:focus {
+    background: var(--bg-tertiary);
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+    transform: translateX(4px);
+}
+
+.mechanic-item-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.btn-icon-inline {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.1s;
+}
+
+.btn-icon-inline:hover {
+    opacity: 1;
+}
+
+.mechanic-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 13px;
+    white-space: nowrap;
+    min-width: 80px;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+}
+
+.mechanic-desc {
+    color: var(--text-secondary);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+}
+
+.mechanic-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    justify-content: flex-end;
+}
+
+.mechanic-category-tag {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 70px;
+    text-align: center;
+}
+
+.mechanic-category-damage { background: #dc354540; color: #ff6b6b; }
+.mechanic-category-heal { background: #f0696940; color: #ff8787; }
+.mechanic-category-movement { background: #ffa50040; color: #ffb84d; }
+.mechanic-category-effects { background: #ffd70040; color: #ffe066; }
+.mechanic-category-control { background: #9b59b640; color: #b794f6; }
+.mechanic-category-utility { background: #4fc3f740; color: #74c0fc; }
+.mechanic-category-aura { background: #20c99740; color: #63e6be; }
+.mechanic-category-projectile { background: #ff69b440; color: #faa2c1; }
+
+/* Trigger-specific category colors */
+.mechanic-category-combat { background: #ef444440; color: #f87171; }
+.mechanic-category-lifecycle { background: #3b82f640; color: #60a5fa; }
+.mechanic-category-player { background: #10b98140; color: #34d399; }
+.mechanic-category-timed { background: #a855f740; color: #c084fc; }
+.mechanic-category-special { background: #ec489940; color: #f472b6; }
+.mechanic-category-communication { background: #06b6d440; color: #22d3ee; }
+
+.btn-xs {
+    font-size: 11px;
+    padding: 6px 14px;
+    height: 28px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .condition-card {
@@ -300,7 +421,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s ease;
     cursor: pointer;
     position: relative;
     overflow: hidden;
@@ -308,7 +429,33 @@
     /* Performance optimizations */
     content-visibility: auto;
     contain-intrinsic-size: 180px;
-    will-change: border-color;
+    contain: layout style paint;
+}
+
+/* Virtual scroll mode - simplified cards for performance */
+.virtual-scroll-mode .condition-card {
+    transition: none !important;
+    min-height: 192px;
+    box-sizing: border-box;
+    margin: 0;
+}
+
+/* Disable pseudo-element in virtual scroll mode */
+.virtual-scroll-mode .condition-card::after {
+    display: none !important;
+}
+
+/* Simplify hover in virtual scroll mode */
+.virtual-scroll-mode .condition-card:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-elevated);
+}
+
+/* Virtual scroll item wrapper */
+.virtual-scroll-item {
+    position: absolute;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .condition-card::after {
@@ -321,12 +468,11 @@
     background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
     opacity: 0;
     transition: opacity 0.15s ease;
+    will-change: opacity;
 }
 
 .condition-card:hover {
     border-color: var(--accent-primary);
-    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
-    /* Removed transform for better performance */
     background: var(--bg-elevated);
 }
 

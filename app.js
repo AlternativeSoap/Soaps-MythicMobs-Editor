@@ -11,6 +11,9 @@
  * ═══════════════════════════════════════════════════════════════
  */
 
+// PERFORMANCE: Global debug mode flag (set to false for production)
+window.DEBUG_MODE = false;
+
 class MythicMobsEditor {
     constructor() {
         // Display creator info in console

@@ -353,7 +353,7 @@ const ConditionHelpers = {
 // Export everything
 window.ALL_CONDITIONS = ALL_CONDITIONS;
 window.CONDITION_CATEGORIES = CONDITION_CATEGORIES;
-window.CONDITIONS_DATA = CONDITION_CATEGORIES; // For DataOptimizer compatibility
+window.CONDITIONS_DATA = ALL_CONDITIONS; // Flat array for browser compatibility
 window.CONDITIONS_BY_ID = CONDITIONS_BY_ID;
 window.CONDITIONS_BY_ALIAS = CONDITIONS_BY_ALIAS;
 window.ConditionHelpers = ConditionHelpers;

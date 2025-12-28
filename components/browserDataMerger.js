@@ -133,9 +133,9 @@ class BrowserDataMerger {
         }
 
         try {
-            // Load built-in conditions from utils/conditions.js
-            const { CONDITIONS_DATA } = await import('../utils/conditions.js');
-            const builtInConditions = CONDITIONS_DATA || [];
+            // Use the properly structured conditions from data/conditions/index.js
+            // NOT from utils/conditions.js which has a different format
+            const builtInConditions = window.ALL_CONDITIONS || [];
 
             // Check if supabase client is valid before attempting database queries
             if (!this.supabase || typeof this.supabase.from !== 'function') {
@@ -200,13 +200,8 @@ class BrowserDataMerger {
             return mergedData;
         } catch (error) {
             console.error('Error merging conditions data:', error);
-            // Fallback to built-in data only
-            try {
-                const { CONDITIONS_DATA } = await import('../utils/conditions.js');
-                return CONDITIONS_DATA || [];
-            } catch {
-                return [];
-            }
+            // Fallback to built-in data from data/conditions/index.js
+            return window.ALL_CONDITIONS || [];
         }
     }
 

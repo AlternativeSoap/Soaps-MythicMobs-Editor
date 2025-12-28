@@ -6,10 +6,21 @@
 
 class SkillBrowser {
     constructor() {
-        this.createModal();
+        this.ensureModal();
         this.attachEventListeners();
         this.currentCallback = null;
         this.skills = [];
+    }
+
+    /**
+     * Ensure the modal exists (create if missing, reuse if exists)
+     */
+    ensureModal() {
+        // Check if modal already exists
+        if (document.getElementById('skillBrowserOverlay')) {
+            return; // Reuse existing modal
+        }
+        this.createModal();
     }
 
     /**
@@ -70,13 +81,21 @@ class SkillBrowser {
     }
 
     /**
-     * Attach event listeners
+     * Attach event listeners (only if not already attached)
      */
     attachEventListeners() {
+        const overlay = document.getElementById('skillBrowserOverlay');
+        if (!overlay) return;
+        
+        // Check if already attached
+        if (overlay.dataset.listenersAttached) {
+            return;
+        }
+        overlay.dataset.listenersAttached = 'true';
+        
         const closeBtn = document.getElementById('skillBrowserClose');
         const closeFooterBtn = document.getElementById('skillBrowserCloseBtn');
         const searchInput = document.getElementById('skillBrowserSearch');
-        const overlay = document.getElementById('skillBrowserOverlay');
 
         closeBtn?.addEventListener('click', () => this.close());
         closeFooterBtn?.addEventListener('click', () => this.close());

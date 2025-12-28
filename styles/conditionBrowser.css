@@ -123,7 +123,7 @@
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.15s ease;
 }
 
 .condition-attribute-btn.cancel {
@@ -183,8 +183,7 @@
     color: white;
     font-size: 0.9em;
     font-weight: 500;
-    animation: chipFadeIn 0.2s ease-in;
-    transition: all 0.2s;
+    transition: background-color 0.15s ease;
 }
 
 .entity-chip.vanilla {
@@ -196,8 +195,7 @@
 }
 
 .entity-chip:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    filter: brightness(1.1);
 }
 
 .entity-chip-name {
@@ -235,7 +233,7 @@
     border: 1px solid var(--danger, #e74c3c);
     border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .btn-clear-entities:hover {
@@ -263,7 +261,7 @@
     border-radius: 6px;
     color: var(--text-primary, #ecf0f1);
     font-size: 0.95em;
-    transition: all 0.2s;
+    transition: border-color 0.15s ease;
 }
 
 .entity-search-input:focus {
@@ -323,7 +321,6 @@
 /* Entity Categories */
 .entity-category {
     margin-bottom: 16px;
-    animation: categorySlideIn 0.3s ease-out;
 }
 
 .entity-category:last-child {
@@ -357,15 +354,14 @@
     font-family: 'Consolas', 'Monaco', monospace;
     font-weight: 500;
     text-align: center;
-    transition: all 0.2s ease;
+    contain: layout style paint;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .entity-item:hover {
     background: var(--accent-primary, #3498db);
     border-color: var(--accent-primary-hover, #2980b9);
     color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
 }
 
 .entity-item:active {
@@ -389,7 +385,6 @@
 .entity-item.mythicmob-item:hover {
     background: var(--accent-purple, #9b59b6);
     border-color: #8e44ad;
-    box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
 }
 
 .entity-item.mythicmob-item.selected {

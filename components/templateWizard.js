@@ -10,6 +10,25 @@ class TemplateWizard {
         this.authManager = authManager;
         this.importExportManager = importExportManager;
         
+        // PERFORMANCE: Cache all DOM references to avoid repeated queries
+        this.refs = {
+            overlay: null,
+            close: null,
+            cancel: null,
+            next: null,
+            back: null,
+            save: null,
+            name: null,
+            nameCounter: null,
+            description: null,
+            descCounter: null,
+            category: null,
+            icon: null,
+            isOfficial: null,
+            tags: null,
+            adminOptions: null
+        };
+        
         this.currentStep = 1;
         this.templateData = {
             name: '',
@@ -324,14 +343,33 @@ class TemplateWizard {
      * Attach event listeners
      */
     attachEventListeners() {
+        // Cache DOM references once (avoid 52 getElementById calls)
+        if (!this.refs.overlay) {
+            this.refs.overlay = document.getElementById('templateWizardOverlay');
+            this.refs.close = document.getElementById('wizardClose');
+            this.refs.cancel = document.getElementById('wizardCancel');
+            this.refs.next = document.getElementById('wizardNext');
+            this.refs.back = document.getElementById('wizardBack');
+            this.refs.save = document.getElementById('wizardSave');
+            this.refs.name = document.getElementById('wizardName');
+            this.refs.nameCounter = document.getElementById('wizardNameCounter');
+            this.refs.description = document.getElementById('wizardDescription');
+            this.refs.descCounter = document.getElementById('wizardDescCounter');
+            this.refs.category = document.getElementById('wizardCategory');
+            this.refs.icon = document.getElementById('wizardIcon');
+            this.refs.isOfficial = document.getElementById('wizardIsOfficial');
+            this.refs.tags = document.getElementById('wizardTags');
+            this.refs.adminOptions = document.getElementById('wizardAdminOptions');
+        }
+        
         // Close buttons
-        document.getElementById('wizardClose')?.addEventListener('click', () => this.close());
-        document.getElementById('wizardCancel')?.addEventListener('click', () => this.close());
+        this.refs.close?.addEventListener('click', () => this.close());
+        this.refs.cancel?.addEventListener('click', () => this.close());
         
         // Navigation
-        document.getElementById('wizardNext')?.addEventListener('click', () => this.nextStep());
-        document.getElementById('wizardBack')?.addEventListener('click', () => this.previousStep());
-        document.getElementById('wizardSave')?.addEventListener('click', () => this.save());
+        this.refs.next?.addEventListener('click', () => this.nextStep());
+        this.refs.back?.addEventListener('click', () => this.previousStep());
+        this.refs.save?.addEventListener('click', () => this.save());
         
         // Structure type buttons
         document.querySelectorAll('.btn-structure').forEach(btn => {
@@ -351,13 +389,26 @@ class TemplateWizard {
             });
         });
         
-        // Character counters
-        document.getElementById('wizardName')?.addEventListener('input', (e) => {
-            document.getElementById('wizardNameCounter').textContent = `${e.target.value.length}/50`;
+        // PERFORMANCE: Debounce character counters (prevents paint on every keystroke)
+        const updateNameCounter = debounce((value) => {
+            if (this.refs.nameCounter) {
+                this.refs.nameCounter.textContent = `${value.length}/50`;
+            }
+        }, 50);
+        
+        const updateDescCounter = debounce((value) => {
+            if (this.refs.descCounter) {
+                this.refs.descCounter.textContent = `${value.length}/500`;
+            }
+        }, 50);
+        
+        // Character counters with debouncing
+        this.refs.name?.addEventListener('input', (e) => {
+            updateNameCounter(e.target.value);
         });
         
-        document.getElementById('wizardDescription')?.addEventListener('input', (e) => {
-            document.getElementById('wizardDescCounter').textContent = `${e.target.value.length}/500`;
+        this.refs.description?.addEventListener('input', (e) => {
+            updateDescCounter(e.target.value);
         });
     }
 

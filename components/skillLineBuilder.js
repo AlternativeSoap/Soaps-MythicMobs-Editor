@@ -402,7 +402,9 @@ class SkillLineBuilder {
                     </div>
                 </div>
                 <div class="component-actions">
-                    <button class="btn btn-sm btn-primary" id="btnSelectMechanic" title="Open mechanic browser (Alt+M)">
+                    <button class="btn btn-sm btn-primary" id="btnSelectMechanic" 
+                            data-preload-browser="mechanic"
+                            title="Open mechanic browser (Alt+M)">
                         <i class="fas fa-search"></i> Mechanics
                     </button>
                     <button class="btn btn-sm btn-icon" id="btnClearMechanic" style="display: none;" title="Clear selected mechanic">
@@ -663,14 +665,22 @@ class SkillLineBuilder {
     }
     
     handleClick(e) {
+        console.log('🖱️ handleClick triggered, target:', e.target.tagName, e.target.id || e.target.className);
+        
         const target = e.target.closest('button');
         if (!target) {
-            if (window.DEBUG_MODE) {
-            }
+            console.log('🖱️ No button found in click target');
             return;
         }
         
         const id = target.id;
+        console.log('🖱️ Button clicked:', id, 'disabled:', target.disabled);
+        
+        // Check if button is disabled
+        if (target.disabled) {
+            console.log('⚠️ Button is disabled, ignoring click');
+            return;
+        }
         
         const actions = {
             // Header
@@ -925,6 +935,8 @@ class SkillLineBuilder {
     // ========================================
     
     open(options = {}) {
+        console.log('📂 SkillLineBuilder.open() called');
+        console.log('   Current overlay state:', this.dom.overlay?.style.display, 'minimized class:', this.dom.overlay?.classList.contains('minimized'));
         
         // Re-cache DOM elements to ensure fresh references (fixes re-open bug)
         this.cacheDOMElements();
@@ -985,9 +997,24 @@ class SkillLineBuilder {
     }
     
     close() {
+        console.log('📕 SkillLineBuilder.close() called');
+        console.log('   Current overlay state:', this.dom.overlay?.style.display, 'minimized class:', this.dom.overlay?.classList.contains('minimized'));
         
-        this.setState({ isOpen: false });
-        this.dom.overlay.style.display = 'none';
+        // CRITICAL: Reset ALL browser-related states to allow reopening
+        this.setState({ 
+            isOpen: false,
+            activeBrowser: null,
+            isMinimized: false
+        });
+        
+        // CRITICAL: Also remove minimized class from DOM
+        if (this.dom.overlay) {
+            this.dom.overlay.classList.remove('minimized');
+            this.dom.overlay.style.display = 'none';
+            this.dom.overlay.style.pointerEvents = 'auto'; // Reset pointer events
+        }
+        
+        console.log('   After close:', this.dom.overlay?.style.display, 'minimized class:', this.dom.overlay?.classList.contains('minimized'));
         
         if (this.callbacks.onClose) this.callbacks.onClose();
         this.cleanup();
@@ -1475,14 +1502,14 @@ class SkillLineBuilder {
             console.warn('⚠️ btnAddToQueue element not found!');
         }
         
-        // btnAdd (Add Skill Line) should always be enabled if there's a valid line to add
+        // btnAdd (Add Skill Line) should always be enabled when builder is open
         const queueCount = this.state?.queue?.length || 0;
-        const canAddDirectly = canAddToQueue; // Can add current line directly
+        const isBuilderActive = this.state.isOpen && !this.state.isMinimized;
         
         if (this.dom.btnAdd) {
             const oldState = this.dom.btnAdd.disabled;
-            this.dom.btnAdd.disabled = !(queueCount > 0 || canAddDirectly);
-            console.log('🔘 btnAdd.disabled:', oldState, '→', this.dom.btnAdd.disabled, '(queue:', queueCount, ', canAdd:', canAddDirectly, ')');
+            this.dom.btnAdd.disabled = !isBuilderActive;
+            console.log('🔘 btnAdd.disabled:', oldState, '→', this.dom.btnAdd.disabled, '(isOpen:', this.state.isOpen, ', minimized:', this.state.isMinimized, ')');
         } else {
             console.warn('⚠️ btnAdd element not found!');
         }
@@ -1696,6 +1723,7 @@ class SkillLineBuilder {
      * Open Mechanic Browser
      */
     openMechanicBrowser() {
+        performance.mark('browser-click');
         
         // Prevent opening multiple browsers at once
         if (this.state.activeBrowser) {
@@ -1703,19 +1731,26 @@ class SkillLineBuilder {
             return;
         }
         
-        // Lazy initialization - create browsers if they don't exist (at this point all classes are loaded)
-        if (!this.browsers.targeter && window.TargeterBrowser) {
-            this.browsers.targeter = new TargeterBrowser();
-        }
-        if (!this.browsers.trigger && window.TriggerBrowser) {
-            this.browsers.trigger = new TriggerBrowser(window.editor);
-        }
-        if (!this.browsers.mechanic && window.MechanicBrowser) {
-            this.browsers.mechanic = new MechanicBrowser(
-                this.browsers.targeter,
-                this.browsers.trigger,
-                null
-            );
+        // Use singleton browser manager instead of creating new instances
+        if (window.browserManager) {
+            this.browsers.mechanic = window.browserManager.getMechanicBrowser();
+            this.browsers.targeter = window.browserManager.getTargeterBrowser();
+            this.browsers.trigger = window.browserManager.getTriggerBrowser();
+        } else {
+            // Fallback: Lazy initialization - create browsers if they don't exist
+            if (!this.browsers.targeter && window.TargeterBrowser) {
+                this.browsers.targeter = new TargeterBrowser();
+            }
+            if (!this.browsers.trigger && window.TriggerBrowser) {
+                this.browsers.trigger = new TriggerBrowser(window.editor);
+            }
+            if (!this.browsers.mechanic && window.MechanicBrowser) {
+                this.browsers.mechanic = new MechanicBrowser(
+                    this.browsers.targeter,
+                    this.browsers.trigger,
+                    null
+                );
+            }
         }
         
         if (!this.browsers.mechanic) {
@@ -1723,38 +1758,24 @@ class SkillLineBuilder {
             return;
         }
         
-        // Minimize builder and track active browser
-        this.minimize();
+        // Track active browser
         this.setState({ isLoading: true, activeBrowser: 'mechanic' });
-        this.showLoadingState();
         
         const builderContext = this.state.context || 'skill';
         
         // Open browser with callback and proper context
         this.browsers.mechanic.open({
-            context: builderContext, // Pass context in options
+            context: builderContext,
             parentZIndex: 10000,
             onSelect: (skillLine) => {
-                
-                // Hide loading
-                this.hideLoadingState();
-                
-                // Restore builder with full state reset
+                // CRITICAL: Always clear state first, even on cancel
+                // This fixes the "Browser already open" bug
                 this.setState({ 
-                    isMinimized: false, 
                     activeBrowser: null,
                     isLoading: false 
                 });
                 
-                // Restore DOM state
-                if (this.dom.overlay) {
-                    this.dom.overlay.classList.remove('minimized');
-                    this.dom.overlay.style.opacity = '1';
-                    this.dom.overlay.style.pointerEvents = 'auto';
-                    this.dom.overlay.style.zIndex = '10000';
-                }
-                
-                // If cancelled (null), just return
+                // If cancelled (null), just return (state already cleared above)
                 if (skillLine === null) {
                     return;
                 }
@@ -1832,22 +1853,30 @@ class SkillLineBuilder {
         // Prevent opening multiple browsers at once
         if (this.state.activeBrowser) {
             console.warn('⚠️ Browser already open:', this.state.activeBrowser);
-            return;
+            // Force close previous browser
+            this.setState({ activeBrowser: null, isLoading: false });
         }
         
-        // Lazy initialization - create if doesn't exist (at this point all classes are loaded)
-        if (!this.browsers.targeter && window.TargeterBrowser) {
-            this.browsers.targeter = new TargeterBrowser();
-        }
-        if (!this.browsers.trigger && window.TriggerBrowser) {
-            this.browsers.trigger = new TriggerBrowser(window.editor);
-        }
-        if (!this.browsers.mechanic && window.MechanicBrowser) {
-            this.browsers.mechanic = new MechanicBrowser(
-                this.browsers.targeter,
-                this.browsers.trigger,
-                null
-            );
+        // Use singleton browser manager instead of creating new instances
+        if (window.browserManager) {
+            this.browsers.targeter = window.browserManager.getTargeterBrowser();
+            this.browsers.trigger = window.browserManager.getTriggerBrowser();
+            this.browsers.mechanic = window.browserManager.getMechanicBrowser();
+        } else {
+            // Fallback: Lazy initialization - create if doesn't exist
+            if (!this.browsers.targeter && window.TargeterBrowser) {
+                this.browsers.targeter = new TargeterBrowser();
+            }
+            if (!this.browsers.trigger && window.TriggerBrowser) {
+                this.browsers.trigger = new TriggerBrowser(window.editor);
+            }
+            if (!this.browsers.mechanic && window.MechanicBrowser) {
+                this.browsers.mechanic = new MechanicBrowser(
+                    this.browsers.targeter,
+                    this.browsers.trigger,
+                    null
+                );
+            }
         }
         
         if (!this.browsers.targeter) {
@@ -1855,31 +1884,17 @@ class SkillLineBuilder {
             return;
         }
         
-        // Minimize builder and track active browser
-        this.minimize();
+        // Track active browser
         this.setState({ isLoading: true, activeBrowser: 'targeter' });
-        this.showLoadingState();
         
         // Open browser with callback
         this.browsers.targeter.open({
             parentZIndex: 10000,
             onSelect: (result) => {
                 
-                // Hide loading
-                this.hideLoadingState();
-                
-                // Restore DOM state immediately
-                if (this.dom.overlay) {
-                    this.dom.overlay.classList.remove('minimized');
-                    this.dom.overlay.style.opacity = '1';
-                    this.dom.overlay.style.pointerEvents = 'auto';
-                    this.dom.overlay.style.zIndex = '10000';
-                }
-                
                 // If cancelled (null), just restore state and return
                 if (result === null) {
                     this.setState({ 
-                        isMinimized: false, 
                         activeBrowser: null,
                         isLoading: false 
                     });
@@ -1904,7 +1919,6 @@ class SkillLineBuilder {
                 // MUST spread existing state to preserve context and other properties!
                 this.setState(s => ({
                     ...s,  // Preserve ALL state including context
-                    isMinimized: false,
                     activeBrowser: null,
                     isLoading: false,
                     currentLine: { ...s.currentLine, targeter: targeterString }
@@ -1940,22 +1954,30 @@ class SkillLineBuilder {
         // Prevent opening multiple browsers at once
         if (this.state.activeBrowser) {
             console.warn('⚠️ Browser already open:', this.state.activeBrowser);
-            return;
+            // Force close previous browser
+            this.setState({ activeBrowser: null, isLoading: false });
         }
         
-        // Lazy initialization - create if doesn't exist (at this point all classes are loaded)
-        if (!this.browsers.targeter && window.TargeterBrowser) {
-            this.browsers.targeter = new TargeterBrowser();
-        }
-        if (!this.browsers.trigger && window.TriggerBrowser) {
-            this.browsers.trigger = new TriggerBrowser(window.editor);
-        }
-        if (!this.browsers.mechanic && window.MechanicBrowser) {
-            this.browsers.mechanic = new MechanicBrowser(
-                this.browsers.targeter,
-                this.browsers.trigger,
-                null
-            );
+        // Use singleton browser manager instead of creating new instances
+        if (window.browserManager) {
+            this.browsers.targeter = window.browserManager.getTargeterBrowser();
+            this.browsers.trigger = window.browserManager.getTriggerBrowser();
+            this.browsers.mechanic = window.browserManager.getMechanicBrowser();
+        } else {
+            // Fallback: Lazy initialization - create if doesn't exist
+            if (!this.browsers.targeter && window.TargeterBrowser) {
+                this.browsers.targeter = new TargeterBrowser();
+            }
+            if (!this.browsers.trigger && window.TriggerBrowser) {
+                this.browsers.trigger = new TriggerBrowser(window.editor);
+            }
+            if (!this.browsers.mechanic && window.MechanicBrowser) {
+                this.browsers.mechanic = new MechanicBrowser(
+                    this.browsers.targeter,
+                    this.browsers.trigger,
+                    null
+                );
+            }
         }
         
         if (!this.browsers.trigger) {
@@ -1963,10 +1985,8 @@ class SkillLineBuilder {
             return;
         }
         
-        // Minimize builder and track active browser
-        this.minimize();
+        // Track active browser
         this.setState({ isLoading: true, activeBrowser: 'trigger' });
-        this.showLoadingState();
         
         // Open browser with callback
         this.browsers.trigger.open({
@@ -1981,18 +2001,9 @@ class SkillLineBuilder {
                     
                     // Restore builder
                     this.setState({ 
-                        isMinimized: false, 
                         activeBrowser: null,
                         isLoading: false 
                     });
-                    
-                    // Restore DOM state
-                    if (this.dom.overlay) {
-                        this.dom.overlay.classList.remove('minimized');
-                        this.dom.overlay.style.opacity = '1';
-                        this.dom.overlay.style.pointerEvents = 'auto';
-                        this.dom.overlay.style.zIndex = '10000';
-                    }
                     return;
                 }
                 
@@ -2023,19 +2034,10 @@ class SkillLineBuilder {
                 // Update state with trigger
                 this.setState(s => ({
                     ...s,
-                    isMinimized: false, 
                     activeBrowser: null,
                     isLoading: false,
                     currentLine: { ...s.currentLine, trigger: triggerName }
                 }));
-                
-                // Restore DOM state
-                if (this.dom.overlay) {
-                    this.dom.overlay.classList.remove('minimized');
-                    this.dom.overlay.style.opacity = '1';
-                    this.dom.overlay.style.pointerEvents = 'auto';
-                    this.dom.overlay.style.zIndex = '10000';
-                }
             }
         });
     }
@@ -2069,44 +2071,38 @@ class SkillLineBuilder {
             return;
         }
         
-        // Initialize condition browser if needed (synchronous for reliability)
-        try {
-            if (!window.conditionBrowser) {
-                window.conditionBrowser = new ConditionBrowser();
+        // Use singleton browser manager instead of creating new instance
+        if (window.browserManager) {
+            window.conditionBrowser = window.browserManager.getConditionBrowser();
+        } else {
+            // Fallback: Initialize condition browser if needed (synchronous for reliability)
+            try {
+                if (!window.conditionBrowser) {
+                    window.conditionBrowser = new ConditionBrowser();
+                }
+            } catch (error) {
+                console.error('❌ Error creating ConditionBrowser:', error);
+                if (this.editor && this.editor.showAlert) {
+                    this.editor.showAlert('Failed to initialize Condition Browser: ' + error.message, 'error', 'Initialization Error');
+                }
+                return;
             }
-        } catch (error) {
-            console.error('❌ Error creating ConditionBrowser:', error);
-            if (this.editor && this.editor.showAlert) {
-                this.editor.showAlert('Failed to initialize Condition Browser: ' + error.message, 'error', 'Initialization Error');
-            }
-            return;
         }
         
-        // Minimize builder and track active browser (batch updates)
-        this.minimize();
+        // Track active browser
         this.setState({ activeBrowser: 'condition' });
         
-        // Open condition browser with callback (add small delay to ensure minimize completes)
-        setTimeout(() => {
-            window.conditionBrowser.open({
+        // Open condition browser with callback
+        window.conditionBrowser.open({
             usageMode: 'inline',  // KEY: Use inline mode for skill line builder
             conditionType: 'caster',  // Default to caster conditions
             parentZIndex: 10000,
             onSelect: (result) => {
                 
-                // Restore DOM state immediately
-                if (this.dom.overlay) {
-                    this.dom.overlay.classList.remove('minimized');
-                    this.dom.overlay.style.opacity = '1';
-                    this.dom.overlay.style.pointerEvents = 'auto';
-                    this.dom.overlay.style.zIndex = '10000';
-                }
-                
                 // If cancelled (null), just restore state and return
                 if (result === null) {
                     this.setState(s => ({ 
                         ...s,  // Preserve ALL state including context
-                        isMinimized: false, 
                         activeBrowser: null 
                     }));
                     return;
@@ -2129,7 +2125,6 @@ class SkillLineBuilder {
                         const newConditions = [...(s.currentLine.conditions || []), conditionObj];
                         return {
                             ...s,  // Preserve ALL state including context
-                            isMinimized: false,
                             activeBrowser: null,
                             currentLine: { 
                                 ...s.currentLine, 
@@ -2145,7 +2140,6 @@ class SkillLineBuilder {
                 }
             }
         });
-        }, 50); // Small delay to ensure UI transitions smoothly
     }
     
     /**
@@ -2579,6 +2573,7 @@ class SkillLineBuilder {
                     this.callbacks.onAdd(currentLine);
                 }
                 
+                // Close builder after adding - use queue system for multiple lines
                 this.close();
                 return;
             }
@@ -2599,6 +2594,7 @@ class SkillLineBuilder {
         // Clear the queue after processing
         this.setState({ queue: [] });
         
+        // Close builder after adding - use queue system for multiple lines
         this.close();
     }
     

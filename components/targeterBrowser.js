@@ -13,6 +13,21 @@ class TargeterBrowser {
         this.searchCache = new LRUCache(10);
         this.callbackInvoked = false; // Prevent double callback
         
+        // Phase 1 Critical: Event listener cleanup
+        this.abortController = new AbortController();
+        
+        // Phase 1 Critical: Persistent DOM element cache
+        this.persistentCache = {
+            overlay: null,
+            searchInput: null,
+            targeterList: null
+        };
+        
+        // Phase 1 Critical: Debounce timers
+        this.categoryDebounce = null;
+        this.searchDebounce = null;
+        this.favoriteDebounce = null;
+        
         // Initialize browser data merger
         if (window.supabase && typeof BrowserDataMerger !== 'undefined') {
             this.browserDataMerger = new BrowserDataMerger(window.supabase);
@@ -123,52 +138,79 @@ class TargeterBrowser {
     }
 
     /**
+     * Get frequently accessed elements with persistent caching
+     * Phase 1 Critical: Eliminates repeated querySelector calls
+     */
+    getElement(key) {
+        if (!this.persistentCache[key]) {
+            switch(key) {
+                case 'overlay':
+                    this.persistentCache[key] = document.getElementById('targeterBrowserOverlay');
+                    break;
+                case 'searchInput':
+                    this.persistentCache[key] = document.getElementById('targeterSearchInput');
+                    break;
+                case 'targeterList':
+                    this.persistentCache[key] = document.getElementById('targeterList');
+                    break;
+            }
+        }
+        return this.persistentCache[key];
+    }
+
+    /**
      * Attach event listeners
      */
     attachEventListeners() {
+        const { signal } = this.abortController;
+        
         // Close browser modal
         document.getElementById('targeterBrowserClose').addEventListener('click', () => {
             this.close();
-        });
+        }, { signal });
 
         document.getElementById('targeterBrowserOverlay').addEventListener('click', (e) => {
             if (e.target.id === 'targeterBrowserOverlay') {
                 this.close();
             }
-        });
+        }, { signal });
 
-        // Search input with debouncing (150ms)
-        const debouncedSearch = debounce((query) => {
-            this.searchQuery = query;
-            this.renderTargeters();
-        }, 150);
-        
+        // Search input with debouncing (300ms for search)
         document.getElementById('targeterSearchInput').addEventListener('input', (e) => {
-            debouncedSearch(e.target.value);
-        });
+            const query = e.target.value;
+            clearTimeout(this.searchDebounce);
+            this.searchDebounce = setTimeout(() => {
+                this.searchQuery = query;
+                this.renderTargeters();
+            }, 300);
+        }, { signal });
 
-        // Category tabs
+        // Category tabs with 50ms debounce for snappy feel
         document.getElementById('targeterCategories').addEventListener('click', (e) => {
             if (e.target.classList.contains('category-tab')) {
                 document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
                 e.target.classList.add('active');
                 this.currentCategory = e.target.dataset.category;
-                this.renderTargeters();
+                
+                clearTimeout(this.categoryDebounce);
+                this.categoryDebounce = setTimeout(() => {
+                    this.renderTargeters();
+                }, 50);
             }
-        });
+        }, { signal });
 
         // Attribute modal buttons
         document.getElementById('targeterAttributeBack').addEventListener('click', () => {
             this.showTargeterSelection();
-        });
+        }, { signal });
         
         document.getElementById('targeterAttributeCancel').addEventListener('click', () => {
             this.showTargeterSelection();
-        });
+        }, { signal });
 
         document.getElementById('targeterAttributeConfirm').addEventListener('click', () => {
             this.confirmAttributeConfiguration();
-        });
+        }, { signal });
         
         // Add keyboard support for attribute modal
         document.addEventListener('keydown', (e) => {
@@ -182,7 +224,7 @@ class TargeterBrowser {
                     this.showTargeterSelection();
                 }
             }
-        });
+        }, { signal });
 
         // Enhanced keyboard navigation
         document.addEventListener('keydown', (e) => {
@@ -210,10 +252,10 @@ class TargeterBrowser {
             }
             
             // Arrow key navigation
-            const cards = Array.from(document.querySelectorAll('#targeterList .condition-card'));
+            const cards = Array.from(document.querySelectorAll('#targeterList .mechanic-list-item'));
             if (cards.length === 0) return;
             
-            const focusedCard = document.activeElement.closest('.condition-card');
+            const focusedCard = document.activeElement.closest('.mechanic-list-item');
             let currentIndex = focusedCard ? cards.indexOf(focusedCard) : -1;
             
             if (e.key === 'ArrowDown') {
@@ -233,25 +275,46 @@ class TargeterBrowser {
     }
 
     /**
-     * Open the targeter browser
+     * Open the targeter browser (OPTIMIZED - no async)
      */
-    async open(options = {}) {
-        // Load merged data if available
-        await this.loadMergedData();
+    open(options = {}) {
+        // Use pre-cached data instead of async loading
+        if (window.__CACHED_TARGETERS_DATA__) {
+            this.targetersData = window.__CACHED_TARGETERS_DATA__;
+        }
         
         this.currentValue = options.currentValue || '@Self';
         this.onSelectCallback = options.onSelect || null;
 
-        this.currentCategory = 'all';
-        this.searchQuery = '';
-        document.getElementById('targeterSearchInput').value = '';
+        // Don't reset if user had a category selected (preserve state)
+        if (!this.currentCategory) {
+            this.currentCategory = 'all';
+        }
         
-        // Reset category tabs
-        document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-        document.querySelector('[data-category="all"]').classList.add('active');
+        // Only reset search if explicitly requested
+        if (options.resetSearch !== false) {
+            this.searchQuery = '';
+            const searchInput = document.getElementById('targeterSearchInput');
+            if (searchInput) searchInput.value = '';
+        }
+        
+        // Cache DOM queries
+        if (!this._cachedTabs) {
+            this._cachedTabs = document.querySelectorAll('.category-tab');
+        }
+        if (!this._cachedAllTab) {
+            this._cachedAllTab = document.querySelector('[data-category="all"]');
+        }
+        
+        // Reset category tabs only if needed
+        if (this.currentCategory === 'all') {
+            this._cachedTabs.forEach(t => t.classList.remove('active'));
+            if (this._cachedAllTab) this._cachedAllTab.classList.add('active');
+        }
 
         this.renderTargeters();
         this.updateCategoryCounts();
+        
         const overlay = document.getElementById('targeterBrowserOverlay');
         // Apply higher z-index if opened from another modal
         if (options.parentZIndex) {
@@ -277,8 +340,53 @@ class TargeterBrowser {
         } else if (this.callbackInvoked) {
         }
         
+        // Clear caches and state
+        this.cleanup();
+        
         this.onSelectCallback = null;
         this.callbackInvoked = false; // Reset flag
+    }
+    
+    /**
+     * Cleanup resources
+     */
+    cleanup() {
+        // Phase 1 Critical: Remove all event listeners automatically
+        this.abortController.abort();
+        this.abortController = new AbortController(); // Reset for next open
+        
+        // Phase 1 Critical: Clear all debounce timers
+        clearTimeout(this.categoryDebounce);
+        clearTimeout(this.searchDebounce);
+        clearTimeout(this.favoriteDebounce);
+        
+        // Clear search cache
+        if (this.searchCache) {
+            this.searchCache.clear();
+        }
+        
+        // Destroy virtual scroller if exists
+        if (this.virtualScroller) {
+            this.virtualScroller = null;
+        }
+        
+        // Clear state
+        this.currentTargeter = null;
+        this.searchQuery = '';
+        
+        if (window.DEBUG_MODE) console.log('✅ TargeterBrowser cleanup complete');
+    }
+    
+    /**
+     * Destroy the browser and remove from DOM
+     */
+    destroy() {
+        this.cleanup();
+        const overlay = document.getElementById('targeterBrowserOverlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        this.onSelectCallback = null;
     }
 
     /**
@@ -309,13 +417,14 @@ class TargeterBrowser {
     }
 
     /**
-     * Render the targeter list based on current filters
+     * Render the targeter list based on current filters (OPTIMIZED)
      */
     renderTargeters() {
         const listContainer = document.getElementById('targeterList');
+        if (!listContainer) return;
         
         // Add CSS optimization for smooth scrolling
-        if (listContainer && !listContainer.style.willChange) {
+        if (!listContainer.style.willChange) {
             listContainer.style.willChange = 'scroll-position';
             listContainer.style.transform = 'translateZ(0)';
             listContainer.style.contain = 'layout style paint';
@@ -343,74 +452,62 @@ class TargeterBrowser {
             return;
         }
 
-        // Use document fragment for better performance
-        const fragment = document.createDocumentFragment();
-        
-        targeters.forEach(targeter => {
-            const card = document.createElement('div');
-            card.className = 'condition-card';
-            card.dataset.targeter = targeter.id;
-            
-            const aliasesHTML = targeter.aliases && targeter.aliases.length > 0
-                ? `<div class="condition-aliases"><strong>Aliases:</strong> ${targeter.aliases.map(a => '@' + a).join(', ')}</div>`
-                : '';
+        // Helper to render a single targeter card
+        const renderCard = (t) => `<div class="mechanic-list-item" data-targeter="${t.id}" tabindex="0">
+    <div class="mechanic-item-main">
+        <span class="mechanic-name">@${t.name}</span>
+        <span class="mechanic-desc">${t.description}</span>
+    </div>
+    <div class="mechanic-item-actions">
+        <span class="mechanic-category-tag mechanic-category-${t.category.toLowerCase().replace('_', '')}">${t.category.replace('_', ' ').toUpperCase()}</span>
+        <button class="btn btn-xs btn-select-targeter">Select</button>
+    </div>
+</div>`;
 
-            const examplesHTML = targeter.examples && targeter.examples.length > 0
-                ? `<div class="condition-example" style="display: flex; align-items: center; gap: 8px;">
-                    <code>${targeter.examples[0]}</code>
-                    <button class="btn-copy-example" data-example="${targeter.examples[0]}" title="Copy to clipboard" style="padding: 4px 8px; font-size: 11px; background: #2a2a2a; border: 1px solid #444; border-radius: 3px; cursor: pointer;">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                </div>`
-                : '';
-
-            card.innerHTML = `
-                <div class="condition-card-header">
-                    <h4>@${targeter.name}</h4>
-                    <span class="condition-category-badge">${targeter.category.replace('_', ' ')}</span>
-                </div>
-                <div class="condition-card-body">
-                    <p class="condition-card-description">${targeter.description}</p>
-                    ${aliasesHTML}
-                    ${examplesHTML}
-                </div>
-                <div class="condition-card-footer">
-                    <button class="btn btn-primary btn-select-targeter">Select</button>
-                </div>
-            `;
-            
-            fragment.appendChild(card);
-        });
-        
-        listContainer.innerHTML = '';
-        listContainer.appendChild(fragment);
-
-        // Use event delegation on container instead of attaching to each button
-        listContainer.onclick = (e) => {
-            const copyBtn = e.target.closest('.btn-copy-example');
-            if (copyBtn) {
-                e.stopPropagation();
-                const example = copyBtn.dataset.example;
-                navigator.clipboard.writeText(example).then(() => {
-                    const icon = copyBtn.querySelector('i');
-                    icon.className = 'fas fa-check';
-                    copyBtn.style.background = '#4caf50';
-                    setTimeout(() => {
-                        icon.className = 'fas fa-copy';
-                        copyBtn.style.background = '#2a2a2a';
-                    }, 1500);
-                });
-                return;
-            }
-            
-            const btn = e.target.closest('.btn-select-targeter');
-            if (btn) {
-                e.stopPropagation();
-                const card = btn.closest('.condition-card');
-                const targeterId = card.dataset.targeter;
-                this.handleTargeterSelection(targeterId);
-            }
+        // Event delegation handler (shared)
+        const setupClickHandler = () => {
+            listContainer.onclick = (e) => {
+                const copyBtn = e.target.closest('.btn-copy-example');
+                if (copyBtn) {
+                    e.stopPropagation();
+                    const example = copyBtn.dataset.example;
+                    navigator.clipboard.writeText(example).then(() => {
+                        const icon = copyBtn.querySelector('i');
+                        icon.className = 'fas fa-check';
+                        copyBtn.style.background = '#4caf50';
+                        setTimeout(() => {
+                            icon.className = 'fas fa-copy';
+                            copyBtn.style.background = '#2a2a2a';
+                        }, 1500);
+                    });
+                    return;
+                }
+                
+                const btn = e.target.closest('.btn-select-targeter');
+                if (btn) {
+                    e.stopPropagation();
+                    const card = btn.closest('.mechanic-list-item');
+                    const targeterId = card.dataset.targeter;
+                    this.handleTargeterSelection(targeterId);
+                }
+            };
         };
+
+        // PERFORMANCE: Chunked rendering for large lists (>50 items)
+        if (targeters.length > 50) {
+            const INITIAL_CHUNK = 30;
+            listContainer.innerHTML = targeters.slice(0, INITIAL_CHUNK).map(renderCard).join('');
+            setupClickHandler();
+            
+            setTimeout(() => {
+                listContainer.insertAdjacentHTML('beforeend', targeters.slice(INITIAL_CHUNK).map(renderCard).join(''));
+            }, 16);
+            return;
+        }
+
+        // Small lists: Direct render
+        listContainer.innerHTML = targeters.map(renderCard).join('');
+        setupClickHandler();
     }
 
     /**

@@ -835,6 +835,9 @@
     <script src="utils/smartDuplicateDetector.js"></script>
     <script src="utils/devicePerformanceDetector.js"></script>
     <script src="utils/smartFavoritesManager.js"></script>
+    
+    <!-- Performance Optimization -->
+    <script src="utils/performanceMonitor.js"></script>
 
     <!-- Trigger System -->
     <script src="data/triggers.js"></script>
@@ -868,6 +871,7 @@
     <script src="components/aiEditor.js"></script>
     <script src="components/vanillaOverridesEditor.js"></script>
     <script src="components/powerSystemEditor.js"></script>
+    
     <script src="components/conditionBrowser.js?v=3.7"></script>
     <script src="components/inlineConditionBuilder.js"></script>
     <script src="components/triggerBrowser.js"></script>
@@ -885,6 +889,9 @@
     <script src="components/attributeBuilder.js"></script>
     <script src="components/adminManager.js"></script>
     <script src="components/adminPanel.js"></script>
+    
+    <!-- PERFORMANCE: Browser Singleton Manager (MUST load AFTER all browser components) -->
+    <script src="utils/browserSingletonManager.js"></script>
     
     <!-- Mode Comparison Modal -->
     <div class="modal" id="mode-comparison-modal" style="display: none;">
@@ -993,7 +1000,7 @@
     <script src="utils/lazyLoader.js"></script>
     <script src="utils/workerPool.js"></script>
     <script src="utils/delayAnalyzer.js"></script>
-    <script src="components/virtualScrollManager.js"></script>
+    <!-- virtualScrollManager.js moved up to load BEFORE browsers (line ~875) -->
     <script src="components/skillBuilderEditor.js"></script>
     <script src="components/mobDropsEditor.js"></script>
     <!-- Mob Editor Components -->

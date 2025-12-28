@@ -211,10 +211,10 @@ class TriggerBrowser {
             }
             
             // Arrow key navigation
-            const cards = Array.from(document.querySelectorAll('#triggerList .condition-card'));
+            const cards = Array.from(document.querySelectorAll('#triggerList .mechanic-list-item'));
             if (cards.length === 0) return;
             
-            const focusedCard = document.activeElement.closest('.condition-card');
+            const focusedCard = document.activeElement.closest('.mechanic-list-item');
             let currentIndex = focusedCard ? cards.indexOf(focusedCard) : -1;
             
             if (e.key === 'ArrowDown') {
@@ -313,9 +313,10 @@ class TriggerBrowser {
      */
     renderTriggers() {
         const listContainer = document.getElementById('triggerList');
+        if (!listContainer) return;
         
         // Add CSS optimization for smooth scrolling
-        if (listContainer && !listContainer.style.willChange) {
+        if (!listContainer.style.willChange) {
             listContainer.style.willChange = 'scroll-position';
             listContainer.style.transform = 'translateZ(0)';
             listContainer.style.contain = 'layout style paint';
@@ -351,79 +352,62 @@ class TriggerBrowser {
             return;
         }
 
-        // Use document fragment for better performance
-        const fragment = document.createDocumentFragment();
-        
-        triggers.forEach(trigger => {
-            const card = document.createElement('div');
-            card.className = 'condition-card';
-            card.dataset.trigger = trigger.name;
-            
-            const aliasesHTML = trigger.aliases && trigger.aliases.length > 0
-                ? `<div class="condition-aliases"><strong>Aliases:</strong> ${trigger.aliases.join(', ')}</div>`
-                : '';
+        // Helper to render a single trigger card
+        const renderCard = (t) => `<div class="mechanic-list-item" data-trigger="${t.name}" tabindex="0">
+    <div class="mechanic-item-main">
+        <span class="mechanic-name">~${t.name}</span>
+        <span class="mechanic-desc">${t.description}</span>
+    </div>
+    <div class="mechanic-item-actions">
+        <span class="mechanic-category-tag mechanic-category-${t.category.toLowerCase()}">${t.category.toUpperCase()}</span>
+        <button class="btn btn-xs btn-select-trigger">Select</button>
+    </div>
+</div>`;
 
-            const requirementsHTML = trigger.requirements && trigger.requirements.length > 0
-                ? `<div class="condition-example"><strong>Requires:</strong> ${trigger.requirements.join(', ')}</div>`
-                : '';
+        // Event delegation handler (shared)
+        const setupClickHandler = () => {
+            listContainer.onclick = (e) => {
+                const btn = e.target.closest('.btn-select-trigger');
+                if (btn) {
+                    e.stopPropagation();
+                    const card = btn.closest('.mechanic-list-item');
+                    const triggerName = card.dataset.trigger;
+                    this.handleTriggerSelection(triggerName);
+                    return;
+                }
                 
-            const examplesHTML = trigger.examples && trigger.examples.length > 0
-                ? `<div class="condition-example" style="display: flex; align-items: center; gap: 8px;">
-                    <code>${trigger.examples[0]}</code>
-                    <button class="btn-copy-example" data-example="${trigger.examples[0]}" title="Copy to clipboard" style="padding: 4px 8px; font-size: 11px; background: #2a2a2a; border: 1px solid #444; border-radius: 3px; cursor: pointer;">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                </div>`
-                : '';
-
-            card.innerHTML = `
-                <div class="condition-card-header">
-                    <h4>~${trigger.name}</h4>
-                    <span class="condition-category-badge">${trigger.category}</span>
-                </div>
-                <div class="condition-card-body">
-                    <p class="condition-card-description">${trigger.description}</p>
-                    ${aliasesHTML}
-                    ${requirementsHTML}
-                    ${examplesHTML}
-                </div>
-                <div class="condition-card-footer">
-                    <button class="btn btn-primary btn-select-trigger">Select</button>
-                </div>
-            `;
-            
-            fragment.appendChild(card);
-        });
-        
-        listContainer.innerHTML = '';
-        listContainer.appendChild(fragment);
-
-        // Use event delegation on container instead of attaching to each button
-        listContainer.onclick = (e) => {
-            const btn = e.target.closest('.btn-select-trigger');
-            if (btn) {
-                e.stopPropagation();
-                const card = btn.closest('.condition-card');
-                const triggerName = card.dataset.trigger;
-                this.handleTriggerSelection(triggerName);
-                return;
-            }
-            
-            const copyBtn = e.target.closest('.btn-copy-example');
-            if (copyBtn) {
-                e.stopPropagation();
-                const example = copyBtn.dataset.example;
-                navigator.clipboard.writeText(example).then(() => {
-                    const icon = copyBtn.querySelector('i');
-                    icon.className = 'fas fa-check';
-                    copyBtn.style.background = '#4caf50';
-                    setTimeout(() => {
-                        icon.className = 'fas fa-copy';
-                        copyBtn.style.background = '#2a2a2a';
-                    }, 1500);
-                });
-            }
+                const copyBtn = e.target.closest('.btn-copy-example');
+                if (copyBtn) {
+                    e.stopPropagation();
+                    const example = copyBtn.dataset.example;
+                    navigator.clipboard.writeText(example).then(() => {
+                        const icon = copyBtn.querySelector('i');
+                        icon.className = 'fas fa-check';
+                        copyBtn.style.background = '#4caf50';
+                        setTimeout(() => {
+                            icon.className = 'fas fa-copy';
+                            copyBtn.style.background = '#2a2a2a';
+                        }, 1500);
+                    });
+                }
+            };
         };
+
+        // PERFORMANCE: Chunked rendering for large lists (>50 items)
+        if (triggers.length > 50) {
+            const INITIAL_CHUNK = 30;
+            listContainer.innerHTML = triggers.slice(0, INITIAL_CHUNK).map(renderCard).join('');
+            setupClickHandler();
+            
+            setTimeout(() => {
+                listContainer.insertAdjacentHTML('beforeend', triggers.slice(INITIAL_CHUNK).map(renderCard).join(''));
+            }, 16);
+            return;
+        }
+
+        // Small lists: Direct render
+        listContainer.innerHTML = triggers.map(renderCard).join('');
+        setupClickHandler();
     }
 
     /**

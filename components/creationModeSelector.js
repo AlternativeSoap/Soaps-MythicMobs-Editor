@@ -1,14 +1,37 @@
 /**
  * Creation Mode Selector Component
  * Entry point for 3-mode skill line creation system
+ * 
+ * Uses singleton pattern - multiple instances share the same modal
+ * The ACTIVE callback is stored globally to handle multiple instances
  */
+
+// Global storage for the active callback (shared across all instances)
+window._creationModeSelectorActiveCallback = null;
 
 class CreationModeSelector {
     constructor() {
         this.context = 'mob';
-        this.onSelectCallback = null;
-        this.createModal();
+        this.modal = null;
+        this.ensureModal();
         this.attachEventListeners();
+    }
+
+    /**
+     * Ensure the modal exists in DOM (create if missing, reuse if exists)
+     */
+    ensureModal() {
+        // Check if modal already exists
+        this.modal = document.getElementById('creationModeSelectorOverlay');
+        if (this.modal) {
+            console.log('✅ CreationModeSelector: Reusing existing modal');
+            return;
+        }
+        
+        // Create new modal
+        console.log('🆕 CreationModeSelector: Creating modal');
+        this.createModal();
+        this.modal = document.getElementById('creationModeSelectorOverlay');
     }
 
     /**
@@ -90,31 +113,49 @@ class CreationModeSelector {
     }
 
     /**
-     * Attach event listeners
+     * Attach event listeners (only if not already attached)
+     * Uses event delegation so ANY CreationModeSelector instance can handle the callback
      */
     attachEventListeners() {
+        const modal = this.modal || document.getElementById('creationModeSelectorOverlay');
+        if (!modal) {
+            console.error('❌ CreationModeSelector: Cannot attach listeners - modal not found');
+            return;
+        }
+        
+        // Check if already attached
+        if (modal.dataset.listenersAttached) {
+            console.log('✅ CreationModeSelector: Listeners already attached');
+            return;
+        }
+        modal.dataset.listenersAttached = 'true';
+        
         // Close button
-        document.getElementById('creationModeClose').addEventListener('click', () => {
-            this.close();
-        });
+        const closeBtn = document.getElementById('creationModeClose');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.close());
+        }
 
         // Cancel button
-        document.getElementById('creationModeCancel').addEventListener('click', () => {
-            this.close();
-        });
+        const cancelBtn = document.getElementById('creationModeCancel');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => this.close());
+        }
 
         // Click outside to close
-        document.getElementById('creationModeSelectorOverlay').addEventListener('click', (e) => {
+        modal.addEventListener('click', (e) => {
             if (e.target.id === 'creationModeSelectorOverlay') {
                 this.close();
             }
         });
 
-        // Mode selection buttons
+        // Mode selection - use GLOBAL callback to handle any instance
         document.querySelectorAll('.mode-select-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const mode = e.target.dataset.mode;
-                this.selectMode(mode);
+                console.log('🎯 Mode button clicked:', mode);
+                this.selectModeGlobal(mode);
             });
         });
 
@@ -124,48 +165,95 @@ class CreationModeSelector {
                 // Don't trigger if clicking the button directly
                 if (!e.target.classList.contains('mode-select-btn')) {
                     const mode = card.dataset.mode;
-                    this.selectMode(mode);
+                    console.log('🎯 Card clicked:', mode);
+                    this.selectModeGlobal(mode);
                 }
             });
         });
+        
+        console.log('✅ CreationModeSelector: Listeners attached');
+    }
+
+    /**
+     * Select mode using the GLOBAL callback (handles multiple instances)
+     */
+    selectModeGlobal(mode) {
+        console.log('📤 selectModeGlobal called with mode:', mode);
+        
+        const callback = window._creationModeSelectorActiveCallback;
+        if (callback) {
+            console.log('✅ Executing global callback');
+            callback(mode);
+        } else {
+            console.warn('⚠️ No active callback registered for mode selection');
+        }
+        
+        // Close and cleanup
+        this.close();
     }
 
     /**
      * Open the creation mode selector
      */
     open(options = {}) {
-        this.context = options.context || 'mob';
-        this.onSelectCallback = options.onSelect || null;
+        // Ensure modal exists
+        this.ensureModal();
         
-        // Update subtitle based on context
-        const subtitle = document.querySelector('.creation-mode-subtitle');
-        if (this.context === 'mob') {
-            subtitle.textContent = 'Choose how to create your skill line (Mob Context - Triggers Required):';
-        } else {
-            subtitle.textContent = 'Choose how to create your skill line (Skill Context - No Triggers):';
+        this.context = options.context || 'mob';
+        
+        // Store callback GLOBALLY so any instance can access it
+        window._creationModeSelectorActiveCallback = options.onSelect || null;
+        console.log('📂 CreationModeSelector: Callback registered:', !!options.onSelect);
+        
+        // Get modal reference
+        const modal = this.modal || document.getElementById('creationModeSelectorOverlay');
+        if (!modal) {
+            console.error('❌ CreationModeSelector modal not found in DOM');
+            return;
+        }
+        
+        const subtitle = modal.querySelector('.creation-mode-subtitle');
+        if (subtitle) {
+            if (this.context === 'mob') {
+                subtitle.textContent = 'Choose how to create your skill line (Mob Context - Triggers Required):';
+            } else {
+                subtitle.textContent = 'Choose how to create your skill line (Skill Context - No Triggers):';
+            }
         }
 
-        document.getElementById('creationModeSelectorOverlay').classList.add('active');
+        modal.classList.add('active');
+        console.log('📂 CreationModeSelector opened');
     }
 
     /**
      * Close the creation mode selector
      */
     close() {
-        document.getElementById('creationModeSelectorOverlay').classList.remove('active');
-        this.onSelectCallback = null;
+        const modal = this.modal || document.getElementById('creationModeSelectorOverlay');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+        // Clear global callback on close
+        window._creationModeSelectorActiveCallback = null;
+        console.log('📕 CreationModeSelector closed');
     }
 
     /**
-     * Handle mode selection
+     * Destroy the modal and clean up resources
+     */
+    destroy() {
+        const overlay = document.getElementById('creationModeSelectorOverlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        window._creationModeSelectorActiveCallback = null;
+    }
+
+    /**
+     * Handle mode selection (deprecated - use selectModeGlobal)
      */
     selectMode(mode) {
-        
-        if (this.onSelectCallback) {
-            this.onSelectCallback(mode);
-        }
-        
-        this.close();
+        this.selectModeGlobal(mode);
     }
 }
 

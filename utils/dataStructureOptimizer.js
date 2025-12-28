@@ -62,39 +62,50 @@ class DataStructureOptimizer {
     }
 
     /**
-     * Build optimized conditions Map from nested structure
-     * @returns {Map} Conditions indexed by name
+     * Build optimized conditions Map from flat array
+     * @returns {Map} Conditions indexed by id (primary key)
      */
     buildConditionsMap() {
         const map = new Map();
         
-        // Try CONDITIONS_DATA first (category-keyed object), fallback to ALL_CONDITIONS (flat array)
-        const conditionsData = window.CONDITIONS_DATA || {};
+        // Use ALL_CONDITIONS flat array (from data/conditions/index.js)
         const allConditions = window.ALL_CONDITIONS || [];
         
-        // If CONDITIONS_DATA is available (category-keyed), use it
-        if (Object.keys(conditionsData).length > 0) {
-            for (const category in conditionsData) {
-                const conditions = conditionsData[category];
-                if (Array.isArray(conditions)) {
-                    for (const condition of conditions) {
-                        if (condition.name) {
-                            // Category is already set in condition.category
-                            map.set(condition.name, condition);
-                        }
-                    }
-                }
+        for (const condition of allConditions) {
+            // Use id as primary key (unique identifier)
+            const key = condition.id || condition.name;
+            if (key) {
+                map.set(key, condition);
             }
-        } 
-        // Fallback to ALL_CONDITIONS if no CONDITIONS_DATA
-        else if (allConditions.length > 0) {
-            for (const condition of allConditions) {
-                if (condition.name) {
-                    map.set(condition.name, condition);
+        }
+        
+        // Store a separate lookup map for aliases/names (doesn't affect getAllItems)
+        this.conditionsLookup = new Map();
+        for (const condition of allConditions) {
+            if (condition.name) {
+                this.conditionsLookup.set(condition.name.toLowerCase(), condition);
+            }
+            if (condition.id) {
+                this.conditionsLookup.set(condition.id.toLowerCase(), condition);
+            }
+            if (condition.aliases) {
+                for (const alias of condition.aliases) {
+                    this.conditionsLookup.set(alias.toLowerCase(), condition);
                 }
             }
         }
+        
         return map;
+    }
+    
+    /**
+     * Look up a condition by id, name, or alias
+     * @param {string} query - The id, name, or alias to look up
+     * @returns {Object|null} The condition or null
+     */
+    lookupCondition(query) {
+        if (!query || !this.conditionsLookup) return null;
+        return this.conditionsLookup.get(query.toLowerCase()) || null;
     }
 
     /**
@@ -117,17 +128,17 @@ class DataStructureOptimizer {
     }
 
     /**
-     * Compute conditions category counts from nested structure
+     * Compute conditions category counts from flat array
      * @returns {Map} Category counts
      */
     computeConditionsCategoryCounts() {
         const counts = new Map();
-        const conditionsData = window.CONDITIONS_DATA || {};
+        const allConditions = window.ALL_CONDITIONS || [];
         
-        for (const category in conditionsData) {
-            const conditions = conditionsData[category];
-            if (Array.isArray(conditions)) {
-                counts.set(category, conditions.length);
+        for (const condition of allConditions) {
+            const category = condition.category;
+            if (category) {
+                counts.set(category, (counts.get(category) || 0) + 1);
             }
         }
         

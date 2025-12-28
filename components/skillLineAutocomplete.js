@@ -69,25 +69,20 @@ class SkillLineAutocomplete {
     }
 
     /**
-     * Load conditions data from CONDITIONS_DATA
+     * Load conditions data from ALL_CONDITIONS (flat array with category property)
      */
     loadConditionsData() {
-        if (!window.CONDITIONS_DATA) return [];
+        const allConditions = window.ALL_CONDITIONS || [];
+        if (!allConditions.length) return [];
         
-        const conditions = [];
-        Object.entries(CONDITIONS_DATA).forEach(([category, condList]) => {
-            condList.forEach(c => {
-                conditions.push({
-                    type: 'condition',
-                    name: c.name,
-                    description: c.description || '',
-                    params: c.params || [],
-                    category: category.toLowerCase()
-                });
-            });
-        });
-        
-        return conditions;
+        return allConditions.map(c => ({
+            type: 'condition',
+            name: c.id || c.name,  // Use id for syntax, name for display
+            displayName: c.name,
+            description: c.description || '',
+            params: c.attributes?.map(a => a.name) || [],
+            category: (c.category || 'general').toLowerCase()
+        }));
     }
 
     /**

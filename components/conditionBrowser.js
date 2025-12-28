@@ -11,6 +11,22 @@ class ConditionBrowser {
         this.searchQuery = '';
         this.onSelectCallback = null;
         this.callbackInvoked = false;  // Track if callback was already called
+        
+        // Phase 1 Critical: Event listener cleanup
+        this.abortController = new AbortController();
+        
+        // Phase 1 Critical: Persistent DOM element cache
+        this.persistentCache = {
+            overlay: null,
+            searchInput: null,
+            conditionList: null
+        };
+        
+        // Phase 1 Critical: Debounce timers
+        this.categoryDebounce = null;
+        this.searchDebounce = null;
+        this.favoriteDebounce = null;
+        
         // Smart Favorites Manager for intelligent auto-promotion and usage tracking
         if (typeof SmartFavoritesManager !== 'undefined') {
             this.favoritesManager = new SmartFavoritesManager('conditionBrowser', 'conditions');
@@ -27,7 +43,7 @@ class ConditionBrowser {
         if (window.supabase && typeof BrowserDataMerger !== 'undefined') {
             this.browserDataMerger = new BrowserDataMerger(window.supabase);
         }
-        this.conditionsData = window.CONDITIONS_DATA || []; // Default to built-in
+        this.conditionsData = window.ALL_CONDITIONS || []; // Use flat array, not category-keyed object
         
         this.createModal();
         this.attachEventListeners();
@@ -42,7 +58,7 @@ class ConditionBrowser {
                 this.conditionsData = await this.browserDataMerger.getMergedConditions();
             } catch (error) {
                 console.error('Error loading merged conditions:', error);
-                this.conditionsData = window.CONDITIONS_DATA || []; // Fallback
+                this.conditionsData = window.ALL_CONDITIONS || []; // Fallback to flat array
             }
         }
     }
@@ -59,6 +75,48 @@ class ConditionBrowser {
         }
         
         this.renderConditions();
+    }
+    
+    /**
+     * Cleanup resources
+     */
+    cleanup() {
+        // Phase 1 Critical: Remove all event listeners automatically
+        this.abortController.abort();
+        this.abortController = new AbortController(); // Reset for next open
+        
+        // Phase 1 Critical: Clear all debounce timers
+        clearTimeout(this.categoryDebounce);
+        clearTimeout(this.searchDebounce);
+        clearTimeout(this.favoriteDebounce);
+        
+        // Clear search cache
+        if (this.searchCache) {
+            this.searchCache.clear();
+        }
+        
+        // Destroy virtual scroller if exists
+        if (this.virtualScroller) {
+            this.virtualScroller = null;
+        }
+        
+        // Clear state
+        this.searchQuery = '';
+        
+        if (window.DEBUG_MODE) console.log('✅ ConditionBrowser cleanup complete');
+    }
+    
+    /**
+     * Destroy the browser and remove from DOM
+     */
+    destroy() {
+        this.cleanup();
+        const overlay = document.getElementById('conditionBrowserOverlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        this.onSelectCallback = null;
+        this.callbackInvoked = false;
     }
 
     /**
@@ -169,48 +227,75 @@ class ConditionBrowser {
     }
 
     /**
+     * Get frequently accessed elements with persistent caching
+     * Phase 1 Critical: Eliminates repeated querySelector calls
+     */
+    getElement(key) {
+        if (!this.persistentCache[key]) {
+            switch(key) {
+                case 'overlay':
+                    this.persistentCache[key] = document.getElementById('conditionBrowserOverlay');
+                    break;
+                case 'searchInput':
+                    this.persistentCache[key] = document.getElementById('conditionSearchInput');
+                    break;
+                case 'conditionList':
+                    this.persistentCache[key] = document.getElementById('conditionList');
+                    break;
+            }
+        }
+        return this.persistentCache[key];
+    }
+
+    /**
      * Attach event listeners
      */
     attachEventListeners() {
+        const { signal } = this.abortController;
+        
         // Close browser modal
         document.getElementById('conditionBrowserClose').addEventListener('click', () => {
             this.close();
-        });
+        }, { signal });
 
         document.getElementById('conditionBrowserOverlay').addEventListener('click', (e) => {
             if (e.target.id === 'conditionBrowserOverlay') {
                 this.close();
             }
-        });
+        }, { signal });
 
-        // Search input with debouncing (150ms)
-        const debouncedSearch = debounce((query) => {
-            this.searchQuery = query;
-            this.renderConditions();
-        }, 150);
-        
+        // Search input with debouncing (300ms)
         document.getElementById('conditionSearchInput').addEventListener('input', (e) => {
-            debouncedSearch(e.target.value);
-        });
+            const query = e.target.value;
+            clearTimeout(this.searchDebounce);
+            this.searchDebounce = setTimeout(() => {
+                this.searchQuery = query;
+                this.renderConditions();
+            }, 300);
+        }, { signal });
 
-        // Category tabs
+        // Category tabs with 50ms debounce for snappy feel
         document.getElementById('conditionCategories').addEventListener('click', (e) => {
             if (e.target.classList.contains('category-tab')) {
                 document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
                 e.target.classList.add('active');
                 this.currentCategory = e.target.dataset.category;
-                this.renderConditions();
+                
+                clearTimeout(this.categoryDebounce);
+                this.categoryDebounce = setTimeout(() => {
+                    this.renderConditions();
+                }, 50);
             }
-        });
+        }, { signal });
 
         // Attribute modal buttons
         document.getElementById('conditionAttributeCancel').addEventListener('click', () => {
             this.closeAttributeModal();
-        });
+        }, { signal });
 
         document.getElementById('conditionAttributeConfirm').addEventListener('click', () => {
             this.confirmConfiguration();
-        });
+        }, { signal });
         
         // Add keyboard support for attribute modal
         document.addEventListener('keydown', (e) => {
@@ -224,7 +309,7 @@ class ConditionBrowser {
                     this.closeAttributeModal();
                 }
             }
-        });
+        }, { signal });
 
         // Condition action selector
         const actionSelect = document.getElementById('conditionActionSelect');
@@ -238,11 +323,11 @@ class ConditionBrowser {
                 actionParam.style.display = 'none';
             }
             this.updateConditionPreview();
-        });
+        }, { signal });
 
         actionParam.addEventListener('input', () => {
             this.updateConditionPreview();
-        });
+        }, { signal });
 
         // Inline prefix selector
         const inlinePrefixSelect = document.getElementById('inlinePrefixSelect');
@@ -278,10 +363,10 @@ class ConditionBrowser {
             }
             
             // Arrow key navigation
-            const cards = Array.from(document.querySelectorAll('#conditionList .condition-card'));
+            const cards = Array.from(document.querySelectorAll('#conditionList .mechanic-list-item'));
             if (cards.length === 0) return;
             
-            const focusedCard = document.activeElement.closest('.condition-card');
+            const focusedCard = document.activeElement.closest('.mechanic-list-item');
             let currentIndex = focusedCard ? cards.indexOf(focusedCard) : -1;
             
             if (e.key === 'ArrowDown') {
@@ -301,11 +386,16 @@ class ConditionBrowser {
     }
 
     /**
-     * Open the condition browser
+     * Open the condition browser (OPTIMIZED - synchronous with cached data)
      */
-    async open(options = {}) {
-        // Load merged data if available
-        await this.loadMergedData();
+    open(options = {}) {
+        // PERFORMANCE: Use pre-cached data from browserSingletonManager (loaded on app init)
+        // Prefer cached data, fallback to ALL_CONDITIONS array
+        if (window.__CACHED_CONDITIONS_DATA__ && Array.isArray(window.__CACHED_CONDITIONS_DATA__)) {
+            this.conditionsData = window.__CACHED_CONDITIONS_DATA__;
+        } else {
+            this.conditionsData = window.ALL_CONDITIONS || [];
+        }
         
         this.currentValue = options.currentValue || null;
         this.onSelectCallback = options.onSelect || null;
@@ -315,15 +405,21 @@ class ConditionBrowser {
         this.usageMode = options.usageMode || 'yaml';
         this.conditionType = options.conditionType || 'caster';
         
-        console.log('🎯 ConditionBrowser.open() - Mode:', this.usageMode, 'Type:', this.conditionType);
+        if (window.DEBUG_MODE) {
+            console.log('🎯 ConditionBrowser.open() - Mode:', this.usageMode, 'Type:', this.conditionType);
+        }
 
-        this.currentCategory = 'all';
-        this.searchQuery = '';
-        document.getElementById('conditionSearchInput').value = '';
+        // PERFORMANCE: Preserve state between opens (don't reset if already set)
+        if (!this.currentCategory) this.currentCategory = 'all';
+        if (!this.searchQuery) this.searchQuery = '';
+        
+        const searchInput = document.getElementById('conditionSearchInput');
+        if (searchInput) searchInput.value = this.searchQuery;
         
         // Reset category tabs
         document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-        document.querySelector('[data-category="all"]').classList.add('active');
+        const activeTab = document.querySelector('[data-category="all"]');
+        if (activeTab) activeTab.classList.add('active');
         
         // Update modal title to show mode
         const modalTitle = document.querySelector('#conditionBrowserOverlay .modal-header h2');
@@ -376,54 +472,50 @@ class ConditionBrowser {
      * Update category tab counts (using pre-computed counts - O(1) with fallback)
      */
     updateCategoryCounts() {
-        const dataOptimizer = window.DataOptimizer;
         const categoryTabs = document.querySelectorAll('#conditionCategories .category-tab');
         
-        let counts;
+        // Use the conditionsData we already have loaded (which is ALL_CONDITIONS)
+        // This ensures consistency between what's displayed and what's counted
+        const allConditions = this.conditionsData || window.ALL_CONDITIONS || [];
         
-        if (dataOptimizer && dataOptimizer.conditionsMap && dataOptimizer.conditionsMap.size > 0) {
-            // Get pre-computed counts (O(1) per category)
-            counts = {
-                all: dataOptimizer.getCategoryCount('conditions', 'all'),
-                favorites: this.favoritesManager.getCount(),
-                'Entity State': dataOptimizer.getCategoryCount('conditions', 'Entity State'),
-                'Entity Type': dataOptimizer.getCategoryCount('conditions', 'Entity Type'),
-                'Player': dataOptimizer.getCategoryCount('conditions', 'Player'),
-                'Location': dataOptimizer.getCategoryCount('conditions', 'Location'),
-                'Time & Weather': dataOptimizer.getCategoryCount('conditions', 'Time & Weather'),
-                'Combat': dataOptimizer.getCategoryCount('conditions', 'Combat'),
-                'Variables & Data': dataOptimizer.getCategoryCount('conditions', 'Variables & Data'),
-                'Server & World': dataOptimizer.getCategoryCount('conditions', 'Server & World'),
-                'Logic & Meta': dataOptimizer.getCategoryCount('conditions', 'Logic & Meta')
-            };
+        // Debug: Log sample condition to see structure
+        if (allConditions.length > 0) {
+            console.log('📊 Sample condition:', allConditions[0]);
+            console.log('📊 All unique categories:', [...new Set(allConditions.map(c => c.category))]);
         } else {
-            // Fallback: manually count from window.ALL_CONDITIONS
-            const allConditions = window.ALL_CONDITIONS || [];
-            counts = {
-                all: allConditions.length,
-                favorites: this.favoritesManager.getCount(),
-                'Entity State': allConditions.filter(c => c.category === 'Entity State').length,
-                'Entity Type': allConditions.filter(c => c.category === 'Entity Type').length,
-                'Player': allConditions.filter(c => c.category === 'Player').length,
-                'Location': allConditions.filter(c => c.category === 'Location').length,
-                'Time & Weather': allConditions.filter(c => c.category === 'Time & Weather').length,
-                'Combat': allConditions.filter(c => c.category === 'Combat').length,
-                'Variables & Data': allConditions.filter(c => c.category === 'Variables & Data').length,
-                'Server & World': allConditions.filter(c => c.category === 'Server & World').length,
-                'Logic & Meta': allConditions.filter(c => c.category === 'Logic & Meta').length
-            };
+            console.warn('⚠️ No conditions loaded! this.conditionsData:', this.conditionsData?.length);
+            console.warn('⚠️ window.ALL_CONDITIONS:', window.ALL_CONDITIONS?.length);
         }
+        
+        const counts = {
+            all: allConditions.length,
+            favorites: this.favoritesManager.getCount(),
+            'Entity State': allConditions.filter(c => c.category === 'Entity State').length,
+            'Entity Type': allConditions.filter(c => c.category === 'Entity Type').length,
+            'Player': allConditions.filter(c => c.category === 'Player').length,
+            'Location': allConditions.filter(c => c.category === 'Location').length,
+            'Time & Weather': allConditions.filter(c => c.category === 'Time & Weather').length,
+            'Combat': allConditions.filter(c => c.category === 'Combat').length,
+            'Variables & Data': allConditions.filter(c => c.category === 'Variables & Data').length,
+            'Server & World': allConditions.filter(c => c.category === 'Server & World').length,
+            'Logic & Meta': allConditions.filter(c => c.category === 'Logic & Meta').length
+        };
+        
+        console.log('📊 Calculated counts:', counts);
+        console.log('📊 Found', categoryTabs.length, 'category tabs');
 
         // Update tab labels
         categoryTabs.forEach(tab => {
             const category = tab.dataset.category;
             const count = counts[category] || 0;
-            const icon = tab.querySelector('i');
-            const text = tab.textContent.split('(')[0].trim();
-            if (icon) {
-                tab.innerHTML = `<i class="${icon.className}"></i> ${text} (${count})`;
-            } else {
-                tab.textContent = `${text} (${count})`;
+            console.log(`   Updating ${category}: ${count}`);
+            
+            // Get the original tab content (with emoji/icon)
+            const parts = tab.innerHTML.split('(');
+            if (parts.length > 0) {
+                const originalText = parts[0].trim();
+                tab.innerHTML = `${originalText} (${count})`;
+                console.log(`   ✅ Updated tab: ${originalText} (${count})`);
             }
         });
     }
@@ -515,6 +607,25 @@ class ConditionBrowser {
             listContainer.removeEventListener('click', this.containerClickHandler);
         }
 
+        // PERFORMANCE: Chunked rendering for large lists (>50 items)
+        // Show first 30 immediately for instant feedback, render rest async
+        if (filteredConditions.length > 50) {
+            const INITIAL_CHUNK = 30; // Show enough for initial view
+            const initialChunk = filteredConditions.slice(0, INITIAL_CHUNK).map(c => this.renderConditionCard(c)).join('');
+            listContainer.innerHTML = initialChunk;
+            
+            // Setup delegation IMMEDIATELY so users can interact with first items
+            this.setupEventDelegation(listContainer);
+            
+            // Render remaining items after a minimal delay (non-blocking)
+            setTimeout(() => {
+                const remainingHTML = filteredConditions.slice(INITIAL_CHUNK).map(c => this.renderConditionCard(c)).join('');
+                // Use insertAdjacentHTML to avoid full re-render
+                listContainer.insertAdjacentHTML('beforeend', remainingHTML);
+            }, 16); // ~1 frame delay, enough for paint but fast enough to be imperceptible
+            return;
+        }
+
         listContainer.innerHTML = filteredConditions.map(condition => 
             this.renderConditionCard(condition)
         ).join('');
@@ -526,37 +637,22 @@ class ConditionBrowser {
      * Render a single condition card (reusable for both modes)
      */
     renderConditionCard(condition) {
-            const aliasesHTML = condition.aliases && condition.aliases.length > 0 
-                ? `<div class="condition-aliases"><strong>Aliases:</strong> ${condition.aliases.join(', ')}</div>`
-                : '';
-            
-            const examplesHTML = condition.examples && condition.examples.length > 0
-                ? `<div class="condition-example"><code>${condition.examples[0]}</code></div>`
-                : '';
-
-            const isFav = this.isFavorite(condition.name);
-
-            return `
-                <div class="condition-card" data-condition="${condition.name}">
-                    <div class="condition-card-header">
-                        <h4>${condition.name}</h4>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <button class="btn-icon btn-favorite-condition" data-condition-id="${condition.name}" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
-                                <i class="${isFav ? 'fas' : 'far'} fa-star" style="color: ${isFav ? '#ffc107' : '#666'};"></i>
-                            </button>
-                            <span class="condition-category-badge">${condition.category}</span>
-                        </div>
-                    </div>
-                    <div class="condition-card-body">
-                        <p class="condition-card-description">${condition.description}</p>
-                        ${aliasesHTML}
-                        ${examplesHTML}
-                    </div>
-                    <div class="condition-card-footer">
-                        <button class="btn btn-primary btn-select-condition">Select</button>
-                    </div>
-                </div>
-            `;
+        const isFavorite = this.favoritesManager?.has(condition.name) || false;
+        
+        // Ultra-compact list item (matches mechanic browser)
+        return `<div class="mechanic-list-item" data-condition="${condition.name}" tabindex="0">
+    <div class="mechanic-item-main">
+        <button class="btn-icon-inline btn-favorite" data-condition-id="${condition.name}" title="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
+            <i class="${isFavorite ? 'fas' : 'far'} fa-star" style="color: ${isFavorite ? '#ffc107' : '#666'}; font-size: 12px;"></i>
+        </button>
+        <span class="mechanic-name">${condition.name}</span>
+        <span class="mechanic-desc">${condition.description}</span>
+    </div>
+    <div class="mechanic-item-actions">
+        <span class="mechanic-category-tag mechanic-category-${condition.category?.toLowerCase() || 'utility'}">${(condition.category || 'UTILITY').toUpperCase()}</span>
+        <button class="btn btn-xs btn-select-condition">Select</button>
+    </div>
+</div>`;
     }
 
     /**
@@ -568,8 +664,10 @@ class ConditionBrowser {
             // Handle select button
             const selectBtn = e.target.closest('.btn-select-condition');
             if (selectBtn) {
-                const card = selectBtn.closest('.condition-card');
+                console.log('🎯 Condition Select button clicked!', e.target);
+                const card = selectBtn.closest('.mechanic-list-item');
                 const conditionId = card.dataset.condition;
+                console.log('📋 Condition ID:', conditionId, 'Card:', card);
                 this.handleConditionSelection(conditionId);
                 return;
             }
@@ -591,11 +689,17 @@ class ConditionBrowser {
      * Handle condition selection
      */
     handleConditionSelection(conditionId) {
+        console.log('🎯 handleConditionSelection called with ID:', conditionId);
         const condition = window.ConditionHelpers.findCondition(conditionId);
-        if (!condition) return;
+        console.log('📦 Found condition:', condition);
+        if (!condition) {
+            console.error('❌ Condition not found for ID:', conditionId);
+            return;
+        }
 
         // Store current condition
         this.currentCondition = condition;
+        console.log('✅ Stored current condition, opening attribute config...');
 
         // If condition has attributes, show configuration modal
         if (condition.attributes && condition.attributes.length > 0) {
@@ -610,10 +714,12 @@ class ConditionBrowser {
      * Show attribute configuration modal
      */
     showAttributeConfiguration(condition) {
+        console.log('🎨 showAttributeConfiguration called for:', condition.name);
         const modal = document.getElementById('conditionAttributeOverlay');
         const title = document.getElementById('conditionAttributeTitle');
         const description = document.getElementById('conditionAttributeDescription');
         const form = document.getElementById('conditionAttributeForm');
+        console.log('📋 Modal elements found:', {modal: !!modal, title: !!title, description: !!description, form: !!form});
         
         title.textContent = `Configure ${condition.name}`;
         description.textContent = condition.description;
@@ -724,7 +830,8 @@ class ConditionBrowser {
         if (!this.currentCondition) return;
 
         let syntax = '';
-        let conditionName = this.currentCondition.name;
+        // Use 'id' (camelCase) instead of 'name' (display with spaces) for MythicMobs syntax
+        let conditionName = this.currentCondition.id;
 
         // Collect attributes
         const form = document.getElementById('conditionAttributeForm');
@@ -779,10 +886,19 @@ class ConditionBrowser {
      * Confirm configuration and return condition string
      */
     confirmConfiguration() {
-        if (!this.currentCondition) return;
+        console.log('✅ confirmConfiguration called!');
+        console.log('📊 Current condition:', this.currentCondition);
+        console.log('🎭 Usage mode:', this.usageMode);
+        console.log('🔗 Callback exists:', !!this.onSelectCallback);
+        
+        if (!this.currentCondition) {
+            console.error('❌ No current condition!');
+            return;
+        }
 
         // Build condition string (name + attributes)
-        let conditionString = this.currentCondition.name;
+        // Use 'id' (camelCase) instead of 'name' (display with spaces) for MythicMobs syntax
+        let conditionString = this.currentCondition.id;
 
         // Collect attributes
         const form = document.getElementById('conditionAttributeForm');
@@ -803,7 +919,9 @@ class ConditionBrowser {
         }
 
         // Callback with result based on usage mode (BEFORE closing!)
+        console.log('🔔 About to invoke callback...');
         if (this.onSelectCallback) {
+            console.log('✅ Callback exists, usage mode:', this.usageMode);
             if (this.usageMode === 'inline') {
                 // Inline mode: return full inline format with prefix
                 const prefixSelect = document.getElementById('inlinePrefixSelect');
@@ -818,8 +936,10 @@ class ConditionBrowser {
                     condition: this.currentCondition
                 };
                 
+                console.log('📤 Invoking callback with inline result:', result);
                 this.callbackInvoked = true;  // Mark as invoked
                 this.onSelectCallback(result);
+                console.log('✅ Callback invoked successfully!');
             } else {
                 // YAML mode: return condition + action separately
                 const actionSelect = document.getElementById('conditionActionSelect');
