@@ -397,10 +397,10 @@ Object.assign(ImportPreviewUI.prototype, {
             try {
                 await importCallback(selectedPacksArray, optionsCopy);
             } catch (error) {
-                console.error('❌ onImport callback error:', error);
+                console.error('onImport callback error:', error);
             }
         } else {
-            console.error('❌ onImport callback is not set!');
+            console.error('onImport callback is not set!');
         }
     },
 

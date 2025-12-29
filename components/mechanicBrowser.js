@@ -124,22 +124,22 @@ class MechanicBrowser {
      * Pre-calculate all category counts and cache them
      */
     precalculateCategoryCounts() {
-        if (window.DEBUG_MODE) console.log('🔵 [COUNT] precalculateCategoryCounts() called');
+        if (window.DEBUG_MODE) console.log('[COUNT] precalculateCategoryCounts() called');
         const dataOptimizer = window.DataOptimizer;
         if (!dataOptimizer) {
-            console.warn('⚠️ [COUNT] DataOptimizer not available for count calculation');
+            if (window.DEBUG_MODE) console.warn('[COUNT] DataOptimizer not available for count calculation');
             return false;
         }
         
         // Verify DataOptimizer has mechanics data
         const totalCount = dataOptimizer.getCategoryCount('mechanics', 'all');
-        if (window.DEBUG_MODE) console.log(`🔍 [COUNT] Total mechanics from DataOptimizer: ${totalCount}`);
+        if (window.DEBUG_MODE) console.log(`[COUNT] Total mechanics from DataOptimizer: ${totalCount}`);
         
         if (totalCount === 0) {
-            console.warn('⚠️ [COUNT] DataOptimizer has no mechanics data yet');
+            if (window.DEBUG_MODE) console.warn('[COUNT] DataOptimizer has no mechanics data yet');
             // Check if mechanics exist in MECHANICS_DATA
             if (window.MECHANICS_DATA && window.MECHANICS_DATA.mechanics) {
-                if (window.DEBUG_MODE) console.log(`📊 [COUNT] MECHANICS_DATA has ${window.MECHANICS_DATA.mechanics.length} mechanics`);
+                if (window.DEBUG_MODE) console.log(`[COUNT] MECHANICS_DATA has ${window.MECHANICS_DATA.mechanics.length} mechanics`);
             }
             return false;
         }
@@ -158,7 +158,7 @@ class MechanicBrowser {
             'projectile': dataOptimizer.getCategoryCount('mechanics', 'projectile')
         };
         
-        if (window.DEBUG_MODE) console.log('✅ [COUNT] Category counts calculated:', this.categoryCountCache);
+        if (window.DEBUG_MODE) console.log('[COUNT] Category counts calculated:', this.categoryCountCache);
         return true;
     }
     
@@ -583,7 +583,7 @@ class MechanicBrowser {
         // Show overlay IMMEDIATELY
         const overlay = this.getElement('mechanicBrowserOverlay');
         if (!overlay) {
-            console.error('❌ mechanicBrowserOverlay element not found!');
+            console.error('mechanicBrowserOverlay element not found!');
             return;
         }
         
@@ -680,7 +680,7 @@ class MechanicBrowser {
                     show_to_render: ((renderMark[0].startTime - showMark[0].startTime)).toFixed(2),
                     TOTAL: ((renderMark[0].startTime - clickMark[0].startTime)).toFixed(2)
                 };
-                console.log('🔴 TIMING BREAKDOWN (FIRST TIME):', times);
+                if (window.DEBUG_MODE) console.log('TIMING BREAKDOWN (FIRST TIME):', times);
             }
             performance.clearMarks();
             performance.clearMeasures();
@@ -722,7 +722,7 @@ class MechanicBrowser {
         this.currentMechanic = null;
         this.onSelectCallback = null;
         
-        if (window.DEBUG_MODE) console.log('✅ Mechanic browser closed successfully');
+        if (window.DEBUG_MODE) console.log('Mechanic browser closed successfully');
     }
     
     /**
@@ -760,7 +760,7 @@ class MechanicBrowser {
         }
         
         if (window.DEBUG_MODE) {
-            console.log('✅ MechanicBrowser cleanup complete');
+            console.log('MechanicBrowser cleanup complete');
         }
     }
     
@@ -867,17 +867,17 @@ class MechanicBrowser {
     renderMechanics() {
         performance.mark('browser-render-start');
         const startTime = performance.now();
-        if (window.DEBUG_MODE) console.log(`🎯 [VIRTUAL] renderMechanics() - Category: ${this.currentCategory}, Search: "${this.searchQuery}"`);
+        if (window.DEBUG_MODE) console.log(`[VIRTUAL] renderMechanics() - Category: ${this.currentCategory}, Search: "${this.searchQuery}"`);
         
         const listContainer = this.getElement('mechanicList');
         if (!listContainer) {
-            console.error('❌ mechanicList container not found');
+            console.error('mechanicList container not found');
             return;
         }
         
         const dataOptimizer = window.DataOptimizer;
         if (!dataOptimizer) {
-            console.warn('⚠️ [VIRTUAL] DataOptimizer not available');
+            if (window.DEBUG_MODE) console.warn('[VIRTUAL] DataOptimizer not available');
             return;
         }
         
@@ -887,7 +887,7 @@ class MechanicBrowser {
         
         if (!mechanics) {
             const filterStart = performance.now();
-            if (window.DEBUG_MODE) console.log(`🔍 [VIRTUAL] Filtering mechanics...`);
+            if (window.DEBUG_MODE) console.log(`[VIRTUAL] Filtering mechanics...`);
             
             // Filter based on category/search
             if (this.currentCategory === 'Recent') {
@@ -912,13 +912,13 @@ class MechanicBrowser {
                 mechanics = dataOptimizer.getItemsByCategory('mechanics', category);
             }
             
-            if (window.DEBUG_MODE) console.log(`✅ [VIRTUAL] Filtered to ${mechanics.length} mechanics in ${(performance.now() - filterStart).toFixed(2)}ms`);
+            if (window.DEBUG_MODE) console.log(`[VIRTUAL] Filtered to ${mechanics.length} mechanics in ${(performance.now() - filterStart).toFixed(2)}ms`);
             
             // Freeze data (immutable - prevent mutations)
             mechanics = Object.freeze([...mechanics]);
             this.searchCache.set(cacheKey, mechanics);
         } else {
-            if (window.DEBUG_MODE) console.log(`✅ [VIRTUAL] Using cached data (${mechanics.length} mechanics)`);
+            if (window.DEBUG_MODE) console.log(`[VIRTUAL] Using cached data (${mechanics.length} mechanics)`);
         }
         
         // Update category counts
@@ -927,7 +927,7 @@ class MechanicBrowser {
         // Handle empty state
         if (mechanics.length === 0) {
             listContainer.innerHTML = '<div class="empty-state">No mechanics found matching your search.</div>';
-            if (window.DEBUG_MODE) console.log(`⚠️ No mechanics to render`);
+            if (window.DEBUG_MODE) console.log(`No mechanics to render`);
             return;
         }
 
@@ -949,7 +949,7 @@ class MechanicBrowser {
             
             const totalTime = (performance.now() - startTime).toFixed(2);
             if (window.DEBUG_MODE) {
-                console.log(`✅ Rendered ${INITIAL_CHUNK} mechanics in ${totalTime}ms (${mechanics.length - INITIAL_CHUNK} more async)`);
+                console.log(`Rendered ${INITIAL_CHUNK} mechanics in ${totalTime}ms (${mechanics.length - INITIAL_CHUNK} more async)`);
             }
             return;
         }
@@ -962,7 +962,7 @@ class MechanicBrowser {
         
         const totalTime = (performance.now() - startTime).toFixed(2);
         if (window.DEBUG_MODE) {
-            console.log(`✅ Rendered ${mechanics.length} mechanics in ${totalTime}ms`);
+            console.log(`Rendered ${mechanics.length} mechanics in ${totalTime}ms`);
         }
     }
 
@@ -972,8 +972,8 @@ class MechanicBrowser {
      */
     initializeVirtualScroll(container, mechanics) {
         if (window.DEBUG_MODE) {
-            console.warn('⚠️ initializeVirtualScroll() is LEGACY CODE - should not be called');
-            console.warn('⚠️ Virtual scroll is now handled in renderMechanics() directly');
+            console.warn('initializeVirtualScroll() is LEGACY CODE - should not be called');
+            console.warn('Virtual scroll is now handled in renderMechanics() directly');
         }
         // Do nothing - renderMechanics() handles virtual scroll now
     }
@@ -984,8 +984,8 @@ class MechanicBrowser {
      */
     renderInBatches(container, mechanics, batchSize) {
         if (window.DEBUG_MODE) {
-            console.warn('⚠️ renderInBatches() is LEGACY CODE - should not be called');
-            console.warn('⚠️ Virtual scroll handles rendering now');
+            console.warn('renderInBatches() is LEGACY CODE - should not be called');
+            console.warn('Virtual scroll handles rendering now');
         }
         // Do nothing - renderMechanics() with virtual scroll handles this
     }
@@ -1048,7 +1048,7 @@ class MechanicBrowser {
         listContainer.addEventListener('click', this.selectMechanicHandler, { signal });
         this.mechanicDelegationAttached = true;
         
-        if (window.DEBUG_MODE) console.log('✅ Mechanic event delegation attached (one-time)');
+        if (window.DEBUG_MODE) console.log('Mechanic event delegation attached (one-time)');
     }
 
     /**
@@ -1056,32 +1056,32 @@ class MechanicBrowser {
      */
     updateCategoryCounts() {
         const startTime = performance.now();
-        if (window.DEBUG_MODE) console.log('🔵 [COUNT] updateCategoryCounts() called');
+        if (window.DEBUG_MODE) console.log('[COUNT] updateCategoryCounts() called');
         
         const dataOptimizer = window.DataOptimizer;
         if (!dataOptimizer) {
-            console.warn('⚠️ [COUNT] DataOptimizer not available, skipping update');
+            if (window.DEBUG_MODE) console.warn('[COUNT] DataOptimizer not available, skipping update');
             return;
         }
         
         // Recalculate if cache is missing or invalid (all zeros)
-        if (window.DEBUG_MODE) console.log('🔍 [COUNT] Current cache:', this.categoryCountCache);
+        if (window.DEBUG_MODE) console.log('[COUNT] Current cache:', this.categoryCountCache);
         if (!this.categoryCountCache || this.categoryCountCache.All === 0) {
-            if (window.DEBUG_MODE) console.log('🔄 [COUNT] Cache missing or invalid, recalculating...');
+            if (window.DEBUG_MODE) console.log('[COUNT] Cache missing or invalid, recalculating...');
             const success = this.precalculateCategoryCounts();
             if (!success) {
-                console.warn('⚠️ [COUNT] Failed to calculate counts, DataOptimizer not ready');
+                if (window.DEBUG_MODE) console.warn('[COUNT] Failed to calculate counts, DataOptimizer not ready');
                 return;
             }
         } else {
-            if (window.DEBUG_MODE) console.log('✅ [COUNT] Using cached counts');
+            if (window.DEBUG_MODE) console.log('[COUNT] Using cached counts');
         }
         
         // Use cached category tabs to avoid repeated DOM queries (scoped to mechanic browser only)
         if (!this.categoryTabsCache) {
             const overlay = document.getElementById('mechanicBrowserOverlay');
             this.categoryTabsCache = overlay.querySelectorAll('.category-tab');
-            if (window.DEBUG_MODE) console.log(`📋 [COUNT] Found ${this.categoryTabsCache.length} category tabs in mechanic browser`);
+            if (window.DEBUG_MODE) console.log(`[COUNT] Found ${this.categoryTabsCache.length} category tabs in mechanic browser`);
         }
         const categoryTabs = this.categoryTabsCache;
         

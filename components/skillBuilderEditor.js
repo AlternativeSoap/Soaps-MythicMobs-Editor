@@ -920,19 +920,9 @@ class SkillBuilderEditor {
                 const index = parseInt(e.target.closest('button').dataset.index);
                 
                 if (this.context === 'mob') {
-                    console.log('Before delete:', this.skillLines.length, 'lines');
-                    console.log('Deleting line:', this.skillLines[index]);
-                } else {
-                    console.log('Before delete:', this.skills[this.currentSkill].lines.length, 'lines');
-                    console.log('Deleting line:', this.skills[this.currentSkill].lines[index]);
-                }
-                
-                if (this.context === 'mob') {
                     this.skillLines.splice(index, 1);
-                    console.log('After delete:', this.skillLines.length, 'lines');
                 } else {
                     this.skills[this.currentSkill].lines.splice(index, 1);
-                    console.log('After delete:', this.skills[this.currentSkill].lines.length, 'lines');
                 }
                 this.render(); // render() already calls attachEventListeners()
                 this.triggerChange();
@@ -1115,7 +1105,7 @@ class SkillBuilderEditor {
                 if (skillLines.length > 0) {
                     this.handleMultipleSkillLines(skillLines);
                 } else {
-                    console.warn('⚠️ Template has no skill lines to add', template);
+                    if (window.DEBUG_MODE) console.warn('Template has no skill lines to add', template);
                 }
             },
             onBack: () => {
@@ -1129,7 +1119,7 @@ class SkillBuilderEditor {
     showSkillLineBuilder() {
         
         if (!this.targeterBrowser || !this.mechanicBrowser) {
-            console.error('❌ Missing required browsers!', {
+            console.error('Missing required browsers!', {
                 targeterBrowser: this.targeterBrowser,
                 mechanicBrowser: this.mechanicBrowser
             });
@@ -1394,7 +1384,7 @@ class SkillBuilderEditor {
             return;
         }
         
-        console.log('📚 Inserting sections as separate skills:', sections.map(s => s.name));
+        if (window.DEBUG_MODE) console.log('Inserting sections as separate skills:', sections.map(s => s.name));
         
         // Create new skill entries for each section
         sections.forEach(section => {
@@ -1410,7 +1400,7 @@ class SkillBuilderEditor {
             }
             
             this.skills[finalName] = { lines: [...lines] };
-            console.log(`✅ Created skill section: ${finalName} with ${lines.length} lines`);
+            if (window.DEBUG_MODE) console.log(`Created skill section: ${finalName} with ${lines.length} lines`);
         });
         
         // Switch to the first new section
@@ -1440,7 +1430,7 @@ class SkillBuilderEditor {
             }
         });
         
-        console.log(`📋 Total lines to merge: ${allLines.length}`);
+        if (window.DEBUG_MODE) console.log(`Total lines to merge: ${allLines.length}`);
         
         // Use existing handleMultipleSkillLines method
         this.handleMultipleSkillLines(allLines);
@@ -1464,13 +1454,13 @@ class SkillBuilderEditor {
     // Handle adding multiple skill lines at once
     handleMultipleSkillLines(skillLines) {
         if (!Array.isArray(skillLines) || skillLines.length === 0) {
-            console.warn('⚠️ No skill lines to add');
+            if (window.DEBUG_MODE) console.warn('No skill lines to add');
             return;
         }
         
         if (window.DEBUG_MODE) {
-            console.log('📥 Type check - Is array?', Array.isArray(skillLines));
-            console.log('📥 Each item:', skillLines.map((line, i) => `[${i}]: ${typeof line} = ${JSON.stringify(line)}`));
+            console.log('Type check - Is array?', Array.isArray(skillLines));
+            console.log('Each item:', skillLines.map((line, i) => `[${i}]: ${typeof line} = ${JSON.stringify(line)}`));
         }
         
         if (this.context === 'mob') {
@@ -1478,7 +1468,7 @@ class SkillBuilderEditor {
             const beforeCount = this.skillLines.length;
             this.skillLines.push(...skillLines);
             if (window.DEBUG_MODE) {
-                console.log(`📊 Before: ${beforeCount}, After: ${this.skillLines.length}`);
+                console.log(`Before: ${beforeCount}, After: ${this.skillLines.length}`);
             }
         } else {
             // Skill context: add to current skill
@@ -1488,14 +1478,14 @@ class SkillBuilderEditor {
             const beforeCount = this.skills[this.currentSkill].lines.length;
             this.skills[this.currentSkill].lines.push(...skillLines);
             if (window.DEBUG_MODE) {
-                console.log(`📊 Before: ${beforeCount}, After: ${this.skills[this.currentSkill].lines.length}`);
+                console.log(`Before: ${beforeCount}, After: ${this.skills[this.currentSkill].lines.length}`);
             }
         }
         
         this.render(); // render() already calls attachEventListeners()
         this.triggerChange();
         
-        console.log(`✅ Added ${skillLines.length} skill line(s)`);
+        if (window.DEBUG_MODE) console.log(`Added ${skillLines.length} skill line(s)`);
     }
     
     // Quick edit skill line with popover
@@ -1846,16 +1836,16 @@ class SkillBuilderEditor {
         
         if (this.changeCallback) {
             if (this.context === 'mob') {
-                console.log('💾 Triggering change callback (mob context), lines:', this.skillLines.length);
+                if (window.DEBUG_MODE) console.log('Triggering change callback (mob context), lines:', this.skillLines.length);
                 this.changeCallback(this.skillLines);
             } else {
                 // For skill context, return lines from current skill
                 const lines = this.getSkillLines();
-                console.log('💾 Triggering change callback (skill context), skill:', this.currentSkill, 'lines:', lines.length);
+                if (window.DEBUG_MODE) console.log('Triggering change callback (skill context), skill:', this.currentSkill, 'lines:', lines.length);
                 this.changeCallback(lines);
             }
         } else {
-            console.warn('⚠️ No changeCallback registered!');
+            if (window.DEBUG_MODE) console.warn('No changeCallback registered!');
         }
     }
     

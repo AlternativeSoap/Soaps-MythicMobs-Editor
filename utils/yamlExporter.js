@@ -117,20 +117,15 @@ class YAMLExporter {
     }
     
     exportMob(mob) {
-        console.log('   mob.display:', mob.display);
-        
         // Check if mob has a template
         const hasTemplate = mob.template && mob.template.trim();
-        console.log('   hasTemplate:', hasTemplate);
         
         // If using template, use template-aware export (simpler output)
         if (hasTemplate) {
-            console.log('   → Using exportMobWithTemplate');
             return this.exportMobWithTemplate(mob);
         }
         
         // Otherwise, use full export
-        console.log('   → Using exportMobFull');
         return this.exportMobFull(mob);
     }
     
@@ -147,9 +142,6 @@ class YAMLExporter {
      * 2. Properties that this mob explicitly defines (overrides)
      */
     exportMobWithTemplate(mob) {
-        console.log('   mob.display:', mob.display);
-        console.log('   mob.display check:', mob.display && mob.display.trim());
-        
         let yaml = `${mob.name}:\n`;
         
         // Always output Template first
@@ -164,8 +156,6 @@ class YAMLExporter {
         // Display - only if explicitly set on this mob
         if (mob.display && mob.display.trim()) {
             yaml += `  Display: '${mob.display}'\n`;
-        } else {
-            console.log('❌ Display NOT added - mob.display:', mob.display);
         }
         
         // Core stats - only if explicitly set (not inherited defaults)
@@ -239,6 +229,53 @@ class YAMLExporter {
             yaml += this.exportLevelModifiersSection(mob.levelModifiers);
         }
         
+        // === NEW SECTIONS ===
+        
+        // Mount - if set
+        if (mob.mount && mob.mount.trim()) {
+            yaml += `  Mount: ${mob.mount}\n`;
+        }
+        
+        // HealthBar - if enabled
+        if (mob.healthBar && mob.healthBar.enabled) {
+            yaml += `  HealthBar:\n`;
+            yaml += `    Enabled: true\n`;
+            if (mob.healthBar.offset !== undefined && mob.healthBar.offset !== 1.45) {
+                yaml += `    Offset: ${mob.healthBar.offset}\n`;
+            }
+        }
+        
+        // Hearing - if enabled
+        if (mob.hearing && mob.hearing.enabled) {
+            yaml += `  Hearing:\n`;
+            yaml += `    Enabled: true\n`;
+        }
+        
+        // Nameplate - if enabled
+        if (mob.nameplate && mob.nameplate.enabled) {
+            yaml += `  Nameplate:\n`;
+            yaml += `    Enabled: true\n`;
+            if (mob.nameplate.offset !== undefined && mob.nameplate.offset !== 1.8) {
+                yaml += `    Offset: ${mob.nameplate.offset}\n`;
+            }
+            if (mob.nameplate.scale && mob.nameplate.scale !== '1,1,1') {
+                yaml += `    Scale: ${mob.nameplate.scale}\n`;
+            }
+            if (mob.nameplate.mounted) {
+                yaml += `    Mounted: true\n`;
+            }
+        }
+        
+        // Disguise - if configured
+        if (mob.disguiseConfig && mob.disguiseConfig.type && mob.disguiseConfig.type.trim()) {
+            yaml += `  Disguise: ${mob.disguiseConfig.type}\n`;
+        }
+        
+        // Trades - if any (for villagers)
+        if (mob.trades && Object.keys(mob.trades).length > 0) {
+            yaml += this.exportTradesSection(mob.trades);
+        }
+        
         // Skills - if any defined (these OVERRIDE template skills, not merge)
         if (mob.skills && mob.skills.length > 0) {
             yaml += this.exportSkillsSection(mob.skills);
@@ -292,8 +329,6 @@ class YAMLExporter {
         };
         
         // === TOP-LEVEL FIELDS (outside Options) ===
-        console.log('   mob.display:', mob.display);
-        console.log('   shouldExport result:', shouldExport('Display', mob.display));
         
         // Display
         if (shouldExport('Display', mob.display)) {
@@ -676,6 +711,53 @@ class YAMLExporter {
         // === PHASE 4.5: DropOptions (only if DropMethod is FANCY) ===
         if (mob.dropOptions && mob.dropOptions.DropMethod === 'FANCY') {
             yaml += this.exportDropOptions(mob.dropOptions);
+        }
+        
+        // === NEW SECTIONS ===
+        
+        // Mount - if set
+        if (mob.mount && mob.mount.trim()) {
+            yaml += `  Mount: ${mob.mount}\n`;
+        }
+        
+        // HealthBar - if enabled
+        if (mob.healthBar && mob.healthBar.enabled) {
+            yaml += `  HealthBar:\n`;
+            yaml += `    Enabled: true\n`;
+            if (mob.healthBar.offset !== undefined && mob.healthBar.offset !== 1.45) {
+                yaml += `    Offset: ${mob.healthBar.offset}\n`;
+            }
+        }
+        
+        // Hearing - if enabled
+        if (mob.hearing && mob.hearing.enabled) {
+            yaml += `  Hearing:\n`;
+            yaml += `    Enabled: true\n`;
+        }
+        
+        // Nameplate - if enabled
+        if (mob.nameplate && mob.nameplate.enabled) {
+            yaml += `  Nameplate:\n`;
+            yaml += `    Enabled: true\n`;
+            if (mob.nameplate.offset !== undefined && mob.nameplate.offset !== 1.8) {
+                yaml += `    Offset: ${mob.nameplate.offset}\n`;
+            }
+            if (mob.nameplate.scale && mob.nameplate.scale !== '1,1,1') {
+                yaml += `    Scale: ${mob.nameplate.scale}\n`;
+            }
+            if (mob.nameplate.mounted) {
+                yaml += `    Mounted: true\n`;
+            }
+        }
+        
+        // Disguise - if configured
+        if (mob.disguiseConfig && mob.disguiseConfig.type && mob.disguiseConfig.type.trim()) {
+            yaml += `  Disguise: ${mob.disguiseConfig.type}\n`;
+        }
+        
+        // Trades - if any (for villagers)
+        if (mob.trades && Object.keys(mob.trades).length > 0) {
+            yaml += this.exportTradesSection(mob.trades);
         }
         
         // === PHASE 5: Totem (Totem configuration) ===
@@ -1248,6 +1330,42 @@ class YAMLExporter {
                 yaml += `    - ${entry}\n`;
             });
         }
+        
+        return yaml;
+    }
+    
+    /**
+     * Export Trades section for villagers
+     */
+    exportTradesSection(trades) {
+        if (!trades || Object.keys(trades).length === 0) return '';
+        
+        let yaml = `  Trades:\n`;
+        
+        Object.entries(trades).forEach(([key, trade]) => {
+            yaml += `    ${key}:\n`;
+            
+            // Item1 (required)
+            if (trade.Item1 || trade.item1) {
+                yaml += `      Item1: ${trade.Item1 || trade.item1}\n`;
+            }
+            
+            // Item2 (optional)
+            if (trade.Item2 || trade.item2) {
+                yaml += `      Item2: ${trade.Item2 || trade.item2}\n`;
+            }
+            
+            // Result (required)
+            if (trade.Result || trade.result) {
+                yaml += `      Result: ${trade.Result || trade.result}\n`;
+            }
+            
+            // MaxUses (optional, default is 10000)
+            const maxUses = trade.MaxUses || trade.maxUses;
+            if (maxUses && maxUses !== 10000) {
+                yaml += `      MaxUses: ${maxUses}\n`;
+            }
+        });
         
         return yaml;
     }

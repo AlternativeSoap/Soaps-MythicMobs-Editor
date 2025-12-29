@@ -644,7 +644,7 @@ class TemplateSelector {
         // Issue #4: Safety timeout - force hide skeleton after 5 seconds
         this.skeletonTimeout = setTimeout(() => {
             if (this.isLoading) {
-                console.warn('⚠️ Skeleton loading timeout (5s) - forcing hide');
+                if (window.DEBUG_MODE) console.warn('Skeleton loading timeout (5s) - forcing hide');
                 this.hideLoading();
                 this.renderTemplates();
             }
@@ -1664,7 +1664,7 @@ class TemplateSelector {
      */
     async loadRemoteTemplates() {
         if (!this.templateManager) {
-            console.log('⚠️ TemplateManager not available, using built-in only');
+            if (window.DEBUG_MODE) console.log('TemplateManager not available, using built-in only');
             this.userTemplates = [];
             return;
         }
@@ -1672,9 +1672,9 @@ class TemplateSelector {
         try {
             const remote = await this.templateManager.getAllTemplates(this.context);
             this.userTemplates = remote;
-            console.log(`✅ Loaded ${remote.length} remote templates:`, remote);
+            if (window.DEBUG_MODE) console.log(`Loaded ${remote.length} remote templates:`, remote);
         } catch (error) {
-            console.error('❌ Failed to load remote templates:', error);
+            console.error('Failed to load remote templates:', error);
             this.userTemplates = [];
         }
     }
@@ -1777,34 +1777,16 @@ class TemplateSelector {
      * Check if user owns a template
      */
     isOwner(template) {
-        console.log('[TemplateSelector] isOwner() check:', {
-            templateId: template.id,
-            templateName: template.name,
-            isBuiltIn: template.isBuiltIn,
-            templateOwnerId: template.owner_id,
-            templateOwnerIdType: typeof template.owner_id,
-            isAuthenticated: window.authManager?.isAuthenticated()
-        });
-        
         if (template.isBuiltIn) {
-            console.log('[TemplateSelector] Template is built-in, cannot edit');
             return false;
         }
         
         if (!window.authManager?.isAuthenticated()) {
-            console.log('[TemplateSelector] User not authenticated');
             return false;
         }
         
         const currentUser = window.authManager.getCurrentUser();
-        console.log('[TemplateSelector] Current user:', {
-            userId: currentUser?.id,
-            userIdType: typeof currentUser?.id,
-            email: currentUser?.email
-        });
-        
         const isOwner = currentUser && template.owner_id === currentUser.id;
-        console.log('[TemplateSelector] Ownership check result:', isOwner);
         
         return isOwner;
     }
@@ -1959,7 +1941,7 @@ class TemplateSelector {
         }
         
         if (!window.templateWizard) {
-            console.error('❌ Template wizard not available');
+            console.error('Template wizard not available');
             return;
         }
         

@@ -15,10 +15,10 @@ try {
         supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         // Initialized silently
     } else {
-        console.error('❌ Supabase library not loaded');
+        console.error('Supabase library not loaded');
     }
 } catch (error) {
-    console.error('❌ Failed to initialize Supabase:', error);
+    console.error('Failed to initialize Supabase:', error);
 }
 
 // Export for use in other modules
@@ -55,15 +55,15 @@ class DatabaseStorageManager {
                 // User is actually authenticated
                 this.userId = session.user.id;
                 this.useCloud = true;
-                console.log('✅ Authenticated user, cloud storage enabled');
+                if (window.DEBUG_MODE) console.log('Authenticated user, cloud storage enabled');
             } else {
                 // No authenticated session - use localStorage only
                 this.userId = this.getOrCreateAnonymousId();
                 this.useCloud = false;
-                console.log('ℹ️ Anonymous user, using localStorage only');
+                if (window.DEBUG_MODE) console.log('Anonymous user, using localStorage only');
             }
         } catch (error) {
-            console.warn('⚠️ Auth check failed, using localStorage only:', error);
+            if (window.DEBUG_MODE) console.warn('Auth check failed, using localStorage only:', error);
             this.userId = this.getOrCreateAnonymousId();
             this.useCloud = false;
         }
@@ -77,7 +77,7 @@ class DatabaseStorageManager {
         
         // Validate if existing ID is a valid UUID
         if (anonId && !this.isValidUUID(anonId)) {
-            console.warn('⚠️ Invalid anonymous ID detected, regenerating...');
+            if (window.DEBUG_MODE) console.warn('Invalid anonymous ID detected, regenerating...');
             anonId = null; // Force regeneration
         }
         
@@ -85,7 +85,7 @@ class DatabaseStorageManager {
             // Generate a valid UUID v4 for anonymous users
             anonId = this.generateUUID();
             localStorage.setItem('mythicmobs_anon_id', anonId);
-            console.log('✅ Generated new anonymous UUID:', anonId);
+            if (window.DEBUG_MODE) console.log('Generated new anonymous UUID:', anonId);
         }
         return anonId;
     }
@@ -133,7 +133,7 @@ class DatabaseStorageManager {
                 }
                 return data?.value || null;
             } catch (error) {
-                console.warn(`   ⚠️ Cloud get failed for ${key}, using localStorage:`, error);
+                if (window.DEBUG_MODE) console.warn(`Cloud get failed for ${key}, using localStorage:`, error);
             }
         }
         
@@ -151,7 +151,7 @@ class DatabaseStorageManager {
                 return value;
             }
         } catch (error) {
-            console.error(`   ❌ Failed to get ${key}:`, error);
+            console.error(`Failed to get ${key}:`, error);
             return null;
         }
     }
@@ -161,7 +161,7 @@ class DatabaseStorageManager {
      */
     async set(key, value) {
         if (window.DEBUG_MODE) {
-            console.log(`💾 Storage SET: ${key}`, { 
+            console.log(`Storage SET: ${key}`, { 
                 userId: this.userId, 
                 useCloud: this.useCloud,
                 dataSize: JSON.stringify(value).length 
@@ -172,7 +172,7 @@ class DatabaseStorageManager {
         try {
             localStorage.setItem(this.prefix + key, JSON.stringify(value));
         } catch (error) {
-            console.error(`   ❌ Failed to save to localStorage:`, error);
+            console.error(`Failed to save to localStorage:`, error);
         }
         
         // Try cloud storage
@@ -192,7 +192,7 @@ class DatabaseStorageManager {
                 if (error) throw error;
                 return true;
             } catch (error) {
-                console.warn(`   ⚠️ Cloud save failed for ${key}:`, error);
+                if (window.DEBUG_MODE) console.warn(`Cloud save failed for ${key}:`, error);
                 return true; // Still return true since localStorage succeeded
             }
         }
@@ -222,9 +222,9 @@ class DatabaseStorageManager {
                 
                 if (error) throw error;
                 
-                console.log(`✅ Removed from cloud: ${key}`);
+                if (window.DEBUG_MODE) console.log(`Removed from cloud: ${key}`);
             } catch (error) {
-                console.warn(`Cloud remove failed for ${key}:`, error);
+                if (window.DEBUG_MODE) console.warn(`Cloud remove failed for ${key}:`, error);
             }
         }
         
@@ -293,12 +293,12 @@ class DatabaseStorageManager {
      */
     async syncToCloud() {
         if (!this.useCloud || !this.userId) {
-            console.warn('☁️ Cloud storage not available:', { useCloud: this.useCloud, userId: this.userId });
+            if (window.DEBUG_MODE) console.warn('Cloud storage not available:', { useCloud: this.useCloud, userId: this.userId });
             return;
         }
         
         const keys = Object.keys(localStorage).filter(key => key.startsWith(this.prefix));
-        console.log(`📦 Found ${keys.length} items to sync:`, keys.map(k => k.replace(this.prefix, '')));
+        if (window.DEBUG_MODE) console.log(`Found ${keys.length} items to sync:`, keys.map(k => k.replace(this.prefix, '')));
         
         let synced = 0;
         let failed = 0;
@@ -317,16 +317,16 @@ class DatabaseStorageManager {
                     value = rawValue;
                 }
                 
-                console.log(`  ↗️ Syncing ${key}...`);
+                if (window.DEBUG_MODE) console.log(`Syncing ${key}...`);
                 await this.set(key, value);
                 synced++;
             } catch (error) {
-                console.error(`  ❌ Failed to sync ${key}:`, error);
+                console.error(`Failed to sync ${key}:`, error);
                 failed++;
             }
         }
         
-        console.log(`✅ Cloud sync complete: ${synced} synced, ${failed} failed`);
+        if (window.DEBUG_MODE) console.log(`Cloud sync complete: ${synced} synced, ${failed} failed`);
     }
     
     /**
@@ -365,7 +365,7 @@ class DatabaseStorageManager {
                 }
             }
             
-            console.log(`✅ Synced ${synced} items from cloud`);
+            if (window.DEBUG_MODE) console.log(`Synced ${synced} items from cloud`);
         } catch (error) {
             console.error('Failed to sync from cloud:', error);
         }

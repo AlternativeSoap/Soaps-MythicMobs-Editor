@@ -124,7 +124,7 @@ class PackManager {
         const saved = await this.editor.storage.get('packs');
         
         if (window.DEBUG_MODE) {
-            console.log('📦 Loaded packs:', {
+            console.log('Loaded packs:', {
                 found: !!saved,
                 packCount: saved?.length || 0,
                 totalSkills: saved?.reduce((sum, p) => sum + (p.skills?.length || 0), 0) || 0
@@ -221,7 +221,7 @@ class PackManager {
             }
             
             if (window.DEBUG_MODE) {
-                console.log('💾 Saving packs to storage...', {
+                console.log('Saving packs to storage...', {
                     packCount: this.packs.length,
                     totalSkills: this.packs.reduce((sum, p) => sum + (p.skills?.length || 0), 0),
                     userId: this.editor.storage.db?.userId || 'unknown'
@@ -244,7 +244,7 @@ class PackManager {
             
             return true;
         } catch (error) {
-            console.error('❌ Failed to save packs:', error);
+            console.error('Failed to save packs:', error);
             if (this.editor.authUI) {
                 this.editor.authUI.showSyncError();
             }
@@ -524,7 +524,7 @@ class PackManager {
         // Check if already file-based
         if (collection[0].entries !== undefined) return;
         
-        console.log(`🔄 Migrating legacy ${type}s to file-based structure...`);
+        if (window.DEBUG_MODE) console.log(`Migrating legacy ${type}s to file-based structure...`);
         
         // Create a single file containing all legacy entries
         const legacyFileName = 'Migrated ' + type.charAt(0).toUpperCase() + type.slice(1) + 's.yml';
@@ -543,7 +543,7 @@ class PackManager {
         this.activePack[type + 's'] = [migratedFile];
         this.savePacks();
         
-        console.log(`✅ Migrated ${collection.length} ${type}s to file-based structure`);
+        if (window.DEBUG_MODE) console.log(`Migrated ${collection.length} ${type}s to file-based structure`);
     }
     
     /**
@@ -2562,7 +2562,7 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
         });
         
         // Show results count
-        console.log(`🔍 Search: "${this.searchQuery}" - Found ${matchCount} result(s)`);
+        if (window.DEBUG_MODE) console.log(`Search: "${this.searchQuery}" - Found ${matchCount} result(s)`);
     }
     
     /**
@@ -3276,16 +3276,16 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
      */
     duplicateFile(fileId, fileType) {
         // Implementation depends on existing duplicate functionality
-        console.log('Duplicate file:', fileId, fileType);
+        if (window.DEBUG_MODE) console.log('Duplicate file:', fileId, fileType);
         // Call appropriate editor duplicate method
     }
-    
+
     /**
      * Export a file
      */
     exportFile(fileId, fileType) {
         // Implementation depends on existing export functionality
-        console.log('Export file:', fileId, fileType);
+        if (window.DEBUG_MODE) console.log('Export file:', fileId, fileType);
         // Call appropriate export method
     }
 }

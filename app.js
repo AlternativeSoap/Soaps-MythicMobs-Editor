@@ -571,22 +571,11 @@ class MythicMobsEditor {
      * Switch editor mode
      */
     async switchMode(mode) {
-        console.log('🔄 switchMode called:', mode);
-        
         // Check for manual edits in the preview panel
-        console.log('🔍 Checking preview panel for manual edits...');
-        console.log('   _previewHasManualEdits:', this._previewHasManualEdits);
-        console.log('   _previewElement exists:', !!this._previewElement);
-        
         if (this._previewHasManualEdits && this._previewElement) {
             const currentContent = this._previewElement.textContent;
-            console.log('📊 Preview content check:');
-            console.log('   Current length:', currentContent.length);
-            console.log('   Original length:', this._originalPreviewContent?.length || 0);
-            console.log('   Are equal:', currentContent === this._originalPreviewContent);
             
             if (currentContent !== this._originalPreviewContent) {
-                console.log('⚠️ PREVIEW PANEL has unsaved edits - showing prompt');
                 const result = await this.showConfirmDialog(
                     'You have unsaved manual edits in the YAML preview panel. What would you like to do?',
                     'Unsaved YAML Preview Edits',
@@ -597,21 +586,13 @@ class MythicMobsEditor {
                     ]
                 );
                 
-                console.log('👤 User chose:', result);
-                
                 if (result === 'cancel') {
-                    console.log('🚫 Mode switch cancelled');
                     return; // Don't switch modes
                 } else if (result === 'apply') {
-                    console.log('✅ Applying preview edits before mode switch');
                     await this.applyManualYAMLEdits(currentContent);
                 }
                 this._previewHasManualEdits = false;
-            } else {
-                console.log('ℹ️ Preview content unchanged despite edit flag');
             }
-        } else {
-            console.log('ℹ️ No preview panel edits to check');
         }
         
         const wasBeginnerMode = this.state.currentMode === 'beginner';
@@ -1179,7 +1160,7 @@ class MythicMobsEditor {
         try {
             this.showSavingStatus();
             
-            console.log(`💾 Saving file: ${fileName} (${this.state.currentFileType})`);
+            if (window.DEBUG_MODE) console.log(`💾 Saving file: ${fileName} (${this.state.currentFileType})`);
             
             // Save with retry logic
             let saveSuccess = false;
@@ -1190,13 +1171,13 @@ class MythicMobsEditor {
                 try {
                     await this.fileManager.saveFile(this.state.currentFile, this.state.currentFileType, true); // true = immediate save
                     saveSuccess = true;
-                    console.log(`✅ Save successful on attempt ${retryCount + 1}`);
+                    if (window.DEBUG_MODE) console.log(`✅ Save successful on attempt ${retryCount + 1}`);
                 } catch (error) {
                     retryCount++;
                     if (retryCount >= maxRetries) {
                         throw error;
                     }
-                    console.warn(`⚠️ Save attempt ${retryCount} failed, retrying...`, error);
+                    if (window.DEBUG_MODE) console.warn(`⚠️ Save attempt ${retryCount} failed, retrying...`, error);
                     await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
                 }
             }
@@ -1403,7 +1384,7 @@ class MythicMobsEditor {
         let errorCount = 0;
         const failedFiles = [];
         
-        console.log(`💾 Saving ${modifiedFiles.length} modified file${modifiedFiles.length > 1 ? 's' : ''}...`);
+        if (window.DEBUG_MODE) console.log(`💾 Saving ${modifiedFiles.length} modified file${modifiedFiles.length > 1 ? 's' : ''}...`);
         
         try {
             // Save each file individually with retry logic
@@ -1420,15 +1401,15 @@ class MythicMobsEditor {
                         file.lastSaved = new Date().toISOString();
                         savedCount++;
                         saveSuccess = true;
-                        console.log(`✅ Saved: ${file.name}`);
+                        if (window.DEBUG_MODE) console.log(`✅ Saved: ${file.name}`);
                     } catch (error) {
                         retryCount++;
                         if (retryCount >= maxRetries) {
-                            console.error(`❌ Failed to save ${file.name}:`, error);
+                            console.error(`Failed to save ${file.name}:`, error);
                             failedFiles.push(file.name);
                             errorCount++;
                         } else {
-                            console.warn(`⚠️ Save attempt ${retryCount} for ${file.name} failed, retrying...`);
+                            if (window.DEBUG_MODE) console.warn(`⚠️ Save attempt ${retryCount} for ${file.name} failed, retrying...`);
                             await new Promise(resolve => setTimeout(resolve, 500));
                         }
                     }
@@ -1753,13 +1734,9 @@ class MythicMobsEditor {
      * Update YAML preview
      */
     async updateYAMLPreview() {
-        console.log('🔄 updateYAMLPreview called');
-        
         // Cache preview element
         if (!this._previewElement) {
             this._previewElement = document.getElementById('yaml-preview-content');
-            console.log('📝 Setting up preview element:', this._previewElement);
-            console.log('📝 Is contenteditable:', this._previewElement?.getAttribute('contenteditable'));
             
             // Initialize flags - start with _updatingPreview true to prevent initial content from being seen as user edit
             this._previewHasManualEdits = false;
@@ -1767,18 +1744,10 @@ class MythicMobsEditor {
             this._updatingPreview = true;
             
             // Use MutationObserver to detect ANY changes to the preview content
-            // This is more reliable than input events for contenteditable elements
             this._previewObserver = new MutationObserver((mutations) => {
-                console.log('🔬 MUTATION DETECTED in preview panel!');
-                console.log('   Mutations:', mutations.length);
-                
                 // Only track if the mutation was from user input, not from programmatic updates
                 if (!this._updatingPreview) {
-                    console.log('   ✅ User-generated mutation detected');
                     this._previewHasManualEdits = true;
-                    console.log('   _previewHasManualEdits set to:', this._previewHasManualEdits);
-                } else {
-                    console.log('   ℹ️ Programmatic update, ignoring');
                 }
             });
             
@@ -1791,36 +1760,24 @@ class MythicMobsEditor {
             });
             
             // Track manual edits in the preview panel (backup to MutationObserver)
-            this._previewElement.addEventListener('input', (e) => {
-                console.log('✏️ INPUT EVENT FIRED in preview panel!');
-                console.log('   Current content:', this._previewElement.textContent.substring(0, 100));
+            this._previewElement.addEventListener('input', () => {
                 this._previewHasManualEdits = true;
-                console.log('   _previewHasManualEdits set to:', this._previewHasManualEdits);
             });
             
             // Track blur event (when user clicks out of the preview panel)
-            this._previewElement.addEventListener('blur', (e) => {
-                console.log('👁️ BLUR EVENT FIRED - user clicked out of preview panel');
+            this._previewElement.addEventListener('blur', () => {
                 const currentContent = this._previewElement.textContent;
-                console.log('   Original content:', this._originalPreviewContent?.substring(0, 100));
-                console.log('   Current content:', currentContent.substring(0, 100));
                 
                 // Check if content has changed
                 if (currentContent !== this._originalPreviewContent) {
-                    console.log('⚠️ CONTENT CHANGED DETECTED on blur!');
                     this._previewHasManualEdits = true;
-                    
                     // Immediately prompt the user to save changes
                     this.promptToSavePreviewEdits();
-                } else {
-                    console.log('ℹ️ No content changes detected on blur');
                 }
             });
             
-            // Track focus event for debugging
-            this._previewElement.addEventListener('focus', (e) => {
-                console.log('🎯 FOCUS EVENT - user clicked into preview panel');
-                console.log('   Storing current content as baseline for blur check');
+            // Track focus event
+            this._previewElement.addEventListener('focus', () => {
                 // Store the content when user starts editing
                 if (!this._previewHasManualEdits) {
                     this._editStartContent = this._previewElement.textContent;
@@ -1829,22 +1786,18 @@ class MythicMobsEditor {
             
             // Keyboard shortcuts for preview panel
             this._previewElement.addEventListener('keydown', async (e) => {
-                console.log('⌨️ KEYDOWN in preview panel:', e.key, 'Ctrl:', e.ctrlKey);
-                
                 // Ctrl+S: Apply changes and save
                 if (e.ctrlKey && e.key === 's') {
                     e.preventDefault();
-                    console.log('🔑 Ctrl+S pressed - applying and saving changes');
                     if (this._previewHasManualEdits) {
                         const currentContent = this._previewElement.textContent;
-                        await this.applyManualYAMLEdits(currentContent, true); // true = save after applying
+                        await this.applyManualYAMLEdits(currentContent, true);
                         this._previewHasManualEdits = false;
                     }
                 }
                 // Esc: Discard changes
                 else if (e.key === 'Escape') {
                     e.preventDefault();
-                    console.log('🔑 Esc pressed - discarding changes');
                     if (this._previewHasManualEdits) {
                         this._previewHasManualEdits = false;
                         this.updateYAMLPreview();
@@ -1853,42 +1806,26 @@ class MythicMobsEditor {
                 // Ctrl+Enter: Apply changes without saving
                 else if (e.ctrlKey && e.key === 'Enter') {
                     e.preventDefault();
-                    console.log('🔑 Ctrl+Enter pressed - applying without saving');
                     if (this._previewHasManualEdits) {
                         const currentContent = this._previewElement.textContent;
-                        await this.applyManualYAMLEdits(currentContent, false); // false = don't save
+                        await this.applyManualYAMLEdits(currentContent, false);
                         this._previewHasManualEdits = false;
                     }
                 }
-            });
-            
-            this._previewElement.addEventListener('paste', (e) => {
-                console.log('📋 PASTE in preview panel');
             });
         }
         const preview = this._previewElement;
         
         if (!preview) {
-            console.warn('YAML preview element not found');
+            if (window.DEBUG_MODE) console.warn('YAML preview element not found');
             return;
         }
-        
-        console.log('🔍 Checking for manual edits:');
-        console.log('   _previewHasManualEdits:', this._previewHasManualEdits);
-        console.log('   _originalPreviewContent length:', this._originalPreviewContent?.length || 0);
-        console.log('   Current content length:', preview.textContent?.length || 0);
         
         // Check if user has manually edited the preview panel
         if (this._previewHasManualEdits) {
             const currentContent = preview.textContent;
-            console.log('📊 Content comparison:');
-            console.log('   Original:', this._originalPreviewContent.substring(0, 100));
-            console.log('   Current:', currentContent.substring(0, 100));
-            console.log('   Are equal:', currentContent === this._originalPreviewContent);
             
             if (currentContent !== this._originalPreviewContent) {
-                console.log('⚠️ MANUAL EDITS DETECTED! Showing prompt...');
-                
                 // Prompt user to apply or discard changes
                 const result = await this.showConfirmDialog(
                     'You have unsaved manual edits in the YAML preview panel. What would you like to do?',
@@ -1900,25 +1837,14 @@ class MythicMobsEditor {
                     ]
                 );
                 
-                console.log('👤 User chose:', result);
-                
                 if (result === 'cancel') {
-                    console.log('🚫 Cancelled - keeping manual edits');
                     return; // Don't update preview, keep manual edits
                 } else if (result === 'apply') {
-                    console.log('✅ Applying manual edits...');
-                    // Parse and apply the manual YAML edits
                     await this.applyManualYAMLEdits(currentContent);
-                } else {
-                    console.log('🗑️ Discarding manual edits');
                 }
                 // If 'discard', continue with normal preview update
-            } else {
-                console.log('ℹ️ No content changes detected despite manual edit flag');
             }
             this._previewHasManualEdits = false;
-        } else {
-            console.log('ℹ️ No manual edits flag set, proceeding with normal update');
         }
         
         if (!this.state.currentFile) {
@@ -1946,7 +1872,6 @@ class MythicMobsEditor {
             if (preview.textContent !== yaml) {
                 // Set flag to prevent MutationObserver from treating this as user edit
                 this._updatingPreview = true;
-                console.log('🔒 Setting _updatingPreview = true');
                 
                 preview.textContent = yaml;
                 
@@ -1958,7 +1883,6 @@ class MythicMobsEditor {
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         this._updatingPreview = false;
-                        console.log('🔓 Programmatic update complete, now tracking user edits');
                     });
                 });
             }
@@ -1977,22 +1901,16 @@ class MythicMobsEditor {
      * Prompt user to save preview edits (called when blurring out of preview panel)
      */
     async promptToSavePreviewEdits() {
-        console.log('💬 promptToSavePreviewEdits called');
-        
         if (!this._previewElement || !this._previewHasManualEdits) {
-            console.log('   No edits to save');
             return;
         }
         
         const currentContent = this._previewElement.textContent;
         
         if (currentContent === this._originalPreviewContent) {
-            console.log('   Content unchanged, skipping prompt');
             this._previewHasManualEdits = false;
             return;
         }
-        
-        console.log('   Showing save prompt dialog...');
         
         const result = await this.showConfirmDialog(
             'You have manual edits in the YAML preview panel. Would you like to apply them?',
@@ -2004,19 +1922,13 @@ class MythicMobsEditor {
             ]
         );
         
-        console.log('   User chose:', result);
-        
         if (result === 'apply') {
-            console.log('   Applying changes...');
             await this.applyManualYAMLEdits(currentContent);
             this._previewHasManualEdits = false;
         } else if (result === 'discard') {
-            console.log('   Discarding changes, reverting to original...');
-            // Revert to original content
             this.updateYAMLPreview();
             this._previewHasManualEdits = false;
         } else {
-            console.log('   User chose to keep editing');
             // Re-focus the preview panel so they can continue editing
             this._previewElement.focus();
         }
@@ -2028,25 +1940,16 @@ class MythicMobsEditor {
      * @param {boolean} shouldSave - Whether to save the file after applying changes
      */
     async applyManualYAMLEdits(yamlContent, shouldSave = true) {
-        console.log('🔧 applyManualYAMLEdits called');
-        console.log('   YAML content length:', yamlContent.length);
-        console.log('   Should save:', shouldSave);
-        
         try {
-            // Parse the manually edited YAML
-            console.log('   Parsing YAML...');
             const parsed = jsyaml.load(yamlContent);
-            console.log('   Parsed result:', parsed);
             
             if (!parsed || typeof parsed !== 'object') {
-                console.error('   Invalid YAML format - not an object');
                 this.showToast('Invalid YAML format', 'error');
                 return;
             }
             
             // Simple merge: Just assign all properties from parsed YAML
             if (this.state.currentFile) {
-                console.log('   Merging parsed data into current file...');
                 Object.assign(this.state.currentFile, parsed);
                 
                 // Mark file as modified
@@ -2054,17 +1957,13 @@ class MythicMobsEditor {
                 
                 // Save the file if requested
                 if (shouldSave) {
-                    console.log('   Saving file...');
                     await this.save();
-                    console.log('   ✅ File saved successfully');
                     this.showToast('Manual YAML edits applied and saved', 'success');
                 } else {
-                    console.log('   ℹ️ Skipping save (shouldSave = false)');
                     this.showToast('Manual YAML edits applied', 'success');
                 }
                 
                 // Keep the manual YAML in the preview (don't regenerate)
-                console.log('   Preserving manual YAML in preview panel');
                 this._updatingPreview = true;
                 this._previewElement.textContent = yamlContent;
                 this._originalPreviewContent = yamlContent;
@@ -2073,11 +1972,9 @@ class MythicMobsEditor {
                         this._updatingPreview = false;
                     });
                 });
-            } else {
-                console.warn('   No current file to apply edits to');
             }
         } catch (error) {
-            console.error('❌ Failed to parse manual YAML edits:', error);
+            console.error('Failed to parse manual YAML edits:', error);
             this.showToast(`Failed to apply YAML edits: ${error.message}`, 'error');
         }
     }
@@ -2284,7 +2181,6 @@ class MythicMobsEditor {
         if (oldAutoSave && !this.settings.autoSave) {
             clearTimeout(this.autoSaveTimer);
             this.autoSaveTimer = null;
-            console.log('🔕 Auto-save disabled, timer cleared');
         }
         
         // Save to storage
@@ -3112,10 +3008,6 @@ class MythicMobsEditor {
      * Import pack - Opens the advanced pack folder importer
      */
     importPack() {
-        console.log('╔══════════════════════════════════════════════════════╗');
-        console.log('║           📦 IMPORT PACK CALLED                      ║');
-        console.log('╚══════════════════════════════════════════════════════╝');
-        
         try {
             // Check required classes
             const requiredClasses = [
@@ -3130,13 +3022,12 @@ class MythicMobsEditor {
             const missingClasses = [];
             for (const className of requiredClasses) {
                 const available = typeof window[className] !== 'undefined';
-                console.log(`  ${available ? '✅' : '❌'} ${className}: ${available ? 'available' : 'MISSING'}`);
                 if (!available) missingClasses.push(className);
             }
             
             if (missingClasses.length > 0) {
                 const errorMsg = `Missing required classes: ${missingClasses.join(', ')}.\n\nMake sure all packImporter scripts are loaded correctly.`;
-                console.error('❌ ' + errorMsg);
+                console.error(errorMsg);
                 window.notificationModal?.alert(
                     errorMsg,
                     'error',
@@ -3147,7 +3038,6 @@ class MythicMobsEditor {
             
             // Check js-yaml library
             const jsyamlAvailable = typeof jsyaml !== 'undefined';
-            console.log(`📋 js-yaml library: ${jsyamlAvailable ? '✅ available' : '❌ MISSING'}`);
             if (!jsyamlAvailable) {
                 window.notificationModal?.alert(
                     'js-yaml library not loaded. Check your internet connection and try refreshing the page.',
@@ -3166,12 +3056,7 @@ class MythicMobsEditor {
             window.packImporter.startImport();
             
         } catch (error) {
-            console.error('╔══════════════════════════════════════════════════════╗');
-            console.error('║           ❌ ERROR IN IMPORT PACK                    ║');
-            console.error('╚══════════════════════════════════════════════════════╝');
-            console.error('Error name:', error.name);
-            console.error('Error message:', error.message);
-            console.error('Error stack:', error.stack);
+            console.error('Error in importPack:', error);
             window.notificationModal?.alert(
                 'Error initializing pack importer: ' + error.message + '\n\nCheck console (F12) for details.',
                 'error',

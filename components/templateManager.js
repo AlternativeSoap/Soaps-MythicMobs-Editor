@@ -115,7 +115,7 @@ class TemplateManager {
             
             return data;
         } catch (error) {
-            console.error('❌ Failed to create template:', error);
+            console.error('Failed to create template:', error);
             throw new Error(this.formatError(error));
         }
     }
@@ -164,11 +164,11 @@ class TemplateManager {
                 this.setCache(templates);
             }
             
-            console.log(`✅ Loaded ${templates.length} templates from Supabase`);
+            if (window.DEBUG_MODE) console.log(`Loaded ${templates.length} templates from Supabase`);
             
             return templates;
         } catch (error) {
-            console.error('❌ Failed to load templates:', error);
+            console.error('Failed to load templates:', error);
             console.error('Error details:', {
                 message: error.message,
                 code: error.code,
@@ -199,7 +199,7 @@ class TemplateManager {
             
             return data.map(t => this.processTemplate(t));
         } catch (error) {
-            console.error('❌ Failed to load user templates:', error);
+            console.error('Failed to load user templates:', error);
             return [];
         }
     }
@@ -226,7 +226,7 @@ class TemplateManager {
             
             return this.processTemplate(data);
         } catch (error) {
-            console.error('❌ Failed to load template:', error);
+            console.error('Failed to load template:', error);
             throw new Error('Template not found');
         }
     }
@@ -278,7 +278,7 @@ class TemplateManager {
             
             return this.processTemplate(data);
         } catch (error) {
-            console.error('❌ Failed to update template:', error);
+            console.error('Failed to update template:', error);
             throw new Error(this.formatError(error));
         }
     }
@@ -321,7 +321,7 @@ class TemplateManager {
             
             return true;
         } catch (error) {
-            console.error('❌ Failed to delete template:', error);
+            console.error('Failed to delete template:', error);
             throw new Error(this.formatError(error));
         }
     }

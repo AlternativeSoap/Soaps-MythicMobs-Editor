@@ -274,8 +274,21 @@ class AIEditor {
         });
 
         // Clear all button
-        document.querySelector(`#${this.containerId} .ai-clear-all`)?.addEventListener('click', () => {
-            if (confirm(`Clear all ${this.type}?`)) {
+        document.querySelector(`#${this.containerId} .ai-clear-all`)?.addEventListener('click', async () => {
+            const typeLabel = this.type === 'goals' ? 'AI Goals' : 'AI Targets';
+            const confirmed = await window.notificationModal?.confirm(
+                `This will remove all ${this.items.length} ${typeLabel.toLowerCase()} from this mob. This action cannot be undone.`,
+                `Clear All ${typeLabel}?`,
+                {
+                    confirmText: 'Clear All',
+                    cancelText: 'Cancel',
+                    confirmClass: 'danger',
+                    icon: '🗑️',
+                    type: 'warning'
+                }
+            );
+            
+            if (confirmed) {
                 this.items = [];
                 this.render();
                 this.triggerChange();

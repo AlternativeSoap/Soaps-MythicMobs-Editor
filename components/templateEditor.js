@@ -18,8 +18,6 @@ class TemplateEditor {
         
         this.createModal();
         this.attachEventListeners();
-        
-        console.log('✏️ TemplateEditor initialized');
     }
     
     /**

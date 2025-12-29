@@ -22,7 +22,6 @@ class SkillLineBuilder {
     constructor(templateManager = null, templateEditor = null) {
         // Generate unique ID for this instance
         this.instanceId = Math.random().toString(36).substr(2, 9);
-        console.log(`🚀 Initializing SkillLineBuilder v2.0 [Instance: ${this.instanceId}]`);
         
         // ========================================
         // DEPENDENCIES
@@ -128,14 +127,9 @@ class SkillLineBuilder {
         
         if (JSON.stringify(oldState) === JSON.stringify(newState)) return;
         
-        // DEBUGGING: Track context changes
-        if (oldState.context !== newState.context) {
-            console.warn('⚠️ CONTEXT CHANGED in setState!');
-            console.warn('  Old context:', oldState.context);
-            console.warn('  New context:', newState.context);
-            console.warn('  Update type:', typeof update);
-            console.warn('  Update:', update);
-            console.trace('  Stack trace:');
+        // Track context changes in debug mode
+        if (window.DEBUG_MODE && oldState.context !== newState.context) {
+            console.warn('Context changed in setState:', oldState.context, '→', newState.context);
         }
         
         this.state = newState;
@@ -241,8 +235,8 @@ class SkillLineBuilder {
             // Update state directly without triggering re-render (performance tracking only)
             this.state.lastRenderTime = renderTime;
             
-            if (renderTime > 16.67) {
-                console.warn(`⚠️ Slow render: ${renderTime.toFixed(2)}ms`);
+            if (window.DEBUG_MODE && renderTime > 16.67) {
+                console.warn(`Slow render: ${renderTime.toFixed(2)}ms`);
             }
             
             this.raf = null;
@@ -665,22 +659,13 @@ class SkillLineBuilder {
     }
     
     handleClick(e) {
-        console.log('🖱️ handleClick triggered, target:', e.target.tagName, e.target.id || e.target.className);
-        
         const target = e.target.closest('button');
-        if (!target) {
-            console.log('🖱️ No button found in click target');
-            return;
-        }
+        if (!target) return;
         
         const id = target.id;
-        console.log('🖱️ Button clicked:', id, 'disabled:', target.disabled);
         
         // Check if button is disabled
-        if (target.disabled) {
-            console.log('⚠️ Button is disabled, ignoring click');
-            return;
-        }
+        if (target.disabled) return;
         
         const actions = {
             // Header
@@ -881,7 +866,6 @@ class SkillLineBuilder {
      */
     toggleQueuePanel() {
         if (!this.dom.queuePanel) {
-            console.warn('⚠️ Queue panel not found!');
             return;
         }
         
@@ -893,8 +877,6 @@ class SkillLineBuilder {
             if (icon) {
                 icon.className = isCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
             }
-        } else {
-            console.warn('⚠️ Toggle button not found!');
         }
     }
     
@@ -935,14 +917,11 @@ class SkillLineBuilder {
     // ========================================
     
     open(options = {}) {
-        console.log('📂 SkillLineBuilder.open() called');
-        console.log('   Current overlay state:', this.dom.overlay?.style.display, 'minimized class:', this.dom.overlay?.classList.contains('minimized'));
-        
         // Re-cache DOM elements to ensure fresh references (fixes re-open bug)
         this.cacheDOMElements();
         
         if (!this.dom.overlay) {
-            console.error('❌ Overlay element not found! Cannot open Skill Line Builder.');
+            console.error('Overlay element not found! Cannot open Skill Line Builder.');
             return;
         }
         
@@ -997,24 +976,19 @@ class SkillLineBuilder {
     }
     
     close() {
-        console.log('📕 SkillLineBuilder.close() called');
-        console.log('   Current overlay state:', this.dom.overlay?.style.display, 'minimized class:', this.dom.overlay?.classList.contains('minimized'));
-        
-        // CRITICAL: Reset ALL browser-related states to allow reopening
+        // Reset ALL browser-related states to allow reopening
         this.setState({ 
             isOpen: false,
             activeBrowser: null,
             isMinimized: false
         });
         
-        // CRITICAL: Also remove minimized class from DOM
+        // Remove minimized class from DOM
         if (this.dom.overlay) {
             this.dom.overlay.classList.remove('minimized');
             this.dom.overlay.style.display = 'none';
             this.dom.overlay.style.pointerEvents = 'auto'; // Reset pointer events
         }
-        
-        console.log('   After close:', this.dom.overlay?.style.display, 'minimized class:', this.dom.overlay?.classList.contains('minimized'));
         
         if (this.callbacks.onClose) this.callbacks.onClose();
         this.cleanup();
@@ -1073,7 +1047,7 @@ class SkillLineBuilder {
             this.dom.triggerCard.style.display = isMob ? 'block' : 'none';
         }
         
-        console.log(`✅ Context: ${this.state.context}`);
+        if (window.DEBUG_MODE) console.log(`Context: ${this.state.context}`);
     }
     
     destroy() {
@@ -1101,10 +1075,6 @@ class SkillLineBuilder {
             this.dom.queueList.removeEventListener('scroll', this.virtualScrollListener);
             this.virtualScrollListener = null;
         }
-        
-        // DO NOT remove main event listeners - they should persist across open/close cycles
-        // Removing them causes buttons to become unresponsive after reopening
-        console.log('🧹 Cleanup complete (event listeners preserved)');
     }
     
     // ========================================
@@ -1112,12 +1082,10 @@ class SkillLineBuilder {
     // ========================================
     
     render() {
-        // console.log('🎨 render() called - updating all displays');
         this.updateComponentsDisplay();
         this.updatePreview();
         this.updateQueueDisplay();
         this.updateFooter();
-        console.log('✅ render() complete');
     }
     
     updateComponentsDisplay() {
@@ -1280,9 +1248,7 @@ class SkillLineBuilder {
                 }).join('');
             }
             
-            console.log('🔍 Setting conditionsList HTML (length:', listHTML.length, '):', listHTML.substring(0, 200));
             this.dom.conditionsList.innerHTML = listHTML;
-            console.log('🔍 conditionsList after setting innerHTML:', this.dom.conditionsList.innerHTML.substring(0, 200));
         } else {
             this.dom.conditionStatus.classList.remove('filled');
             this.dom.conditionCard.classList.remove('filled');
@@ -1462,17 +1428,11 @@ class SkillLineBuilder {
         const hasTargeter = this.state.currentLine.targeter !== null;
         const hasConditions = this.state.currentLine.conditions && this.state.currentLine.conditions.length > 0;
         
-        // OPTIMIZED LOGGING: Only log when context changes
         const context = this.state.context || 'skill';
-        if (this.lastLoggedContext !== context) {
-            console.warn(`🔄 [${this.instanceId}] CONTEXT CHANGED IN RENDER: ${this.lastLoggedContext} → ${context}`);
-            console.log(`   [${this.instanceId}] State:`, {
-                mechanic: this.state.currentLine.mechanic?.name || null,
-                trigger: this.state.currentLine.trigger,
-                targeter: this.state.currentLine.targeter,
-                hasMechanic,
-                hasTrigger
-            });
+        
+        // Track context changes in debug mode
+        if (window.DEBUG_MODE && this.lastLoggedContext !== context) {
+            console.log(`Context changed: ${this.lastLoggedContext} → ${context}`);
             this.lastLoggedContext = context;
         }
         
@@ -1481,25 +1441,9 @@ class SkillLineBuilder {
             ? hasMechanic 
             : (hasMechanic && hasTrigger);
         
-        console.log('✅ Button validation result:', { 
-            context,  // Show the context (with fallback)
-            contextRaw: this.state.context,  // Show raw context to detect undefined
-            canAddToQueue,
-            reason: !canAddToQueue ? (
-                context === 'skill' 
-                    ? 'Missing: mechanic' 
-                    : (!hasMechanic ? 'Missing: mechanic' : 'Missing: trigger')
-            ) : 'Valid'
-        });
-        
-        // Debug: Check button elements exist
-        
         // Update button states with defensive checks
         if (this.dom.btnAddToQueue) {
-            const oldState = this.dom.btnAddToQueue.disabled;
             this.dom.btnAddToQueue.disabled = !canAddToQueue;
-        } else {
-            console.warn('⚠️ btnAddToQueue element not found!');
         }
         
         // btnAdd (Add Skill Line) should always be enabled when builder is open
@@ -1507,11 +1451,7 @@ class SkillLineBuilder {
         const isBuilderActive = this.state.isOpen && !this.state.isMinimized;
         
         if (this.dom.btnAdd) {
-            const oldState = this.dom.btnAdd.disabled;
             this.dom.btnAdd.disabled = !isBuilderActive;
-            console.log('🔘 btnAdd.disabled:', oldState, '→', this.dom.btnAdd.disabled, '(isOpen:', this.state.isOpen, ', minimized:', this.state.isMinimized, ')');
-        } else {
-            console.warn('⚠️ btnAdd element not found!');
         }
         
         // Context-aware validation messages
@@ -1703,19 +1643,10 @@ class SkillLineBuilder {
     initializeBrowsers() {
         // Browsers should be passed via open() options
         // This method just validates they're available
-        if (!this.browsers.mechanic) {
-            console.warn('⚠️ MechanicBrowser not provided to SkillLineBuilder');
-            console.log('Available browsers:', this.browsers);
-        }
-        if (!this.browsers.targeter) {
-            console.warn('⚠️ TargeterBrowser not provided to SkillLineBuilder');
-            console.log('Available browsers:', this.browsers);
-        }
-        // ConditionBrowser is now used instead of ConditionEditor
-        // Trigger browser is optional (only for mob context)
-        if (this.state.context === 'mob' && !this.browsers.trigger) {
-            console.warn('⚠️ TriggerBrowser not provided (mob context)');
-            console.log('Available browsers:', this.browsers);
+        if (window.DEBUG_MODE) {
+            if (!this.browsers.mechanic) console.warn('MechanicBrowser not provided to SkillLineBuilder');
+            if (!this.browsers.targeter) console.warn('TargeterBrowser not provided to SkillLineBuilder');
+            if (this.state.context === 'mob' && !this.browsers.trigger) console.warn('TriggerBrowser not provided (mob context)');
         }
     }
     
@@ -1726,10 +1657,7 @@ class SkillLineBuilder {
         performance.mark('browser-click');
         
         // Prevent opening multiple browsers at once
-        if (this.state.activeBrowser) {
-            console.warn('⚠️ Browser already open:', this.state.activeBrowser);
-            return;
-        }
+        if (this.state.activeBrowser) return;
         
         // PERFORMANCE FIX: Always use singleton browser manager - NEVER create new instances
         if (window.browserManager) {
@@ -1737,12 +1665,12 @@ class SkillLineBuilder {
             this.browsers.targeter = window.browserManager.getTargeterBrowser();
             this.browsers.trigger = window.browserManager.getTriggerBrowser();
         } else {
-            console.error('❌ BrowserManager not available - browsers may not work correctly');
+            console.error('BrowserManager not available - browsers may not work correctly');
             return;
         }
         
         if (!this.browsers.mechanic) {
-            console.error('❌ MechanicBrowser not available - window.MechanicBrowser class not found');
+            console.error('MechanicBrowser not available - window.MechanicBrowser class not found');
             return;
         }
         
@@ -1837,10 +1765,8 @@ class SkillLineBuilder {
      * Open Targeter Browser
      */
     openTargeterBrowser() {
-        
         // Prevent opening multiple browsers at once
         if (this.state.activeBrowser) {
-            console.warn('⚠️ Browser already open:', this.state.activeBrowser);
             // Force close previous browser
             this.setState({ activeBrowser: null, isLoading: false });
         }
@@ -1851,12 +1777,12 @@ class SkillLineBuilder {
             this.browsers.trigger = window.browserManager.getTriggerBrowser();
             this.browsers.mechanic = window.browserManager.getMechanicBrowser();
         } else {
-            console.error('❌ BrowserManager not available - browsers may not work correctly');
+            console.error('BrowserManager not available - browsers may not work correctly');
             return;
         }
         
         if (!this.browsers.targeter) {
-            console.error('❌ TargeterBrowser not available - window.TargeterBrowser class not found');
+            console.error('TargeterBrowser not available');
             return;
         }
         
@@ -1920,16 +1846,12 @@ class SkillLineBuilder {
     openTriggerBrowser() {
         // Check context - triggers ONLY in mob context
         if (this.state.context !== 'mob') {
-            console.warn('⚠️ Triggers only available in mob context');
             this.showNotification('Triggers are only available for mob files', 'warning');
             return;
         }
         
-        console.log('⚡ Opening Trigger Browser');
-        
         // Prevent opening multiple browsers at once
         if (this.state.activeBrowser) {
-            console.warn('⚠️ Browser already open:', this.state.activeBrowser);
             // Force close previous browser
             this.setState({ activeBrowser: null, isLoading: false });
         }
@@ -1940,12 +1862,12 @@ class SkillLineBuilder {
             this.browsers.trigger = window.browserManager.getTriggerBrowser();
             this.browsers.mechanic = window.browserManager.getMechanicBrowser();
         } else {
-            console.error('❌ BrowserManager not available - browsers may not work correctly');
+            console.error('BrowserManager not available - browsers may not work correctly');
             return;
         }
         
         if (!this.browsers.trigger) {
-            console.error('❌ TriggerBrowser not available - window.TriggerBrowser class not found');
+            console.error('TriggerBrowser not available - window.TriggerBrowser class not found');
             return;
         }
         
@@ -1987,11 +1909,11 @@ class SkillLineBuilder {
                         // Trigger is an object with name property
                         triggerName = result.trigger.name;
                     } else {
-                        console.error('❌ Invalid trigger format:', result.trigger);
+                        console.error('Invalid trigger format:', result.trigger);
                         return;
                     }
                 } else {
-                    console.error('❌ Invalid trigger result:', result);
+                    console.error('Invalid trigger result:', result);
                     return;
                 }
                 
@@ -2022,13 +1944,12 @@ class SkillLineBuilder {
         
         // Prevent opening multiple browsers at once
         if (this.state.activeBrowser) {
-            console.warn('⚠️ Browser already open:', this.state.activeBrowser);
             return;
         }
         
         // Check if ConditionBrowser class exists
         if (typeof ConditionBrowser === 'undefined') {
-            console.error('❌ ConditionBrowser class not found!');
+            console.error('ConditionBrowser class not found!');
             if (this.editor && this.editor.showAlert) {
                 this.editor.showAlert('Condition Browser component failed to load. Please refresh the page.', 'error', 'Component Error');
             }
@@ -2039,7 +1960,7 @@ class SkillLineBuilder {
         if (window.browserManager) {
             window.conditionBrowser = window.browserManager.getConditionBrowser();
         } else {
-            console.error('❌ BrowserManager not available - condition browser may not work correctly');
+            console.error('BrowserManager not available - condition browser may not work correctly');
             return;
         }
         
@@ -2089,8 +2010,6 @@ class SkillLineBuilder {
                     
                     // Force immediate render to show condition in preview
                     this.render();
-                } else {
-                    console.warn('⚠️ No conditionString in result:', result);
                 }
             }
         });
@@ -2138,7 +2057,6 @@ class SkillLineBuilder {
         
         // Prevent opening multiple browsers at once
         if (this.state.activeBrowser) {
-            console.warn('⚠️ Browser already open:', this.state.activeBrowser);
             return;
         }
         
@@ -2261,8 +2179,6 @@ class SkillLineBuilder {
      * Show notification (enhanced with icons)
      */
     showNotification(message, type = 'info') {
-        console.log(`[${type.toUpperCase()}] ${message}`);
-        
         const icons = {
             success: '<i class="fas fa-check-circle"></i>',
             error: '<i class="fas fa-times-circle"></i>',
@@ -2510,7 +2426,6 @@ class SkillLineBuilder {
         
         // Check if queue exists and is an array
         if (!queue || !Array.isArray(queue)) {
-            console.error('❌ Queue is undefined or not an array');
             return;
         }
         
@@ -2518,8 +2433,6 @@ class SkillLineBuilder {
         if (queue.length === 0) {
             const currentLine = this.generateSkillLine();
             if (currentLine) {
-                console.log('🚀 Processing current line directly (no queue):', currentLine);
-                
                 // Add current line using callback
                 if (this.callbacks.onAddMultiple) {
                     this.callbacks.onAddMultiple([currentLine]);
@@ -2533,7 +2446,6 @@ class SkillLineBuilder {
             }
             
             // No queue and no valid current line
-            console.warn('⚠️ Cannot process: queue is empty and no valid current line');
             return;
         }
         
@@ -2658,8 +2570,6 @@ class SkillLineBuilder {
         
         // Store valid lines for import
         this.validBulkLines = validLines.map(item => item.line);
-        
-        console.log(`✅ Validation complete: ${validLines.length} valid, ${invalidLines.length} invalid`);
     }
     
     /**
@@ -2667,11 +2577,8 @@ class SkillLineBuilder {
      */
     importBulk() {
         if (!this.validBulkLines || this.validBulkLines.length === 0) {
-            console.warn('No valid lines to import');
             return;
         }
-        
-        console.log(`📥 Importing ${this.validBulkLines.length} lines`);
         
         // Add all valid lines to queue
         this.setState(s => ({

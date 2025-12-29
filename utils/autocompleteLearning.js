@@ -239,7 +239,7 @@ class AutocompleteLearningSystem {
      * Prune old/unused data to save space
      */
     pruneOldData() {
-        console.log('Pruning autocomplete learning data...');
+        if (window.DEBUG_MODE) console.log('Pruning autocomplete learning data...');
         
         // For each category, keep only top MAX_HISTORY_ITEMS by usage
         const categories = ['mechanics', 'conditions', 'targeters', 'triggers'];
@@ -277,7 +277,7 @@ class AutocompleteLearningSystem {
             }
         }
         
-        console.log('Pruning complete. Remaining items:', {
+        if (window.DEBUG_MODE) console.log('Pruning complete. Remaining items:', {
             mechanics: Object.keys(this.data.mechanics).length,
             conditions: Object.keys(this.data.conditions).length,
             targeters: Object.keys(this.data.targeters).length,

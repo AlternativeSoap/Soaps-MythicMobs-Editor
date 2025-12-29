@@ -84,7 +84,7 @@ class DevicePerformanceDetector {
      * Run performance benchmark
      */
     async runBenchmark() {
-        console.log('🔍 Running device performance benchmark...');
+        if (window.DEBUG_MODE) console.log('Running device performance benchmark...');
         
         const results = {
             renderTime: await this.benchmarkRenderTime(),
@@ -107,7 +107,7 @@ class DevicePerformanceDetector {
         
         this.saveProfile();
         
-        console.log('✅ Benchmark complete:', {
+        if (window.DEBUG_MODE) console.log('Benchmark complete:', {
             deviceClass: this.deviceClass,
             renderTime: results.renderTime + 'ms',
             fps: results.fps,

@@ -187,12 +187,14 @@ class DataValidator {
         }
         
         // Debug: Log collected entities
-        console.log('📋 Collected defined entities:', {
-            skills: Array.from(this.definedEntities.skills).slice(0, 10),
-            items: Array.from(this.definedEntities.items).slice(0, 10),
-            mobs: Array.from(this.definedEntities.mobs).slice(0, 10),
-            droptables: Array.from(this.definedEntities.droptables).slice(0, 10)
-        });
+        if (window.DEBUG_MODE) {
+            console.log('Collected defined entities:', {
+                skills: Array.from(this.definedEntities.skills).slice(0, 10),
+                items: Array.from(this.definedEntities.items).slice(0, 10),
+                mobs: Array.from(this.definedEntities.mobs).slice(0, 10),
+                droptables: Array.from(this.definedEntities.droptables).slice(0, 10)
+            });
+        }
     }
 
     /**

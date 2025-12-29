@@ -49,7 +49,7 @@ class PerformanceMonitor {
     startMonitoring() {
         if (this.monitoringInterval) return;
         
-        console.log('📊 Performance Monitor enabled');
+        if (window.DEBUG_MODE) console.log('Performance Monitor enabled');
         
         // Sample metrics every 5 seconds
         this.monitoringInterval = setInterval(() => {
@@ -68,7 +68,7 @@ class PerformanceMonitor {
             clearInterval(this.monitoringInterval);
             this.monitoringInterval = null;
         }
-        console.log('📊 Performance Monitor disabled');
+        if (window.DEBUG_MODE) console.log('Performance Monitor disabled');
     }
     
     /**
@@ -108,7 +108,7 @@ class PerformanceMonitor {
             };
             
             if (Math.abs(changes.domNodes) > 50 || Math.abs(changes.listeners) > 10) {
-                console.log('📊 Performance change detected:', {
+                if (window.DEBUG_MODE) console.log('Performance change detected:', {
                     'DOM Nodes': `${changes.domNodes > 0 ? '+' : ''}${changes.domNodes}`,
                     'Event Listeners': `${changes.listeners > 0 ? '+' : ''}${changes.listeners}`,
                     'Modals Open': changes.modals

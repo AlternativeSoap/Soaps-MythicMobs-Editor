@@ -59,7 +59,11 @@ class MobEditor {
                 ${this.renderEntitySpecificSections(mob, isAdvanced)}
                 ${this.renderDisplayOptionsSection(mob, isAdvanced)}
                 ${isAdvanced ? this.renderFactionSection(mob) : ''}
+                ${this.renderMountSection(mob, isAdvanced)}
+                ${isAdvanced ? this.renderHealthBarSection(mob) : ''}
                 ${isAdvanced ? this.renderBossBarSection(mob) : ''}
+                ${isAdvanced ? this.renderHearingSection(mob) : ''}
+                ${isAdvanced ? this.renderDisguiseSection(mob) : ''}
                 ${isAdvanced ? this.renderEquipmentSection(mob) : ''}
                 ${isAdvanced ? this.renderDamageModifiersSection(mob) : ''}
                 ${isAdvanced ? this.renderKillMessagesSection(mob) : ''}
@@ -68,6 +72,7 @@ class MobEditor {
                 ${isAdvanced ? this.renderModulesSection(mob) : ''}
                 ${isAdvanced ? this.renderLevelModifiersSection(mob) : ''}
                 ${isAdvanced ? this.renderTotemSection(mob) : ''}
+                ${this.renderTradesSection(mob, isAdvanced)}
 
                 ${this.renderSkillsSection(mob)}
                 ${this.renderDropsSection(mob)}
@@ -87,10 +92,7 @@ class MobEditor {
     syncToFile() {
         // Sync currentMob data to state.currentFile for live preview
         if (this.currentMob && this.editor.state.currentFile) {
-            console.log('   currentMob.display:', this.currentMob.display);
-            console.log('   currentFile.display:', this.editor.state.currentFile.display);
             Object.assign(this.editor.state.currentFile, this.currentMob);
-            console.log('   currentFile.display:', this.editor.state.currentFile.display);
         }
     }
     
@@ -400,6 +402,8 @@ class MobEditor {
     renderCoreIdentity(mob, isAdvanced) {
         const hasTemplate = mob.template && mob.template.trim();
         const templateMob = hasTemplate ? this.getTemplateMob(mob.template) : null;
+        const nameplate = mob.nameplate || {};
+        const hasMultipleLines = mob.display && mob.display.includes('\\n');
         
         return `
             <div class="card collapsible-card">
@@ -440,14 +444,121 @@ class MobEditor {
                     
                     ${isAdvanced ? this.renderTemplateSection(mob, templateMob) : this.renderBeginnerTemplateInfo(mob)}
                     
-                    <div class="form-group" data-mob-field="Display">
-                        <label class="form-label">Display Name</label>
-                        <input type="text" class="form-input" id="mob-display" value="${mob.display || ''}">
-                        <small class="form-hint">Use & for color codes (e.g., &6Gold &lBold)</small>
-                    </div>
+                    ${isAdvanced ? this.renderAdvancedDisplayName(mob, nameplate) : this.renderBeginnerDisplayName(mob)}
                     
                     ${this.renderVanillaOverrideInfo(mob)}
                 </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Render beginner display name (simple single-line)
+     */
+    renderBeginnerDisplayName(mob) {
+        return `
+            <div class="form-group" data-mob-field="Display">
+                <label class="form-label">Display Name</label>
+                <input type="text" class="form-input" id="mob-display" value="${this.escapeHtml(mob.display || '')}">
+                <small class="form-hint">Use & for color codes (e.g., &6Gold &lBold)</small>
+            </div>
+        `;
+    }
+    
+    /**
+     * Render advanced display name with multi-line support and nameplate options
+     */
+    renderAdvancedDisplayName(mob, nameplate) {
+        const displayLines = this.parseDisplayLines(mob.display || '');
+        const useMultiLine = nameplate.enabled || displayLines.length > 1;
+        
+        return `
+            <div class="form-group display-name-advanced" data-mob-field="Display">
+                <div class="display-name-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <label class="form-label" style="margin: 0;">Display Name</label>
+                    <label class="checkbox-label small" style="margin: 0; font-size: 0.85rem;">
+                        <input type="checkbox" id="mob-use-multiline" ${useMultiLine ? 'checked' : ''}>
+                        Multi-line (Nameplate)
+                    </label>
+                </div>
+                
+                <div id="display-name-single" style="display: ${useMultiLine ? 'none' : 'block'};">
+                    <input type="text" class="form-input" id="mob-display" value="${this.escapeHtml(displayLines[0] || '')}">
+                    <small class="form-hint">Use & for color codes (e.g., &6Gold &lBold)</small>
+                </div>
+                
+                <div id="display-name-multiline" style="display: ${useMultiLine ? 'block' : 'none'};">
+                    <div id="display-lines-container" class="display-lines-container">
+                        ${displayLines.map((line, index) => this.renderDisplayLine(line, index, displayLines.length)).join('')}
+                    </div>
+                    
+                    <button type="button" class="btn btn-secondary btn-sm" id="add-display-line-btn" style="margin-top: 0.5rem; width: 100%;">
+                        <i class="fas fa-plus"></i> Add Line
+                    </button>
+                    
+                    <div class="nameplate-settings" style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div class="nameplate-settings-header" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                            <i class="fas fa-cog" style="color: var(--text-secondary);"></i>
+                            <span style="font-weight: 600; font-size: 0.9rem;">Nameplate Settings</span>
+                        </div>
+                        
+                        <div class="grid-2" style="gap: 0.75rem;">
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label" style="font-size: 0.8rem;">Offset</label>
+                                <input type="number" class="form-input" id="mob-nameplate-offset" 
+                                       value="${nameplate.offset || 1.8}" step="0.1" min="0" max="10">
+                                <small class="form-hint">Height above mob</small>
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label class="form-label" style="font-size: 0.8rem;">Scale</label>
+                                <input type="text" class="form-input" id="mob-nameplate-scale" 
+                                       value="${nameplate.scale || '1,1,1'}" placeholder="1,1,1">
+                                <small class="form-hint">Size (x,y,z)</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group" style="margin: 0.5rem 0 0 0;">
+                            <label class="checkbox-label" style="font-size: 0.85rem;">
+                                <input type="checkbox" id="mob-nameplate-mounted" ${nameplate.mounted ? 'checked' : ''}>
+                                Mounted (ModelEngine)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <small class="form-hint" style="margin-top: 0.5rem; display: block;">
+                        <i class="fas fa-info-circle"></i> Multi-line uses MythicMobs Nameplate system. Requires Paper/Spigot 1.19.4+
+                    </small>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Parse display name into lines
+     */
+    parseDisplayLines(display) {
+        if (!display) return [''];
+        // Split by literal \n (escaped newline in YAML)
+        const lines = display.split('\\n');
+        return lines.length > 0 ? lines : [''];
+    }
+    
+    /**
+     * Render a single display line input
+     */
+    renderDisplayLine(line, index, totalLines) {
+        return `
+            <div class="display-line-row" data-line-index="${index}" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center;">
+                <span class="line-number" style="color: var(--text-tertiary); font-size: 0.75rem; min-width: 20px;">${index + 1}.</span>
+                <input type="text" class="form-input display-line-input" 
+                       value="${this.escapeHtml(line)}" 
+                       placeholder="Line ${index + 1}..."
+                       data-line-index="${index}">
+                ${totalLines > 1 ? `
+                    <button type="button" class="btn btn-icon btn-danger btn-sm remove-display-line" data-line-index="${index}" title="Remove line">
+                        <i class="fas fa-times"></i>
+                    </button>
+                ` : ''}
             </div>
         `;
     }
@@ -1684,7 +1795,7 @@ class MobEditor {
         }
         
         return `
-            <div class="card collapsible-card collapsed entity-specific-card" data-mob-field="${fieldName}">
+            <div class="card collapsible-card collapsed" data-mob-field="${fieldName}">
                 <div class="card-header collapsible-header">
                     <h3 class="card-title">
                         <i class="fas ${icon}"></i> ${title}
@@ -1991,6 +2102,415 @@ class MobEditor {
         `;
     }
     
+    /**
+     * Render HealthBar Section - Simple hologram health bar above mob
+     */
+    renderHealthBarSection(mob) {
+        const healthBar = mob.healthBar || {};
+        const isEnabled = healthBar.enabled || false;
+        const isCollapsed = this.editor.state.justSwitchedToAdvanced !== false;
+        
+        return `
+            <div class="card collapsible-card ${isCollapsed ? 'collapsed' : ''}">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-heart-pulse"></i> Health Bar (Hologram)
+                        ${isEnabled ? '<span class="badge badge-success">Enabled</span>' : ''}
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <p class="help-text" style="margin-bottom: 1rem;">
+                        Creates a simple health bar hologram above the mob when damaged (different from Boss Bar).
+                    </p>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="mob-healthbar-enabled" ${isEnabled ? 'checked' : ''}>
+                            Enable Health Bar
+                        </label>
+                    </div>
+                    
+                    <div id="healthbar-options" style="display: ${isEnabled ? 'block' : 'none'};">
+                        <div class="form-group">
+                            <label class="form-label">Vertical Offset</label>
+                            <input type="number" class="form-input" id="mob-healthbar-offset" 
+                                   value="${healthBar.offset || 1.45}" step="0.05" min="0" max="5">
+                            <small class="form-hint">Height above the mob (default: 1.45)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Render Mount Section - Set another MythicMob as mount
+     */
+    renderMountSection(mob, isAdvanced) {
+        const hasMount = mob.mount && mob.mount.trim();
+        const isCollapsed = this.editor.state.justSwitchedToAdvanced !== false;
+        
+        return `
+            <div class="card collapsible-card ${isCollapsed ? 'collapsed' : ''}" data-mob-field="Mount">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-horse"></i> Mount
+                        ${hasMount ? '<span class="badge badge-primary">' + this.escapeHtml(mob.mount) + '</span>' : ''}
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <p class="help-text" style="margin-bottom: 1rem;">
+                        The mob will automatically ride on the selected mount when it spawns.
+                    </p>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Mount (MythicMob or Entity)</label>
+                        <div id="mob-mount-dropdown"></div>
+                        <small class="form-hint">Select a MythicMob from your pack or a vanilla entity</small>
+                    </div>
+                    
+                    ${hasMount ? `
+                    <div class="mount-preview" style="margin-top: 1rem; padding: 1rem; background: rgba(139, 92, 246, 0.1); border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <i class="fas fa-horse" style="color: var(--accent-primary); font-size: 1.5rem;"></i>
+                            <div>
+                                <strong style="color: var(--text-primary);">${this.escapeHtml(mob.mount)}</strong>
+                                <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">This mob will spawn riding on ${this.escapeHtml(mob.mount)}</p>
+                            </div>
+                            <button class="btn btn-outline btn-sm" id="clear-mount-btn" style="margin-left: auto;">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Render Hearing Section - Enable warden-like sound detection
+     */
+    renderHearingSection(mob) {
+        const hearing = mob.hearing || {};
+        const isEnabled = hearing.enabled || false;
+        const isCollapsed = this.editor.state.justSwitchedToAdvanced !== false;
+        
+        return `
+            <div class="card collapsible-card ${isCollapsed ? 'collapsed' : ''}">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-ear-listen"></i> Hearing
+                        ${isEnabled ? '<span class="badge badge-success">Enabled</span>' : ''}
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <p class="help-text" style="margin-bottom: 1rem;">
+                        Allows the mob to "hear" sounds like a Warden. Enables the <code>~onHear</code> trigger for skills.
+                    </p>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="mob-hearing-enabled" ${isEnabled ? 'checked' : ''}>
+                            Enable Hearing
+                        </label>
+                    </div>
+                    
+                    ${isEnabled ? `
+                    <div class="alert alert-info" style="margin-top: 1rem; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); padding: 1rem; border-radius: 8px;">
+                        <i class="fas fa-info-circle" style="color: #3b82f6;"></i>
+                        <span style="margin-left: 0.5rem;">Use <code>~onHear</code> trigger in skills. Access volume with <code>&lt;skill.var.volume&gt;</code></span>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Render Nameplate Section - Advanced nameplate configuration
+     */
+    renderNameplateSection(mob) {
+        const nameplate = mob.nameplate || {};
+        const isEnabled = nameplate.enabled || false;
+        const isCollapsed = this.editor.state.justSwitchedToAdvanced !== false;
+        
+        return `
+            <div class="card collapsible-card ${isCollapsed ? 'collapsed' : ''}">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-tag"></i> Nameplate (Advanced)
+                        ${isEnabled ? '<span class="badge badge-success">Enabled</span>' : ''}
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <p class="help-text" style="margin-bottom: 1rem;">
+                        Forces Mythic nameplates which support multi-line display names (e.g., "Hello\\nWorld!").
+                    </p>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="mob-nameplate-enabled" ${isEnabled ? 'checked' : ''}>
+                            Enable Mythic Nameplate
+                        </label>
+                    </div>
+                    
+                    <div id="nameplate-options" style="display: ${isEnabled ? 'block' : 'none'};">
+                        <div class="grid-2" style="margin-top: 1rem;">
+                            <div class="form-group">
+                                <label class="form-label">Offset</label>
+                                <input type="number" class="form-input" id="mob-nameplate-offset" 
+                                       value="${nameplate.offset || 1.8}" step="0.1" min="0" max="10">
+                                <small class="form-hint">Height above the mob</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Scale</label>
+                                <input type="text" class="form-input" id="mob-nameplate-scale" 
+                                       value="${nameplate.scale || '1,1,1'}" placeholder="1,1,1">
+                                <small class="form-hint">Scale (x,y,z)</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="mob-nameplate-mounted" ${nameplate.mounted ? 'checked' : ''}>
+                                Mounted (ModelEngine)
+                            </label>
+                            <small class="form-hint">Forces nameplate to work with ModelEngine entities</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Render Disguise Section - Basic LibsDisguises configuration
+     */
+    renderDisguiseSection(mob) {
+        const disguise = mob.disguiseConfig || {};
+        const hasDisguise = disguise.type && disguise.type.trim();
+        const isCollapsed = this.editor.state.justSwitchedToAdvanced !== false;
+        
+        return `
+            <div class="card collapsible-card ${isCollapsed ? 'collapsed' : ''}">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-mask"></i> Disguise
+                        ${hasDisguise ? '<span class="badge badge-primary">' + this.escapeHtml(disguise.type) + '</span>' : ''}
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <div class="alert alert-warning" style="margin-bottom: 1rem; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 1rem; border-radius: 8px;">
+                        <div style="display: flex; align-items: start; gap: 0.75rem;">
+                            <i class="fas fa-plug" style="color: #f59e0b; font-size: 1.25rem;"></i>
+                            <div>
+                                <strong style="color: #fbbf24;">Requires LibsDisguises</strong>
+                                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">
+                                    This feature requires the LibsDisguises plugin to be installed on your server.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="help-text" style="margin-bottom: 1rem;">
+                        Changes the mob's appearance to look like another entity type.
+                    </p>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Disguise Entity Type</label>
+                        <select class="form-select" id="mob-disguise-select">
+                            <option value="">-- None --</option>
+                            ${this.renderEntityTypes(disguise.type)}
+                        </select>
+                        <small class="form-hint">The entity this mob will look like (e.g., CHICKEN, PLAYER)</small>
+                    </div>
+                    
+                    ${hasDisguise ? `
+                    <div class="disguise-preview" style="margin-top: 1rem; padding: 1rem; background: rgba(139, 92, 246, 0.1); border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3);">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <i class="fas fa-mask" style="color: var(--accent-primary); font-size: 1.5rem;"></i>
+                            <div>
+                                <strong style="color: var(--text-primary);">Disguised as ${this.escapeHtml(disguise.type)}</strong>
+                                <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">The mob will appear as a ${this.escapeHtml(disguise.type)} but behave as ${mob.type || 'its original type'}</p>
+                            </div>
+                            <button class="btn btn-outline btn-sm" id="clear-disguise-btn" style="margin-left: auto;">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="coming-soon-notice" style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%); border: 1px dashed rgba(139, 92, 246, 0.5); border-radius: 8px; text-align: center;">
+                        <i class="fas fa-rocket" style="color: var(--accent-primary); font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+                            <strong style="color: var(--accent-primary);">More features coming soon!</strong><br>
+                            Player disguises, custom skins, and more options will be added.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Render Trades Section - Villager trade configuration
+     * Only visible for VILLAGER and WANDERING_TRADER entity types
+     */
+    renderTradesSection(mob, isAdvanced) {
+        const entityType = (mob.type || '').toUpperCase();
+        const tradeableEntities = ['VILLAGER', 'WANDERING_TRADER'];
+        
+        // Only show for tradeable entities
+        if (!tradeableEntities.includes(entityType)) {
+            return '';
+        }
+        
+        const trades = mob.trades || {};
+        const tradeList = Object.entries(trades).map(([key, trade]) => ({ id: key, ...trade }));
+        const hasTrades = tradeList.length > 0;
+        const isCollapsed = this.editor.state.justSwitchedToAdvanced !== false;
+        
+        return `
+            <div class="card collapsible-card ${isCollapsed && hasTrades ? 'collapsed' : ''}" id="trades-section">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-exchange-alt"></i> Trades
+                        ${hasTrades ? '<span class="count-badge">' + tradeList.length + '</span>' : ''}
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <div class="alert alert-info" style="margin-bottom: 1rem; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); padding: 1rem; border-radius: 8px;">
+                        <div style="display: flex; align-items: start; gap: 0.75rem;">
+                            <i class="fas fa-info-circle" style="color: #3b82f6; font-size: 1.25rem;"></i>
+                            <div>
+                                <strong style="color: #60a5fa;">Important:</strong>
+                                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">
+                                    Villagers must have a profession and Level of 2 or higher to keep custom trades.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="trades-list" class="trades-list">
+                        ${tradeList.length === 0 ? `
+                            <div class="empty-state" style="padding: 2rem; text-align: center; color: var(--text-tertiary);">
+                                <i class="fas fa-store-slash" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                                <p>No trades configured yet</p>
+                                <small>Click "Add Trade" to create a trade</small>
+                            </div>
+                        ` : tradeList.map((trade, index) => this.renderTradeItem(trade, index)).join('')}
+                    </div>
+                    
+                    <button class="btn btn-secondary" id="add-trade-btn" style="margin-top: 1rem; width: 100%;">
+                        <i class="fas fa-plus"></i> Add Trade
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Render a single trade item in the trades list
+     */
+    renderTradeItem(trade, index) {
+        const item1 = trade.Item1 || trade.item1 || '';
+        const item2 = trade.Item2 || trade.item2 || '';
+        const result = trade.Result || trade.result || '';
+        const maxUses = trade.MaxUses || trade.maxUses || 10000;
+        
+        // Parse item strings to get amount and name
+        const parseItem = (itemStr) => {
+            if (!itemStr) return { amount: '', name: '' };
+            const parts = itemStr.trim().split(' ');
+            if (parts.length >= 2 && !isNaN(parseInt(parts[0]))) {
+                return { amount: parts[0], name: parts.slice(1).join(' ') };
+            }
+            return { amount: '1', name: itemStr };
+        };
+        
+        const i1 = parseItem(item1);
+        const i2 = parseItem(item2);
+        const res = parseItem(result);
+        
+        return `
+            <div class="trade-item" data-trade-index="${index}" style="
+                background: rgba(0, 0, 0, 0.2);
+                border: 1px solid rgba(139, 92, 246, 0.2);
+                border-radius: 12px;
+                padding: 1.25rem;
+                margin-bottom: 1rem;
+                position: relative;
+            ">
+                <div class="trade-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <span class="trade-number" style="
+                        background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+                        color: white;
+                        padding: 0.25rem 0.75rem;
+                        border-radius: 20px;
+                        font-weight: 600;
+                        font-size: 0.85rem;
+                    ">Trade #${index + 1}</span>
+                    <button class="btn btn-outline btn-sm btn-danger remove-trade-btn" data-index="${index}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                
+                <div class="trade-layout" style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                    <!-- Input Items -->
+                    <div class="trade-inputs" style="flex: 1; min-width: 200px;">
+                        <label class="form-label" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); margin-bottom: 0.5rem;">Customer Gives</label>
+                        
+                        <div class="trade-input-row" style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
+                            <input type="number" class="form-input trade-amount" data-field="item1-amount" data-index="${index}" 
+                                   value="${i1.amount}" min="1" max="64" style="width: 60px;" placeholder="Amt">
+                            <div class="trade-item-select" id="trade-item1-${index}" style="flex: 1;" data-value="${i1.name}"></div>
+                        </div>
+                        
+                        <div class="trade-input-row" style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="number" class="form-input trade-amount" data-field="item2-amount" data-index="${index}" 
+                                   value="${i2.amount}" min="0" max="64" style="width: 60px;" placeholder="Amt">
+                            <div class="trade-item-select" id="trade-item2-${index}" style="flex: 1;" data-value="${i2.name}"></div>
+                            <small style="color: var(--text-tertiary); font-size: 0.7rem;">(Optional)</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Arrow -->
+                    <div class="trade-arrow" style="font-size: 2rem; color: var(--accent-primary);">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    
+                    <!-- Result Item -->
+                    <div class="trade-result" style="flex: 1; min-width: 200px;">
+                        <label class="form-label" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); margin-bottom: 0.5rem;">Customer Gets</label>
+                        
+                        <div class="trade-input-row" style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="number" class="form-input trade-amount" data-field="result-amount" data-index="${index}" 
+                                   value="${res.amount}" min="1" max="64" style="width: 60px;" placeholder="Amt">
+                            <div class="trade-item-select" id="trade-result-${index}" style="flex: 1;" data-value="${res.name}"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Max Uses -->
+                <div class="trade-options" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label" style="font-size: 0.75rem;">Max Uses</label>
+                        <input type="number" class="form-input trade-max-uses" data-index="${index}" 
+                               value="${maxUses}" min="1" placeholder="10000" style="width: 120px;">
+                        <small class="form-hint">Times this trade can be used before restocking</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     renderEquipmentSection(mob) {
         const isCollapsed = this.editor.state.justSwitchedToAdvanced !== false;
         return `
@@ -2925,6 +3445,46 @@ class MobEditor {
         return div.innerHTML;
     }
     
+    /**
+     * Render entity options for Mount selector - includes MythicMobs from pack + vanilla entities
+     */
+    renderMountEntityOptions(selected) {
+        let html = '';
+        
+        // Get MythicMobs from current pack
+        const mythicMobs = [];
+        if (this.editor.state.currentPack?.mobs) {
+            this.editor.state.currentPack.mobs.forEach(file => {
+                if (file.entries) {
+                    file.entries.forEach(mob => {
+                        if (mob.internalName) mythicMobs.push(mob.internalName);
+                    });
+                }
+            });
+        }
+        
+        // MythicMobs category
+        if (mythicMobs.length > 0) {
+            html += `<optgroup label="🔮 MythicMobs (Your Pack)">`;
+            mythicMobs.sort().forEach(mob => {
+                html += `<option value="${mob}" ${mob === selected ? 'selected' : ''}>${mob}</option>`;
+            });
+            html += `</optgroup>`;
+        }
+        
+        // Vanilla entity categories
+        const categories = this.fieldManager.getEntitiesByCategory();
+        Object.entries(categories).forEach(([category, entities]) => {
+            html += `<optgroup label="${category}">`;
+            entities.forEach(entity => {
+                html += `<option value="${entity}" ${entity === selected ? 'selected' : ''}>${entity}</option>`;
+            });
+            html += `</optgroup>`;
+        });
+        
+        return html;
+    }
+    
     renderEntityTypes(selected, inheritedType = null) {
         const categories = this.fieldManager.getEntitiesByCategory();
         let html = '';
@@ -2982,6 +3542,24 @@ class MobEditor {
         
         // Sync to file for preview
         this.syncToFile();
+    }
+    
+    /**
+     * Update the Trades section visibility based on entity type
+     * Only show for VILLAGER and WANDERING_TRADER
+     */
+    updateTradesSectionVisibility(entityType) {
+        const tradesSection = document.getElementById('trades-section');
+        if (!tradesSection) return;
+        
+        const tradeableEntities = ['VILLAGER', 'WANDERING_TRADER'];
+        const shouldShow = tradeableEntities.includes((entityType || '').toUpperCase());
+        
+        if (shouldShow) {
+            tradesSection.style.display = '';
+        } else {
+            tradesSection.style.display = 'none';
+        }
     }
     
     /**
@@ -3185,6 +3763,10 @@ class MobEditor {
                 
                 // Update YAML preview to show the Type override
                 this.editor.updateYAMLPreview();
+                
+                // Update Trades section visibility based on entity type
+                this.updateTradesSectionVisibility(selectedType);
+                
                 // Note: Not re-rendering to preserve expanded/collapsed section states
             });
         }
@@ -3484,8 +4066,6 @@ class MobEditor {
     updateMob(field, value) {
         if (!this.currentMob) return;
         
-        console.log(`🔄 updateMob called: field="${field}", value="${value}"`);
-        
         // Track if name field is being updated
         const isNameField = (field === 'name');
         
@@ -3591,7 +4171,6 @@ class MobEditor {
         this.editor.markDirty();
         
         // Update YAML preview to reflect changes immediately
-        console.log('📄 Calling updateYAMLPreview() from updateMob()');
         this.editor.updateYAMLPreview();
         
         // Refresh file tree if name was updated
@@ -3680,8 +4259,616 @@ class MobEditor {
                 }
             });
         });
+        
+        // Initialize new sections
+        this.initializeNewSections();
+        
+        // Initialize display name (multi-line support)
+        this.initializeDisplayNameListeners();
     }
     
+    /**
+     * Initialize event listeners for advanced display name (multi-line) functionality
+     */
+    initializeDisplayNameListeners() {
+        const mob = this.currentMob;
+        if (!mob) return;
+        
+        // Multi-line toggle checkbox
+        const useMultilineCheckbox = document.getElementById('mob-use-multiline');
+        if (useMultilineCheckbox) {
+            useMultilineCheckbox.addEventListener('change', (e) => {
+                const isMultiline = e.target.checked;
+                
+                // Toggle visibility
+                const singleContainer = document.getElementById('display-name-single');
+                const multilineContainer = document.getElementById('display-name-multiline');
+                
+                if (singleContainer) singleContainer.style.display = isMultiline ? 'none' : 'block';
+                if (multilineContainer) multilineContainer.style.display = isMultiline ? 'block' : 'none';
+                
+                // Initialize nameplate config if switching to multiline
+                if (isMultiline) {
+                    if (!this.currentMob.nameplate) this.currentMob.nameplate = {};
+                    this.currentMob.nameplate.enabled = true;
+                } else {
+                    // Convert multi-line back to single line
+                    if (this.currentMob.nameplate) {
+                        this.currentMob.nameplate.enabled = false;
+                    }
+                    const displayLines = document.querySelectorAll('.display-line-input');
+                    if (displayLines.length > 0) {
+                        const singleInput = document.getElementById('mob-display');
+                        if (singleInput) {
+                            singleInput.value = displayLines[0]?.value || '';
+                            this.currentMob.display = singleInput.value;
+                        }
+                    }
+                }
+                
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+            });
+        }
+        
+        // Add display line button
+        const addLineBtn = document.getElementById('add-display-line-btn');
+        if (addLineBtn) {
+            addLineBtn.addEventListener('click', () => {
+                const container = document.getElementById('display-lines-container');
+                if (!container) return;
+                
+                const currentLines = container.querySelectorAll('.display-line-row');
+                const newIndex = currentLines.length;
+                
+                // Create new line
+                const newLineHtml = this.renderDisplayLine('', newIndex, newIndex + 1);
+                container.insertAdjacentHTML('beforeend', newLineHtml);
+                
+                // Re-attach listeners
+                this.attachDisplayLineListeners();
+                
+                // Update the display value
+                this.updateDisplayFromLines();
+                
+                // Focus the new input
+                const newInput = container.querySelector(`.display-line-input[data-line-index="${newIndex}"]`);
+                if (newInput) newInput.focus();
+            });
+        }
+        
+        // Attach listeners to existing lines
+        this.attachDisplayLineListeners();
+        
+        // Nameplate settings listeners (these work for both standalone and integrated versions)
+        const nameplateOffset = document.getElementById('mob-nameplate-offset');
+        if (nameplateOffset) {
+            nameplateOffset.addEventListener('input', (e) => {
+                if (!this.currentMob.nameplate) this.currentMob.nameplate = {};
+                this.currentMob.nameplate.offset = parseFloat(e.target.value) || 1.8;
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+            });
+        }
+        
+        const nameplateScale = document.getElementById('mob-nameplate-scale');
+        if (nameplateScale) {
+            nameplateScale.addEventListener('input', (e) => {
+                if (!this.currentMob.nameplate) this.currentMob.nameplate = {};
+                this.currentMob.nameplate.scale = e.target.value || '1,1,1';
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+            });
+        }
+        
+        const nameplateMounted = document.getElementById('mob-nameplate-mounted');
+        if (nameplateMounted) {
+            nameplateMounted.addEventListener('change', (e) => {
+                if (!this.currentMob.nameplate) this.currentMob.nameplate = {};
+                this.currentMob.nameplate.mounted = e.target.checked;
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+            });
+        }
+    }
+    
+    /**
+     * Attach event listeners to display line inputs and remove buttons
+     */
+    attachDisplayLineListeners() {
+        // Input listeners
+        document.querySelectorAll('.display-line-input').forEach(input => {
+            // Remove existing listener by cloning
+            const newInput = input.cloneNode(true);
+            input.parentNode.replaceChild(newInput, input);
+            
+            newInput.addEventListener('input', () => {
+                this.updateDisplayFromLines();
+            });
+        });
+        
+        // Remove line button listeners
+        document.querySelectorAll('.remove-display-line').forEach(btn => {
+            // Remove existing listener by cloning
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            newBtn.addEventListener('click', (e) => {
+                const lineRow = e.target.closest('.display-line-row');
+                if (lineRow) {
+                    lineRow.remove();
+                    this.renumberDisplayLines();
+                    this.updateDisplayFromLines();
+                }
+            });
+        });
+    }
+    
+    /**
+     * Update mob display property from multi-line inputs
+     */
+    updateDisplayFromLines() {
+        const lines = [];
+        document.querySelectorAll('.display-line-input').forEach(input => {
+            lines.push(input.value);
+        });
+        
+        // Join with \n (literal backslash-n for YAML)
+        this.currentMob.display = lines.join('\\n');
+        this.editor.markDirty();
+        this.editor.updateYAMLPreview();
+    }
+    
+    /**
+     * Renumber display lines after removal
+     */
+    renumberDisplayLines() {
+        const container = document.getElementById('display-lines-container');
+        if (!container) return;
+        
+        const lines = container.querySelectorAll('.display-line-row');
+        lines.forEach((row, index) => {
+            row.dataset.lineIndex = index;
+            const lineNum = row.querySelector('.line-number');
+            if (lineNum) lineNum.textContent = `${index + 1}.`;
+            
+            const input = row.querySelector('.display-line-input');
+            if (input) input.dataset.lineIndex = index;
+            
+            const removeBtn = row.querySelector('.remove-display-line');
+            if (removeBtn) {
+                removeBtn.dataset.lineIndex = index;
+                // Show/hide remove button based on total lines
+                removeBtn.style.display = lines.length > 1 ? 'flex' : 'none';
+            }
+        });
+    }
+    
+    /**
+     * Initialize event listeners for new sections: Mount, HealthBar, Hearing, Nameplate, Disguise, Trades
+     */
+    initializeNewSections() {
+        const mob = this.currentMob;
+        if (!mob) return;
+        
+        // === HealthBar Section ===
+        const healthBarEnabled = document.getElementById('mob-healthbar-enabled');
+        if (healthBarEnabled) {
+            healthBarEnabled.addEventListener('change', (e) => {
+                if (!this.currentMob.healthBar) this.currentMob.healthBar = {};
+                this.currentMob.healthBar.enabled = e.target.checked;
+                
+                // Toggle options visibility
+                const options = document.getElementById('healthbar-options');
+                if (options) options.style.display = e.target.checked ? 'block' : 'none';
+                
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+            });
+        }
+        
+        const healthBarOffset = document.getElementById('mob-healthbar-offset');
+        if (healthBarOffset) {
+            healthBarOffset.addEventListener('input', (e) => {
+                if (!this.currentMob.healthBar) this.currentMob.healthBar = {};
+                this.currentMob.healthBar.offset = parseFloat(e.target.value) || 1.45;
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+            });
+        }
+        
+        // === Mount Section ===
+        this.initializeMountDropdown();
+        
+        const clearMountBtn = document.getElementById('clear-mount-btn');
+        if (clearMountBtn) {
+            clearMountBtn.addEventListener('click', () => {
+                this.currentMob.mount = '';
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+                window.collapsibleManager.saveStates();
+                this.render(this.currentMob);
+            });
+        }
+        
+        // === Hearing Section ===
+        const hearingEnabled = document.getElementById('mob-hearing-enabled');
+        if (hearingEnabled) {
+            hearingEnabled.addEventListener('change', (e) => {
+                if (!this.currentMob.hearing) this.currentMob.hearing = {};
+                this.currentMob.hearing.enabled = e.target.checked;
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+                window.collapsibleManager.saveStates();
+                this.render(this.currentMob);
+            });
+        }
+        
+        // Note: Nameplate settings are now handled by initializeDisplayNameListeners() 
+        // as they are integrated into Core Identity section for Advanced mode
+        
+        // === Disguise Section ===
+        const disguiseSelect = document.getElementById('mob-disguise-select');
+        if (disguiseSelect) {
+            disguiseSelect.addEventListener('change', (e) => {
+                if (!this.currentMob.disguiseConfig) this.currentMob.disguiseConfig = {};
+                this.currentMob.disguiseConfig.type = e.target.value;
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+                window.collapsibleManager.saveStates();
+                this.render(this.currentMob);
+            });
+        }
+        
+        const clearDisguiseBtn = document.getElementById('clear-disguise-btn');
+        if (clearDisguiseBtn) {
+            clearDisguiseBtn.addEventListener('click', () => {
+                this.currentMob.disguiseConfig = {};
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+                window.collapsibleManager.saveStates();
+                this.render(this.currentMob);
+            });
+        }
+        
+        // === Trades Section ===
+        this.initializeTradesSection();
+    }
+    
+    /**
+     * Initialize Mount dropdown with SearchableDropdown component
+     * Includes MythicMobs from pack + Vanilla entity categories
+     */
+    initializeMountDropdown() {
+        const container = document.getElementById('mob-mount-dropdown');
+        if (!container || typeof SearchableDropdown === 'undefined') return;
+        
+        const mob = this.currentMob;
+        
+        // Build categories with MythicMobs and vanilla entities
+        const categories = this.buildMountCategories();
+        
+        // Create SearchableDropdown
+        this.mountDropdown = new SearchableDropdown('mob-mount-dropdown', {
+            categories: categories,
+            placeholder: 'Search mobs or entities...',
+            value: mob.mount || '',
+            storageKey: 'mount-dropdown',
+            onSelect: (value) => {
+                this.currentMob.mount = value;
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+                window.collapsibleManager.saveStates();
+                this.render(this.currentMob);
+            }
+        });
+    }
+    
+    /**
+     * Build mount dropdown categories with MythicMobs + vanilla entities
+     */
+    buildMountCategories() {
+        const categories = {};
+        
+        // Get MythicMobs from current pack
+        const mythicMobs = [];
+        if (this.editor.state.currentPack?.mobs) {
+            this.editor.state.currentPack.mobs.forEach(file => {
+                if (file.entries) {
+                    file.entries.forEach(mob => {
+                        if (mob.internalName && mob.internalName !== this.currentMob?.name) {
+                            mythicMobs.push(mob.internalName);
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Add MythicMobs category if there are any
+        if (mythicMobs.length > 0) {
+            categories['🔮 MythicMobs (Your Pack)'] = {
+                icon: '🔮',
+                items: mythicMobs.sort()
+            };
+        }
+        
+        // Get vanilla entity categories
+        const entityCategories = this.fieldManager.getEntitiesByCategory();
+        Object.entries(entityCategories).forEach(([category, entities]) => {
+            categories[category] = {
+                icon: this.getCategoryIcon(category),
+                items: entities
+            };
+        });
+        
+        return categories;
+    }
+    
+    /**
+     * Get icon for entity category
+     */
+    getCategoryIcon(category) {
+        const icons = {
+            'Hostile Mobs': '👹',
+            'Passive Mobs': '🐄',
+            'Neutral Mobs': '🐺',
+            'Tameable Mobs': '🐱',
+            'Aquatic Mobs': '🐟',
+            'Flying Mobs': '🦇',
+            'Boss Mobs': '👑',
+            'Utility Mobs': '🤖',
+            'Special Entities': '✨',
+            'Projectiles': '🏹',
+            'Vehicles': '⛵',
+            'Display Entities': '🖼️'
+        };
+        return icons[category] || '📦';
+    }
+    
+    /**
+     * Initialize Trades section with item selectors
+     */
+    initializeTradesSection() {
+        const mob = this.currentMob;
+        if (!mob) return;
+        
+        // Only for tradeable entities
+        const entityType = (mob.type || '').toUpperCase();
+        const tradeableEntities = ['VILLAGER', 'WANDERING_TRADER'];
+        if (!tradeableEntities.includes(entityType)) return;
+        
+        // Initialize trades object if needed
+        if (!mob.trades) mob.trades = {};
+        
+        // Add Trade button
+        const addTradeBtn = document.getElementById('add-trade-btn');
+        if (addTradeBtn) {
+            addTradeBtn.addEventListener('click', () => {
+                const tradeKeys = Object.keys(mob.trades);
+                const newKey = (tradeKeys.length + 1).toString();
+                
+                mob.trades[newKey] = {
+                    Item1: '1 EMERALD',
+                    Item2: '',
+                    Result: '1 STONE',
+                    MaxUses: 10000
+                };
+                
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+                window.collapsibleManager.saveStates();
+                this.render(this.currentMob);
+            });
+        }
+        
+        // Remove trade buttons
+        document.querySelectorAll('.remove-trade-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = parseInt(btn.dataset.index);
+                const tradeKeys = Object.keys(mob.trades);
+                const keyToRemove = tradeKeys[index];
+                
+                if (keyToRemove) {
+                    delete mob.trades[keyToRemove];
+                    // Reindex trades
+                    const newTrades = {};
+                    Object.values(mob.trades).forEach((trade, i) => {
+                        newTrades[(i + 1).toString()] = trade;
+                    });
+                    mob.trades = newTrades;
+                    
+                    this.editor.markDirty();
+                    this.editor.updateYAMLPreview();
+                    window.collapsibleManager.saveStates();
+                    this.render(this.currentMob);
+                }
+            });
+        });
+        
+        // Initialize item dropdowns for each trade
+        this.initializeTradeItemDropdowns();
+        
+        // Amount and MaxUses inputs
+        document.querySelectorAll('.trade-amount, .trade-max-uses').forEach(input => {
+            input.addEventListener('input', (e) => {
+                this.updateTradeFromInputs();
+            });
+        });
+    }
+    
+    /**
+     * Initialize item dropdowns for trades using material browser
+     */
+    initializeTradeItemDropdowns() {
+        const mob = this.currentMob;
+        const tradeKeys = Object.keys(mob.trades || {});
+        
+        tradeKeys.forEach((key, index) => {
+            const trade = mob.trades[key];
+            
+            // Item1 dropdown
+            this.initializeTradeItemInput(`trade-item1-${index}`, trade.Item1 || trade.item1, (value) => {
+                const parts = (trade.Item1 || trade.item1 || '').split(' ');
+                const amount = parts.length >= 2 && !isNaN(parseInt(parts[0])) ? parts[0] : '1';
+                mob.trades[key].Item1 = `${amount} ${value}`;
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+            });
+            
+            // Item2 dropdown (optional)
+            this.initializeTradeItemInput(`trade-item2-${index}`, trade.Item2 || trade.item2, (value) => {
+                if (value) {
+                    const parts = (trade.Item2 || trade.item2 || '').split(' ');
+                    const amount = parts.length >= 2 && !isNaN(parseInt(parts[0])) ? parts[0] : '1';
+                    mob.trades[key].Item2 = `${amount} ${value}`;
+                } else {
+                    mob.trades[key].Item2 = '';
+                }
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+            });
+            
+            // Result dropdown
+            this.initializeTradeItemInput(`trade-result-${index}`, trade.Result || trade.result, (value) => {
+                const parts = (trade.Result || trade.result || '').split(' ');
+                const amount = parts.length >= 2 && !isNaN(parseInt(parts[0])) ? parts[0] : '1';
+                mob.trades[key].Result = `${amount} ${value}`;
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+            });
+        });
+    }
+    
+    /**
+     * Initialize a single trade item input with autocomplete
+     */
+    initializeTradeItemInput(containerId, currentValue, onChange) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        // Parse current value to get item name
+        const parts = (currentValue || '').trim().split(' ');
+        const itemName = parts.length >= 2 && !isNaN(parseInt(parts[0])) ? parts.slice(1).join(' ') : currentValue;
+        
+        // Get Minecraft items and MythicItems
+        const minecraftItems = (window.MINECRAFT_ITEMS || []).map(i => i.toUpperCase());
+        const mythicItems = this.getMythicItems();
+        
+        container.innerHTML = `
+            <input type="text" class="form-input trade-item-input" 
+                   value="${this.escapeHtml(itemName || '')}" 
+                   placeholder="Search items..."
+                   autocomplete="off">
+            <div class="trade-item-dropdown" style="display: none;"></div>
+        `;
+        
+        const input = container.querySelector('.trade-item-input');
+        const dropdown = container.querySelector('.trade-item-dropdown');
+        
+        const updateDropdown = (query = '') => {
+            const q = query.toLowerCase();
+            let html = '';
+            
+            // MythicItems first
+            const filteredMythic = mythicItems.filter(i => i.toLowerCase().includes(q));
+            if (filteredMythic.length > 0) {
+                html += `<div class="trade-dropdown-category">MythicItems</div>`;
+                html += filteredMythic.slice(0, 10).map(item => `
+                    <div class="trade-dropdown-item mythicitem" data-value="${item}">
+                        <i class="fas fa-star" style="color: #f97316;"></i> ${item}
+                    </div>
+                `).join('');
+            }
+            
+            // Minecraft items
+            const filteredMaterials = minecraftItems.filter(m => m.toLowerCase().includes(q));
+            if (filteredMaterials.length > 0) {
+                html += `<div class="trade-dropdown-category">Minecraft Items</div>`;
+                html += filteredMaterials.slice(0, 20).map(item => `
+                    <div class="trade-dropdown-item" data-value="${item}">${item}</div>
+                `).join('');
+            }
+            
+            dropdown.innerHTML = html || '<div class="trade-dropdown-empty">No items found</div>';
+            
+            // Click handlers
+            dropdown.querySelectorAll('.trade-dropdown-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const value = item.dataset.value;
+                    input.value = value;
+                    dropdown.style.display = 'none';
+                    onChange(value);
+                });
+            });
+        };
+        
+        input.addEventListener('focus', () => {
+            updateDropdown(input.value);
+            dropdown.style.display = 'block';
+        });
+        
+        input.addEventListener('input', () => {
+            updateDropdown(input.value);
+            dropdown.style.display = 'block';
+        });
+        
+        input.addEventListener('blur', () => {
+            setTimeout(() => {
+                dropdown.style.display = 'none';
+                onChange(input.value);
+            }, 200);
+        });
+    }
+    
+    /**
+     * Get list of MythicItems from current pack
+     */
+    getMythicItems() {
+        const items = [];
+        if (this.editor.state.currentPack?.items) {
+            this.editor.state.currentPack.items.forEach(file => {
+                if (file.entries) {
+                    file.entries.forEach(item => {
+                        if (item.internalName) items.push(item.internalName);
+                    });
+                }
+            });
+        }
+        return items;
+    }
+    
+    /**
+     * Update trade data from all inputs
+     */
+    updateTradeFromInputs() {
+        const mob = this.currentMob;
+        const tradeKeys = Object.keys(mob.trades || {});
+        
+        tradeKeys.forEach((key, index) => {
+            const trade = mob.trades[key];
+            
+            // Get amounts
+            const item1Amount = document.querySelector(`[data-field="item1-amount"][data-index="${index}"]`)?.value || '1';
+            const item2Amount = document.querySelector(`[data-field="item2-amount"][data-index="${index}"]`)?.value || '';
+            const resultAmount = document.querySelector(`[data-field="result-amount"][data-index="${index}"]`)?.value || '1';
+            const maxUses = document.querySelector(`.trade-max-uses[data-index="${index}"]`)?.value || '10000';
+            
+            // Get item names from inputs
+            const item1Name = document.querySelector(`#trade-item1-${index} .trade-item-input`)?.value || '';
+            const item2Name = document.querySelector(`#trade-item2-${index} .trade-item-input`)?.value || '';
+            const resultName = document.querySelector(`#trade-result-${index} .trade-item-input`)?.value || '';
+            
+            // Update trade
+            trade.Item1 = item1Name ? `${item1Amount} ${item1Name}` : '';
+            trade.Item2 = item2Name && item2Amount ? `${item2Amount} ${item2Name}` : '';
+            trade.Result = resultName ? `${resultAmount} ${resultName}` : '';
+            trade.MaxUses = parseInt(maxUses) || 10000;
+        });
+        
+        this.editor.markDirty();
+        this.editor.updateYAMLPreview();
+    }
+
     initializePhase2Components() {
         const mob = this.currentMob;
         if (!mob) return;
@@ -3929,9 +5116,8 @@ class MobEditor {
                                             this.editor.updateYAMLPreview();
                                         }
                                     });
-                                    console.log('✅ Head dropdown initialized on section expand');
                                 } catch(e) {
-                                    console.error('❌ Failed to init head dropdown on expand:', e);
+                                    console.error('Failed to init head dropdown on expand:', e);
                                 }
                             }
                         }
@@ -3954,9 +5140,8 @@ class MobEditor {
                                             this.renderRecentMaterials();
                                         }
                                     });
-                                    console.log('✅ Paint dropdown initialized on section expand');
                                 } catch(e) {
-                                    console.error('❌ Failed to init paint dropdown on expand:', e);
+                                    console.error('Failed to init paint dropdown on expand:', e);
                                 }
                             }
                         }
@@ -3970,13 +5155,12 @@ class MobEditor {
         if (canvas) {
             // Ensure Totem Renderer class is available
             if (typeof TotemRenderer === 'undefined') {
-                console.error('❌ TotemRenderer class not loaded');
+                console.error('TotemRenderer class not loaded');
                 return;
             }
             
             if (!this.totemRenderer) {
                 this.totemRenderer = new TotemRenderer('totem-preview-canvas');
-                console.log('✅ TotemRenderer initialized');
             }
             
             // Initial render
@@ -4569,11 +5753,9 @@ class MobEditor {
     renderTotemTemplates(templates) {
         const container = document.getElementById('totem-templates');
         if (!container) {
-            console.warn('⚠️ Totem templates container not found - will render when section is expanded');
+            if (window.DEBUG_MODE) console.warn('Totem templates container not found - will render when section is expanded');
             return;
         }
-        
-        console.log('✅ Rendering totem templates:', Object.keys(templates).length);
         
         container.innerHTML = Object.entries(templates).map(([key, template]) => `
             <button type="button" class="totem-template-btn" data-template="${key}" data-interactive="true" 

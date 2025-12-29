@@ -143,19 +143,21 @@ class ImportExecutor {
             { folder: 'RandomSpawns', type: 'randomspawn', collection: 'randomspawns' }
         ];
 
-        console.log('📦 ImportExecutor: parseData structure:', {
-            files: parseData.files?.length,
-            sampleFiles: parseData.files?.slice(0, 3).map(f => ({
-                relativePath: f.relativePath,
-                folderType: f.folderType,
-                success: f.success,
-                entriesCount: f.entries?.length
-            }))
-        });
+        if (window.DEBUG_MODE) {
+            console.log('ImportExecutor: parseData structure:', {
+                files: parseData.files?.length,
+                sampleFiles: parseData.files?.slice(0, 3).map(f => ({
+                    relativePath: f.relativePath,
+                    folderType: f.folderType,
+                    success: f.success,
+                    entriesCount: f.entries?.length
+                }))
+            });
+        }
 
         for (const { folder, type, collection } of fileTypes) {
             const files = parseData.files.filter(f => f.folderType === folder);
-            console.log(`📂 Folder "${folder}": found ${files.length} files`);
+            if (window.DEBUG_MODE) console.log(`Folder "${folder}": found ${files.length} files`);
             
             // Ensure collection uses file-based structure
             if (!Array.isArray(editorPack[collection])) {
@@ -183,7 +185,7 @@ class ImportExecutor {
 
                 // Skip files with parse errors
                 if (!file.success) {
-                    console.log(`   ⚠️ Skipping ${file.relativePath} - parse error`);
+                    if (window.DEBUG_MODE) console.log(`Skipping ${file.relativePath} - parse error`);
                     if (options?.onParseErrors === 'stop') {
                         result.errors.push({
                             file: file.relativePath,
@@ -198,8 +200,10 @@ class ImportExecutor {
                 // Extract file name from path (e.g., "Skills/Spider Skills.yml" -> "Spider Skills.yml")
                 const fileName = file.relativePath.split('/').pop() || file.relativePath;
                 
-                console.log(`   📄 Processing ${file.relativePath}: ${file.entries?.length || 0} entries`);
-                console.log(`      Entry names:`, file.entries?.map(e => e.name) || []);
+                if (window.DEBUG_MODE) {
+                    console.log(`Processing ${file.relativePath}: ${file.entries?.length || 0} entries`);
+                    console.log(`Entry names:`, file.entries?.map(e => e.name) || []);
+                }
 
                 // Create file container for this source file
                 const fileContainer = {
@@ -221,14 +225,14 @@ class ImportExecutor {
                         
                         // Skip entries with critical errors
                         if (entryValidation && entryValidation.issues?.some(i => i.severity === 'critical')) {
-                            console.log(`      ⛔ Skipping ${entry.name} - critical error`);
+                            if (window.DEBUG_MODE) console.log(`Skipping ${entry.name} - critical error`);
                             result.skipped++;
                             continue;
                         }
 
                         // Skip entries with warnings if option set (default is to import with warnings)
                         if (options?.onWarnings === false && entryValidation && entryValidation.issues?.some(i => i.severity === 'warning')) {
-                            console.log(`      ⚠️ Skipping ${entry.name} - has warnings`);
+                            if (window.DEBUG_MODE) console.log(`Skipping ${entry.name} - has warnings`);
                             result.skipped++;
                             continue;
                         }
@@ -246,7 +250,7 @@ class ImportExecutor {
                             const existsInCollection = this.findEntryInCollection(editorPack[collection], converted.name, converted.internalName);
 
                             if (existsInFile || existsInCollection) {
-                                console.log(`      🔄 Duplicate found: ${entry.name}`);
+                                if (window.DEBUG_MODE) console.log(`Duplicate found: ${entry.name}`);
                                 switch (options?.duplicates) {
                                     case 'skip':
                                         result.skipped++;
@@ -280,16 +284,16 @@ class ImportExecutor {
                                 fileContainer.entries.push(converted);
                             }
 
-                            console.log(`      ✅ Imported: ${entry.name} -> ${collection}/${fileName}`);
+                            if (window.DEBUG_MODE) console.log(`Imported: ${entry.name} -> ${collection}/${fileName}`);
                             result.imported++;
                             result.entries[collection].push(converted.name || converted.internalName);
                         } else {
-                            console.log(`      ❌ Convert failed for: ${entry.name}`);
+                            if (window.DEBUG_MODE) console.log(`Convert failed for: ${entry.name}`);
                             result.failed++;
                         }
 
                     } catch (error) {
-                        console.error(`      ❌ Error importing ${entry.name}:`, error);
+                        console.error(`Error importing ${entry.name}:`, error);
                         result.failed++;
                         result.errors.push({
                             file: file.relativePath,
@@ -332,7 +336,7 @@ class ImportExecutor {
             this.editor.packManager.setActivePack(editorPack);
         }
         
-        console.log(`📦 Import complete for ${pack.name}: ${result.imported} imported, ${result.skipped} skipped, ${result.failed} failed`);
+        if (window.DEBUG_MODE) console.log(`Import complete for ${pack.name}: ${result.imported} imported, ${result.skipped} skipped, ${result.failed} failed`);
 
         return result;
     }

@@ -374,7 +374,7 @@ class TargeterBrowser {
         this.currentTargeter = null;
         this.searchQuery = '';
         
-        if (window.DEBUG_MODE) console.log('✅ TargeterBrowser cleanup complete');
+        if (window.DEBUG_MODE) console.log('TargeterBrowser cleanup complete');
     }
     
     /**
@@ -526,7 +526,7 @@ class TargeterBrowser {
     handleTargeterSelection(targeterId) {
         const targeter = this.targetersData.getTargeter(targeterId);
         if (!targeter) {
-            console.error('❌ Targeter not found:', targeterId);
+            console.error('Targeter not found:', targeterId);
             return;
         }
 
@@ -1097,31 +1097,24 @@ class TargeterBrowser {
             }
             
             if (!packManager) {
-                console.log('❌ No packManager found through any path');
+                if (window.DEBUG_MODE) console.log('No packManager found through any path');
                 return [];
             }
             
             const activePack = packManager.activePack;
-            console.log('Active pack:', activePack ? activePack.name : 'None');
             
             if (!activePack || !activePack.mobs) {
-                console.log('❌ No activePack or mobs array');
                 return [];
             }
-            
-            console.log('Mobs array length:', activePack.mobs.length);
             
             const customMobs = [];
             
             // Check if using new file-based structure
             if (Array.isArray(activePack.mobs) && activePack.mobs.length > 0) {
-                console.log('First mob structure check:', activePack.mobs[0].entries !== undefined ? 'File-based' : 'Legacy');
-                
                 if (activePack.mobs[0].entries !== undefined) {
                     // New structure: iterate through files and their entries
                     activePack.mobs.forEach(file => {
                         if (file.entries && Array.isArray(file.entries)) {
-                            console.log(`File: ${file.fileName}, entries: ${file.entries.length}`);
                             file.entries.forEach(mob => {
                                 if (mob.internalName || mob.name) {
                                     customMobs.push(mob.internalName || mob.name);
@@ -1139,7 +1132,7 @@ class TargeterBrowser {
                 }
             }
             
-            console.log(`✅ Returning ${customMobs.length} custom mobs:`, customMobs);
+            if (window.DEBUG_MODE) console.log(`Returning ${customMobs.length} custom mobs:`, customMobs);
             // Sort alphabetically and remove duplicates
             return [...new Set(customMobs)].sort((a, b) => a.localeCompare(b));
         } catch (error) {

@@ -63,7 +63,7 @@ class YamlFileParser {
                 if (parsed && typeof parsed === 'object') {
                     // Extract entries (MythicMobs files have multiple top-level keys)
                     const topLevelKeys = Object.keys(parsed);
-                    console.log(`📄 Parsing ${relativePath}: found ${topLevelKeys.length} top-level entries:`, topLevelKeys);
+                    if (window.DEBUG_MODE) console.log(`Parsing ${relativePath}: found ${topLevelKeys.length} top-level entries:`, topLevelKeys);
                     
                     for (const [name, data] of Object.entries(parsed)) {
                         const lineInfo = this.findEntryLines(content, name);
@@ -75,7 +75,7 @@ class YamlFileParser {
                         });
                     }
                     
-                    console.log(`   ✅ Added ${result.entries.length} entries to result`);
+                    if (window.DEBUG_MODE) console.log(`Added ${result.entries.length} entries to result`);
                     result.success = true;
                 } else {
                     result.errors.push({
@@ -180,7 +180,7 @@ class YamlFileParser {
             result[currentTopLevel] = {};
         }
 
-        console.log(`📋 simpleYamlParse found ${Object.keys(result).length} top-level entries:`, Object.keys(result));
+        if (window.DEBUG_MODE) console.log(`simpleYamlParse found ${Object.keys(result).length} top-level entries:`, Object.keys(result));
         return result;
     }
     

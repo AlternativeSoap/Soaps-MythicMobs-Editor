@@ -93,7 +93,7 @@ class TemplateMigration {
             });
         });
         
-        console.log(`📦 Found ${templatesToMigrate.length} templates to migrate`);
+        if (window.DEBUG_MODE) console.log(`Found ${templatesToMigrate.length} templates to migrate`);
         
         // Migrate in batches
         const batchSize = 10;
@@ -102,12 +102,12 @@ class TemplateMigration {
             await this.migrateBatch(batch);
             
             // Progress update
-            console.log(`Progress: ${Math.min(i + batchSize, templatesToMigrate.length)}/${templatesToMigrate.length}`);
+            if (window.DEBUG_MODE) console.log(`Progress: ${Math.min(i + batchSize, templatesToMigrate.length)}/${templatesToMigrate.length}`);
         }
-        console.log(`✅ Success: ${this.results.success}`);
-        console.log(`❌ Failed: ${this.results.failed}`);
+        if (window.DEBUG_MODE) console.log(`Success: ${this.results.success}`);
+        if (window.DEBUG_MODE) console.log(`Failed: ${this.results.failed}`);
         
-        if (this.results.errors.length > 0) {
+        if (this.results.errors.length > 0 && window.DEBUG_MODE) {
             console.log('Errors:', this.results.errors);
         }
         
@@ -150,7 +150,7 @@ class TemplateMigration {
                 }
                 
                 this.results.success++;
-                console.log(`✅ Migrated: ${templateData.name}`);
+                if (window.DEBUG_MODE) console.log(`Migrated: ${templateData.name}`);
                 
             } catch (error) {
                 this.results.failed++;
@@ -158,7 +158,7 @@ class TemplateMigration {
                     template: templateData.name,
                     error: error.message
                 });
-                console.error(`❌ Failed to migrate ${templateData.name}:`, error);
+                console.error(`Failed to migrate ${templateData.name}:`, error);
             }
         }
     }
@@ -177,7 +177,7 @@ class TemplateMigration {
             
             if (error) throw error;
             
-            console.log(`Found ${data.length} official templates in database`);
+            if (window.DEBUG_MODE) console.log(`Found ${data.length} official templates in database`);
             
             // Group by structure type
             const byStructure = data.reduce((acc, t) => {
@@ -185,7 +185,7 @@ class TemplateMigration {
                 return acc;
             }, {});
             
-            console.log('By structure type:', byStructure);
+            if (window.DEBUG_MODE) console.log('By structure type:', byStructure);
             
             return {
                 total: data.length,
@@ -194,7 +194,7 @@ class TemplateMigration {
             };
             
         } catch (error) {
-            console.error('❌ Verification failed:', error);
+            console.error('Verification failed:', error);
             throw error;
         }
     }
@@ -205,7 +205,7 @@ class TemplateMigration {
      * @returns {Promise<number>} Number of templates deleted
      */
     async rollback() {
-        console.warn('⚠️ Rolling back migration - deleting all official templates...');
+        console.warn('Rolling back migration - deleting all official templates...');
         
         try {
             const { data, error } = await this.supabase
@@ -216,11 +216,11 @@ class TemplateMigration {
             
             if (error) throw error;
             
-            console.log(`✅ Deleted ${data.length} official templates`);
+            if (window.DEBUG_MODE) console.log(`Deleted ${data.length} official templates`);
             return data.length;
             
         } catch (error) {
-            console.error('❌ Rollback failed:', error);
+            console.error('Rollback failed:', error);
             throw error;
         }
     }

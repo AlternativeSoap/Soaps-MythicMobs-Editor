@@ -262,7 +262,7 @@ class TriggerBrowser {
             this.searchCache.clear();
         }
         
-        if (window.DEBUG_MODE) console.log('✅ TriggerBrowser cleanup complete');
+        if (window.DEBUG_MODE) console.log('TriggerBrowser cleanup complete');
     }
 
     /**

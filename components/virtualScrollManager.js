@@ -42,7 +42,7 @@ class VirtualScrollManager {
         this.scrollRaf = null;
         
         // ALWAYS log constructor (critical for debugging)
-        if (window.DEBUG_MODE) console.log(`🎯 VirtualScrollManager constructor complete: ${this.totalItems} items @ ${this.itemHeight}px each`);
+        if (window.DEBUG_MODE) console.log(`VirtualScrollManager constructor complete: ${this.totalItems} items @ ${this.itemHeight}px each`);
     }
     
     /**
@@ -116,7 +116,7 @@ class VirtualScrollManager {
         // Initial render
         this.render();
         
-        if (window.DEBUG_MODE) console.log(`✅ [VSCROLL] init() COMPLETE, rendered ${this.renderedNodes.size} nodes`);
+        if (window.DEBUG_MODE) console.log(`[VSCROLL] init() COMPLETE, rendered ${this.renderedNodes.size} nodes`);
     }
     
     /**
@@ -263,7 +263,7 @@ class VirtualScrollManager {
         this.render();
         
         if (window.DEBUG_MODE) {
-            console.log(`🔄 VirtualScroll updated: ${this.totalItems} items, ${this.renderedNodes.size} nodes`);
+            console.log(`VirtualScroll updated: ${this.totalItems} items, ${this.renderedNodes.size} nodes`);
         }
     }
     
@@ -328,7 +328,7 @@ class VirtualScrollManager {
         this.renderItemCallback = null;
         
         if (window.DEBUG_MODE) {
-            console.log(`🗑️ VirtualScroll destroyed (hard unmounted)`);
+            console.log(`VirtualScroll destroyed (hard unmounted)`);
         }
     }
 }

@@ -110,18 +110,18 @@ class PackImporter {
             const canUseFallback = this.canUseFallbackMethod();
 
             if (canUseDirectoryPicker) {
-                console.log('✅ Using File System Access API (showDirectoryPicker)');
+                if (window.DEBUG_MODE) console.log('Using File System Access API (showDirectoryPicker)');
                 await this.useFileSystemAccessAPI();
             } else if (canUseFallback) {
-                console.log('✅ Using fallback method (webkitdirectory input)');
+                if (window.DEBUG_MODE) console.log('Using fallback method (webkitdirectory input)');
                 this.useFallbackMethod();
             } else {
-                console.error('❌ No folder selection method available');
+                console.error('No folder selection method available');
                 this.showNoMethodAvailable();
             }
 
         } catch (error) {
-            console.error('❌ Error in startImport:', error);
+            console.error('Error in startImport:', error);
             console.error('Error details:', {
                 name: error.name,
                 message: error.message,
@@ -134,7 +134,7 @@ class PackImporter {
             
             // Try fallback on any error
             if (this.canUseFallbackMethod()) {
-                console.log('⚠️ Primary method failed, trying fallback...');
+                if (window.DEBUG_MODE) console.log('Primary method failed, trying fallback...');
                 this.useFallbackMethod();
             } else {
                 window.notificationModal?.alert(
@@ -152,19 +152,19 @@ class PackImporter {
     async canUseFileSystemAccessAPI() {
         // Must be secure context
         if (!window.isSecureContext) {
-            console.log('❌ Not secure context');
+            if (window.DEBUG_MODE) console.log('Not secure context');
             return false;
         }
 
         // API must exist
         if (typeof window.showDirectoryPicker !== 'function') {
-            console.log('❌ showDirectoryPicker is not a function, type:', typeof window.showDirectoryPicker);
+            if (window.DEBUG_MODE) console.log('showDirectoryPicker is not a function, type:', typeof window.showDirectoryPicker);
             return false;
         }
 
         // Check for file:// protocol
         if (window.location.protocol === 'file:') {
-            console.log('❌ Running from file:// protocol');
+            if (window.DEBUG_MODE) console.log('Running from file:// protocol');
             return false;
         }
 
@@ -176,7 +176,7 @@ class PackImporter {
                 return true;
             }
         } catch (e) {
-            console.log('⚠️ showDirectoryPicker test failed:', e.message);
+            if (window.DEBUG_MODE) console.log('showDirectoryPicker test failed:', e.message);
         }
 
         return true; // Assume available and let actual call handle errors
@@ -263,15 +263,17 @@ If you're on Chrome/Edge/Brave and still seeing this:
 
                 filesByPath.set(relativePath, file);
             }
-            console.log('📁 File paths sample:', [...filesByPath.keys()].slice(0, 10));
+            if (window.DEBUG_MODE) console.log('File paths sample:', [...filesByPath.keys()].slice(0, 10));
 
             // Build virtual folder structure from files
             const virtualStructure = this.buildVirtualStructure(fileList);
             
-            console.log('📂 Virtual structure built:');
-            console.log('   Root name:', virtualStructure.name);
-            console.log('   Root folders:', Object.keys(virtualStructure.folders));
-            console.log('   Root files:', virtualStructure.files.map(f => f.name));
+            if (window.DEBUG_MODE) {
+                console.log('Virtual structure built:');
+                console.log('   Root name:', virtualStructure.name);
+                console.log('   Root folders:', Object.keys(virtualStructure.folders));
+                console.log('   Root files:', virtualStructure.files.map(f => f.name));
+            }
             
             // Detect folder type
             const folderType = this.detectFolderTypeFromFiles(virtualStructure);
@@ -280,10 +282,12 @@ If you're on Chrome/Edge/Brave and still seeing this:
             this.previewUI.updateLoadingStatus('Analyzing folder structure...', 15);
             this.currentScanResults = await this.scanFromFiles(fileList, virtualStructure, folderType);
             
-            console.log('📊 Scan complete:');
-            console.log('   Detected type:', this.currentScanResults.type);
-            console.log('   Packs found:', this.currentScanResults.packs.length);
-            console.log('   Pack names:', this.currentScanResults.packs.map(p => p.name));
+            if (window.DEBUG_MODE) {
+                console.log('Scan complete:');
+                console.log('   Detected type:', this.currentScanResults.type);
+                console.log('   Packs found:', this.currentScanResults.packs.length);
+                console.log('   Pack names:', this.currentScanResults.packs.map(p => p.name));
+            }
             
             if (!this.currentScanResults.packs || this.currentScanResults.packs.length === 0) {
                 const errorDetails = `No valid MythicMobs packs found in the selected folder.
@@ -398,14 +402,16 @@ Note: Folder names are case-insensitive (skills = Skills, mobs = Mobs)`;
         const mythicFolders = ['Mobs', 'Skills', 'Items', 'DropTables', 'RandomSpawns'];
         const mythicFoldersLower = mythicFolders.map(f => f.toLowerCase());
         
-        console.log('🔍 Detecting folder type:');
-        console.log('   Available folders:', folderNames);
-        console.log('   Looking for:', mythicFolders);
+        if (window.DEBUG_MODE) {
+            console.log('Detecting folder type:');
+            console.log('   Available folders:', folderNames);
+            console.log('   Looking for:', mythicFolders);
+        }
         
         // Check if this is directly a pack (has Mobs/Skills/Items) - case insensitive
         const hasMythicFolders = mythicFoldersLower.some(f => folderNamesLower.includes(f));
         if (hasMythicFolders) {
-            console.log('   ✅ Detected: single-pack (has MythicMobs folders)');
+            if (window.DEBUG_MODE) console.log('Detected: single-pack (has MythicMobs folders)');
             return 'single-pack';
         }
 
@@ -415,7 +421,7 @@ Note: Folder names are case-insensitive (skills = Skills, mobs = Mobs)`;
             const subFolderNames = Object.keys(subFolder.folders);
             const subFolderNamesLower = subFolderNames.map(f => f.toLowerCase());
             if (mythicFoldersLower.some(f => subFolderNamesLower.includes(f))) {
-                console.log(`   ✅ Detected: packs-folder (subfolder "${subName}" has MythicMobs folders)`);
+                if (window.DEBUG_MODE) console.log(`Detected: packs-folder (subfolder "${subName}" has MythicMobs folders)`);
                 return 'packs-folder';
             }
         }
@@ -423,11 +429,11 @@ Note: Folder names are case-insensitive (skills = Skills, mobs = Mobs)`;
         // Check if this is just a "Packs" folder rename
         if (folderNames.length > 0) {
             // Assume it's a packs folder with pack subfolders
-            console.log('   ⚠️ Detected: packs-folder (assumed from subfolder structure)');
+            if (window.DEBUG_MODE) console.log('Detected: packs-folder (assumed from subfolder structure)');
             return 'packs-folder';
         }
 
-        console.log('   ❌ Detected: unknown');
+        if (window.DEBUG_MODE) console.log('Detected: unknown');
         return 'unknown';
     }
 
@@ -492,11 +498,13 @@ Note: Folder names are case-insensitive (skills = Skills, mobs = Mobs)`;
             }
         }
 
-        console.log('📊 Scan results:', {
-            packs: results.packs.map(p => p.name),
-            totalFiles: results.summary.totalFiles,
-            unsupportedFiles: results.unsupportedFiles.length
-        });
+        if (window.DEBUG_MODE) {
+            console.log('Scan results:', {
+                packs: results.packs.map(p => p.name),
+                totalFiles: results.summary.totalFiles,
+                unsupportedFiles: results.unsupportedFiles.length
+            });
+        }
 
         return results;
     }
@@ -1092,7 +1100,7 @@ Note: Folder names are case-insensitive (skills = Skills, mobs = Mobs)`;
                 throw new Error('No valid packs to import');
             }
             
-            console.log(`📦 Executing import for ${selectedPackData.length} pack(s)...`);
+            if (window.DEBUG_MODE) console.log(`Executing import for ${selectedPackData.length} pack(s)...`);
 
             // Execute import
             const importResults = await this.executor.execute(

@@ -49,7 +49,7 @@ class PackFolderScanner {
                 }
             } else {
                 // Unknown structure
-                console.warn('⚠️ Could not determine folder structure');
+                if (window.DEBUG_MODE) console.warn('Could not determine folder structure');
             }
 
             // Calculate summary
@@ -61,12 +61,12 @@ class PackFolderScanner {
             result.summary.totalSizeFormatted = this.formatFileSize(result.summary.totalSize);
 
         } catch (error) {
-            console.error('❌ Scan error:', error);
+            console.error('Scan error:', error);
             throw error;
         }
 
         result.scanTime = performance.now() - startTime;
-        console.log(`✅ Scan complete in ${result.scanTime.toFixed(0)}ms`);
+        if (window.DEBUG_MODE) console.log(`Scan complete in ${result.scanTime.toFixed(0)}ms`);
 
         return result;
     }
@@ -155,10 +155,10 @@ class PackFolderScanner {
                             packs.push(pack);
                         }
                     } else {
-                        console.log(`ℹ️ Skipping non-pack folder: ${entry.name}`);
+                        if (window.DEBUG_MODE) console.log(`Skipping non-pack folder: ${entry.name}`);
                     }
                 } catch (e) {
-                    console.warn(`⚠️ Could not access folder: ${entry.name}`, e);
+                    if (window.DEBUG_MODE) console.warn(`Could not access folder: ${entry.name}`, e);
                 }
             }
         }
@@ -170,7 +170,7 @@ class PackFolderScanner {
      * Scan a single pack folder
      */
     async scanSinglePack(dirHandle, packName) {
-        console.log(`📦 Scanning pack: ${packName}`);
+        if (window.DEBUG_MODE) console.log(`Scanning pack: ${packName}`);
 
         const pack = {
             name: packName,
@@ -303,7 +303,7 @@ class PackFolderScanner {
                         result.totalFiles++;
                         result.totalSize += file.size;
                     } catch (e) {
-                        console.warn(`⚠️ Could not read file: ${entry.name}`, e);
+                        if (window.DEBUG_MODE) console.warn(`Could not read file: ${entry.name}`, e);
                     }
                 }
             } else if (entry.kind === 'directory') {
@@ -320,7 +320,7 @@ class PackFolderScanner {
                     result.totalFiles += subfolderData.totalFiles;
                     result.totalSize += subfolderData.totalSize;
                 } catch (e) {
-                    console.warn(`⚠️ Could not access subfolder: ${entry.name}`, e);
+                    if (window.DEBUG_MODE) console.warn(`Could not access subfolder: ${entry.name}`, e);
                 }
             }
         }

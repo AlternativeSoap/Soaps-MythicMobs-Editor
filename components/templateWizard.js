@@ -82,14 +82,14 @@ class TemplateWizard {
         if (window.TargeterBrowser) {
             this.targeterBrowser = new TargeterBrowser();
         } else {
-            console.error('❌ window.TargeterBrowser class not found!');
+            console.error('window.TargeterBrowser class not found!');
         }
         
         // Initialize Trigger Browser
         if (window.TriggerBrowser) {
             this.triggerBrowser = new TriggerBrowser(window.editor);
         } else {
-            console.error('❌ window.TriggerBrowser class not found!');
+            console.error('window.TriggerBrowser class not found!');
         }
         
         // Initialize Mechanic Browser (needs targeter and trigger browsers)
@@ -100,7 +100,7 @@ class TemplateWizard {
                 null  // Using global conditionBrowser instead
             );
         } else {
-            console.error('❌ window.MechanicBrowser class not found!');
+            console.error('window.MechanicBrowser class not found!');
         }
     }
 
@@ -437,7 +437,7 @@ class TemplateWizard {
                     // Trigger change event to update templateData
                     this.templateData.context = defaultContext;
                     this.templateData.type = defaultContext; // Also set type
-                    console.log(`✅ Auto-selected context: ${defaultContext}`);
+                    if (window.DEBUG_MODE) console.log(`Auto-selected context: ${defaultContext}`);
                 }
             }
         }
@@ -544,9 +544,8 @@ class TemplateWizard {
      */
     renderStep2() {
         const builder = document.getElementById('skillLinesBuilder');
-        console.log('   skillLinesBuilder element:', builder);
         if (!builder) {
-            console.error('❌ skillLinesBuilder not found!');
+            console.error('skillLinesBuilder not found!');
             return;
         }
 
@@ -556,18 +555,7 @@ class TemplateWizard {
             builder.innerHTML = this.renderMultiLineBuilder();
         } else if (this.templateData.structureType === 'multi-section') {
             const html = this.renderMultiSectionBuilder();
-            console.log('   Generated HTML length:', html.length);
             builder.innerHTML = html;
-            console.log('   HTML inserted into builder');
-            
-            // Verify the button exists in DOM
-            setTimeout(() => {
-                const btn = document.getElementById('addSectionBtn');
-                const list = document.getElementById('multiSectionsList');
-                console.log('   Verification after innerHTML:');
-                console.log('     addSectionBtn exists:', !!btn);
-                console.log('     multiSectionsList exists:', !!list);
-            }, 0);
         }
 
         this.attachStep2EventListeners();
@@ -680,35 +668,18 @@ class TemplateWizard {
             this.renderMultiLines(); // Initial render
         } else if (type === 'multi-section') {
             // Multi-section listeners
-            console.log('   Searching for wizardAddSectionBtn...');
-            
             const addBtn = document.getElementById('wizardAddSectionBtn');
-            console.log('   wizardAddSectionBtn element:', addBtn);
-            console.log('   wizardAddSectionBtn exists:', !!addBtn);
-            console.log('   wizardAddSectionBtn parent:', addBtn?.parentElement);
             
             if (addBtn) {
                 const listener = () => {
                     this.addSection();
                 };
                 addBtn.addEventListener('click', listener);
-                
-                // Test if button is clickable
-                console.log('   Button disabled?', addBtn.disabled);
-                console.log('   Button style.display:', window.getComputedStyle(addBtn).display);
-                console.log('   Button style.pointerEvents:', window.getComputedStyle(addBtn).pointerEvents);
             } else {
-                console.error('❌ wizardAddSectionBtn not found in DOM!');
-                console.error('   Checking entire skillLinesBuilder:');
-                const builder = document.getElementById('skillLinesBuilder');
-                if (builder) {
-                    console.error('   skillLinesBuilder HTML (first 1000 chars):', builder.innerHTML.substring(0, 1000));
-                    console.error('   Looking for buttons in builder:', builder.querySelectorAll('button'));
-                }
+                console.error('wizardAddSectionBtn not found in DOM!');
             }
             
             // Render sections (which calls attachMultiSectionListeners internally)
-            console.log('   Calling renderMultiSections()...');
             this.renderMultiSections();
         }
     }
@@ -731,19 +702,10 @@ class TemplateWizard {
      * Render all sections (Phase 2)
      */
     renderMultiSections() {
-        console.log('   Current sections:', this.templateData.sections.length);
-        
         const container = document.getElementById('multiSectionsList');
-        console.log('   Container element:', container);
-        console.log('   Container exists:', !!container);
         
         if (!container) {
-            console.error('❌ multiSectionsList container not found!');
-            console.error('   Dumping entire skillLinesBuilder:');
-            const builder = document.getElementById('skillLinesBuilder');
-            if (builder) {
-                console.error('   skillLinesBuilder HTML:', builder.innerHTML.substring(0, 500));
-            }
+            console.error('multiSectionsList container not found!');
             return;
         }
 
@@ -1128,7 +1090,7 @@ class TemplateWizard {
         const builder = window.skillLineBuilder;
         
         if (!builder) {
-            console.error('❌ SkillLineBuilder not found on window object');
+            console.error('SkillLineBuilder not found on window object');
         }
         
         return builder;

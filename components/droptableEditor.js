@@ -34,7 +34,9 @@ class DropTableEditor {
         editorPanel.innerHTML = `
             <div class="editor-header">
                 <h2>
-                    <i class="fas fa-table"></i> DropTable: ${droptable.name}
+                    <i class="fas fa-table"></i>
+                    DropTable Editor
+                    <span class="item-name">${droptable.name}</span>
                     <span class="mode-badge ${isAdvanced ? 'advanced' : 'beginner'}">${isAdvanced ? 'Advanced' : 'Beginner'} Mode</span>
                 </h2>
                 <div class="editor-actions">

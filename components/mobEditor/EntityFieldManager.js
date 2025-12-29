@@ -107,6 +107,13 @@ class EntityFieldManager {
     }
     
     /**
+     * Get all entity types (for dropdowns)
+     */
+    getAllEntityTypes() {
+        return Object.keys(this.entityMapping);
+    }
+    
+    /**
      * Check if entity is a living entity
      */
     isLivingEntity(entityType) {

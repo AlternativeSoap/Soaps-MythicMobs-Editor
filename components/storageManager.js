@@ -11,7 +11,7 @@ class StorageManager {
             // Fallback to basic localStorage implementation
             this.db = null;
             this.prefix = 'mythicmobs_';
-            console.warn('⚠️ Using localStorage fallback');
+            if (window.DEBUG_MODE) console.warn('Using localStorage fallback');
         }
     }
     

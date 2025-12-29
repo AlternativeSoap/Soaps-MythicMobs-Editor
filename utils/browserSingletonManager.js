@@ -11,7 +11,7 @@ class BrowserSingletonManager {
         this.dataPreloaded = false;
         this.preloadPromise = null;
         
-        console.log('🏭 Browser Singleton Manager initialized');
+        if (window.DEBUG_MODE) console.log('Browser Singleton Manager initialized');
     }
     
     /**
@@ -253,14 +253,14 @@ class BrowserSingletonManager {
      * Cleanup and destroy all browsers
      */
     destroyAll() {
-        console.log('🗑️ Destroying all browser singletons...');
+        if (window.DEBUG_MODE) console.log('Destroying all browser singletons...');
         
         for (const [type] of this.instances) {
             this.destroyBrowser(type);
         }
         
         this.initialized = false;
-        console.log('✅ All browsers destroyed');
+        if (window.DEBUG_MODE) console.log('All browsers destroyed');
     }
     
     /**
