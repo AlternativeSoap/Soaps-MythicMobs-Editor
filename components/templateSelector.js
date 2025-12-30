@@ -44,8 +44,74 @@ class TemplateSelector {
         this.renderCache = new Map(); // Cache rendered HTML by filter state key
         this.lastRenderKey = null; // Track last render to detect changes
         
+        // NEW FEATURES
+        // View count tracking (localStorage)
+        this.viewCounts = this.loadViewCounts();
+        
+        // Comparison mode
+        this.comparisonMode = false;
+        this.selectedForComparison = []; // Max 3 templates
+        
+        // Search suggestions
+        this.searchSuggestions = [];
+        this.showSuggestions = false;
+        
+        // Sub-categories system
+        this.subCategories = {
+            combat: ['melee', 'ranged', 'aoe', 'combo'],
+            effects: ['particles', 'sounds', 'visual'],
+            movement: ['teleport', 'dash', 'leap', 'pull'],
+            healing: ['regeneration', 'instant', 'lifesteal'],
+            damage: ['fire', 'ice', 'lightning', 'physical', 'magic'],
+            summons: ['minions', 'clones', 'turrets'],
+            buffs: ['speed', 'strength', 'resistance'],
+            debuffs: ['slow', 'weakness', 'poison', 'stun']
+        };
+        this.activeSubCategory = null;
+        this.selectedSubCategory = null;
+        
+        // Virtual scrolling
+        this.virtualScrollEnabled = true;
+        this.visibleRange = { start: 0, end: 50 };
+        this.itemHeight = 300; // Approximate height of a card
+        this.scrollContainer = null;
+        
         this.createModal();
         this.attachEventListeners();
+    }
+    
+    // ========================================
+    // VIEW COUNT TRACKING (localStorage)
+    // ========================================
+    
+    /**
+     * Load view counts from localStorage
+     */
+    loadViewCounts() {
+        const saved = localStorage.getItem('templateSelector_viewCounts');
+        return saved ? JSON.parse(saved) : {};
+    }
+    
+    /**
+     * Save view counts to localStorage
+     */
+    saveViewCounts() {
+        localStorage.setItem('templateSelector_viewCounts', JSON.stringify(this.viewCounts));
+    }
+    
+    /**
+     * Increment view count for a template
+     */
+    incrementViewCount(templateId) {
+        this.viewCounts[templateId] = (this.viewCounts[templateId] || 0) + 1;
+        this.saveViewCounts();
+    }
+    
+    /**
+     * Get view count for a template
+     */
+    getViewCount(templateId) {
+        return this.viewCounts[templateId] || 0;
     }
 
     /**
@@ -127,6 +193,18 @@ class TemplateSelector {
                             <i class="fas fa-layer-group"></i>
                             Quick Templates
                         </h2>
+                        <div style="display: flex; gap: 0.5rem; margin-left: auto; margin-right: 0.5rem;">
+                            <button class="btn btn-secondary btn-icon" id="templateCompareBtn" title="Compare templates" style="display: none;">
+                                <i class="fas fa-columns"></i>
+                                <span class="compare-count" style="display: none;">0</span>
+                            </button>
+                            <button class="btn btn-secondary btn-icon" id="templateBatchExportBtn" title="Batch export">
+                                <i class="fas fa-file-export"></i>
+                            </button>
+                            <button class="btn btn-secondary btn-icon" id="templateBatchImportBtn" title="Batch import">
+                                <i class="fas fa-file-import"></i>
+                            </button>
+                        </div>
                         <button class="btn btn-primary" id="templateSelectorCreate" title="Create new template" style="margin-right: 8px; display: none;">
                             <i class="fas fa-plus"></i>
                             Create Template
@@ -139,16 +217,32 @@ class TemplateSelector {
                         </button>
                     </div>
                     
-                    <!-- Search Bar -->
-                    <div class="search-bar">
+                    <!-- Search Bar with Suggestions -->
+                    <div class="search-bar" style="position: relative;">
                         <i class="fas fa-search search-icon"></i>
                         <input type="text" 
                                id="templateSearchInput" 
                                class="search-input" 
-                               placeholder="Search templates by name, description, or skill...">
+                               placeholder="Search templates by name, description, or skill..."
+                               autocomplete="off">
                         <button class="search-clear" id="templateSearchClear" style="display: none;">
                             <i class="fas fa-times"></i>
                         </button>
+                        <!-- Search Suggestions Dropdown -->
+                        <div id="searchSuggestionsDropdown" class="search-suggestions-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                        </div>
+                    </div>
+                    
+                    <!-- Category Chips -->
+                    <div id="categoryChipsContainer" style="padding: 0 1.5rem; margin-bottom: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                        <span style="font-size: 0.85rem; color: var(--text-secondary); margin-right: 0.25rem;">Quick:</span>
+                        <!-- Chips will be rendered dynamically -->
+                    </div>
+                    
+                    <!-- Sub-Category Chips (shown when category selected) -->
+                    <div id="subCategoryChipsContainer" style="padding: 0 1.5rem; margin-bottom: 0.75rem; display: none; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                        <span style="font-size: 0.85rem; color: var(--text-secondary); margin-right: 0.25rem;">Sub:</span>
+                        <!-- Sub-chips will be rendered dynamically -->
                     </div>
                     
                     <!-- Filters & View Toggle -->
@@ -162,6 +256,11 @@ class TemplateSelector {
                                 <i class="fas fa-list"></i>
                             </button>
                         </div>
+                        
+                        <!-- Comparison Mode Toggle -->
+                        <button id="toggleComparisonMode" class="btn btn-secondary btn-sm" title="Toggle comparison mode" style="padding: 0.5rem 0.75rem;">
+                            <i class="fas fa-balance-scale"></i> Compare
+                        </button>
                         
                         <!-- Filters -->
                         <select id="filterComplexity" class="form-control" style="width: auto; padding: 0.5rem 0.75rem; font-size: 0.9rem;">
@@ -184,6 +283,7 @@ class TemplateSelector {
                             <option value="date">Sort by Date</option>
                             <option value="lines">Sort by Lines</option>
                             <option value="category">Sort by Category</option>
+                            <option value="views">Sort by Views</option>
                         </select>
                         
                         <button id="sortOrder" class="btn btn-secondary btn-icon" title="Toggle sort order" style="padding: 0.5rem 0.75rem;">
@@ -197,9 +297,27 @@ class TemplateSelector {
                     </div>
                     
                     <!-- Content Area -->
-                    <div class="condition-browser-body" style="position: relative;">
+                    <div class="condition-browser-body" style="position: relative;" id="templateScrollContainer">
                         <div class="condition-list" id="templateList">
                             <!-- Templates will be rendered here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Comparison Panel (hidden by default) -->
+                    <div id="comparisonPanel" style="display: none; padding: 1rem 1.5rem; background: var(--bg-tertiary); border-top: 2px solid var(--primary-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <span style="font-weight: 600;"><i class="fas fa-balance-scale"></i> Comparing <span id="compareCountText">0</span> templates</span>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-primary btn-sm" id="showComparisonBtn" disabled>
+                                    <i class="fas fa-eye"></i> Compare Now
+                                </button>
+                                <button class="btn btn-secondary btn-sm" id="clearComparisonBtn">
+                                    <i class="fas fa-times"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                        <div id="comparisonSelectedList" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <!-- Selected templates will appear here -->
                         </div>
                     </div>
                     
@@ -212,11 +330,59 @@ class TemplateSelector {
                     </div>
                 </div>
             </div>
+            
+            <!-- Comparison Modal -->
+            <div id="comparisonModal" class="condition-modal" style="display: none; z-index: 9500;">
+                <div class="modal-content" style="max-width: 95vw; width: 1400px; max-height: 90vh;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-balance-scale"></i> Template Comparison</h2>
+                        <button class="btn-close" id="closeComparisonModal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="comparisonContent" style="padding: 1.5rem; overflow-y: auto; max-height: calc(90vh - 120px);">
+                        <!-- Comparison content will be rendered here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Batch Import Modal -->
+            <div id="batchImportModal" class="condition-modal" style="display: none; z-index: 9500;">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-file-import"></i> Batch Import Templates</h2>
+                        <button class="btn-close" id="closeBatchImportModal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div style="padding: 1.5rem;">
+                        <p style="margin-bottom: 1rem; color: var(--text-secondary);">Import multiple templates from a YAML file or paste YAML content below.</p>
+                        <div class="form-group">
+                            <label>Upload File</label>
+                            <input type="file" id="batchImportFile" accept=".yml,.yaml,.txt" class="form-control">
+                        </div>
+                        <div style="text-align: center; margin: 1rem 0; color: var(--text-secondary);">— or —</div>
+                        <div class="form-group">
+                            <label>Paste YAML</label>
+                            <textarea id="batchImportText" class="form-control" rows="10" placeholder="Paste YAML content here..." style="font-family: monospace;"></textarea>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem;">
+                            <button class="btn btn-secondary" id="cancelBatchImport">Cancel</button>
+                            <button class="btn btn-primary" id="doBatchImport">
+                                <i class="fas fa-upload"></i> Import
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         `;
 
         const temp = document.createElement('div');
         temp.innerHTML = modalHTML;
-        document.body.appendChild(temp.firstElementChild);
+        // Append all modals
+        while (temp.firstElementChild) {
+            document.body.appendChild(temp.firstElementChild);
+        }
         
         // Inject grid styles
         this.injectStyles();
@@ -464,6 +630,325 @@ class TemplateSelector {
                 .template-grid-card .btn:focus {
                     outline-offset: -2px;
                 }
+                
+                /* === Quick Copy Button === */
+                .quick-copy-btn {
+                    position: absolute;
+                    top: 8px;
+                    right: 8px;
+                    opacity: 0;
+                    transition: opacity 0.2s, transform 0.15s;
+                    z-index: 10;
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border-color);
+                    padding: 0.4rem 0.6rem;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    color: var(--text-secondary);
+                }
+                
+                .template-grid-card:hover .quick-copy-btn,
+                .template-list-card:hover .quick-copy-btn {
+                    opacity: 1;
+                }
+                
+                .quick-copy-btn:hover {
+                    background: var(--primary-color);
+                    color: white;
+                    transform: scale(1.1);
+                }
+                
+                .quick-copy-btn.copied {
+                    background: var(--success-color, #28a745);
+                    color: white;
+                }
+                
+                /* === View Count Badge === */
+                .view-count-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.25rem;
+                    font-size: 0.75rem;
+                    color: var(--text-muted, #888);
+                    padding: 0.2rem 0.5rem;
+                    background: var(--bg-tertiary);
+                    border-radius: 10px;
+                }
+                
+                .view-count-badge i {
+                    font-size: 0.7rem;
+                }
+                
+                /* === Category Chips === */
+                .category-chip {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.35rem;
+                    padding: 0.35rem 0.75rem;
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border-color);
+                    border-radius: 20px;
+                    font-size: 0.8rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    color: var(--text-secondary);
+                }
+                
+                .category-chip:hover {
+                    border-color: var(--primary-color);
+                    color: var(--primary-color);
+                }
+                
+                .category-chip.active {
+                    background: var(--primary-color);
+                    border-color: var(--primary-color);
+                    color: white;
+                }
+                
+                .category-chip .chip-count {
+                    background: rgba(0,0,0,0.15);
+                    padding: 0.1rem 0.4rem;
+                    border-radius: 10px;
+                    font-size: 0.7rem;
+                }
+                
+                .category-chip.active .chip-count {
+                    background: rgba(255,255,255,0.2);
+                }
+                
+                /* === Sub-Category Chips === */
+                .sub-category-chip {
+                    padding: 0.25rem 0.6rem;
+                    font-size: 0.75rem;
+                    background: var(--bg-tertiary);
+                    border: 1px dashed var(--border-color);
+                    border-radius: 15px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    color: var(--text-muted);
+                }
+                
+                .sub-category-chip:hover {
+                    border-style: solid;
+                    border-color: var(--primary-color);
+                    color: var(--primary-color);
+                }
+                
+                .sub-category-chip.active {
+                    background: var(--primary-light, rgba(99, 102, 241, 0.2));
+                    border-style: solid;
+                    border-color: var(--primary-color);
+                    color: var(--primary-color);
+                }
+                
+                /* === Search Suggestions Dropdown === */
+                .search-suggestions-dropdown {
+                    animation: dropdown-appear 0.2s ease-out;
+                }
+                
+                @keyframes dropdown-appear {
+                    from { opacity: 0; transform: translateY(-5px); }
+                }
+                
+                .search-suggestion-item {
+                    padding: 0.75rem 1rem;
+                    cursor: pointer;
+                    border-bottom: 1px solid var(--border-color);
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    transition: background 0.15s;
+                }
+                
+                .search-suggestion-item:hover {
+                    background: var(--bg-tertiary);
+                }
+                
+                .search-suggestion-item:last-child {
+                    border-bottom: none;
+                }
+                
+                .search-suggestion-icon {
+                    width: 32px;
+                    height: 32px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 6px;
+                    background: var(--bg-tertiary);
+                    color: var(--primary-color);
+                }
+                
+                .search-suggestion-text {
+                    flex: 1;
+                }
+                
+                .search-suggestion-name {
+                    font-weight: 500;
+                    color: var(--text-primary);
+                }
+                
+                .search-suggestion-meta {
+                    font-size: 0.8rem;
+                    color: var(--text-muted);
+                }
+                
+                .search-suggestion-type {
+                    font-size: 0.75rem;
+                    padding: 0.15rem 0.5rem;
+                    background: var(--bg-tertiary);
+                    border-radius: 10px;
+                    color: var(--text-secondary);
+                }
+                
+                /* === Comparison Mode === */
+                .comparison-mode .template-grid-card,
+                .comparison-mode .template-list-card {
+                    cursor: pointer;
+                    position: relative;
+                }
+                
+                .comparison-mode .template-grid-card::before,
+                .comparison-mode .template-list-card::before {
+                    content: '';
+                    position: absolute;
+                    top: 8px;
+                    left: 8px;
+                    width: 22px;
+                    height: 22px;
+                    border: 2px solid var(--border-color);
+                    border-radius: 4px;
+                    background: var(--bg-primary);
+                    z-index: 5;
+                    transition: all 0.2s;
+                }
+                
+                .comparison-mode .template-grid-card.compare-selected::before,
+                .comparison-mode .template-list-card.compare-selected::before {
+                    background: var(--primary-color);
+                    border-color: var(--primary-color);
+                }
+                
+                .comparison-mode .template-grid-card.compare-selected::after,
+                .comparison-mode .template-list-card.compare-selected::after {
+                    content: '✓';
+                    position: absolute;
+                    top: 10px;
+                    left: 13px;
+                    color: white;
+                    font-size: 0.8rem;
+                    font-weight: bold;
+                    z-index: 6;
+                }
+                
+                .comparison-mode .template-grid-card.compare-selected {
+                    border-color: var(--primary-color);
+                    box-shadow: 0 0 0 2px var(--primary-light, rgba(99, 102, 241, 0.3));
+                }
+                
+                .compare-count {
+                    position: absolute;
+                    top: -5px;
+                    right: -5px;
+                    background: var(--primary-color);
+                    color: white;
+                    font-size: 0.7rem;
+                    padding: 0.1rem 0.4rem;
+                    border-radius: 10px;
+                    min-width: 18px;
+                    text-align: center;
+                }
+                
+                /* === Comparison Selected Tag === */
+                .comparison-selected-tag {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    padding: 0.35rem 0.6rem;
+                    background: var(--primary-light, rgba(99, 102, 241, 0.15));
+                    border: 1px solid var(--primary-color);
+                    border-radius: 6px;
+                    font-size: 0.85rem;
+                    color: var(--primary-color);
+                }
+                
+                .comparison-selected-tag .remove-compare {
+                    cursor: pointer;
+                    opacity: 0.7;
+                    transition: opacity 0.15s;
+                }
+                
+                .comparison-selected-tag .remove-compare:hover {
+                    opacity: 1;
+                }
+                
+                /* === Comparison Modal Content === */
+                .comparison-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                    gap: 1.5rem;
+                }
+                
+                .comparison-card {
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border-color);
+                    border-radius: 8px;
+                    overflow: hidden;
+                }
+                
+                .comparison-card-header {
+                    padding: 1rem;
+                    background: var(--bg-tertiary);
+                    border-bottom: 1px solid var(--border-color);
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                }
+                
+                .comparison-card-body {
+                    padding: 1rem;
+                }
+                
+                .comparison-card-code {
+                    background: var(--bg-primary);
+                    border-radius: 6px;
+                    padding: 0.75rem;
+                    font-family: 'Monaco', 'Menlo', monospace;
+                    font-size: 0.85rem;
+                    max-height: 300px;
+                    overflow-y: auto;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                }
+                
+                .comparison-stat {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 0.5rem 0;
+                    border-bottom: 1px solid var(--border-color);
+                }
+                
+                .comparison-stat:last-child {
+                    border-bottom: none;
+                }
+                
+                /* === Virtual Scroll Placeholder === */
+                .virtual-scroll-placeholder {
+                    background: var(--bg-secondary);
+                    border: 1px dashed var(--border-color);
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: var(--text-muted);
+                    font-size: 0.85rem;
+                }
+                
+                /* === Batch Export/Import Button Styles === */
+                #templateBatchExportBtn,
+                #templateBatchImportBtn {
+                    position: relative;
+                }
             </style>
         `;
         
@@ -554,6 +1039,9 @@ class TemplateSelector {
             const query = e.target.value.toLowerCase();
             document.getElementById('templateSearchClear').style.display = query ? 'block' : 'none';
             
+            // Show/hide search suggestions
+            this.updateSearchSuggestions(query);
+            
             // Debounce search to avoid excessive re-renders (300ms delay)
             clearTimeout(this.searchDebounceTimer);
             this.searchDebounceTimer = setTimeout(() => {
@@ -561,13 +1049,73 @@ class TemplateSelector {
                 this.renderTemplates();
             }, 300);
         });
+        
+        // Hide suggestions on blur (with delay to allow click)
+        searchInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                document.getElementById('searchSuggestionsDropdown').style.display = 'none';
+            }, 200);
+        });
+        
+        // Show suggestions on focus if there's a query
+        searchInput.addEventListener('focus', (e) => {
+            if (e.target.value.length >= 2) {
+                this.updateSearchSuggestions(e.target.value.toLowerCase());
+            }
+        });
 
         // Clear search
         document.getElementById('templateSearchClear').addEventListener('click', () => {
             searchInput.value = '';
             this.searchQuery = '';
             document.getElementById('templateSearchClear').style.display = 'none';
+            document.getElementById('searchSuggestionsDropdown').style.display = 'none';
             this.renderTemplates();
+        });
+        
+        // Comparison mode toggle
+        document.getElementById('toggleComparisonMode')?.addEventListener('click', () => {
+            this.toggleComparisonMode();
+        });
+        
+        // Show comparison button
+        document.getElementById('showComparisonBtn')?.addEventListener('click', () => {
+            this.showComparisonModal();
+        });
+        
+        // Clear comparison button
+        document.getElementById('clearComparisonBtn')?.addEventListener('click', () => {
+            this.clearComparison();
+        });
+        
+        // Close comparison modal
+        document.getElementById('closeComparisonModal')?.addEventListener('click', () => {
+            document.getElementById('comparisonModal').style.display = 'none';
+        });
+        
+        // Batch export button
+        document.getElementById('templateBatchExportBtn')?.addEventListener('click', () => {
+            this.handleBatchExport();
+        });
+        
+        // Batch import button
+        document.getElementById('templateBatchImportBtn')?.addEventListener('click', () => {
+            document.getElementById('batchImportModal').style.display = 'flex';
+        });
+        
+        // Batch import modal - cancel
+        document.getElementById('cancelBatchImport')?.addEventListener('click', () => {
+            document.getElementById('batchImportModal').style.display = 'none';
+        });
+        
+        // Batch import modal - close
+        document.getElementById('closeBatchImportModal')?.addEventListener('click', () => {
+            document.getElementById('batchImportModal').style.display = 'none';
+        });
+        
+        // Batch import modal - import
+        document.getElementById('doBatchImport')?.addEventListener('click', () => {
+            this.handleBatchImport();
         });
 
         // Keyboard shortcuts
@@ -626,6 +1174,20 @@ class TemplateSelector {
         // Reset search input
         document.getElementById('templateSearchInput').value = '';
         document.getElementById('templateSearchClear').style.display = 'none';
+        document.getElementById('searchSuggestionsDropdown').style.display = 'none';
+        
+        // Reset comparison mode
+        this.comparisonMode = false;
+        this.selectedForComparison = [];
+        document.getElementById('comparisonPanel').style.display = 'none';
+        document.getElementById('templateCompareBtn').style.display = 'none';
+        document.getElementById('templateList').classList.remove('comparison-mode');
+        const toggleBtn = document.getElementById('toggleComparisonMode');
+        if (toggleBtn) {
+            toggleBtn.classList.remove('active');
+            toggleBtn.style.background = '';
+            toggleBtn.style.color = '';
+        }
         
         // Restore view mode UI
         this.setViewMode(this.viewMode);
@@ -656,8 +1218,10 @@ class TemplateSelector {
         // Hide loading BEFORE rendering (fixes empty state infinite loading)
         this.hideLoading();
         
-        // Render tabs and templates
+        // Render tabs, category chips, and templates
         this.renderTabs();
+        this.renderCategoryChips();
+        this.renderSubCategoryChips();
         this.renderTemplates();
         
         // Focus search input
@@ -752,6 +1316,10 @@ class TemplateSelector {
                 case 'category':
                     aVal = a.category || '';
                     bVal = b.category || '';
+                    break;
+                case 'views':
+                    aVal = this.getViewCount(a.id);
+                    bVal = this.getViewCount(b.id);
                     break;
                 default:
                     return 0;
@@ -1217,12 +1785,23 @@ class TemplateSelector {
                 ? '<span class="owner-badge owner-you" style="font-size: 0.7rem; padding: 0.15rem 0.4rem;">You</span>'
                 : '';
         
+        // View count for this template
+        const viewCount = this.getViewCount(template.id);
+        const viewCountBadge = viewCount > 0 ? `<span class="view-count-badge" title="Viewed ${viewCount} time${viewCount !== 1 ? 's' : ''}"><i class="fas fa-eye"></i> ${viewCount}</span>` : '';
+        
+        // Check if selected for comparison
+        const isSelected = this.selectedForComparison.includes(template.id);
+        const compareClass = isSelected ? 'compare-selected' : '';
+        
         return `
-            <div class="template-grid-card" data-template-id="${template.id}" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; cursor: pointer; transition: all 0.2s; position: relative;">
+            <div class="template-grid-card ${compareClass}" data-template-id="${template.id}" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; cursor: pointer; transition: all 0.2s; position: relative;">
+                <button class="quick-copy-btn" data-template-id="${template.id}" title="Quick copy to clipboard">
+                    <i class="fas fa-copy"></i>
+                </button>
                 <button class="favorite-btn ${isFav ? 'favorited' : ''}" 
                         data-template-id="${template.id}" 
                         title="${isFav ? 'Remove from favorites' : 'Add to favorites'}"
-                        style="position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; color: ${isFav ? 'var(--warning-color)' : 'var(--text-secondary)'}; cursor: pointer; font-size: 1.2rem; padding: 0.25rem;">
+                        style="position: absolute; top: 0.5rem; right: 2.5rem; background: none; border: none; color: ${isFav ? 'var(--warning-color)' : 'var(--text-secondary)'}; cursor: pointer; font-size: 1.2rem; padding: 0.25rem;">
                     <i class="fas fa-star"></i>
                 </button>
                 
@@ -1234,6 +1813,7 @@ class TemplateSelector {
                     <div style="display: flex; gap: 0.3rem; justify-content: center; flex-wrap: wrap; margin-top: 0.3rem;">
                         ${officialBadge}
                         ${ownerBadge}
+                        ${viewCountBadge}
                     </div>
                 </div>
                 
@@ -1309,12 +1889,23 @@ class TemplateSelector {
                 ? '<span class="owner-badge owner-you">You</span>'
                 : `<span class="owner-badge">${this.escapeHtml(template.ownerName || 'Community')}</span>`;
         
+        // View count
+        const viewCount = this.getViewCount(template.id);
+        const viewCountBadge = viewCount > 0 ? `<span class="view-count-badge" title="Viewed ${viewCount} time${viewCount !== 1 ? 's' : ''}"><i class="fas fa-eye"></i> ${viewCount}</span>` : '';
+        
+        // Check if selected for comparison
+        const isSelected = this.selectedForComparison.includes(template.id);
+        const compareClass = isSelected ? 'compare-selected' : '';
+        
         return `
-            <div class="condition-item template-card ${isIncompatible ? 'template-incompatible' : ''}" data-template-id="${template.id}" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+            <div class="condition-item template-card template-list-card ${isIncompatible ? 'template-incompatible' : ''} ${compareClass}" data-template-id="${template.id}" style="margin-bottom: 1.5rem; padding: 1.25rem; position: relative;">
+                <button class="quick-copy-btn" data-template-id="${template.id}" title="Quick copy to clipboard" style="top: 0.75rem; right: 0.75rem;">
+                    <i class="fas fa-copy"></i>
+                </button>
                 <div class="condition-item-header" style="margin-bottom: 1rem;">
                     <div class="condition-item-icon">${categoryIcon}</div>
                     <div class="condition-item-title">
-                        <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">${this.escapeHtml(template.name)} ${officialBadge} ${ownerBadge}</h3>
+                        <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">${this.escapeHtml(template.name)} ${officialBadge} ${ownerBadge} ${viewCountBadge}</h3>
                         <div class="template-meta" style="gap: 0.5rem;">
                             <span class="meta-badge structure-badge" style="background: ${structureInfo.color}; color: white; padding: 0.25rem 0.6rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600;" title="${structureInfo.description}">
                                 ${structureInfo.icon} ${structureInfo.label}
@@ -1384,12 +1975,18 @@ class TemplateSelector {
         this.templateListClickHandler = async (e) => {
             const target = e.target;
             const button = target.closest('button');
-            const card = target.closest('.template-grid-card');
+            const card = target.closest('.template-grid-card, .template-list-card');
             
             // Handle button clicks
             if (button) {
                 e.stopPropagation();
                 const templateId = button.dataset.templateId;
+                
+                // Quick copy button
+                if (button.classList.contains('quick-copy-btn')) {
+                    await this.handleQuickCopy(templateId, button);
+                    return;
+                }
                 
                 // Use button
                 if (button.classList.contains('template-use-btn')) {
@@ -1460,10 +2057,17 @@ class TemplateSelector {
                     this.renderTemplates();
                 }
             }
-            // Handle card click (open preview) - only if not clicking a button
+            // Handle card click
             else if (card && !target.closest('button')) {
                 const templateId = card.dataset.templateId;
-                this.showFullPreview(templateId);
+                
+                // If in comparison mode, toggle selection
+                if (this.comparisonMode) {
+                    this.toggleComparisonSelection(templateId);
+                } else {
+                    // Normal click - show preview
+                    this.showFullPreview(templateId);
+                }
             }
         };
         
@@ -1490,6 +2094,9 @@ class TemplateSelector {
             return;
         }
         
+        // Increment view count
+        this.incrementViewCount(templateId);
+        
         let extractedLines;
         if (template.skillLine) {
             // Built-in template
@@ -1503,6 +2110,7 @@ class TemplateSelector {
         }
         
         const displayLines = Array.isArray(extractedLines) ? extractedLines.join('\n') : extractedLines;
+        const viewCount = this.getViewCount(templateId);
         
         const modal = document.createElement('div');
         modal.className = 'condition-modal-overlay active';
@@ -1510,15 +2118,23 @@ class TemplateSelector {
         modal.innerHTML = `
             <div class="condition-modal" style="max-width: 900px; max-height: 80vh; background: var(--bg-primary); border-radius: 8px; display: flex; flex-direction: column; position: relative;">
                 <div class="condition-header" style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                    <h2 style="margin: 0;">${template.icon} ${template.name}</h2>
+                    <h2 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                        ${template.icon || this.getCategoryIcon(template.category)} ${template.name}
+                        <span class="view-count-badge" style="font-size: 0.8rem;"><i class="fas fa-eye"></i> ${viewCount}</span>
+                    </h2>
                     <button class="close-modal preview-close" style="background: none; border: none; color: var(--text-primary); font-size: 1.5rem; cursor: pointer; padding: 0.5rem;">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
                 <div class="condition-content" style="padding: 1.5rem; overflow-y: auto; flex: 1;">
                     <p style="margin-bottom: 1rem; color: var(--text-secondary);">${template.description}</p>
-                    <div class="template-preview" style="margin: 0;">
-                        <div class="preview-label" style="font-weight: 600; margin-bottom: 0.5rem;">Full Template (${Array.isArray(extractedLines) ? extractedLines.length : 1} lines):</div>
+                    <div class="template-preview" style="margin: 0; position: relative;">
+                        <div class="preview-label" style="font-weight: 600; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span>Full Template (${Array.isArray(extractedLines) ? extractedLines.length : 1} lines):</span>
+                            <button class="btn btn-secondary btn-sm preview-copy-btn" title="Copy to clipboard">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
                         <pre style="max-height: 400px; overflow-y: auto; background: var(--bg-secondary); padding: 1rem; border-radius: 4px; border: 1px solid var(--border-color);"><code>${this.escapeHtml(displayLines)}</code></pre>
                     </div>
                 </div>
@@ -1540,6 +2156,24 @@ class TemplateSelector {
         modal.querySelector('.preview-use').addEventListener('click', () => {
             modal.remove();
             this.selectTemplate(templateId);
+        });
+        modal.querySelector('.preview-copy-btn').addEventListener('click', async (e) => {
+            try {
+                await navigator.clipboard.writeText(displayLines);
+                const btn = e.currentTarget;
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.style.background = 'var(--success-color, #28a745)';
+                btn.style.color = 'white';
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }, 1500);
+                this.showNotification('Copied to clipboard!', 'success');
+            } catch (err) {
+                this.showNotification('Failed to copy', 'error');
+            }
         });
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
@@ -2014,6 +2648,606 @@ class TemplateSelector {
         };
         return names[category?.toLowerCase()] || category;
     }
+    
+    // ========================================
+    // NEW FEATURES - Quick Copy, Comparison Mode, Search Suggestions, etc.
+    // ========================================
+    
+    /**
+     * Handle quick copy to clipboard
+     */
+    async handleQuickCopy(templateId, button) {
+        const template = this.allTemplates.find(t => t.id === templateId);
+        if (!template) return;
+        
+        // Get skill lines
+        let lines;
+        if (template.sections && Array.isArray(template.sections)) {
+            lines = template.sections.map(s => s.lines || []).flat();
+        } else if (template.skillLines) {
+            lines = template.skillLines;
+        } else if (template.skillLine) {
+            lines = this.extractSkillLines(template.skillLine);
+        } else {
+            lines = [];
+        }
+        
+        const text = Array.isArray(lines) ? lines.join('\n') : lines;
+        
+        try {
+            await navigator.clipboard.writeText(text);
+            
+            // Visual feedback
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check"></i>';
+            button.classList.add('copied');
+            
+            this.showNotification(`Copied "${template.name}" to clipboard!`, 'success');
+            
+            // Increment view count
+            this.incrementViewCount(templateId);
+            
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.classList.remove('copied');
+            }, 1500);
+        } catch (err) {
+            this.showNotification('Failed to copy to clipboard', 'error');
+        }
+    }
+    
+    /**
+     * Toggle comparison mode
+     */
+    toggleComparisonMode() {
+        this.comparisonMode = !this.comparisonMode;
+        
+        const toggleBtn = document.getElementById('toggleComparisonMode');
+        const compareBtn = document.getElementById('templateCompareBtn');
+        const panel = document.getElementById('comparisonPanel');
+        const templateList = document.getElementById('templateList');
+        
+        if (this.comparisonMode) {
+            toggleBtn.classList.add('active');
+            toggleBtn.style.background = 'var(--primary-color)';
+            toggleBtn.style.color = 'white';
+            compareBtn.style.display = 'inline-flex';
+            panel.style.display = 'block';
+            templateList.classList.add('comparison-mode');
+        } else {
+            toggleBtn.classList.remove('active');
+            toggleBtn.style.background = '';
+            toggleBtn.style.color = '';
+            compareBtn.style.display = 'none';
+            panel.style.display = 'none';
+            templateList.classList.remove('comparison-mode');
+            this.clearComparison();
+        }
+    }
+    
+    /**
+     * Toggle template selection for comparison
+     */
+    toggleComparisonSelection(templateId) {
+        const index = this.selectedForComparison.indexOf(templateId);
+        
+        if (index === -1) {
+            // Add to comparison (max 4)
+            if (this.selectedForComparison.length >= 4) {
+                this.showNotification('Maximum 4 templates can be compared at once', 'warning');
+                return;
+            }
+            this.selectedForComparison.push(templateId);
+        } else {
+            // Remove from comparison
+            this.selectedForComparison.splice(index, 1);
+        }
+        
+        this.updateComparisonUI();
+        this.renderTemplates();
+    }
+    
+    /**
+     * Update comparison UI elements
+     */
+    updateComparisonUI() {
+        const count = this.selectedForComparison.length;
+        
+        // Update count displays
+        document.getElementById('compareCountText').textContent = count;
+        const countBadge = document.querySelector('.compare-count');
+        if (countBadge) {
+            countBadge.textContent = count;
+            countBadge.style.display = count > 0 ? 'inline-block' : 'none';
+        }
+        
+        // Enable/disable compare button
+        const showBtn = document.getElementById('showComparisonBtn');
+        if (showBtn) {
+            showBtn.disabled = count < 2;
+        }
+        
+        // Update selected list
+        const listContainer = document.getElementById('comparisonSelectedList');
+        if (listContainer) {
+            listContainer.innerHTML = this.selectedForComparison.map(id => {
+                const template = this.allTemplates.find(t => t.id === id);
+                if (!template) return '';
+                const icon = template.icon || this.getCategoryIcon(template.category);
+                return `
+                    <span class="comparison-selected-tag">
+                        ${icon} ${this.escapeHtml(template.name)}
+                        <span class="remove-compare" data-template-id="${id}">
+                            <i class="fas fa-times"></i>
+                        </span>
+                    </span>
+                `;
+            }).join('');
+            
+            // Attach remove handlers
+            listContainer.querySelectorAll('.remove-compare').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    const id = e.currentTarget.dataset.templateId;
+                    this.toggleComparisonSelection(id);
+                });
+            });
+        }
+    }
+    
+    /**
+     * Clear comparison selection
+     */
+    clearComparison() {
+        this.selectedForComparison = [];
+        this.updateComparisonUI();
+        this.renderTemplates();
+    }
+    
+    /**
+     * Show comparison modal
+     */
+    showComparisonModal() {
+        if (this.selectedForComparison.length < 2) {
+            this.showNotification('Select at least 2 templates to compare', 'warning');
+            return;
+        }
+        
+        const templates = this.selectedForComparison.map(id => 
+            this.allTemplates.find(t => t.id === id)
+        ).filter(Boolean);
+        
+        const content = document.getElementById('comparisonContent');
+        content.innerHTML = `
+            <div class="comparison-grid">
+                ${templates.map(template => {
+                    const icon = template.icon || this.getCategoryIcon(template.category);
+                    const lines = this.getTemplateLines(template);
+                    const lineCount = lines.length;
+                    const complexity = this.getComplexity(lineCount, lines);
+                    const structureInfo = this.getStructureInfo(template);
+                    
+                    return `
+                        <div class="comparison-card">
+                            <div class="comparison-card-header">
+                                <span style="font-size: 1.5rem;">${icon}</span>
+                                <div style="flex: 1;">
+                                    <h3 style="margin: 0; font-size: 1rem;">${this.escapeHtml(template.name)}</h3>
+                                    <span style="font-size: 0.8rem; color: var(--text-secondary);">${this.getCategoryDisplayName(template.category)}</span>
+                                </div>
+                            </div>
+                            <div class="comparison-card-body">
+                                <div class="comparison-stat">
+                                    <span>Lines</span>
+                                    <strong>${lineCount}</strong>
+                                </div>
+                                <div class="comparison-stat">
+                                    <span>Complexity</span>
+                                    <strong>${complexity}</strong>
+                                </div>
+                                <div class="comparison-stat">
+                                    <span>Structure</span>
+                                    <strong>${structureInfo.label}</strong>
+                                </div>
+                                <div class="comparison-stat">
+                                    <span>Views</span>
+                                    <strong>${this.getViewCount(template.id)}</strong>
+                                </div>
+                                <div style="margin-top: 1rem;">
+                                    <strong style="display: block; margin-bottom: 0.5rem;">Code:</strong>
+                                    <div class="comparison-card-code">${this.escapeHtml(lines.join('\n'))}</div>
+                                </div>
+                                <div style="margin-top: 1rem;">
+                                    <button class="btn btn-primary btn-sm" onclick="window.templateSelector.selectTemplate('${template.id}'); document.getElementById('comparisonModal').style.display='none';">
+                                        <i class="fas fa-plus"></i> Use This
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+        
+        document.getElementById('comparisonModal').style.display = 'flex';
+    }
+    
+    /**
+     * Get template lines as array
+     */
+    getTemplateLines(template) {
+        if (template.sections && Array.isArray(template.sections)) {
+            return template.sections.map(s => s.lines || []).flat();
+        } else if (template.skillLines) {
+            return Array.isArray(template.skillLines) ? template.skillLines : [template.skillLines];
+        } else if (template.skillLine) {
+            return this.extractSkillLines(template.skillLine);
+        }
+        return [];
+    }
+    
+    /**
+     * Update search suggestions dropdown
+     */
+    updateSearchSuggestions(query) {
+        const dropdown = document.getElementById('searchSuggestionsDropdown');
+        
+        if (!query || query.length < 2) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        // Find matching templates
+        const matches = this.allTemplates
+            .filter(t => {
+                const nameMatch = t.name.toLowerCase().includes(query);
+                const descMatch = t.description?.toLowerCase().includes(query);
+                const catMatch = t.category?.toLowerCase().includes(query);
+                return nameMatch || descMatch || catMatch;
+            })
+            .slice(0, 8);
+        
+        if (matches.length === 0) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        dropdown.innerHTML = matches.map(template => {
+            const icon = template.icon || this.getCategoryIcon(template.category);
+            const categoryName = this.getCategoryDisplayName(template.category);
+            const structureInfo = this.getStructureInfo(template);
+            
+            return `
+                <div class="search-suggestion-item" data-template-id="${template.id}">
+                    <div class="search-suggestion-icon">${icon}</div>
+                    <div class="search-suggestion-text">
+                        <div class="search-suggestion-name">${this.escapeHtml(template.name)}</div>
+                        <div class="search-suggestion-meta">${categoryName} • ${this.getLineCount(template)} lines</div>
+                    </div>
+                    <span class="search-suggestion-type">${structureInfo.label}</span>
+                </div>
+            `;
+        }).join('');
+        
+        // Attach click handlers
+        dropdown.querySelectorAll('.search-suggestion-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const templateId = item.dataset.templateId;
+                dropdown.style.display = 'none';
+                this.showFullPreview(templateId);
+            });
+        });
+        
+        dropdown.style.display = 'block';
+    }
+    
+    /**
+     * Render category chips
+     */
+    renderCategoryChips() {
+        const container = document.getElementById('categoryChipsContainer');
+        if (!container) return;
+        
+        // Count templates per category
+        const categoryCounts = {};
+        this.allTemplates.forEach(t => {
+            const cat = t.category || 'utility';
+            categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+        });
+        
+        const categories = Object.keys(this.subCategories);
+        const chipsHTML = categories.map(cat => {
+            const count = categoryCounts[cat] || 0;
+            const icon = this.getCategoryIcon(cat);
+            const isActive = this.currentTab === cat;
+            return `
+                <span class="category-chip ${isActive ? 'active' : ''}" data-category="${cat}" title="${this.getCategoryDisplayName(cat)}">
+                    ${icon} ${this.getCategoryDisplayName(cat)}
+                    <span class="chip-count">${count}</span>
+                </span>
+            `;
+        }).join('');
+        
+        container.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-secondary); margin-right: 0.25rem;">Quick:</span>` + chipsHTML;
+        
+        // Attach click handlers
+        container.querySelectorAll('.category-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const category = chip.dataset.category;
+                this.currentTab = category;
+                this.selectedSubCategory = null;
+                this.renderTabs();
+                this.renderTemplates();
+                this.renderCategoryChips();
+                this.renderSubCategoryChips();
+            });
+        });
+    }
+    
+    /**
+     * Render sub-category chips
+     */
+    renderSubCategoryChips() {
+        const container = document.getElementById('subCategoryChipsContainer');
+        if (!container) return;
+        
+        const subCats = this.subCategories[this.currentTab];
+        
+        if (!subCats || subCats.length === 0 || this.currentTab === 'all' || this.currentTab === 'favorites' || this.currentTab === 'recent') {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.style.display = 'flex';
+        
+        const chipsHTML = subCats.map(sub => {
+            const isActive = this.selectedSubCategory === sub;
+            return `
+                <span class="sub-category-chip ${isActive ? 'active' : ''}" data-subcategory="${sub}">
+                    ${sub}
+                </span>
+            `;
+        }).join('');
+        
+        container.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-secondary); margin-right: 0.25rem;">Sub:</span>` + 
+            `<span class="sub-category-chip ${!this.selectedSubCategory ? 'active' : ''}" data-subcategory="">All</span>` + chipsHTML;
+        
+        // Attach click handlers
+        container.querySelectorAll('.sub-category-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const subcat = chip.dataset.subcategory;
+                this.selectedSubCategory = subcat || null;
+                this.renderTemplates();
+                this.renderSubCategoryChips();
+            });
+        });
+    }
+    
+    /**
+     * Handle batch export
+     */
+    handleBatchExport() {
+        // Export all visible/filtered templates
+        const templates = this.getFilteredTemplates();
+        
+        if (templates.length === 0) {
+            this.showNotification('No templates to export', 'warning');
+            return;
+        }
+        
+        // Create YAML export
+        const exportData = {
+            exported_at: new Date().toISOString(),
+            template_count: templates.length,
+            templates: templates.map(t => ({
+                name: t.name,
+                description: t.description,
+                category: t.category,
+                structure_type: t.structure_type || 'multi-line',
+                sections: t.sections || null,
+                skillLines: t.skillLines || null,
+                skillLine: t.skillLine || null
+            }))
+        };
+        
+        const yamlContent = this.objectToYaml(exportData);
+        
+        // Download file
+        const blob = new Blob([yamlContent], { type: 'text/yaml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `templates-export-${Date.now()}.yml`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        this.showNotification(`Exported ${templates.length} templates`, 'success');
+    }
+    
+    /**
+     * Handle batch import
+     */
+    async handleBatchImport() {
+        const fileInput = document.getElementById('batchImportFile');
+        const textInput = document.getElementById('batchImportText');
+        
+        let content = '';
+        
+        if (fileInput.files.length > 0) {
+            content = await fileInput.files[0].text();
+        } else if (textInput.value.trim()) {
+            content = textInput.value.trim();
+        } else {
+            this.showNotification('Please select a file or paste YAML content', 'warning');
+            return;
+        }
+        
+        try {
+            // Parse YAML (basic parsing)
+            const parsed = this.parseYaml(content);
+            
+            if (!parsed || !parsed.templates || !Array.isArray(parsed.templates)) {
+                throw new Error('Invalid template format');
+            }
+            
+            let imported = 0;
+            for (const template of parsed.templates) {
+                if (template.name && (template.skillLines || template.skillLine || template.sections)) {
+                    // Add to local templates (would need templateManager integration for persistence)
+                    this.allTemplates.push({
+                        id: `imported-${Date.now()}-${imported}`,
+                        ...template,
+                        isBuiltIn: false,
+                        created_at: new Date().toISOString()
+                    });
+                    imported++;
+                }
+            }
+            
+            document.getElementById('batchImportModal').style.display = 'none';
+            fileInput.value = '';
+            textInput.value = '';
+            
+            this.renderTemplates();
+            this.showNotification(`Imported ${imported} templates`, 'success');
+            
+        } catch (err) {
+            this.showNotification('Failed to parse import: ' + err.message, 'error');
+        }
+    }
+    
+    /**
+     * Simple YAML to object parser (basic)
+     */
+    parseYaml(content) {
+        // This is a very basic parser - in production use js-yaml library
+        try {
+            // Try JSON first (in case it's JSON formatted)
+            return JSON.parse(content);
+        } catch {
+            // Basic YAML parsing for simple structures
+            const result = { templates: [] };
+            const lines = content.split('\n');
+            let currentTemplate = null;
+            let currentKey = null;
+            let arrayBuffer = [];
+            
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed.startsWith('#')) continue;
+                
+                if (trimmed === 'templates:') {
+                    continue;
+                }
+                
+                if (trimmed.startsWith('- name:')) {
+                    if (currentTemplate) {
+                        result.templates.push(currentTemplate);
+                    }
+                    currentTemplate = { name: trimmed.substring(7).trim().replace(/^["']|["']$/g, '') };
+                    currentKey = null;
+                    continue;
+                }
+                
+                if (currentTemplate) {
+                    const match = trimmed.match(/^(\w+):\s*(.*)$/);
+                    if (match) {
+                        const key = match[1];
+                        const value = match[2].replace(/^["']|["']$/g, '');
+                        if (value) {
+                            currentTemplate[key] = value;
+                        }
+                        currentKey = key;
+                    } else if (trimmed.startsWith('- ') && currentKey) {
+                        if (!currentTemplate[currentKey]) {
+                            currentTemplate[currentKey] = [];
+                        }
+                        if (Array.isArray(currentTemplate[currentKey])) {
+                            currentTemplate[currentKey].push(trimmed.substring(2).replace(/^["']|["']$/g, ''));
+                        }
+                    }
+                }
+            }
+            
+            if (currentTemplate) {
+                result.templates.push(currentTemplate);
+            }
+            
+            return result;
+        }
+    }
+    
+    /**
+     * Simple object to YAML converter
+     */
+    objectToYaml(obj, indent = 0) {
+        const spaces = '  '.repeat(indent);
+        let yaml = '';
+        
+        if (Array.isArray(obj)) {
+            for (const item of obj) {
+                if (typeof item === 'object' && item !== null) {
+                    yaml += `${spaces}-\n${this.objectToYaml(item, indent + 1).replace(/^/gm, spaces + '  ').trimStart()}`;
+                } else {
+                    yaml += `${spaces}- ${JSON.stringify(item)}\n`;
+                }
+            }
+        } else if (typeof obj === 'object' && obj !== null) {
+            for (const [key, value] of Object.entries(obj)) {
+                if (value === null || value === undefined) continue;
+                if (typeof value === 'object') {
+                    yaml += `${spaces}${key}:\n${this.objectToYaml(value, indent + 1)}`;
+                } else {
+                    yaml += `${spaces}${key}: ${JSON.stringify(value)}\n`;
+                }
+            }
+        }
+        
+        return yaml;
+    }
+    
+    /**
+     * Get filtered templates based on current filters
+     */
+    getFilteredTemplates() {
+        let templates = [...this.allTemplates];
+        
+        // Tab filter
+        if (this.currentTab === 'favorites') {
+            templates = templates.filter(t => this.isFavorite(t.id));
+        } else if (this.currentTab === 'recent') {
+            const recentIds = this.recentTemplates.slice(0, 20);
+            templates = templates.filter(t => recentIds.includes(t.id));
+        } else if (this.currentTab !== 'all') {
+            templates = templates.filter(t => t.category === this.currentTab);
+        }
+        
+        // Sub-category filter
+        if (this.selectedSubCategory) {
+            templates = templates.filter(t => {
+                // Check if template name or description matches sub-category
+                const name = t.name.toLowerCase();
+                const desc = (t.description || '').toLowerCase();
+                const sub = this.selectedSubCategory.toLowerCase();
+                return name.includes(sub) || desc.includes(sub);
+            });
+        }
+        
+        // Search filter
+        if (this.searchQuery) {
+            const query = this.searchQuery.toLowerCase();
+            templates = templates.filter(t => {
+                const name = t.name.toLowerCase();
+                const desc = (t.description || '').toLowerCase();
+                const cat = (t.category || '').toLowerCase();
+                return name.includes(query) || desc.includes(query) || cat.includes(query);
+            });
+        }
+        
+        // Apply other filters
+        templates = this.applyFilters(templates);
+        
+        return templates;
+    }
 }
 
 // Export for use in other modules
@@ -2022,4 +3256,3 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 // Loaded silently
-

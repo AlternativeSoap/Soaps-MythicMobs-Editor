@@ -42,6 +42,7 @@
     <link rel="stylesheet" href="styles/templateWizard.css">
     <link rel="stylesheet" href="styles/browser-management.css">
     <link rel="stylesheet" href="styles/pack-tools.css">
+    <link rel="stylesheet" href="styles/totemBuilder.css">
 </head>
 <body>
     <!-- Main Container -->
@@ -434,6 +435,245 @@
                 <button class="icon-btn" id="expand-right-sidebar" title="Show YAML Preview">
                     <i class="fas fa-chevron-left"></i>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Site Footer -->
+    <footer class="site-footer">
+        <div class="footer-content">
+            <div class="footer-main">
+                <div class="footer-copyright">
+                    <span>© 2025 AlternativeSoap · All Rights Reserved</span>
+                </div>
+                <div class="footer-links">
+                    <a href="#" id="footer-terms-link">Terms of Service</a>
+                    <span class="footer-divider">·</span>
+                    <a href="#" id="footer-license-link">License</a>
+                    <span class="footer-divider">·</span>
+                    <a href="#" id="footer-privacy-link">Privacy</a>
+                    <span class="footer-divider">·</span>
+                    <a href="#" id="footer-disclaimer-link">Disclaimer</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Legal Modal: Terms of Service -->
+    <div class="legal-modal-overlay hidden" id="terms-modal-overlay">
+        <div class="legal-modal">
+            <div class="legal-modal-header">
+                <h2><i class="fas fa-file-contract"></i> Terms of Service</h2>
+                <button class="legal-modal-close" data-modal="terms-modal-overlay">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="legal-modal-body">
+                <p class="legal-effective-date">Effective Date: January 1, 2025</p>
+                
+                <h3>1. Acceptance of Terms</h3>
+                <p>By accessing or using Soaps MythicMobs Editor ("Soap's Editor"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use Soap's Editor.</p>
+                
+                <h3>2. Service Description</h3>
+                <p>Soaps MythicMobs Editor is a free, browser-based configuration editor that generates YAML files compatible with the MythicMobs plugin for Minecraft servers. Soap's Editor is provided as a convenience to the community.</p>
+                
+                <h3>3. No Warranty</h3>
+                <p>SOAP'S EDITOR IS PROVIDED "AS-IS" WITHOUT ANY WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. This includes, but is not limited to, warranties of merchantability, fitness for a particular purpose, and non-infringement.</p>
+                
+                <h3>4. Limitation of Liability</h3>
+                <p>In no event shall AlternativeSoap or contributors be liable for any direct, indirect, incidental, special, consequential, or punitive damages arising from:</p>
+                <ul>
+                    <li>Use or inability to use Soap's Editor</li>
+                    <li>Any errors in generated configuration files</li>
+                    <li>Data loss or corruption</li>
+                    <li>Server issues resulting from use of generated files</li>
+                    <li>Any other damages related to Soap's Editor</li>
+                </ul>
+                
+                <h3>5. User Responsibility</h3>
+                <p>Users are solely responsible for:</p>
+                <ul>
+                    <li>Validating all generated configuration output before use</li>
+                    <li>Testing configurations in a safe environment first</li>
+                    <li>Backing up existing server data before applying changes</li>
+                    <li>Ensuring compliance with their server hosting terms</li>
+                </ul>
+                
+                <h3>6. Service Availability</h3>
+                <p>Soap's Editor is provided free of charge. We reserve the right to modify, suspend, or discontinue the service at any time without prior notice.</p>
+                
+                <h3>7. Changes to Terms</h3>
+                <p>These terms may be updated at any time. Continued use of Soap's Editor after changes constitutes acceptance of the new terms.</p>
+            </div>
+            <div class="legal-modal-footer">
+                <button class="btn btn-primary legal-modal-close-btn" data-modal="terms-modal-overlay">I Understand</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legal Modal: License -->
+    <div class="legal-modal-overlay hidden" id="license-modal-overlay">
+        <div class="legal-modal">
+            <div class="legal-modal-header">
+                <h2><i class="fas fa-balance-scale"></i> License</h2>
+                <button class="legal-modal-close" data-modal="license-modal-overlay">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="legal-modal-body">
+                <h3>Usage Rights</h3>
+                <p>Soaps MythicMobs Editor is <strong>free to use</strong> for both personal and commercial purposes. You may use Soap's Editor to create configurations for any Minecraft server, whether for personal enjoyment or commercial server operations.</p>
+                
+                <h3>Intellectual Property</h3>
+                <p>Soap's Editor, including its design, code, and functionality, remains the intellectual property of <strong>AlternativeSoap</strong>. All rights not explicitly granted are reserved.</p>
+                
+                <h3>What You May Do</h3>
+                <ul>
+                    <li><i class="fas fa-check" style="color: var(--success);"></i> Use Soap's Editor for personal projects</li>
+                    <li><i class="fas fa-check" style="color: var(--success);"></i> Use Soap's Editor for commercial server configurations</li>
+                    <li><i class="fas fa-check" style="color: var(--success);"></i> Share links to Soap's Editor with others</li>
+                    <li><i class="fas fa-check" style="color: var(--success);"></i> Use generated YAML output freely</li>
+                </ul>
+                
+                <h3>What You May Not Do</h3>
+                <ul>
+                    <li><i class="fas fa-times" style="color: var(--error);"></i> Claim ownership of Soap's Editor</li>
+                    <li><i class="fas fa-times" style="color: var(--error);"></i> Redistribute Soap's Editor as your own work</li>
+                    <li><i class="fas fa-times" style="color: var(--error);"></i> Remove or alter copyright notices</li>
+                    <li><i class="fas fa-times" style="color: var(--error);"></i> Sell or sublicense Soap's Editor itself</li>
+                </ul>
+                
+                <h3>No Ownership Transfer</h3>
+                <p>Use of Soap's Editor does not grant you any ownership rights. Soap's Editor is licensed, not sold, and remains the property of its creator.</p>
+                
+                <h3>Attribution</h3>
+                <p>While not required, attribution to "Soaps MythicMobs Editor by AlternativeSoap" is appreciated when sharing or discussing Soap's Editor.</p>
+            </div>
+            <div class="legal-modal-footer">
+                <button class="btn btn-primary legal-modal-close-btn" data-modal="license-modal-overlay">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legal Modal: Disclaimer -->
+    <div class="legal-modal-overlay hidden" id="disclaimer-modal-overlay">
+        <div class="legal-modal">
+            <div class="legal-modal-header">
+                <h2><i class="fas fa-exclamation-triangle"></i> Important Disclaimer</h2>
+                <button class="legal-modal-close" data-modal="disclaimer-modal-overlay">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="legal-modal-body">
+                <div class="disclaimer-highlight">
+                    <i class="fas fa-shield-alt"></i>
+                    <div>
+                        <strong>Independent Community Project</strong>
+                        <p>This is a third-party, community-made configuration editor created by AlternativeSoap.</p>
+                    </div>
+                </div>
+                
+                <h3>No Affiliation</h3>
+                <p>Soaps MythicMobs Editor is <strong>NOT</strong>:</p>
+                <ul>
+                    <li>Owned by the MythicMobs Authors</li>
+                    <li>Affiliated with the MythicMobs Authors</li>
+                    <li>Endorsed by the MythicMobs Authors</li>
+                    <li>Officially supported by the MythicMobs Authors</li>
+                </ul>
+                
+                <h3>No Responsibility</h3>
+                <p>The MythicMobs Authors have <strong>no responsibility</strong> for Soap's Editor. They did not create it, do not maintain it, and are not liable for any issues arising from its use.</p>
+                
+                <div class="disclaimer-warning">
+                    <i class="fas fa-ban"></i>
+                    <div>
+                        <strong>Do Not Contact MythicMobs Authors for Support</strong>
+                        <p>Please do not contact the MythicMobs Authors for support, bug reports, or feature requests related to Soap's Editor. They cannot help you with issues regarding this editor.</p>
+                    </div>
+                </div>
+                
+                <h3>Trademark Notice</h3>
+                <p>"MythicMobs" is referenced in Soap's Editor solely to describe compatibility with the MythicMobs plugin. This reference does not imply any official relationship or endorsement. All trademarks belong to their respective owners.</p>
+                
+                <h3>Support for Soap's Editor</h3>
+                <p>For questions, issues, or feedback about Soaps MythicMobs Editor, please contact AlternativeSoap through the appropriate community channels.</p>
+            </div>
+            <div class="legal-modal-footer">
+                <button class="btn btn-primary legal-modal-close-btn" data-modal="disclaimer-modal-overlay">I Understand</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legal Modal: Privacy -->
+    <div class="legal-modal-overlay hidden" id="privacy-modal-overlay">
+        <div class="legal-modal">
+            <div class="legal-modal-header">
+                <h2><i class="fas fa-user-shield"></i> Privacy</h2>
+                <button class="legal-modal-close" data-modal="privacy-modal-overlay">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="legal-modal-body">
+                <div class="disclaimer-highlight">
+                    <i class="fas fa-shield-alt"></i>
+                    <div>
+                        <strong>Your Privacy Matters</strong>
+                        <p>Soap's Editor is designed with your privacy in mind. We do not track you or sell your data.</p>
+                    </div>
+                </div>
+                
+                <h3>No Cookies</h3>
+                <p>Soap's Editor does <strong>not use cookies</strong>. We do not place any tracking cookies, advertising cookies, or third-party cookies on your device.</p>
+                
+                <h3>Local Storage</h3>
+                <p>Soap's Editor uses your browser's <strong>localStorage</strong> to save:</p>
+                <ul>
+                    <li><i class="fas fa-folder" style="color: var(--accent-primary);"></i> Your packs, mobs, skills, items, and droptables</li>
+                    <li><i class="fas fa-cog" style="color: var(--accent-primary);"></i> Your editor preferences and settings</li>
+                    <li><i class="fas fa-star" style="color: var(--accent-primary);"></i> Your favorites and recent files</li>
+                    <li><i class="fas fa-columns" style="color: var(--accent-primary);"></i> Panel sizes and UI preferences</li>
+                </ul>
+                <p>This data <strong>stays on your device</strong> and is never sent to any server unless you explicitly choose to sync.</p>
+                
+                <h3>Optional Cloud Sync</h3>
+                <p>If you choose to create an account and enable cloud sync:</p>
+                <ul>
+                    <li>Your email address is stored for authentication</li>
+                    <li>Your packs and templates are stored on secure servers (Supabase)</li>
+                    <li>You can delete your account and data at any time</li>
+                </ul>
+                <p>Cloud sync is <strong>completely optional</strong>. Soap's Editor works fully offline without an account.</p>
+                
+                <h3>No Analytics or Tracking</h3>
+                <p>Soap's Editor does <strong>not</strong> use:</p>
+                <ul>
+                    <li><i class="fas fa-times" style="color: var(--error);"></i> Google Analytics or similar tracking services</li>
+                    <li><i class="fas fa-times" style="color: var(--error);"></i> Advertising networks</li>
+                    <li><i class="fas fa-times" style="color: var(--error);"></i> User behavior tracking</li>
+                    <li><i class="fas fa-times" style="color: var(--error);"></i> Fingerprinting techniques</li>
+                </ul>
+                
+                <h3>Third-Party Services</h3>
+                <p>Soap's Editor loads resources from:</p>
+                <ul>
+                    <li><strong>Google Fonts</strong> — For typography (Inter, JetBrains Mono)</li>
+                    <li><strong>Font Awesome CDN</strong> — For icons</li>
+                    <li><strong>Supabase</strong> — For optional cloud sync and authentication</li>
+                </ul>
+                <p>These services have their own privacy policies.</p>
+                
+                <h3>Your Rights</h3>
+                <p>You have full control over your data:</p>
+                <ul>
+                    <li><i class="fas fa-check" style="color: var(--success);"></i> Clear localStorage anytime via browser settings</li>
+                    <li><i class="fas fa-check" style="color: var(--success);"></i> Export your packs before clearing data</li>
+                    <li><i class="fas fa-check" style="color: var(--success);"></i> Delete your cloud account if registered</li>
+                    <li><i class="fas fa-check" style="color: var(--success);"></i> Use the editor without any account</li>
+                </ul>
+            </div>
+            <div class="legal-modal-footer">
+                <button class="btn btn-primary legal-modal-close-btn" data-modal="privacy-modal-overlay">Close</button>
             </div>
         </div>
     </div>
@@ -1142,6 +1382,59 @@
                     console.warn('⚠️ Template system not initialized: supabaseClient or authManager missing');
                 }
             }, 500);
+            
+            // ==========================================
+            // Legal Modal System
+            // ==========================================
+            
+            // Modal open handlers
+            document.getElementById('footer-terms-link')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('terms-modal-overlay').classList.remove('hidden');
+            });
+            
+            document.getElementById('footer-license-link')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('license-modal-overlay').classList.remove('hidden');
+            });
+            
+            document.getElementById('footer-disclaimer-link')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('disclaimer-modal-overlay').classList.remove('hidden');
+            });
+            
+            document.getElementById('footer-privacy-link')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('privacy-modal-overlay').classList.remove('hidden');
+            });
+            
+            // Modal close handlers - close buttons
+            document.querySelectorAll('.legal-modal-close, .legal-modal-close-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const modalId = btn.getAttribute('data-modal');
+                    if (modalId) {
+                        document.getElementById(modalId).classList.add('hidden');
+                    }
+                });
+            });
+            
+            // Modal close handlers - click on overlay background
+            document.querySelectorAll('.legal-modal-overlay').forEach(overlay => {
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) {
+                        overlay.classList.add('hidden');
+                    }
+                });
+            });
+            
+            // Modal close handlers - ESC key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    document.querySelectorAll('.legal-modal-overlay:not(.hidden)').forEach(modal => {
+                        modal.classList.add('hidden');
+                    });
+                }
+            });
         });
     </script>
 </body>

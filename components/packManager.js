@@ -80,38 +80,38 @@ class PackManager {
         if (!this.contextMenu) return;
         
         this.contextMenu.registerAction('open', (data) => {
-            if (data.fileId && data.fileType) {
+            if (data?.fileId && data?.fileType) {
                 this.openFile(data.fileId, data.fileType);
             }
         });
         
         this.contextMenu.registerAction('duplicate', (data) => {
-            if (data.fileId && data.fileType) {
+            if (data?.fileId && data?.fileType) {
                 this.duplicateFile(data.fileId, data.fileType);
             }
         });
         
         this.contextMenu.registerAction('delete', (data) => {
-            if (data.fileId && data.fileType) {
+            if (data?.fileId && data?.fileType) {
                 this.deleteFile(data.fileId, data.fileType);
             }
         });
         
         this.contextMenu.registerAction('export', (data) => {
-            if (data.fileId && data.fileType) {
+            if (data?.fileId && data?.fileType) {
                 this.exportFile(data.fileId, data.fileType);
             }
         });
         
         this.contextMenu.registerAction('copyName', (data) => {
-            if (data.fileName) {
+            if (data?.fileName) {
                 navigator.clipboard.writeText(data.fileName);
                 this.editor.showToast('Name copied to clipboard', 'success');
             }
         });
         
         this.contextMenu.registerAction('toggleFavorite', (data) => {
-            if (data.fileId) {
+            if (data?.fileId) {
                 this.toggleFavorite(data.fileId, data.fileName, data.fileType, data.packName);
             }
         });
@@ -556,7 +556,10 @@ class PackManager {
         
         return `
             <div class="yaml-file-container" data-file-id="${file.id}" data-file-type="${type}">
-                <div class="yaml-file-header ${isPlaceholder ? 'placeholder-file' : ''}" data-file-id="${file.id}">
+                <div class="yaml-file-header ${isPlaceholder ? 'placeholder-file' : ''}" 
+                     data-file-id="${file.id}" 
+                     data-file-type="${type}" 
+                     data-file-name="${file.fileName}">
                     <i class="fas ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} file-chevron"></i>
                     <i class="fas fa-file-code yaml-file-icon"></i>
                     <span class="yaml-file-name">${file.fileName}</span>
@@ -1937,6 +1940,35 @@ class PackManager {
         return newFile;
     }
     
+    /**
+     * Delete a file with confirmation dialog
+     */
+    async deleteFile(fileId, type) {
+        if (!this.activePack) return false;
+        
+        const collection = this.activePack[type + 's'];
+        if (!collection || collection.length === 0) return false;
+        
+        // Find the file to get its name for the confirmation
+        const file = collection.find(f => f.id === fileId);
+        if (!file) return false;
+        
+        const fileName = file.name || file.fileName || 'this file';
+        
+        // Show confirmation dialog
+        const confirmed = await this.editor.showConfirmDialog(
+            `Delete "${fileName}"?`,
+            `Are you sure you want to delete this file? This action cannot be undone.`,
+            'Delete',
+            'Cancel'
+        );
+        
+        if (!confirmed) return false;
+        
+        // Proceed with deletion
+        return this.removeFile(fileId, type);
+    }
+
     /**
      * Get relative path for a file type
      */

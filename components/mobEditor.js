@@ -2167,7 +2167,8 @@ class MobEditor {
                     
                     <div class="form-group">
                         <label class="form-label">Mount (MythicMob or Entity)</label>
-                        <div id="mob-mount-dropdown"></div>
+                        <input type="hidden" id="mob-mount-value" value="${this.escapeHtml(mob.mount || '')}">
+                        ${this.createMountEntityPickerHTML('mob-mount-value')}
                         <small class="form-hint">Select a MythicMob from your pack or a vanilla entity</small>
                     </div>
                     
@@ -2776,7 +2777,367 @@ class MobEditor {
         `;
     }
     
+    /**
+     * Render the compact totem section with "Open Builder" button
+     */
     renderTotemSection(mob) {
+        const totem = mob.totem || mob.Totem || {};
+        const headBlock = totem.head || totem.Head || 'PLAYER_HEAD';
+        const pattern = totem.pattern || totem.Pattern || [];
+        const replacement = totem.replacement || totem.Replacement || [];
+        const hasTotem = pattern.length > 0 || headBlock !== 'PLAYER_HEAD';
+        
+        // Calculate dimensions for display
+        let dimensions = '0×0×0';
+        let layerCount = 0;
+        if (pattern.length > 0) {
+            const coords = pattern.map(entry => {
+                const parts = entry.trim().split(/\s+/);
+                const [x, y, z] = parts[0].split(',').map(v => parseInt(v) || 0);
+                return { x, y, z };
+            });
+            const minX = Math.min(...coords.map(c => c.x));
+            const maxX = Math.max(...coords.map(c => c.x));
+            const minY = Math.min(...coords.map(c => c.y));
+            const maxY = Math.max(...coords.map(c => c.y));
+            const minZ = Math.min(...coords.map(c => c.z));
+            const maxZ = Math.max(...coords.map(c => c.z));
+            dimensions = `${maxX - minX + 1}×${maxY - minY + 1}×${maxZ - minZ + 1}`;
+            layerCount = maxY - minY + 1;
+        }
+        
+        return `
+            <div class="card collapsible-card collapsed" id="totem-section">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-monument"></i> Totem Summoning
+                        ${hasTotem ? '<span class="card-badge">Configured</span>' : ''}
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <div class="totem-compact-section">
+                        <!-- Info Banner -->
+                        <div style="display: flex; align-items: start; gap: 12px; padding: 12px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 10px; margin-bottom: 4px;">
+                            <i class="fas fa-lightbulb" style="color: #a78bfa; font-size: 18px; margin-top: 2px;"></i>
+                            <div style="flex: 1;">
+                                <strong style="color: #e9d5ff; font-size: 13px; display: block; margin-bottom: 4px;">Totem Summoning</strong>
+                                <p style="margin: 0; color: #c4b5fd; line-height: 1.5; font-size: 12px;">
+                                    Build a structure in-game that summons this mob when completed. Click the button below to open the visual totem builder.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Compact Status Display -->
+                        <div class="totem-compact-preview">
+                            <canvas id="totem-mini-preview-canvas" class="totem-mini-preview" width="80" height="80"></canvas>
+                            <div class="totem-compact-stats">
+                                <div class="totem-compact-stat">
+                                    <div class="value" id="totem-compact-blocks">${pattern.length}</div>
+                                    <div class="label">Blocks</div>
+                                </div>
+                                <div class="totem-compact-stat">
+                                    <div class="value" id="totem-compact-dimensions">${dimensions}</div>
+                                    <div class="label">W×H×D</div>
+                                </div>
+                                <div class="totem-compact-stat">
+                                    <div class="value" id="totem-compact-layers">${layerCount}</div>
+                                    <div class="label">Layers</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Head Block Quick Config -->
+                        <div class="totem-head-config">
+                            <div class="label">
+                                <i class="fas fa-cube"></i> Trigger Block
+                            </div>
+                            <div id="totem-head-dropdown-compact"></div>
+                        </div>
+                        
+                        <!-- Open Builder Button -->
+                        <button type="button" class="totem-open-builder-btn" id="open-totem-builder-btn" data-interactive="true">
+                            <i class="fas fa-edit"></i>
+                            <span>Open Totem Builder</span>
+                        </button>
+                        
+                        <!-- Replacement Blocks (Collapsible) -->
+                        <details style="margin-top: 8px;">
+                            <summary style="cursor: pointer; padding: 10px; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 8px; font-size: 12px; font-weight: 600; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-exchange-alt"></i>
+                                Replacement Blocks
+                                <span style="margin-left: auto; font-size: 10px; background: rgba(251, 191, 36, 0.2); padding: 2px 8px; border-radius: 10px;">${replacement.length}</span>
+                            </summary>
+                            <div style="padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(251, 191, 36, 0.1); border-top: none; border-radius: 0 0 8px 8px;">
+                                <div id="totem-replacement-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+                                    ${replacement.length === 0 ? `
+                                        <small style="color: var(--text-secondary); text-align: center; padding: 8px;">
+                                            No replacements (all blocks become AIR)
+                                        </small>
+                                    ` : ''}
+                                    ${replacement.map((entry, index) => this.generateTotemReplacementCard(entry, index)).join('')}
+                                </div>
+                                <button type="button" class="add-item-btn add-totem-replacement-btn" data-interactive="true" style="width: 100%; margin-top: 8px; background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); border: none; padding: 8px; font-weight: 600; font-size: 12px; border-radius: 6px;">
+                                    <i class="fas fa-plus-circle"></i>
+                                    <span>Add Replacement</span>
+                                </button>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Totem Builder Modal (rendered once, hidden by default) -->
+            ${this.renderTotemBuilderModal(mob)}
+        `;
+    }
+    
+    /**
+     * Render the full totem builder modal
+     */
+    renderTotemBuilderModal(mob) {
+        const totem = mob.totem || mob.Totem || {};
+        const headBlock = totem.head || totem.Head || 'PLAYER_HEAD';
+        const pattern = totem.pattern || totem.Pattern || [];
+        
+        return `
+            <div class="totem-builder-overlay" id="totem-builder-overlay">
+                <div class="totem-builder-modal">
+                    <!-- Header -->
+                    <div class="totem-builder-header">
+                        <div class="totem-builder-title">
+                            <i class="fas fa-monument"></i>
+                            <h2>Totem Builder</h2>
+                            <span>${pattern.length} blocks</span>
+                        </div>
+                        <button type="button" class="totem-builder-close" id="totem-builder-close" data-interactive="true">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Body -->
+                    <div class="totem-builder-body">
+                        <!-- Left Sidebar - Tools -->
+                        <div class="totem-sidebar-left">
+                            <!-- Paint Material -->
+                            <div class="totem-tool-section">
+                                <div class="totem-tool-header" style="color: #fb923c;">
+                                    <i class="fas fa-paint-brush"></i>
+                                    <span>Paint Tool</span>
+                                </div>
+                                <div class="totem-tool-content">
+                                    <div class="totem-material-current" id="totem-current-material-display">
+                                        <div class="totem-material-preview">
+                                            <i class="fas fa-cube"></i>
+                                        </div>
+                                        <div class="totem-material-info">
+                                            <div class="label">Current Material</div>
+                                            <div class="name" id="totem-material-name">PLAYER_HEAD</div>
+                                        </div>
+                                    </div>
+                                    <div id="totem-modal-paint-dropdown" style="margin-bottom: 10px;"></div>
+                                    
+                                    <!-- Symmetry Toggle -->
+                                    <label class="totem-symmetry-toggle" id="totem-modal-symmetry-toggle">
+                                        <input type="checkbox" id="totem-modal-symmetry-checkbox">
+                                        <div class="toggle-box"><i class="fas fa-check"></i></div>
+                                        <span>Mirror (Symmetry)</span>
+                                    </label>
+                                    
+                                    <!-- Recent Materials -->
+                                    <div style="margin-top: 10px;">
+                                        <div style="font-size: 9px; font-weight: 600; color: #fdba74; text-transform: uppercase; margin-bottom: 6px;">
+                                            <i class="fas fa-clock"></i> Recent
+                                        </div>
+                                        <div class="totem-recent-grid" id="totem-modal-recent-materials"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- View Controls -->
+                            <div class="totem-tool-section">
+                                <div class="totem-tool-header" style="color: #ec4899;">
+                                    <i class="fas fa-eye"></i>
+                                    <span>View</span>
+                                </div>
+                                <div class="totem-tool-content">
+                                    <div class="totem-view-buttons">
+                                        <button type="button" class="totem-view-btn-modal active" data-view="top" data-interactive="true">
+                                            <i class="fas fa-arrow-down"></i> Top View (X-Z)
+                                        </button>
+                                        <button type="button" class="totem-view-btn-modal" data-view="front" data-interactive="true">
+                                            <i class="fas fa-arrows-alt-h"></i> Front View (X-Y)
+                                        </button>
+                                        <button type="button" class="totem-view-btn-modal" data-view="side" data-interactive="true">
+                                            <i class="fas fa-arrows-alt-v"></i> Side View (Z-Y)
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Y Level Control (for top view) -->
+                                    <div class="totem-y-control" id="totem-modal-y-control">
+                                        <span class="totem-y-label">Y Level</span>
+                                        <button type="button" class="totem-y-btn" id="totem-modal-y-down" data-interactive="true">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                        <span class="totem-y-value" id="totem-modal-y-display">0</span>
+                                        <button type="button" class="totem-y-btn" id="totem-modal-y-up" data-interactive="true">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Transform Tools -->
+                            <div class="totem-tool-section">
+                                <div class="totem-tool-header" style="color: #3b82f6;">
+                                    <i class="fas fa-magic"></i>
+                                    <span>Transform</span>
+                                </div>
+                                <div class="totem-tool-content">
+                                    <div class="totem-tool-buttons">
+                                        <button type="button" class="totem-tool-btn" id="totem-modal-undo" data-interactive="true" title="Undo (Ctrl+Z)">
+                                            <i class="fas fa-undo"></i>
+                                            <span>Undo</span>
+                                        </button>
+                                        <button type="button" class="totem-tool-btn" id="totem-modal-redo" data-interactive="true" title="Redo (Ctrl+Y)">
+                                            <i class="fas fa-redo"></i>
+                                            <span>Redo</span>
+                                        </button>
+                                        <button type="button" class="totem-tool-btn" id="totem-modal-rotate" data-interactive="true" title="Rotate 90°">
+                                            <i class="fas fa-sync-alt"></i>
+                                            <span>Rotate</span>
+                                        </button>
+                                        <button type="button" class="totem-tool-btn" id="totem-modal-mirror-x" data-interactive="true" title="Mirror X">
+                                            <i class="fas fa-arrows-alt-h"></i>
+                                            <span>Flip X</span>
+                                        </button>
+                                        <button type="button" class="totem-tool-btn" id="totem-modal-mirror-z" data-interactive="true" title="Mirror Z">
+                                            <i class="fas fa-arrows-alt-v"></i>
+                                            <span>Flip Z</span>
+                                        </button>
+                                        <button type="button" class="totem-tool-btn" id="totem-modal-center" data-interactive="true" title="Center Structure">
+                                            <i class="fas fa-compress-arrows-alt"></i>
+                                            <span>Center</span>
+                                        </button>
+                                        <button type="button" class="totem-tool-btn danger" id="totem-modal-clear" data-interactive="true" title="Clear All">
+                                            <i class="fas fa-trash"></i>
+                                            <span>Clear</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Statistics -->
+                            <div class="totem-tool-section">
+                                <div class="totem-tool-header" style="color: #10b981;">
+                                    <i class="fas fa-chart-bar"></i>
+                                    <span>Stats</span>
+                                </div>
+                                <div class="totem-tool-content">
+                                    <div class="totem-stats-grid">
+                                        <div class="totem-stat-item">
+                                            <div class="value" id="totem-modal-total-blocks">0</div>
+                                            <div class="label">Blocks</div>
+                                        </div>
+                                        <div class="totem-stat-item purple">
+                                            <div class="value" id="totem-modal-layer-count">0</div>
+                                            <div class="label">Layers</div>
+                                        </div>
+                                        <div class="totem-stat-item blue" style="grid-column: span 2;">
+                                            <div class="value" id="totem-modal-dimensions">0×0×0</div>
+                                            <div class="label">Dimensions (W×H×D)</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Center - Grid Area -->
+                        <div class="totem-grid-area">
+                            <div class="totem-grid-header">
+                                <div class="totem-grid-label">
+                                    <i class="fas fa-grip-horizontal"></i> Interactive Grid
+                                </div>
+                                <div class="totem-view-indicator" id="totem-modal-view-indicator">
+                                    <i class="fas fa-arrow-down"></i> TOP VIEW (Y=0)
+                                </div>
+                            </div>
+                            
+                            <div class="totem-grid-wrapper">
+                                <div class="totem-modal-grid" id="totem-modal-grid">
+                                    <!-- Grid cells rendered by JS -->
+                                </div>
+                            </div>
+                            
+                            <div class="totem-grid-instructions">
+                                <div class="totem-instruction paint">
+                                    <i class="fas fa-mouse-pointer"></i>
+                                    <span>Left-click to paint</span>
+                                </div>
+                                <div class="totem-instruction erase">
+                                    <i class="fas fa-eraser"></i>
+                                    <span>Right-click to erase</span>
+                                </div>
+                                <div class="totem-instruction drag">
+                                    <i class="fas fa-hand-paper"></i>
+                                    <span>Click + Drag to paint multiple</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Right Sidebar - Preview & Templates -->
+                        <div class="totem-sidebar-right">
+                            <!-- Live Preview -->
+                            <div class="totem-preview-container">
+                                <div class="totem-preview-header">
+                                    <span class="totem-preview-label"><i class="fas fa-eye"></i> Live Preview</span>
+                                    <span class="totem-preview-label"><i class="fas fa-cube"></i> Minecraft</span>
+                                </div>
+                                <canvas id="totem-modal-preview-canvas" class="totem-preview-canvas" width="280" height="280"></canvas>
+                            </div>
+                            
+                            <!-- Templates -->
+                            <div class="totem-tool-section">
+                                <div class="totem-tool-header" style="color: #6366f1;">
+                                    <i class="fas fa-th-large"></i>
+                                    <span>Quick Templates</span>
+                                </div>
+                                <div class="totem-tool-content">
+                                    <div class="totem-templates-grid" id="totem-modal-templates">
+                                        <!-- Templates rendered by JS -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Footer -->
+                    <div class="totem-builder-footer">
+                        <div class="totem-footer-info">
+                            <span><i class="fas fa-crosshairs" style="color: #ef4444;"></i> ⊕ = Spawn Point (0,0,0)</span>
+                            <span><i class="fas fa-info-circle"></i> Changes are saved automatically</span>
+                        </div>
+                        <div class="totem-footer-actions">
+                            <button type="button" class="totem-btn-cancel" id="totem-modal-cancel" data-interactive="true">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Paint Mode Indicator (appears when dragging) -->
+            <div class="totem-paint-mode" id="totem-paint-mode-indicator">
+                <i class="fas fa-paint-brush"></i>
+                <span>Painting...</span>
+            </div>
+        `;
+    }
+    
+    /**
+     * OLD renderTotemSection - kept for reference, now replaced with compact version
+     */
+    renderTotemSectionOLD(mob) {
         const totem = mob.totem || mob.Totem || {};
         const headBlock = totem.head || totem.Head || 'PLAYER_HEAD';
         const pattern = totem.pattern || totem.Pattern || [];
@@ -4536,94 +4897,357 @@ class MobEditor {
     }
     
     /**
-     * Initialize Mount dropdown with SearchableDropdown component
+     * Initialize Mount dropdown with Entity Picker (same as summon mechanic)
      * Includes MythicMobs from pack + Vanilla entity categories
      */
     initializeMountDropdown() {
-        const container = document.getElementById('mob-mount-dropdown');
-        if (!container || typeof SearchableDropdown === 'undefined') return;
+        this.setupMountEntityPickerHandlers('mob-mount-value');
+        // Refresh MythicMobs immediately after setup
+        this.refreshMountMythicMobs();
+    }
+    
+    /**
+     * Create entity picker HTML for mount selection (same pattern as mechanicBrowser)
+     */
+    createMountEntityPickerHTML(inputId) {
+        // Get custom MythicMobs from the current pack
+        const customMobs = this.getCustomMythicMobs();
         
-        const mob = this.currentMob;
+        // Categorize entities (same as mechanicBrowser)
+        const categories = {
+            'Hostile': ['ZOMBIE', 'SKELETON', 'SPIDER', 'CAVE_SPIDER', 'CREEPER', 'ENDERMAN', 'WITCH', 'SLIME', 
+                       'MAGMA_CUBE', 'BLAZE', 'GHAST', 'ZOMBIFIED_PIGLIN', 'HOGLIN', 'PIGLIN', 'PIGLIN_BRUTE',
+                       'WITHER_SKELETON', 'STRAY', 'HUSK', 'DROWNED', 'PHANTOM', 'SILVERFISH', 'ENDERMITE',
+                       'VINDICATOR', 'EVOKER', 'VEX', 'PILLAGER', 'RAVAGER', 'GUARDIAN', 'ELDER_GUARDIAN',
+                       'SHULKER', 'ZOGLIN', 'WARDEN', 'BOGGED', 'BREEZE'],
+            'Passive': ['PIG', 'COW', 'SHEEP', 'CHICKEN', 'RABBIT', 'HORSE', 'DONKEY', 'MULE', 'LLAMA',
+                       'TRADER_LLAMA', 'CAT', 'OCELOT', 'WOLF', 'PARROT', 'BAT', 'VILLAGER', 'WANDERING_TRADER',
+                       'COD', 'SALMON', 'TROPICAL_FISH', 'PUFFERFISH', 'SQUID', 'GLOW_SQUID', 'DOLPHIN',
+                       'TURTLE', 'POLAR_BEAR', 'PANDA', 'FOX', 'BEE', 'MOOSHROOM', 'STRIDER', 'AXOLOTL',
+                       'GOAT', 'FROG', 'TADPOLE', 'CAMEL', 'SNIFFER', 'ARMADILLO', 'ALLAY'],
+            'Utility': ['IRON_GOLEM', 'SNOW_GOLEM', 'ARMOR_STAND', 'ITEM_DISPLAY', 'BLOCK_DISPLAY',
+                       'TEXT_DISPLAY', 'INTERACTION', 'MARKER'],
+            'Bosses': ['ENDER_DRAGON', 'WITHER']
+        };
         
-        // Build categories with MythicMobs and vanilla entities
-        const categories = this.buildMountCategories();
+        // Add MythicMobs category if we have custom mobs
+        if (customMobs.length > 0) {
+            categories['MythicMobs'] = customMobs;
+        }
+
+        return `
+            <div class="entity-picker-container" data-input-id="${inputId}">
+                <!-- Selected Entity Display -->
+                <div class="entity-chips-container" style="display: none;">
+                    <div class="entity-chips"></div>
+                    <button type="button" class="btn-clear-entities">
+                        Clear
+                    </button>
+                </div>
+
+                <!-- Entity Search -->
+                <div class="entity-search-container">
+                    <input type="text" 
+                           class="entity-search-input" 
+                           placeholder="🔍 Search entities or type custom mob name and press Enter...">
+                    <small class="entity-search-hint">Type any entity name and press <kbd>Enter</kbd> to add</small>
+                </div>
+
+                <!-- Entity Browser -->
+                <div class="entity-browser">
+                    ${Object.entries(categories).map(([category, entities]) => `
+                        <div class="entity-category" data-category="${category}">
+                            <div class="entity-category-header">
+                                ${category === 'MythicMobs' ? '🔮 ' : ''}${category} (${entities.length})
+                            </div>
+                            <div class="entity-grid">
+                                ${entities.map(entity => `
+                                    <button type="button" 
+                                            class="entity-item ${category === 'MythicMobs' ? 'mythicmob-item' : ''}" 
+                                            data-entity="${entity}">
+                                        ${entity}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Refresh MythicMobs category in the mount entity picker
+     * Called when mount section is expanded to get latest mobs
+     */
+    refreshMountMythicMobs() {
+        const container = document.querySelector('.entity-picker-container[data-input-id="mob-mount-value"]');
+        if (!container) return;
+
+        const customMobs = this.getCustomMythicMobs();
+        const entityBrowser = container.querySelector('.entity-browser');
+        if (!entityBrowser) return;
+
+        // Find or create MythicMobs category
+        let mythicCategory = entityBrowser.querySelector('.entity-category[data-category="MythicMobs"]');
         
-        // Create SearchableDropdown
-        this.mountDropdown = new SearchableDropdown('mob-mount-dropdown', {
-            categories: categories,
-            placeholder: 'Search mobs or entities...',
-            value: mob.mount || '',
-            storageKey: 'mount-dropdown',
-            onSelect: (value) => {
-                this.currentMob.mount = value;
+        if (customMobs.length > 0) {
+            const categoryHTML = `
+                <div class="entity-category" data-category="MythicMobs">
+                    <div class="entity-category-header">
+                        🔮 MythicMobs (${customMobs.length})
+                    </div>
+                    <div class="entity-grid">
+                        ${customMobs.map(entity => `
+                            <button type="button" 
+                                    class="entity-item mythicmob-item" 
+                                    data-entity="${entity}">
+                                ${entity}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            if (mythicCategory) {
+                // Update existing category
+                mythicCategory.outerHTML = categoryHTML;
+            } else {
+                // Add new category at the top
+                entityBrowser.insertAdjacentHTML('afterbegin', categoryHTML);
+            }
+        } else if (mythicCategory) {
+            // Remove category if no mobs
+            mythicCategory.remove();
+        }
+    }
+
+    /**
+     * Setup entity picker event handlers for mount selection
+     */
+    setupMountEntityPickerHandlers(inputId) {
+        const container = document.querySelector(`.entity-picker-container[data-input-id="${inputId}"]`);
+        if (!container) return;
+
+        const input = document.getElementById(inputId);
+        const searchInput = container.querySelector('.entity-search-input');
+        const chipsContainer = container.querySelector('.entity-chips');
+        const chipsWrapper = container.querySelector('.entity-chips-container');
+        const clearBtn = container.querySelector('.btn-clear-entities');
+
+        // Track selected entity (mount only allows one)
+        let selectedEntity = input.value.trim() || '';
+
+        // Initialize from existing input value
+        if (selectedEntity) {
+            this.updateMountEntityChip(chipsContainer, chipsWrapper, selectedEntity, input);
+        }
+        
+        // Refresh MythicMobs when mount section is expanded
+        const mountCard = container.closest('.collapsible-card[data-mob-field="Mount"]');
+        if (mountCard) {
+            const header = mountCard.querySelector('.collapsible-header');
+            if (header) {
+                header.addEventListener('click', () => {
+                    // Refresh after a small delay to let the section expand
+                    setTimeout(() => {
+                        if (!mountCard.classList.contains('collapsed')) {
+                            this.refreshMountMythicMobs();
+                        }
+                    }, 50);
+                });
+            }
+        }
+
+        // Entity item click handler
+        container.addEventListener('click', (e) => {
+            const entityBtn = e.target.closest('.entity-item');
+            if (entityBtn) {
+                const entity = entityBtn.dataset.entity;
+                selectedEntity = entity;
+                input.value = entity;
+                this.updateMountEntityChip(chipsContainer, chipsWrapper, selectedEntity, input);
+                
+                // Update mob data
+                this.currentMob.mount = entity;
                 this.editor.markDirty();
                 this.editor.updateYAMLPreview();
                 window.collapsibleManager.saveStates();
                 this.render(this.currentMob);
             }
         });
+
+        // Clear button
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                selectedEntity = '';
+                input.value = '';
+                this.updateMountEntityChip(chipsContainer, chipsWrapper, '', input);
+                
+                // Clear mob mount
+                this.currentMob.mount = '';
+                this.editor.markDirty();
+                this.editor.updateYAMLPreview();
+                window.collapsibleManager.saveStates();
+                this.render(this.currentMob);
+            });
+        }
+
+        // Enter key to add custom entity
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const customName = searchInput.value.trim();
+                if (customName) {
+                    selectedEntity = customName;
+                    input.value = customName;
+                    this.updateMountEntityChip(chipsContainer, chipsWrapper, selectedEntity, input);
+                    searchInput.value = '';
+                    
+                    // Reset search filter
+                    const categories = container.querySelectorAll('.entity-category');
+                    categories.forEach(cat => cat.style.display = '');
+                    container.querySelectorAll('.entity-item').forEach(item => item.style.display = '');
+                    
+                    // Update mob data
+                    this.currentMob.mount = customName;
+                    this.editor.markDirty();
+                    this.editor.updateYAMLPreview();
+                    window.collapsibleManager.saveStates();
+                    this.render(this.currentMob);
+                }
+            }
+        });
+
+        // Search functionality
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const categories = container.querySelectorAll('.entity-category');
+            
+            categories.forEach(category => {
+                const items = category.querySelectorAll('.entity-item');
+                let visibleCount = 0;
+                
+                items.forEach(item => {
+                    const entityName = item.dataset.entity.toLowerCase();
+                    if (entityName.includes(query)) {
+                        item.style.display = '';
+                        visibleCount++;
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+                
+                // Hide category if no visible items
+                category.style.display = visibleCount > 0 ? '' : 'none';
+            });
+        });
     }
-    
+
     /**
-     * Build mount dropdown categories with MythicMobs + vanilla entities
+     * Update mount entity chip display
      */
-    buildMountCategories() {
-        const categories = {};
+    updateMountEntityChip(chipsContainer, chipsWrapper, entity, input) {
+        if (!chipsContainer) return;
         
-        // Get MythicMobs from current pack
-        const mythicMobs = [];
-        if (this.editor.state.currentPack?.mobs) {
-            this.editor.state.currentPack.mobs.forEach(file => {
-                if (file.entries) {
-                    file.entries.forEach(mob => {
-                        if (mob.internalName && mob.internalName !== this.currentMob?.name) {
-                            mythicMobs.push(mob.internalName);
+        if (entity) {
+            chipsWrapper.style.display = 'flex';
+            chipsContainer.innerHTML = `
+                <span class="entity-chip">
+                    ${entity}
+                    <button type="button" class="chip-remove" data-entity="${entity}">×</button>
+                </span>
+            `;
+            
+            // Add remove handler
+            const removeBtn = chipsContainer.querySelector('.chip-remove');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', () => {
+                    input.value = '';
+                    chipsWrapper.style.display = 'none';
+                    chipsContainer.innerHTML = '';
+                    
+                    // Clear mob mount
+                    this.currentMob.mount = '';
+                    this.editor.markDirty();
+                    this.editor.updateYAMLPreview();
+                    window.collapsibleManager.saveStates();
+                    this.render(this.currentMob);
+                });
+            }
+        } else {
+            chipsWrapper.style.display = 'none';
+            chipsContainer.innerHTML = '';
+        }
+    }
+
+    /**
+     * Get custom MythicMobs from the current pack (same as mechanicBrowser)
+     */
+    getCustomMythicMobs() {
+        try {
+            // Try multiple paths to access packManager (same as mechanicBrowser)
+            let packManager = null;
+            
+            // Path 1: this.editor.packManager
+            if (this.editor?.packManager) {
+                packManager = this.editor.packManager;
+            }
+            // Path 2: window.editor.packManager (global editor instance)
+            else if (window.editor?.packManager) {
+                packManager = window.editor.packManager;
+            }
+            // Path 3: window.app.packManager (fallback)
+            else if (window.app?.packManager) {
+                packManager = window.app.packManager;
+            }
+            
+            if (!packManager) {
+                return [];
+            }
+            
+            const activePack = packManager.activePack;
+            if (!activePack || !activePack.mobs) {
+                return [];
+            }
+            
+            const customMobs = [];
+            const currentMobName = this.currentMob?.name || this.currentMob?.internalName;
+            
+            // Check if using file-based structure
+            if (Array.isArray(activePack.mobs) && activePack.mobs.length > 0) {
+                if (activePack.mobs[0].entries !== undefined) {
+                    // File-based structure
+                    activePack.mobs.forEach(file => {
+                        if (file.entries && Array.isArray(file.entries)) {
+                            file.entries.forEach(mob => {
+                                const mobName = mob.internalName || mob.name;
+                                if (mobName && mobName !== currentMobName) {
+                                    customMobs.push(mobName);
+                                }
+                            });
+                        }
+                    });
+                } else {
+                    // Legacy structure
+                    activePack.mobs.forEach(mob => {
+                        const mobName = mob.internalName || mob.name;
+                        if (mobName && mobName !== currentMobName) {
+                            customMobs.push(mobName);
                         }
                     });
                 }
-            });
+            }
+            
+            // Sort alphabetically and remove duplicates
+            return [...new Set(customMobs)].sort((a, b) => a.localeCompare(b));
+        } catch (err) {
+            console.error('Error getting custom MythicMobs:', err);
+            return [];
         }
-        
-        // Add MythicMobs category if there are any
-        if (mythicMobs.length > 0) {
-            categories['🔮 MythicMobs (Your Pack)'] = {
-                icon: '🔮',
-                items: mythicMobs.sort()
-            };
-        }
-        
-        // Get vanilla entity categories
-        const entityCategories = this.fieldManager.getEntitiesByCategory();
-        Object.entries(entityCategories).forEach(([category, entities]) => {
-            categories[category] = {
-                icon: this.getCategoryIcon(category),
-                items: entities
-            };
-        });
-        
-        return categories;
     }
     
     /**
-     * Get icon for entity category
-     */
-    getCategoryIcon(category) {
-        const icons = {
-            'Hostile Mobs': '👹',
-            'Passive Mobs': '🐄',
-            'Neutral Mobs': '🐺',
-            'Tameable Mobs': '🐱',
-            'Aquatic Mobs': '🐟',
-            'Flying Mobs': '🦇',
-            'Boss Mobs': '👑',
-            'Utility Mobs': '🤖',
-            'Special Entities': '✨',
-            'Projectiles': '🏹',
-            'Vehicles': '⛵',
-            'Display Entities': '🖼️'
-        };
-        return icons[category] || '📦';
-    }
     
     /**
      * Initialize Trades section with item selectors
@@ -5735,6 +6359,717 @@ class MobEditor {
                 }
             }, true);
         });
+        
+        // === NEW TOTEM BUILDER MODAL HANDLERS ===
+        this.initTotemBuilderModal(mob);
+    }
+    
+    /**
+     * Initialize the totem builder modal with all event handlers
+     */
+    initTotemBuilderModal(mob) {
+        // Open builder button
+        const openBuilderBtn = document.getElementById('open-totem-builder-btn');
+        if (openBuilderBtn) {
+            openBuilderBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.openTotemBuilderModal(mob);
+            }, true);
+        }
+        
+        // Close modal buttons
+        const closeBtn = document.getElementById('totem-builder-close');
+        const cancelBtn = document.getElementById('totem-modal-cancel');
+        
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.closeTotemBuilderModal(), true);
+        }
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => this.closeTotemBuilderModal(), true);
+        }
+        
+        // Close on overlay click
+        const overlay = document.getElementById('totem-builder-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    this.closeTotemBuilderModal();
+                }
+            }, true);
+        }
+        
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && overlay?.classList.contains('active')) {
+                this.closeTotemBuilderModal();
+            }
+        });
+        
+        // Initialize compact preview canvas
+        this.updateCompactPreview(mob);
+        
+        // Initialize head dropdown in compact section
+        setTimeout(() => {
+            const headContainerCompact = document.getElementById('totem-head-dropdown-compact');
+            if (headContainerCompact && window.MINECRAFT_ITEMS) {
+                headContainerCompact.innerHTML = '';
+                const totem = mob.totem || mob.Totem || {};
+                const headBlock = totem.head || totem.Head || 'PLAYER_HEAD';
+                
+                new SearchableDropdown('totem-head-dropdown-compact', {
+                    categories: window.getCombinedItemCategories ? window.getCombinedItemCategories(true) : null,
+                    items: !window.getCombinedItemCategories ? window.MINECRAFT_ITEMS : null,
+                    useIcons: true,
+                    storageKey: 'totem-head-block',
+                    placeholder: 'Search block...',
+                    value: headBlock,
+                    onSelect: (value) => {
+                        if (!mob.totem) mob.totem = {};
+                        mob.totem.Head = value;
+                        this.editor.markDirty();
+                        this.editor.updateYAMLPreview();
+                    }
+                });
+            }
+        }, 100);
+    }
+    
+    /**
+     * Open the totem builder modal
+     */
+    openTotemBuilderModal(mob) {
+        const overlay = document.getElementById('totem-builder-overlay');
+        if (!overlay) return;
+        
+        // Show modal
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        // Initialize modal components
+        setTimeout(() => {
+            this.initTotemModalControls(mob);
+            this.renderTotemModalGrid();
+            this.updateTotemModalPreview(mob);
+            this.updateTotemModalStats();
+            this.renderTotemModalTemplates();
+            this.renderTotemModalRecentMaterials();
+        }, 50);
+    }
+    
+    /**
+     * Close the totem builder modal
+     */
+    closeTotemBuilderModal() {
+        const overlay = document.getElementById('totem-builder-overlay');
+        if (!overlay) return;
+        
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+        
+        // Update compact section preview
+        this.updateCompactPreview(this.currentMob);
+        this.updateCompactStats();
+    }
+    
+    /**
+     * Initialize modal control event handlers
+     */
+    initTotemModalControls(mob) {
+        // Paint material dropdown
+        const paintContainer = document.getElementById('totem-modal-paint-dropdown');
+        if (paintContainer && window.MINECRAFT_ITEMS) {
+            paintContainer.innerHTML = '';
+            new SearchableDropdown('totem-modal-paint-dropdown', {
+                categories: window.getCombinedItemCategories ? window.getCombinedItemCategories(true) : null,
+                items: !window.getCombinedItemCategories ? window.MINECRAFT_ITEMS : null,
+                useIcons: true,
+                storageKey: 'totem-modal-paint-material',
+                placeholder: 'Search material...',
+                value: this.totemGridState.currentMaterial,
+                onSelect: (value) => {
+                    this.totemGridState.currentMaterial = value;
+                    this.addToRecentMaterials(value);
+                    this.updateMaterialDisplay(value);
+                    this.renderTotemModalRecentMaterials();
+                }
+            });
+        }
+        
+        // Symmetry toggle
+        const symmetryToggle = document.getElementById('totem-modal-symmetry-toggle');
+        const symmetryCheckbox = document.getElementById('totem-modal-symmetry-checkbox');
+        if (symmetryToggle) {
+            // Set initial state
+            if (symmetryCheckbox) symmetryCheckbox.checked = this.totemGridState.symmetryMode;
+            symmetryToggle.classList.toggle('active', this.totemGridState.symmetryMode);
+            
+            // Remove old listeners by cloning
+            const newToggle = symmetryToggle.cloneNode(true);
+            symmetryToggle.parentNode.replaceChild(newToggle, symmetryToggle);
+            
+            newToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.totemGridState.symmetryMode = !this.totemGridState.symmetryMode;
+                const checkbox = newToggle.querySelector('input[type="checkbox"]');
+                if (checkbox) checkbox.checked = this.totemGridState.symmetryMode;
+                newToggle.classList.toggle('active', this.totemGridState.symmetryMode);
+            }, true);
+        }
+        
+        // View buttons
+        document.querySelectorAll('.totem-view-btn-modal').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const view = btn.dataset.view;
+                this.totemGridState.currentView = view;
+                
+                // Update button styles
+                document.querySelectorAll('.totem-view-btn-modal').forEach(b => {
+                    b.classList.toggle('active', b.dataset.view === view);
+                });
+                
+                // Show/hide Y control
+                const yControl = document.getElementById('totem-modal-y-control');
+                if (yControl) {
+                    yControl.style.display = view === 'top' ? 'flex' : 'none';
+                }
+                
+                // Update view indicator
+                this.updateModalViewIndicator();
+                
+                this.renderTotemModalGrid();
+                this.updateTotemModalPreview(mob);
+            }, true);
+        });
+        
+        // Y level controls
+        const yUp = document.getElementById('totem-modal-y-up');
+        const yDown = document.getElementById('totem-modal-y-down');
+        
+        if (yUp) {
+            yUp.addEventListener('click', () => {
+                this.totemGridState.currentY++;
+                this.updateModalYDisplay();
+                this.updateModalViewIndicator();
+                this.renderTotemModalGrid();
+            }, true);
+        }
+        
+        if (yDown) {
+            yDown.addEventListener('click', () => {
+                this.totemGridState.currentY--;
+                this.updateModalYDisplay();
+                this.updateModalViewIndicator();
+                this.renderTotemModalGrid();
+            }, true);
+        }
+        
+        // Transform tools
+        document.getElementById('totem-modal-undo')?.addEventListener('click', () => this.undoTotem(), true);
+        document.getElementById('totem-modal-redo')?.addEventListener('click', () => this.redoTotem(), true);
+        document.getElementById('totem-modal-rotate')?.addEventListener('click', () => this.rotateTotem(), true);
+        document.getElementById('totem-modal-mirror-x')?.addEventListener('click', () => this.mirrorTotemX(), true);
+        document.getElementById('totem-modal-mirror-z')?.addEventListener('click', () => this.mirrorTotemZ(), true);
+        document.getElementById('totem-modal-center')?.addEventListener('click', () => this.centerTotem(), true);
+        document.getElementById('totem-modal-clear')?.addEventListener('click', async () => {
+            const confirmed = await this.editor.showConfirmDialog(
+                'Clear Totem?',
+                'This will remove all blocks from your totem.',
+                'Clear All',
+                'Cancel'
+            );
+            if (confirmed) {
+                this.saveTotemHistory();
+                this.totemGridState.blocks.clear();
+                this.refreshTotemDisplays();
+            }
+        }, true);
+    }
+    
+    /**
+     * Render the modal grid with drag painting support
+     */
+    renderTotemModalGrid() {
+        const gridContainer = document.getElementById('totem-modal-grid');
+        if (!gridContainer) return;
+        
+        const state = this.totemGridState;
+        const size = state.gridSize;
+        const half = Math.floor(size / 2);
+        
+        gridContainer.style.gridTemplateColumns = `repeat(${size}, 38px)`;
+        
+        let html = '';
+        const view = state.currentView;
+        
+        if (view === 'top') {
+            // Top view: X-Z plane
+            for (let z = -half; z <= half; z++) {
+                for (let x = -half; x <= half; x++) {
+                    html += this.renderTotemModalCell(x, state.currentY, z, 'top');
+                }
+            }
+        } else if (view === 'front') {
+            // Front view: X-Y plane
+            for (let y = half; y >= -half; y--) {
+                for (let x = -half; x <= half; x++) {
+                    html += this.renderTotemModalCell(x, y, 0, 'front');
+                }
+            }
+        } else {
+            // Side view: Z-Y plane
+            for (let y = half; y >= -half; y--) {
+                for (let z = -half; z <= half; z++) {
+                    html += this.renderTotemModalCell(0, y, z, 'side');
+                }
+            }
+        }
+        
+        gridContainer.innerHTML = html;
+        
+        // Attach cell event handlers with drag painting support
+        this.attachModalGridHandlers(gridContainer);
+    }
+    
+    /**
+     * Render a single grid cell for the modal
+     */
+    renderTotemModalCell(x, y, z, view) {
+        const state = this.totemGridState;
+        const coord = `${x},${y},${z}`;
+        const hasBlock = state.blocks.has(coord);
+        const material = state.blocks.get(coord) || '';
+        const half = Math.floor(state.gridSize / 2);
+        
+        // Check for blocks at other levels (for top view)
+        let hasBlockOtherY = false;
+        if (view === 'top') {
+            for (let checkY = -half; checkY <= half; checkY++) {
+                if (checkY !== y && state.blocks.has(`${x},${checkY},${z}`)) {
+                    hasBlockOtherY = true;
+                    break;
+                }
+            }
+        }
+        
+        const isSpawnPoint = x === 0 && y === 0 && z === 0;
+        
+        let classes = 'totem-grid-cell-modal';
+        if (hasBlock) classes += ' has-block';
+        else if (hasBlockOtherY) classes += ' has-other';
+        else if (isSpawnPoint) classes += ' spawn-point';
+        
+        let icon = '';
+        if (hasBlock) icon = '▣';
+        else if (isSpawnPoint) icon = '⊕';
+        else if (hasBlockOtherY) icon = '○';
+        
+        const tooltip = hasBlock ? `${coord}: ${material}` : isSpawnPoint ? 'Spawn Point (0,0,0)' : coord;
+        
+        return `
+            <div class="${classes}" 
+                 data-coord="${coord}" 
+                 data-x="${x}" 
+                 data-y="${y}" 
+                 data-z="${z}"
+                 title="${tooltip}">
+                <span class="cell-icon">${icon}</span>
+            </div>
+        `;
+    }
+    
+    /**
+     * Attach grid event handlers with drag painting support
+     */
+    attachModalGridHandlers(gridContainer) {
+        const state = this.totemGridState;
+        let isPainting = false;
+        let isErasing = false;
+        let paintedCells = new Set(); // Track cells painted in current drag
+        
+        const paintIndicator = document.getElementById('totem-paint-mode-indicator');
+        
+        const startPaint = (cell, erase = false) => {
+            isPainting = !erase;
+            isErasing = erase;
+            paintedCells.clear();
+            
+            if (paintIndicator) {
+                paintIndicator.classList.add('active');
+                paintIndicator.innerHTML = erase ? 
+                    '<i class="fas fa-eraser"></i> <span>Erasing...</span>' :
+                    '<i class="fas fa-paint-brush"></i> <span>Painting...</span>';
+            }
+            
+            this.saveTotemHistory();
+            this.paintCell(cell, erase);
+            paintedCells.add(cell.dataset.coord);
+        };
+        
+        const continuePaint = (cell) => {
+            if (!isPainting && !isErasing) return;
+            if (paintedCells.has(cell.dataset.coord)) return;
+            
+            this.paintCell(cell, isErasing);
+            paintedCells.add(cell.dataset.coord);
+        };
+        
+        const endPaint = () => {
+            if (isPainting || isErasing) {
+                isPainting = false;
+                isErasing = false;
+                paintedCells.clear();
+                
+                if (paintIndicator) {
+                    paintIndicator.classList.remove('active');
+                }
+                
+                this.refreshTotemDisplays();
+            }
+        };
+        
+        // Attach handlers to each cell
+        gridContainer.querySelectorAll('.totem-grid-cell-modal').forEach(cell => {
+            // Left mouse down - start painting
+            cell.addEventListener('mousedown', (e) => {
+                if (e.button === 0) { // Left click
+                    e.preventDefault();
+                    startPaint(cell, false);
+                }
+            });
+            
+            // Right mouse down - start erasing
+            cell.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                startPaint(cell, true);
+            });
+            
+            // Mouse enter while painting
+            cell.addEventListener('mouseenter', (e) => {
+                continuePaint(cell);
+                
+                // Hover preview
+                if (!isPainting && !isErasing && !state.blocks.has(cell.dataset.coord)) {
+                    cell.classList.add('painting-preview');
+                }
+            });
+            
+            // Mouse leave - remove hover preview
+            cell.addEventListener('mouseleave', () => {
+                cell.classList.remove('painting-preview');
+            });
+        });
+        
+        // Global mouse up to end painting
+        document.addEventListener('mouseup', endPaint);
+        
+        // Prevent default drag behavior
+        gridContainer.addEventListener('dragstart', (e) => e.preventDefault());
+    }
+    
+    /**
+     * Paint or erase a single cell
+     */
+    paintCell(cell, erase) {
+        const state = this.totemGridState;
+        const coord = cell.dataset.coord;
+        
+        if (erase) {
+            state.blocks.delete(coord);
+            
+            // Remove symmetry block if enabled
+            if (state.symmetryMode) {
+                const [x, y, z] = coord.split(',').map(Number);
+                state.blocks.delete(`${-x},${y},${z}`);
+            }
+            
+            cell.classList.remove('has-block');
+            cell.classList.add('erasing');
+        } else {
+            state.blocks.set(coord, state.currentMaterial);
+            
+            // Place symmetry block if enabled
+            if (state.symmetryMode) {
+                const [x, y, z] = coord.split(',').map(Number);
+                const mirrorCoord = `${-x},${y},${z}`;
+                if (mirrorCoord !== coord) {
+                    state.blocks.set(mirrorCoord, state.currentMaterial);
+                }
+            }
+            
+            cell.classList.add('has-block');
+            cell.querySelector('.cell-icon').textContent = '▣';
+        }
+    }
+    
+    /**
+     * Update the material display in the modal
+     */
+    updateMaterialDisplay(material) {
+        const nameDisplay = document.getElementById('totem-material-name');
+        if (nameDisplay) {
+            nameDisplay.textContent = material;
+        }
+    }
+    
+    /**
+     * Update Y level display in modal
+     */
+    updateModalYDisplay() {
+        const display = document.getElementById('totem-modal-y-display');
+        if (display) {
+            display.textContent = this.totemGridState.currentY;
+        }
+    }
+    
+    /**
+     * Update view indicator in modal
+     */
+    updateModalViewIndicator() {
+        const indicator = document.getElementById('totem-modal-view-indicator');
+        if (!indicator) return;
+        
+        const view = this.totemGridState.currentView;
+        const viewLabels = {
+            'top': `<i class="fas fa-arrow-down"></i> TOP VIEW (Y=${this.totemGridState.currentY})`,
+            'front': '<i class="fas fa-arrows-alt-h"></i> FRONT VIEW (X-Y)',
+            'side': '<i class="fas fa-arrows-alt-v"></i> SIDE VIEW (Z-Y)'
+        };
+        
+        indicator.innerHTML = viewLabels[view] || viewLabels['top'];
+    }
+    
+    /**
+     * Update modal preview canvas
+     */
+    updateTotemModalPreview(mob) {
+        const canvas = document.getElementById('totem-modal-preview-canvas');
+        if (!canvas) return;
+        
+        // Create temporary renderer for modal canvas
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
+        // Use existing totem renderer logic
+        if (this.totemRenderer) {
+            // Temporarily swap canvas
+            const originalCanvas = this.totemRenderer.canvas;
+            const originalCtx = this.totemRenderer.ctx;
+            
+            this.totemRenderer.canvas = canvas;
+            this.totemRenderer.ctx = ctx;
+            
+            const pattern = mob?.totem?.Pattern || [];
+            this.totemRenderer.render(pattern, this.totemGridState.currentView);
+            
+            // Restore original
+            this.totemRenderer.canvas = originalCanvas;
+            this.totemRenderer.ctx = originalCtx;
+        }
+    }
+    
+    /**
+     * Update modal statistics display
+     */
+    updateTotemModalStats() {
+        const state = this.totemGridState;
+        
+        // Total blocks
+        const totalEl = document.getElementById('totem-modal-total-blocks');
+        if (totalEl) totalEl.textContent = state.blocks.size;
+        
+        // Calculate dimensions
+        if (state.blocks.size > 0) {
+            const coords = Array.from(state.blocks.keys()).map(c => {
+                const [x, y, z] = c.split(',').map(Number);
+                return { x, y, z };
+            });
+            
+            const minX = Math.min(...coords.map(c => c.x));
+            const maxX = Math.max(...coords.map(c => c.x));
+            const minY = Math.min(...coords.map(c => c.y));
+            const maxY = Math.max(...coords.map(c => c.y));
+            const minZ = Math.min(...coords.map(c => c.z));
+            const maxZ = Math.max(...coords.map(c => c.z));
+            
+            const dimensionsEl = document.getElementById('totem-modal-dimensions');
+            if (dimensionsEl) {
+                dimensionsEl.textContent = `${maxX - minX + 1}×${maxY - minY + 1}×${maxZ - minZ + 1}`;
+            }
+            
+            const layersEl = document.getElementById('totem-modal-layer-count');
+            if (layersEl) {
+                layersEl.textContent = maxY - minY + 1;
+            }
+        } else {
+            const dimensionsEl = document.getElementById('totem-modal-dimensions');
+            if (dimensionsEl) dimensionsEl.textContent = '0×0×0';
+            
+            const layersEl = document.getElementById('totem-modal-layer-count');
+            if (layersEl) layersEl.textContent = '0';
+        }
+        
+        // Update header badge
+        const headerBadge = document.querySelector('.totem-builder-title span');
+        if (headerBadge) {
+            headerBadge.textContent = `${state.blocks.size} blocks`;
+        }
+    }
+    
+    /**
+     * Render templates in modal
+     */
+    renderTotemModalTemplates() {
+        const container = document.getElementById('totem-modal-templates');
+        if (!container || !this.TOTEM_TEMPLATES) return;
+        
+        container.innerHTML = Object.entries(this.TOTEM_TEMPLATES).map(([key, template]) => `
+            <div class="totem-template-item" data-template="${key}">
+                <span class="icon">${template.icon}</span>
+                <span class="name">${template.name}</span>
+                <span class="desc">${template.description}</span>
+            </div>
+        `).join('');
+        
+        // Attach click handlers
+        container.querySelectorAll('.totem-template-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const templateKey = item.dataset.template;
+                const template = this.TOTEM_TEMPLATES[templateKey];
+                if (template) {
+                    this.applyTotemTemplate(template);
+                }
+            });
+        });
+    }
+    
+    /**
+     * Apply a totem template
+     */
+    applyTotemTemplate(template) {
+        this.saveTotemHistory();
+        this.totemGridState.blocks.clear();
+        
+        template.pattern.forEach(entry => {
+            const parts = entry.trim().split(/\s+/);
+            const coord = parts[0];
+            const material = parts.slice(1).join(' ');
+            this.totemGridState.blocks.set(coord, material);
+        });
+        
+        this.refreshTotemDisplays();
+    }
+    
+    /**
+     * Render recent materials in modal
+     */
+    renderTotemModalRecentMaterials() {
+        const container = document.getElementById('totem-modal-recent-materials');
+        if (!container) return;
+        
+        const recentMaterials = this.totemGridState.recentMaterials || [];
+        
+        container.innerHTML = recentMaterials.slice(0, 8).map(material => {
+            const isActive = material === this.totemGridState.currentMaterial;
+            return `
+                <div class="totem-recent-item ${isActive ? 'active' : ''}" 
+                     data-material="${material}" 
+                     title="${material}">
+                    <i class="fas fa-cube"></i>
+                </div>
+            `;
+        }).join('');
+        
+        // Attach click handlers
+        container.querySelectorAll('.totem-recent-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const material = item.dataset.material;
+                this.totemGridState.currentMaterial = material;
+                this.updateMaterialDisplay(material);
+                this.renderTotemModalRecentMaterials();
+            });
+        });
+    }
+    
+    /**
+     * Update compact preview canvas
+     */
+    updateCompactPreview(mob) {
+        const canvas = document.getElementById('totem-mini-preview-canvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
+        // Draw mini preview
+        ctx.clearRect(0, 0, 80, 80);
+        
+        const pattern = mob?.totem?.Pattern || [];
+        if (pattern.length === 0) {
+            // Empty state
+            ctx.fillStyle = '#1a1530';
+            ctx.fillRect(0, 0, 80, 80);
+            ctx.fillStyle = '#4a4570';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No blocks', 40, 45);
+            return;
+        }
+        
+        // Use totem renderer for mini preview
+        if (this.totemRenderer) {
+            const originalCanvas = this.totemRenderer.canvas;
+            const originalCtx = this.totemRenderer.ctx;
+            const originalBlockSize = this.totemRenderer.blockSize;
+            
+            this.totemRenderer.canvas = canvas;
+            this.totemRenderer.ctx = ctx;
+            this.totemRenderer.blockSize = 12; // Smaller blocks for mini preview
+            
+            this.totemRenderer.render(pattern, 'top');
+            
+            this.totemRenderer.canvas = originalCanvas;
+            this.totemRenderer.ctx = originalCtx;
+            this.totemRenderer.blockSize = originalBlockSize;
+        }
+    }
+    
+    /**
+     * Update compact section stats
+     */
+    updateCompactStats() {
+        const state = this.totemGridState;
+        
+        const blocksEl = document.getElementById('totem-compact-blocks');
+        if (blocksEl) blocksEl.textContent = state.blocks.size;
+        
+        if (state.blocks.size > 0) {
+            const coords = Array.from(state.blocks.keys()).map(c => {
+                const [x, y, z] = c.split(',').map(Number);
+                return { x, y, z };
+            });
+            
+            const minX = Math.min(...coords.map(c => c.x));
+            const maxX = Math.max(...coords.map(c => c.x));
+            const minY = Math.min(...coords.map(c => c.y));
+            const maxY = Math.max(...coords.map(c => c.y));
+            const minZ = Math.min(...coords.map(c => c.z));
+            const maxZ = Math.max(...coords.map(c => c.z));
+            
+            const dimEl = document.getElementById('totem-compact-dimensions');
+            if (dimEl) dimEl.textContent = `${maxX - minX + 1}×${maxY - minY + 1}×${maxZ - minZ + 1}`;
+            
+            const layersEl = document.getElementById('totem-compact-layers');
+            if (layersEl) layersEl.textContent = maxY - minY + 1;
+        } else {
+            const dimEl = document.getElementById('totem-compact-dimensions');
+            if (dimEl) dimEl.textContent = '0×0×0';
+            
+            const layersEl = document.getElementById('totem-compact-layers');
+            if (layersEl) layersEl.textContent = '0';
+        }
     }
     
     /**
@@ -5837,10 +7172,7 @@ class MobEditor {
         state.historyIndex--;
         state.blocks = new Map(state.history[state.historyIndex]);
         
-        this.renderTotemGrid();
-        this.updateTotemPreview(this.currentMob);
-        this.syncTotemToMob();
-        this.updateTotemStatistics();
+        this.refreshTotemDisplays();
         this.updateUndoRedoButtons();
     }
     
@@ -5854,10 +7186,7 @@ class MobEditor {
         state.historyIndex++;
         state.blocks = new Map(state.history[state.historyIndex]);
         
-        this.renderTotemGrid();
-        this.updateTotemPreview(this.currentMob);
-        this.syncTotemToMob();
-        this.updateTotemStatistics();
+        this.refreshTotemDisplays();
         this.updateUndoRedoButtons();
     }
     
@@ -5880,6 +7209,37 @@ class MobEditor {
     }
     
     /**
+     * Check if totem modal is currently open
+     */
+    isTotemModalOpen() {
+        const overlay = document.getElementById('totem-builder-overlay');
+        return overlay && overlay.classList.contains('active');
+    }
+    
+    /**
+     * Refresh all totem displays (both modal and inline)
+     */
+    refreshTotemDisplays() {
+        this.syncTotemToMob();
+        
+        // Update modal if open
+        if (this.isTotemModalOpen()) {
+            this.renderTotemModalGrid();
+            this.updateTotemModalPreview(this.currentMob);
+            this.updateTotemModalStats();
+        }
+        
+        // Update old inline grid if it exists
+        this.renderTotemGrid();
+        this.updateTotemPreview(this.currentMob);
+        this.updateTotemStatistics();
+        
+        // Update compact preview
+        this.updateCompactPreview(this.currentMob);
+        this.updateCompactStats();
+    }
+    
+    /**
      * Mirror totem along X axis
      */
     mirrorTotemX() {
@@ -5893,9 +7253,7 @@ class MobEditor {
         });
         
         this.totemGridState.blocks = newBlocks;
-        this.renderTotemGrid();
-        this.updateTotemPreview(this.currentMob);
-        this.syncTotemToMob();
+        this.refreshTotemDisplays();
     }
     
     /**
@@ -5912,9 +7270,7 @@ class MobEditor {
         });
         
         this.totemGridState.blocks = newBlocks;
-        this.renderTotemGrid();
-        this.updateTotemPreview(this.currentMob);
-        this.syncTotemToMob();
+        this.refreshTotemDisplays();
     }
     
     /**
@@ -5932,9 +7288,32 @@ class MobEditor {
         });
         
         this.totemGridState.blocks = newBlocks;
-        this.renderTotemGrid();
-        this.updateTotemPreview(this.currentMob);
-        this.syncTotemToMob();
+        this.refreshTotemDisplays();
+    }
+    
+    /**
+     * Center totem structure at origin
+     */
+    centerTotem() {
+        const coords = Array.from(this.totemGridState.blocks.keys());
+        if (coords.length === 0) return;
+        
+        this.saveTotemHistory();
+        
+        const positions = coords.map(c => c.split(',').map(Number));
+        const minX = Math.min(...positions.map(p => p[0]));
+        const minY = Math.min(...positions.map(p => p[1]));
+        const minZ = Math.min(...positions.map(p => p[2]));
+        
+        const newBlocks = new Map();
+        this.totemGridState.blocks.forEach((material, coord) => {
+            const [x, y, z] = coord.split(',').map(Number);
+            const newCoord = `${x - minX},${y - minY},${z - minZ}`;
+            newBlocks.set(newCoord, material);
+        });
+        
+        this.totemGridState.blocks = newBlocks;
+        this.refreshTotemDisplays();
     }
     
     /**

@@ -1,0 +1,996 @@
+/**
+ * Totem Builder Modal Styles
+ * Clean, modern popup for totem structure creation
+ */
+
+/* ============================================
+   MODAL OVERLAY & CONTAINER
+   ============================================ */
+.totem-builder-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.totem-builder-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.totem-builder-modal {
+    width: 95vw;
+    max-width: 1400px;
+    height: 90vh;
+    max-height: 900px;
+    background: linear-gradient(180deg, #1a1625 0%, #0f0a1a 100%);
+    border: 2px solid rgba(139, 92, 246, 0.4);
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 
+        0 0 0 1px rgba(139, 92, 246, 0.2),
+        0 25px 80px rgba(0, 0, 0, 0.8),
+        0 0 100px rgba(139, 92, 246, 0.15);
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.totem-builder-overlay.active .totem-builder-modal {
+    transform: scale(1) translateY(0);
+}
+
+/* ============================================
+   MODAL HEADER
+   ============================================ */
+.totem-builder-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%);
+    border-bottom: 2px solid rgba(139, 92, 246, 0.3);
+}
+
+.totem-builder-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.totem-builder-title i {
+    font-size: 24px;
+    color: #a78bfa;
+}
+
+.totem-builder-title h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #e9d5ff;
+    letter-spacing: 0.5px;
+}
+
+.totem-builder-title span {
+    font-size: 12px;
+    color: #a78bfa;
+    background: rgba(139, 92, 246, 0.2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.totem-builder-close {
+    width: 40px;
+    height: 40px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 2px solid rgba(239, 68, 68, 0.3);
+    border-radius: 10px;
+    color: #f87171;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.totem-builder-close:hover {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: #ef4444;
+    transform: scale(1.05);
+}
+
+/* ============================================
+   MODAL BODY - 3 COLUMN LAYOUT
+   ============================================ */
+.totem-builder-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 280px 1fr 320px;
+    gap: 0;
+    overflow: hidden;
+}
+
+/* ============================================
+   LEFT SIDEBAR - TOOLS & CONTROLS
+   ============================================ */
+.totem-sidebar-left {
+    background: rgba(0, 0, 0, 0.3);
+    border-right: 2px solid rgba(139, 92, 246, 0.2);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.totem-tool-section {
+    background: linear-gradient(135deg, rgba(30, 27, 45, 0.8) 0%, rgba(20, 18, 35, 0.8) 100%);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    overflow: visible;
+}
+
+.totem-tool-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%);
+    border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.totem-tool-header i {
+    font-size: 14px;
+    width: 20px;
+    text-align: center;
+}
+
+.totem-tool-header span {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #c4b5fd;
+}
+
+.totem-tool-content {
+    padding: 12px;
+}
+
+/* Material Selector */
+.totem-material-current {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(139, 92, 246, 0.3);
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.totem-material-preview {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: white;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.totem-material-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.totem-material-info .label {
+    font-size: 9px;
+    color: #a78bfa;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.totem-material-info .name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e9d5ff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Recent Materials Grid */
+.totem-recent-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.totem-recent-item {
+    aspect-ratio: 1;
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(139, 92, 246, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #c4b5fd;
+}
+
+.totem-recent-item:hover {
+    border-color: #a78bfa;
+    background: rgba(139, 92, 246, 0.2);
+    transform: scale(1.1);
+}
+
+.totem-recent-item.active {
+    border-color: #8b5cf6;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(99, 102, 241, 0.3) 100%);
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+}
+
+/* Tool Buttons */
+.totem-tool-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+}
+
+.totem-tool-btn {
+    padding: 10px 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 8px;
+    color: #c4b5fd;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.totem-tool-btn i {
+    font-size: 14px;
+}
+
+.totem-tool-btn:hover {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: #e9d5ff;
+}
+
+.totem-tool-btn.danger {
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+}
+
+.totem-tool-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* View Controls */
+.totem-view-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.totem-view-btn-modal {
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(236, 72, 153, 0.2);
+    border-radius: 8px;
+    color: #f9a8d4;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.totem-view-btn-modal i {
+    width: 18px;
+    text-align: center;
+}
+
+.totem-view-btn-modal:hover {
+    background: rgba(236, 72, 153, 0.1);
+    border-color: rgba(236, 72, 153, 0.4);
+}
+
+.totem-view-btn-modal.active {
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+    border-color: transparent;
+    color: white;
+    box-shadow: 0 2px 12px rgba(236, 72, 153, 0.4);
+}
+
+/* Y Level Control */
+.totem-y-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(236, 72, 153, 0.2);
+    border-radius: 8px;
+    margin-top: 8px;
+}
+
+.totem-y-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #f9a8d4;
+}
+
+.totem-y-value {
+    flex: 1;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #ec4899;
+    font-family: var(--font-mono);
+}
+
+.totem-y-btn {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.totem-y-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(236, 72, 153, 0.4);
+}
+
+/* Stats Display */
+.totem-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.totem-stat-item {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+}
+
+.totem-stat-item .value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #10b981;
+    font-family: var(--font-mono);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.totem-stat-item .label {
+    font-size: 9px;
+    font-weight: 600;
+    color: #6ee7b7;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.totem-stat-item.purple {
+    border-color: rgba(168, 85, 247, 0.2);
+}
+
+.totem-stat-item.purple .value {
+    color: #a855f7;
+}
+
+.totem-stat-item.purple .label {
+    color: #d8b4fe;
+}
+
+.totem-stat-item.blue {
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+.totem-stat-item.blue .value {
+    color: #3b82f6;
+}
+
+.totem-stat-item.blue .label {
+    color: #93c5fd;
+}
+
+/* ============================================
+   CENTER - GRID BUILDER
+   ============================================ */
+.totem-grid-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: linear-gradient(180deg, rgba(15, 10, 26, 0.5) 0%, rgba(20, 15, 35, 0.5) 100%);
+    position: relative;
+}
+
+.totem-grid-header {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.totem-grid-label {
+    background: rgba(139, 92, 246, 0.2);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #a78bfa;
+    letter-spacing: 0.5px;
+}
+
+.totem-view-indicator {
+    background: rgba(236, 72, 153, 0.2);
+    border: 1px solid rgba(236, 72, 153, 0.3);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #f9a8d4;
+}
+
+.totem-grid-wrapper {
+    position: relative;
+}
+
+/* Main Grid */
+.totem-modal-grid {
+    display: inline-grid;
+    gap: 3px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+}
+
+.totem-grid-cell-modal {
+    width: 38px;
+    height: 38px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.totem-grid-cell-modal:hover {
+    background: rgba(139, 92, 246, 0.3);
+    border-color: #a78bfa;
+    transform: scale(1.1);
+    z-index: 10;
+}
+
+.totem-grid-cell-modal.has-block {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    border-color: #a78bfa;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+}
+
+.totem-grid-cell-modal.has-block:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.6);
+}
+
+.totem-grid-cell-modal.has-other {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.totem-grid-cell-modal.spawn-point {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+}
+
+.totem-grid-cell-modal .cell-icon {
+    font-size: 14px;
+    color: white;
+    font-weight: bold;
+}
+
+.totem-grid-cell-modal.spawn-point .cell-icon {
+    color: #ef4444;
+    font-size: 12px;
+}
+
+.totem-grid-cell-modal.has-other .cell-icon {
+    color: #a78bfa;
+    font-size: 10px;
+}
+
+/* Painting indicator */
+.totem-grid-cell-modal.painting-preview {
+    background: rgba(139, 92, 246, 0.5) !important;
+    border-color: #a78bfa !important;
+}
+
+/* Grid Instructions */
+.totem-grid-instructions {
+    display: flex;
+    gap: 24px;
+    margin-top: 20px;
+}
+
+.totem-instruction {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 8px;
+}
+
+.totem-instruction i {
+    font-size: 16px;
+    width: 24px;
+    text-align: center;
+}
+
+.totem-instruction.paint i { color: #a78bfa; }
+.totem-instruction.erase i { color: #ef4444; }
+.totem-instruction.drag i { color: #10b981; }
+
+.totem-instruction span {
+    font-size: 11px;
+    font-weight: 600;
+    color: #c4b5fd;
+}
+
+/* ============================================
+   RIGHT SIDEBAR - PREVIEW & TEMPLATES
+   ============================================ */
+.totem-sidebar-right {
+    background: rgba(0, 0, 0, 0.3);
+    border-left: 2px solid rgba(139, 92, 246, 0.2);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Preview Canvas */
+.totem-preview-container {
+    background: linear-gradient(180deg, #0f0a1a 0%, #1a1530 100%);
+    border: 2px solid rgba(139, 92, 246, 0.3);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.totem-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.totem-preview-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #a78bfa;
+}
+
+.totem-preview-canvas {
+    width: 100%;
+    max-width: 280px;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    background: #0a0510;
+}
+
+/* Templates */
+.totem-templates-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.totem-template-item {
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(99, 102, 241, 0.2);
+    border-radius: 10px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.totem-template-item:hover {
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.1);
+    transform: translateY(-2px);
+}
+
+.totem-template-item .icon {
+    font-size: 24px;
+    margin-bottom: 6px;
+    display: block;
+}
+
+.totem-template-item .name {
+    font-size: 11px;
+    font-weight: 700;
+    color: #818cf8;
+    margin-bottom: 2px;
+}
+
+.totem-template-item .desc {
+    font-size: 9px;
+    color: #a5b4fc;
+    opacity: 0.7;
+}
+
+/* ============================================
+   MODAL FOOTER
+   ============================================ */
+.totem-builder-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 24px;
+    background: rgba(0, 0, 0, 0.4);
+    border-top: 2px solid rgba(139, 92, 246, 0.2);
+}
+
+.totem-footer-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 11px;
+    color: #a78bfa;
+}
+
+.totem-footer-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.totem-btn-cancel {
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.totem-btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.totem-btn-apply {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 12px rgba(139, 92, 246, 0.4);
+}
+
+.totem-btn-apply:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.6);
+}
+
+/* ============================================
+   COMPACT TOTEM SECTION IN MOB EDITOR
+   ============================================ */
+.totem-compact-section {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%);
+    border: 2px solid rgba(139, 92, 246, 0.25);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.totem-compact-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.totem-compact-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.totem-compact-title i {
+    color: #a78bfa;
+    font-size: 18px;
+}
+
+.totem-compact-title h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #e9d5ff;
+}
+
+.totem-compact-badge {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #6ee7b7;
+}
+
+.totem-compact-badge.empty {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+}
+
+.totem-compact-preview {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.totem-mini-preview {
+    width: 80px;
+    height: 80px;
+    background: #0a0510;
+    border: 2px solid rgba(139, 92, 246, 0.3);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.totem-compact-stats {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.totem-compact-stat {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 8px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.totem-compact-stat .value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #8b5cf6;
+    font-family: var(--font-mono);
+}
+
+.totem-compact-stat .label {
+    font-size: 9px;
+    color: #a78bfa;
+    text-transform: uppercase;
+}
+
+.totem-open-builder-btn {
+    width: 100%;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.totem-open-builder-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.5);
+}
+
+/* Symmetry Toggle */
+.totem-symmetry-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(251, 146, 60, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.totem-symmetry-toggle:hover {
+    border-color: rgba(251, 146, 60, 0.5);
+    background: rgba(251, 146, 60, 0.1);
+}
+
+.totem-symmetry-toggle.active {
+    background: rgba(251, 146, 60, 0.2);
+    border-color: rgba(251, 146, 60, 0.6);
+}
+
+.totem-symmetry-toggle input[type="checkbox"] {
+    display: none !important;
+    pointer-events: none;
+}
+
+.totem-symmetry-toggle .toggle-box {
+    width: 18px;
+    height: 18px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(251, 146, 60, 0.3);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.totem-symmetry-toggle.active .toggle-box {
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
+    border-color: transparent;
+}
+
+.totem-symmetry-toggle .toggle-box i {
+    font-size: 10px;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.totem-symmetry-toggle.active .toggle-box i {
+    opacity: 1;
+}
+
+.totem-symmetry-toggle span {
+    font-size: 11px;
+    font-weight: 600;
+    color: #fdba74;
+}
+
+/* Head Block Config */
+.totem-head-config {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.totem-head-config .label {
+    font-size: 9px;
+    font-weight: 600;
+    color: #a78bfa;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Paint Mode Indicator */
+.totem-paint-mode {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.95) 0%, rgba(99, 102, 241, 0.95) 100%);
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    z-index: 10001;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.5);
+}
+
+.totem-paint-mode.active {
+    display: flex;
+}
+
+.totem-paint-mode i {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .totem-builder-body {
+        grid-template-columns: 240px 1fr 280px;
+    }
+}
+
+@media (max-width: 1000px) {
+    .totem-builder-body {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+    }
+    
+    .totem-sidebar-left,
+    .totem-sidebar-right {
+        border: none;
+        flex-direction: row;
+        flex-wrap: wrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 12px;
+    }
+    
+    .totem-tool-section {
+        min-width: 200px;
+    }
+}
