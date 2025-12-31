@@ -413,6 +413,109 @@ class NotificationModal {
     }
     
     /**
+     * Show a custom modal with title, message, and configurable buttons
+     * @param {string} title - The title of the modal
+     * @param {string} message - The message to display
+     * @param {Array} buttons - Array of button configs: {text, primary?, danger?, callback}
+     * @param {Object} options - Optional: {icon, type}
+     */
+    show(title, message, buttons = [], options = {}) {
+        this.close(); // Close any existing modal
+        
+        const {
+            icon = '📁',
+            type = 'warning'
+        } = options;
+        
+        // Auto-detect type from title
+        let detectedType = type;
+        let detectedIcon = icon;
+        
+        if (title.toLowerCase().includes('not found') || title.toLowerCase().includes('missing')) {
+            detectedType = 'warning';
+            detectedIcon = '🔍';
+        } else if (title.toLowerCase().includes('delete') || title.toLowerCase().includes('remove')) {
+            detectedType = 'error';
+            detectedIcon = '🗑️';
+        } else if (title.toLowerCase().includes('success')) {
+            detectedType = 'success';
+            detectedIcon = '✅';
+        } else if (title.toLowerCase().includes('error')) {
+            detectedType = 'error';
+            detectedIcon = '❌';
+        }
+        
+        // Build buttons HTML
+        const buttonsHtml = buttons.map((btn, index) => {
+            let btnClass = 'secondary';
+            if (btn.primary) btnClass = 'primary';
+            if (btn.danger) btnClass = 'danger';
+            
+            return `<button class="notification-modal-btn ${btnClass}" data-btn-index="${index}">
+                ${this.escapeHtml(btn.text)}
+            </button>`;
+        }).join('');
+        
+        // Default to OK button if no buttons provided
+        const finalButtonsHtml = buttonsHtml || `<button class="notification-modal-btn primary" data-btn-index="0">OK</button>`;
+        
+        const modal = document.createElement('div');
+        modal.className = 'notification-modal-overlay';
+        modal.innerHTML = `
+            <div class="notification-modal-box">
+                <div class="notification-modal-header">
+                    <div class="notification-modal-icon ${detectedType}">${detectedIcon}</div>
+                    <h3 class="notification-modal-title">${this.escapeHtml(title)}</h3>
+                </div>
+                <div class="notification-modal-body">
+                    ${this.escapeHtml(message)}
+                </div>
+                <div class="notification-modal-footer">
+                    ${finalButtonsHtml}
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        this.currentModal = modal;
+        
+        // Event listeners for all buttons
+        modal.querySelectorAll('[data-btn-index]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.dataset.btnIndex);
+                const buttonConfig = buttons[index];
+                this.close();
+                if (buttonConfig && buttonConfig.callback) {
+                    buttonConfig.callback();
+                }
+            });
+        });
+        
+        // Close on overlay click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.close();
+            }
+        });
+        
+        // Close on Escape key
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                document.removeEventListener('keydown', escapeHandler);
+                this.close();
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+        
+        // Focus first primary button, or first button
+        setTimeout(() => {
+            const primaryBtn = modal.querySelector('.notification-modal-btn.primary');
+            const firstBtn = modal.querySelector('.notification-modal-btn');
+            (primaryBtn || firstBtn)?.focus();
+        }, 100);
+    }
+    
+    /**
      * Close the current modal
      */
     close() {

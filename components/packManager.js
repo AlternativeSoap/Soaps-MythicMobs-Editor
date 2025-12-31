@@ -23,6 +23,7 @@ class PackManager {
         this._recentFilesClickDelegationSetup = false;
         this._favoritesClickDelegationSetup = false;
         this._searchSetup = false;
+        this._packTreeDelegationSetup = false; // Main pack tree delegation flag
         
         // Initialize features
         this.initializeFeatures();
@@ -79,40 +80,92 @@ class PackManager {
     setupContextMenuActions() {
         if (!this.contextMenu) return;
         
+        // === ENTRY ACTIONS (items within yml files) ===
+        
         this.contextMenu.registerAction('open', (data) => {
-            if (data?.fileId && data?.fileType) {
-                this.openFile(data.fileId, data.fileType);
+            if (data?.entryId && data?.fileType) {
+                this.openFile(data.entryId, data.fileType);
             }
         });
         
         this.contextMenu.registerAction('duplicate', (data) => {
-            if (data?.fileId && data?.fileType) {
-                this.duplicateFile(data.fileId, data.fileType);
+            if (data?.entryId && data?.fileType) {
+                this.duplicateEntry(data.entryId, data.fileType, data.parentFileId);
             }
         });
         
         this.contextMenu.registerAction('delete', (data) => {
+            if (data?.entryId && data?.fileType) {
+                this.deleteEntry(data.entryId, data.fileType, data.parentFileId, data.fileName);
+            }
+        });
+        
+        this.contextMenu.registerAction('export', (data) => {
+            if (data?.entryId && data?.fileType) {
+                this.exportEntry(data.entryId, data.fileType);
+            }
+        });
+        
+        // === FILE ACTIONS (yml file containers) ===
+        
+        this.contextMenu.registerAction('duplicateFile', (data) => {
+            if (data?.fileId && data?.fileType) {
+                this.duplicateYamlFile(data.fileId, data.fileType);
+            }
+        });
+        
+        this.contextMenu.registerAction('deleteFile', (data) => {
             if (data?.fileId && data?.fileType) {
                 this.deleteFile(data.fileId, data.fileType);
             }
         });
         
-        this.contextMenu.registerAction('export', (data) => {
+        this.contextMenu.registerAction('exportFile', (data) => {
             if (data?.fileId && data?.fileType) {
-                this.exportFile(data.fileId, data.fileType);
+                this.exportYamlFile(data.fileId, data.fileType);
             }
         });
         
+        // === PACK ACTIONS ===
+        
+        this.contextMenu.registerAction('renamePack', (data) => {
+            if (data?.packId) {
+                this.renamePack(data.packId);
+            }
+        });
+        
+        this.contextMenu.registerAction('duplicatePack', (data) => {
+            if (data?.packId) {
+                this.duplicatePack(data.packId);
+            }
+        });
+        
+        this.contextMenu.registerAction('exportPack', (data) => {
+            if (data?.packId) {
+                this.exportPack(data.packId);
+            }
+        });
+        
+        this.contextMenu.registerAction('deletePack', (data) => {
+            if (data?.packId) {
+                this.deletePack(data.packId);
+            }
+        });
+        
+        // === SHARED ACTIONS ===
+        
         this.contextMenu.registerAction('copyName', (data) => {
-            if (data?.fileName) {
-                navigator.clipboard.writeText(data.fileName);
+            const name = data?.packName || data?.fileName;
+            if (name) {
+                navigator.clipboard.writeText(name);
                 this.editor.showToast('Name copied to clipboard', 'success');
             }
         });
         
         this.contextMenu.registerAction('toggleFavorite', (data) => {
-            if (data?.fileId) {
-                this.toggleFavorite(data.fileId, data.fileName, data.fileType, data.packName);
+            const id = data?.entryId || data?.fileId;
+            if (id) {
+                this.toggleFavorite(id, data.fileName, data.fileType, data.packName);
             }
         });
     }
@@ -280,10 +333,45 @@ class PackManager {
         this.renderPackTree();
     }
     
-    setActivePack(pack) {
+    /**
+     * Set the active pack - optimized to avoid full re-render when possible
+     */
+    setActivePack(pack, options = {}) {
+        const previousPack = this.activePack;
         this.activePack = pack;
         this.editor.state.currentPack = pack;
-        this.renderPackTree();
+        
+        // If forceRender is requested, or this is first activation, do full render
+        if (options.forceRender || !previousPack) {
+            this.renderPackTree();
+            return;
+        }
+        
+        // Try to just update active states in DOM without full re-render
+        const previousPackHeader = document.querySelector(`.pack-header[data-pack-id="${previousPack.id}"]`);
+        const newPackHeader = document.querySelector(`.pack-header[data-pack-id="${pack.id}"]`);
+        
+        // If both pack headers exist in DOM, just toggle active classes
+        if (previousPackHeader && newPackHeader) {
+            previousPackHeader.classList.remove('active');
+            newPackHeader.classList.add('active');
+            
+            // Expand the new pack if it's collapsed
+            const newPackItem = newPackHeader.closest('.pack-item');
+            if (newPackItem) {
+                const packContent = newPackItem.querySelector('.pack-content');
+                const chevron = newPackItem.querySelector('.pack-chevron');
+                if (packContent && packContent.classList.contains('collapsed')) {
+                    packContent.classList.remove('collapsed');
+                    packContent.classList.add('expanded');
+                    if (chevron) chevron.classList.add('rotated');
+                    this.saveCollapsedState(pack.id, false);
+                }
+            }
+        } else {
+            // DOM state doesn't match, need full re-render
+            this.renderPackTree();
+        }
     }
     
     renderPackTree() {
@@ -296,7 +384,12 @@ class PackManager {
         }
         
         container.innerHTML = this.packs.map(pack => this.renderPackItem(pack)).join('');
-        this.attachPackEventListeners();
+        
+        // Setup delegated event listeners ONCE (handles clicks, context menus, etc.)
+        this.setupDelegatedEventListeners();
+        
+        // Only attach non-delegatable events (drag/drop)
+        this.attachPackDragListeners();
         
         // Setup search and render features
         this.setupSearch();
@@ -317,35 +410,15 @@ class PackManager {
         const isActive = this.activePack && this.activePack.id === pack.id;
         const collapsedStates = this.getCollapsedStates();
         const isCollapsed = collapsedStates[pack.id] || false;
-        const isDropdownOpen = this.openDropdownPackId === pack.id;
         
         return `
             <div class="pack-item" data-pack-id="${pack.id}" draggable="true">
-                <div class="pack-header ${isActive ? 'active' : ''}" data-pack-id="${pack.id}">
+                <div class="pack-header ${isActive ? 'active' : ''}" data-pack-id="${pack.id}" data-pack-name="${pack.name}">
                     <i class="fas fa-grip-vertical pack-drag-handle" title="Drag to reorder"></i>
                     <i class="fas fa-chevron-right pack-chevron ${isCollapsed ? '' : 'rotated'}"></i>
                     <div class="pack-title">
                         <i class="fas fa-cube"></i>
                         <span>${pack.name}</span>
-                    </div>
-                    <div class="pack-actions">
-                        <button class="icon-btn pack-settings" data-pack-id="${pack.id}" title="Pack Settings">
-                            <i class="fas fa-cog"></i>
-                        </button>
-                        <div class="pack-dropdown ${isDropdownOpen ? 'open' : ''}" data-pack-id="${pack.id}" style="display: ${isDropdownOpen ? 'block' : 'none'};">
-                            <button class="pack-dropdown-item" data-action="rename" data-pack-id="${pack.id}">
-                                <i class="fas fa-edit"></i> Rename Pack
-                            </button>
-                            <button class="pack-dropdown-item" data-action="duplicate" data-pack-id="${pack.id}">
-                                <i class="fas fa-copy"></i> Duplicate Pack
-                            </button>
-                            <button class="pack-dropdown-item" data-action="export" data-pack-id="${pack.id}">
-                                <i class="fas fa-file-export"></i> Export Pack
-                            </button>
-                            <button class="pack-dropdown-item delete" data-action="delete" data-pack-id="${pack.id}">
-                                <i class="fas fa-trash"></i> Delete Pack
-                            </button>
-                        </div>
                     </div>
                 </div>
                 <div class="pack-content ${isCollapsed ? 'collapsed' : 'expanded'}">
@@ -547,6 +620,319 @@ class PackManager {
     }
     
     /**
+     * Setup delegated event listeners for the entire pack tree
+     * This attaches ONE set of listeners to the container instead of per-element
+     * Much more performant and works with dynamically added elements
+     */
+    setupDelegatedEventListeners() {
+        // Only setup once
+        if (this._packTreeDelegationSetup) return;
+        
+        const container = document.getElementById('pack-tree');
+        if (!container) return;
+        
+        // === CLICK EVENTS (delegated) ===
+        container.addEventListener('click', (e) => {
+            // Prevent handling if the element is inside an input (inline editing)
+            if (e.target.closest('input')) return;
+            
+            // Favorite star button
+            const favoriteBtn = e.target.closest('.favorite-star-btn');
+            if (favoriteBtn) {
+                e.stopPropagation();
+                e.preventDefault();
+                const fileId = favoriteBtn.dataset.entryId;
+                const fileName = favoriteBtn.dataset.fileName;
+                const fileType = favoriteBtn.dataset.fileType;
+                const packName = this.activePack?.name || 'Unknown';
+                this.toggleFavorite(fileId, fileName, fileType, packName);
+                return;
+            }
+            
+            // Add item button
+            const addBtn = e.target.closest('.add-item-btn');
+            if (addBtn) {
+                e.stopPropagation();
+                const type = addBtn.dataset.type;
+                const packId = addBtn.dataset.packId;
+                
+                // Auto-switch to the pack where the button was clicked
+                if (packId) {
+                    const targetPack = this.getPackById(packId);
+                    if (targetPack && targetPack !== this.activePack) {
+                        this.setActivePack(targetPack);
+                    }
+                }
+                
+                switch (type) {
+                    case 'mob': this.editor.createNewMob(); break;
+                    case 'skill': this.editor.createNewSkill(); break;
+                    case 'item': this.editor.createNewItem(); break;
+                    case 'droptable': this.editor.createNewDropTable(); break;
+                    case 'randomspawn': this.editor.createNewRandomSpawn(); break;
+                }
+                return;
+            }
+            
+            // Entry item click (individual entries within YAML files)
+            const entryItem = e.target.closest('.entry-item');
+            if (entryItem) {
+                e.stopPropagation();
+                const entryId = entryItem.dataset.entryId;
+                const fileType = entryItem.dataset.fileType;
+                const parentFileId = entryItem.dataset.parentFileId;
+                
+                // Try to find entry in active pack first
+                let entry = this.findEntryById(entryId, fileType, parentFileId);
+                
+                // If not found in active pack, search all packs and auto-switch
+                if (!entry) {
+                    const result = this.findEntryInAllPacks(entryId, fileType, parentFileId);
+                    if (result) {
+                        this.setActivePack(result.pack);
+                        entry = result.entry;
+                    }
+                }
+                
+                if (entry) {
+                    this.editor.openFile(entry, fileType);
+                }
+                return;
+            }
+            
+            // YAML file header click (expand/collapse entries)
+            const yamlHeader = e.target.closest('.yaml-file-header');
+            if (yamlHeader) {
+                e.stopPropagation();
+                e.preventDefault();
+                const fileId = yamlHeader.dataset.fileId;
+                this.toggleYamlFile(fileId);
+                return;
+            }
+            
+            // Folder header click (expand/collapse folder)
+            const folderHeader = e.target.closest('.folder-header.collapsible');
+            if (folderHeader) {
+                e.stopPropagation();
+                this.toggleFolder(folderHeader);
+                return;
+            }
+            
+            // Config file click (packinfo.yml, tooltips.yml)
+            const configFile = e.target.closest('.file-item.config-file');
+            if (configFile) {
+                e.stopPropagation();
+                const fileType = configFile.dataset.fileType;
+                if (fileType === 'packinfo') {
+                    this.openPackInfo();
+                } else if (fileType === 'tooltips') {
+                    this.openTooltips();
+                }
+                return;
+            }
+            
+            // Legacy file item click
+            const fileItem = e.target.closest('.file-item:not(.config-file)');
+            if (fileItem) {
+                e.stopPropagation();
+                const fileId = fileItem.dataset.fileId;
+                const fileType = fileItem.dataset.fileType;
+                
+                // Try to find file in active pack first
+                let file = this.findFile(fileId, fileType);
+                
+                // If not found in active pack, search all packs
+                if (!file) {
+                    const result = this.findFileInAllPacks(fileId, fileType);
+                    if (result) {
+                        this.setActivePack(result.pack);
+                        file = result.file;
+                    }
+                }
+                
+                if (file) {
+                    this.editor.openFile(file, fileType);
+                }
+                return;
+            }
+            
+            // Pack header click (toggle collapse or activate)
+            const packHeader = e.target.closest('.pack-header');
+            if (packHeader) {
+                // Don't handle if drag handle was clicked
+                if (e.target.closest('.pack-drag-handle')) return;
+                
+                const packId = packHeader.dataset.packId;
+                const pack = this.packs.find(p => p.id === packId);
+                
+                if (this.activePack && this.activePack.id === packId) {
+                    // Same pack - toggle collapse
+                    this.togglePackCollapse(packId);
+                } else if (pack) {
+                    // Different pack - activate (which also expands it)
+                    this.setActivePack(pack);
+                }
+                return;
+            }
+            
+            // Expand all / Collapse all buttons
+            if (e.target.closest('#expand-all-btn')) {
+                this.expandAllFolders();
+                return;
+            }
+            if (e.target.closest('#collapse-all-btn')) {
+                this.collapseAllFolders();
+                return;
+            }
+        });
+        
+        // === DOUBLE-CLICK EVENTS (delegated) ===
+        container.addEventListener('dblclick', (e) => {
+            // Entry item double-click (rename)
+            const entryItem = e.target.closest('.entry-item');
+            if (entryItem) {
+                e.stopPropagation();
+                e.preventDefault();
+                const entryId = entryItem.dataset.entryId;
+                const fileType = entryItem.dataset.fileType;
+                const parentFileId = entryItem.dataset.parentFileId;
+                this.startInlineEdit(entryItem, 'entry', { entryId, fileType, parentFileId });
+                return;
+            }
+            
+            // YAML file name double-click (rename)
+            const fileNameSpan = e.target.closest('.yaml-file-name');
+            if (fileNameSpan) {
+                e.stopPropagation();
+                e.preventDefault();
+                const header = fileNameSpan.closest('.yaml-file-header');
+                if (header) {
+                    const fileId = header.dataset.fileId;
+                    const fileType = header.closest('.yaml-file-container').dataset.fileType;
+                    this.startInlineEdit(fileNameSpan, 'file', { fileId, fileType });
+                }
+                return;
+            }
+            
+            // Pack title double-click (rename)
+            const packTitleSpan = e.target.closest('.pack-title span');
+            if (packTitleSpan) {
+                e.stopPropagation();
+                e.preventDefault();
+                const header = packTitleSpan.closest('.pack-header');
+                if (header) {
+                    const packId = header.dataset.packId;
+                    this.startInlineEdit(packTitleSpan, 'pack', { packId });
+                }
+                return;
+            }
+        });
+        
+        // === CONTEXT MENU EVENTS (delegated) ===
+        container.addEventListener('contextmenu', (e) => {
+            if (!this.contextMenu) return;
+            
+            // Entry context menu
+            const entryItem = e.target.closest('.entry-item');
+            if (entryItem) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const entryId = entryItem.dataset.entryId;
+                const fileType = entryItem.dataset.fileType;
+                const fileName = entryItem.dataset.fileName || entryItem.querySelector('span')?.textContent || 'Unknown';
+                const parentFileId = entryItem.dataset.parentFileId;
+                const isFavorited = this.isFavorited(entryId);
+                
+                const menuItems = [
+                    { label: 'Open', icon: 'fa-folder-open', action: 'open' },
+                    { label: 'Duplicate', icon: 'fa-copy', action: 'duplicate' },
+                    { separator: true },
+                    { label: isFavorited ? 'Remove from Favorites' : 'Add to Favorites', icon: 'fa-star', action: 'toggleFavorite' },
+                    { separator: true },
+                    { label: 'Copy Name', icon: 'fa-clipboard', action: 'copyName' },
+                    { label: 'Export', icon: 'fa-file-export', action: 'export' },
+                    { separator: true },
+                    { label: 'Delete', icon: 'fa-trash', action: 'delete', danger: true }
+                ];
+                
+                this.contextMenu.show(e.clientX, e.clientY, menuItems, {
+                    itemType: 'entry',
+                    entryId,
+                    fileId: entryId,
+                    fileType,
+                    fileName,
+                    parentFileId,
+                    packName: this.activePack?.name || 'Unknown'
+                });
+                return;
+            }
+            
+            // YAML file header context menu
+            const yamlHeader = e.target.closest('.yaml-file-header');
+            if (yamlHeader) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const fileId = yamlHeader.dataset.fileId;
+                const fileType = yamlHeader.dataset.fileType;
+                const fileName = yamlHeader.dataset.fileName || yamlHeader.querySelector('.yaml-file-name')?.textContent || 'Unknown';
+                const isFavorited = this.isFavorited(fileId);
+                
+                const menuItems = [
+                    { label: 'Duplicate File', icon: 'fa-copy', action: 'duplicateFile' },
+                    { separator: true },
+                    { label: isFavorited ? 'Remove from Favorites' : 'Add to Favorites', icon: 'fa-star', action: 'toggleFavorite' },
+                    { separator: true },
+                    { label: 'Copy Name', icon: 'fa-clipboard', action: 'copyName' },
+                    { label: 'Export File', icon: 'fa-file-export', action: 'exportFile' },
+                    { separator: true },
+                    { label: 'Delete File', icon: 'fa-trash', action: 'deleteFile', danger: true }
+                ];
+                
+                this.contextMenu.show(e.clientX, e.clientY, menuItems, {
+                    itemType: 'file',
+                    fileId,
+                    fileType,
+                    fileName,
+                    packName: this.activePack?.name || 'Unknown'
+                });
+                return;
+            }
+            
+            // Pack header context menu
+            const packHeader = e.target.closest('.pack-header');
+            if (packHeader) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const packId = packHeader.dataset.packId;
+                const packName = packHeader.dataset.packName || packHeader.querySelector('.pack-title span')?.textContent || 'Unknown Pack';
+                
+                const menuItems = [
+                    { label: 'Rename Pack', icon: 'fa-edit', action: 'renamePack' },
+                    { label: 'Duplicate Pack', icon: 'fa-copy', action: 'duplicatePack' },
+                    { separator: true },
+                    { label: 'Copy Name', icon: 'fa-clipboard', action: 'copyName' },
+                    { label: 'Export Pack', icon: 'fa-file-export', action: 'exportPack' },
+                    { separator: true },
+                    { label: 'Delete Pack', icon: 'fa-trash', action: 'deletePack', danger: true }
+                ];
+                
+                this.contextMenu.show(e.clientX, e.clientY, menuItems, {
+                    itemType: 'pack',
+                    packId,
+                    packName
+                });
+                return;
+            }
+        });
+        
+        // Mark as initialized
+        this._packTreeDelegationSetup = true;
+    }
+    
+    /**
      * Render a YAML file container with its entries
      */
     renderYamlFile(file, type, fileStates) {
@@ -632,292 +1018,9 @@ class PackManager {
     }
     
     attachPackEventListeners() {
-        // Pack header clicks (toggle collapse or activate)
-        document.querySelectorAll('.pack-header').forEach(header => {
-            header.addEventListener('click', (e) => {
-                if (e.target.closest('.pack-actions')) return;
-                
-                const packId = header.dataset.packId;
-                const pack = this.packs.find(p => p.id === packId);
-                
-                if (this.activePack && this.activePack.id === packId) {
-                    // Same pack - toggle collapse
-                    this.togglePackCollapse(packId);
-                } else if (pack) {
-                    // Different pack - activate and expand
-                    this.setActivePack(pack);
-                    this.saveCollapsedState(packId, false);
-                    this.renderPackTree();
-                }
-            });
-            
-            // Double-click on pack title to rename inline
-            const packTitle = header.querySelector('.pack-title span');
-            if (packTitle) {
-                packTitle.addEventListener('dblclick', (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    const packId = header.dataset.packId;
-                    this.startInlineEdit(packTitle, 'pack', { packId });
-                });
-            }
-        });
-        
-        // Pack settings (cog) button clicks
-        document.querySelectorAll('.pack-settings').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const packId = btn.dataset.packId;
-                this.togglePackDropdown(packId);
-            });
-        });
-        
-        // Expand All / Collapse All buttons
-        document.getElementById('expand-all-btn')?.addEventListener('click', () => {
-            this.expandAllFolders();
-        });
-        
-        document.getElementById('collapse-all-btn')?.addEventListener('click', () => {
-            this.collapseAllFolders();
-        });
-        
-        // Dropdown item clicks
-        document.querySelectorAll('.pack-dropdown-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const action = item.dataset.action;
-                const packId = item.dataset.packId;
-                
-                this.closeAllDropdowns();
-                
-                switch (action) {
-                    case 'rename':
-                        this.renamePack(packId);
-                        break;
-                    case 'duplicate':
-                        this.duplicatePack(packId);
-                        break;
-                    case 'export':
-                        this.exportPack(packId);
-                        break;
-                    case 'delete':
-                        this.deletePack(packId);
-                        break;
-                }
-            });
-        });
-        
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.pack-dropdown') && !e.target.closest('.pack-settings')) {
-                this.closeAllDropdowns();
-            }
-        });
-        
-        // Prevent yaml-file-container clicks from bubbling to folder headers
-        document.querySelectorAll('.yaml-file-container').forEach(container => {
-            container.addEventListener('click', (e) => {
-                e.stopPropagation();
-            });
-        });
-        
-        // YAML file header clicks (expand/collapse entries)
-        document.querySelectorAll('.yaml-file-header').forEach(header => {
-            header.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const fileId = header.dataset.fileId;
-                this.toggleYamlFile(fileId);
-            });
-            
-            // Double-click on file name to rename inline
-            const fileNameSpan = header.querySelector('.yaml-file-name');
-            if (fileNameSpan) {
-                fileNameSpan.addEventListener('dblclick', (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    const fileId = header.dataset.fileId;
-                    const fileType = header.closest('.yaml-file-container').dataset.fileType;
-                    this.startInlineEdit(fileNameSpan, 'file', { fileId, fileType });
-                });
-            }
-        });
-        
-        // Entry item clicks (individual entries within YAML files)
-        document.querySelectorAll('.entry-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const entryId = item.dataset.entryId;
-                const fileType = item.dataset.fileType;
-                const parentFileId = item.dataset.parentFileId;
-                
-                // Try to find entry in active pack first
-                let entry = this.findEntryById(entryId, fileType, parentFileId);
-                
-                // If not found in active pack, search all packs and auto-switch
-                if (!entry) {
-                    const result = this.findEntryInAllPacks(entryId, fileType, parentFileId);
-                    if (result) {
-                        // Auto-switch to the pack containing this entry
-                        this.setActivePack(result.pack);
-                        entry = result.entry;
-                    }
-                }
-                
-                if (entry) {
-                    this.editor.openFile(entry, fileType);
-                }
-            });
-            
-            // Double-click to rename entry inline
-            item.addEventListener('dblclick', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const entryId = item.dataset.entryId;
-                const fileType = item.dataset.fileType;
-                const parentFileId = item.dataset.parentFileId;
-                this.startInlineEdit(item, 'entry', { entryId, fileType, parentFileId });
-            });
-        });
-        
-        // Legacy file clicks (for backward compatibility with flat structure)
-        document.querySelectorAll('.file-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const fileId = item.dataset.fileId;
-                const fileType = item.dataset.fileType;
-                
-                // Handle config files specially
-                if (fileType === 'packinfo') {
-                    this.openPackInfo();
-                    return;
-                }
-                if (fileType === 'tooltips') {
-                    this.openTooltips();
-                    return;
-                }
-                
-                // Try to find file in active pack first
-                let file = this.findFile(fileId, fileType);
-                
-                // If not found in active pack, search all packs and auto-switch
-                if (!file) {
-                    const result = this.findFileInAllPacks(fileId, fileType);
-                    if (result) {
-                        // Auto-switch to the pack containing this file
-                        this.setActivePack(result.pack);
-                        file = result.file;
-                    }
-                }
-                
-                if (file) {
-                    this.editor.openFile(file, fileType);
-                }
-            });
-        });
-        
-        // Add item buttons
-        document.querySelectorAll('.add-item-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const type = btn.dataset.type;
-                const packId = btn.dataset.packId;
-                
-                // Auto-switch to the pack where the button was clicked
-                if (packId) {
-                    const targetPack = this.getPackById(packId);
-                    if (targetPack && targetPack !== this.activePack) {
-                        this.setActivePack(targetPack);
-                    }
-                }
-                
-                switch (type) {
-                    case 'mob':
-                        this.editor.createNewMob();
-                        break;
-                    case 'skill':
-                        this.editor.createNewSkill();
-                        break;
-                    case 'item':
-                        this.editor.createNewItem();
-                        break;
-                    case 'droptable':
-                        this.editor.createNewDropTable();
-                        break;
-                    case 'randomspawn':
-                        this.editor.createNewRandomSpawn();
-                        break;
-                }
-            });
-        });
-        
-        // Folder collapse/expand
-        document.querySelectorAll('.folder-header.collapsible').forEach(header => {
-            header.addEventListener('click', (e) => {
-                // Only toggle if click is directly on the folder-header or its direct children
-                // Don't toggle if click bubbled up from deeper elements
-                const clickedElement = e.target;
-                const isDirectChild = clickedElement === header || clickedElement.parentElement === header;
-                
-                if (!isDirectChild) {
-                    return;
-                }
-                
-                e.stopPropagation();
-                this.toggleFolder(header);
-            });
-        });
-        
-        // Pack drag and drop
-        this.attachPackDragListeners();
-        
-        // Context menu for entries and files
-        document.querySelectorAll('.entry-item, .yaml-file-header').forEach(item => {
-            item.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const fileId = item.dataset.entryId || item.dataset.fileId;
-                const fileType = item.dataset.fileType;
-                const fileName = item.dataset.fileName || item.querySelector('.yaml-file-name, span')?.textContent || 'Unknown';
-                
-                if (!this.contextMenu) return;
-                
-                const isFavorited = this.isFavorited(fileId);
-                
-                const menuItems = [
-                    { label: 'Open', icon: 'fa-folder-open', action: 'open' },
-                    { label: 'Duplicate', icon: 'fa-copy', action: 'duplicate' },
-                    { separator: true },
-                    { label: isFavorited ? 'Remove from Favorites' : 'Add to Favorites', icon: 'fa-star', action: 'toggleFavorite' },
-                    { separator: true },
-                    { label: 'Copy Name', icon: 'fa-clipboard', action: 'copyName' },
-                    { label: 'Export', icon: 'fa-file-export', action: 'export' },
-                    { separator: true },
-                    { label: 'Delete', icon: 'fa-trash', action: 'delete', danger: true }
-                ];
-                
-                this.contextMenu.show(e.clientX, e.clientY, menuItems, {
-                    fileId,
-                    fileType,
-                    fileName,
-                    packName: this.activePack?.name || 'Unknown'
-                });
-            });
-        });
-        
-        // Favorite star buttons
-        document.querySelectorAll('.favorite-star-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                
-                const fileId = btn.dataset.entryId;
-                const fileName = btn.dataset.fileName;
-                const fileType = btn.dataset.fileType;
-                const packName = this.activePack?.name || 'Unknown';
-                
-                this.toggleFavorite(fileId, fileName, fileType, packName);
-            });
-        });
+        // All click/contextmenu events are now handled via delegation in setupDelegatedEventListeners()
+        // This method is kept for backward compatibility but no longer attaches individual listeners
+        // Pack drag/drop is handled separately by attachPackDragListeners() called from renderPackTree()
     }
     
     toggleFolder(header) {
@@ -2043,12 +2146,31 @@ class PackManager {
         return false;
     }
     
-    // Pack collapse management
+    // Pack collapse management - optimized to update DOM directly without full re-render
     togglePackCollapse(packId) {
         const collapsedStates = this.getCollapsedStates();
-        collapsedStates[packId] = !collapsedStates[packId];
-        this.saveCollapsedState(packId, collapsedStates[packId]);
-        this.renderPackTree();
+        const isNowCollapsed = !collapsedStates[packId];
+        collapsedStates[packId] = isNowCollapsed;
+        this.saveCollapsedState(packId, isNowCollapsed);
+        
+        // Update DOM directly instead of full re-render
+        const packItem = document.querySelector(`.pack-item[data-pack-id="${packId}"]`);
+        if (packItem) {
+            const packContent = packItem.querySelector('.pack-content');
+            const chevron = packItem.querySelector('.pack-chevron');
+            
+            if (packContent && chevron) {
+                if (isNowCollapsed) {
+                    packContent.classList.remove('expanded');
+                    packContent.classList.add('collapsed');
+                    chevron.classList.remove('rotated');
+                } else {
+                    packContent.classList.remove('collapsed');
+                    packContent.classList.add('expanded');
+                    chevron.classList.add('rotated');
+                }
+            }
+        }
     }
     
     getCollapsedStates() {
@@ -2060,24 +2182,6 @@ class PackManager {
         const states = this.getCollapsedStates();
         states[packId] = isCollapsed;
         localStorage.setItem('packCollapsedStates', JSON.stringify(states));
-    }
-    
-    // Dropdown management
-    togglePackDropdown(packId) {
-        if (this.openDropdownPackId === packId) {
-            this.closeAllDropdowns();
-        } else {
-            this.openDropdownPackId = packId;
-            this.renderPackTree();
-        }
-    }
-    
-    closeAllDropdowns() {
-        this.openDropdownPackId = null;
-        document.querySelectorAll('.pack-dropdown').forEach(dropdown => {
-            dropdown.style.display = 'none';
-            dropdown.classList.remove('open');
-        });
     }
     
     // Pack actions
@@ -3249,9 +3353,9 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
             fileName = this._favoritesMetadataCache[fileId].fileName;
         }
         
-        // Show notification
-        if (this.editor.notificationModal) {
-            this.editor.notificationModal.show(
+        // Show notification using global notificationModal
+        if (window.notificationModal) {
+            window.notificationModal.show(
                 'File Not Found',
                 `The file "${fileName}" no longer exists. It may have been deleted or renamed.`,
                 [
@@ -3304,21 +3408,235 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
     }
     
     /**
-     * Duplicate a file
+     * Delete an entry (item within a yml file) with confirmation
      */
-    duplicateFile(fileId, fileType) {
-        // Implementation depends on existing duplicate functionality
-        if (window.DEBUG_MODE) console.log('Duplicate file:', fileId, fileType);
-        // Call appropriate editor duplicate method
+    async deleteEntry(entryId, fileType, parentFileId, fileName) {
+        if (!this.activePack) return false;
+        
+        const displayName = fileName || 'this entry';
+        
+        // Show confirmation dialog
+        const confirmed = await this.editor.showConfirmDialog(
+            `Delete "${displayName}"?`,
+            `Are you sure you want to delete this ${fileType}? This action cannot be undone.`,
+            'Delete',
+            'Cancel'
+        );
+        
+        if (!confirmed) return false;
+        
+        // Proceed with deletion
+        return this.removeEntryFromFile(entryId, fileType, parentFileId);
     }
-
+    
     /**
-     * Export a file
+     * Duplicate an entry (item within a yml file)
      */
-    exportFile(fileId, fileType) {
-        // Implementation depends on existing export functionality
-        if (window.DEBUG_MODE) console.log('Export file:', fileId, fileType);
-        // Call appropriate export method
+    async duplicateEntry(entryId, fileType, parentFileId) {
+        if (!this.activePack) return null;
+        
+        const collection = this.activePack[fileType + 's'];
+        if (!collection) return null;
+        
+        // Find the parent file
+        const parentFile = collection.find(f => f.id === parentFileId);
+        if (!parentFile || !parentFile.entries) return null;
+        
+        // Find the entry to duplicate
+        const entry = parentFile.entries.find(e => e.id === entryId);
+        if (!entry) return null;
+        
+        // Create deep copy of entry
+        const duplicated = JSON.parse(JSON.stringify(entry));
+        duplicated.id = 'entry_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        // Generate new name
+        const baseName = duplicated.internalName || duplicated.name || 'Unnamed';
+        let newName = baseName + '_copy';
+        let counter = 1;
+        
+        // Check for existing copies
+        while (parentFile.entries.some(e => (e.internalName || e.name) === newName)) {
+            newName = baseName + '_copy' + counter;
+            counter++;
+        }
+        
+        duplicated.internalName = newName;
+        if (duplicated.name) duplicated.name = newName;
+        
+        // Add to parent file
+        parentFile.entries.push(duplicated);
+        
+        this.savePacks();
+        this.renderPackTree();
+        this.editor.showToast(`Duplicated as "${newName}"`, 'success');
+        
+        return duplicated;
+    }
+    
+    /**
+     * Export an entry (item within a yml file) as YAML
+     */
+    exportEntry(entryId, fileType) {
+        if (!this.activePack) return;
+        
+        const collection = this.activePack[fileType + 's'];
+        if (!collection) return;
+        
+        // Search through all files for the entry
+        let entry = null;
+        for (const file of collection) {
+            if (file.entries) {
+                entry = file.entries.find(e => e.id === entryId);
+                if (entry) break;
+            }
+        }
+        
+        if (!entry) {
+            this.editor.showToast('Entry not found', 'error');
+            return;
+        }
+        
+        // Generate YAML
+        const name = entry.internalName || entry.name || 'unnamed';
+        const yamlContent = this.editor.generateYAML ? 
+            this.editor.generateYAML(entry, fileType) : 
+            this.generateSimpleYAML(entry, name);
+        
+        // Download as file
+        const blob = new Blob([yamlContent], { type: 'text/yaml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${name}.yml`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        this.editor.showToast(`Exported "${name}.yml"`, 'success');
+    }
+    
+    /**
+     * Duplicate a YAML file container
+     */
+    async duplicateYamlFile(fileId, fileType) {
+        if (!this.activePack) return null;
+        
+        const collection = this.activePack[fileType + 's'];
+        if (!collection) return null;
+        
+        // Find the file
+        const file = collection.find(f => f.id === fileId);
+        if (!file) return null;
+        
+        // Create deep copy
+        const duplicated = JSON.parse(JSON.stringify(file));
+        duplicated.id = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        // Generate new file name
+        const baseName = file.fileName.replace(/\.ya?ml$/i, '');
+        let newName = baseName + '_copy.yml';
+        let counter = 1;
+        
+        while (collection.some(f => f.fileName === newName)) {
+            newName = baseName + '_copy' + counter + '.yml';
+            counter++;
+        }
+        
+        duplicated.fileName = newName;
+        duplicated.name = newName;
+        
+        // Generate new IDs for all entries
+        if (duplicated.entries) {
+            duplicated.entries.forEach(entry => {
+                entry.id = 'entry_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            });
+        }
+        
+        // Add to collection
+        collection.push(duplicated);
+        
+        this.savePacks();
+        this.renderPackTree();
+        this.editor.showToast(`Duplicated file as "${newName}"`, 'success');
+        
+        return duplicated;
+    }
+    
+    /**
+     * Export a YAML file container
+     */
+    exportYamlFile(fileId, fileType) {
+        if (!this.activePack) return;
+        
+        const collection = this.activePack[fileType + 's'];
+        if (!collection) return;
+        
+        const file = collection.find(f => f.id === fileId);
+        if (!file) {
+            this.editor.showToast('File not found', 'error');
+            return;
+        }
+        
+        // Generate YAML for all entries in the file
+        let yamlContent = '';
+        
+        if (file.entries && file.entries.length > 0) {
+            file.entries.forEach((entry, index) => {
+                const name = entry.internalName || entry.name || 'unnamed';
+                const entryYaml = this.editor.generateYAML ? 
+                    this.editor.generateYAML(entry, fileType) : 
+                    this.generateSimpleYAML(entry, name);
+                yamlContent += entryYaml;
+                if (index < file.entries.length - 1) {
+                    yamlContent += '\n';
+                }
+            });
+        }
+        
+        // Download as file
+        const fileName = file.fileName || 'export.yml';
+        const blob = new Blob([yamlContent], { type: 'text/yaml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        this.editor.showToast(`Exported "${fileName}"`, 'success');
+    }
+    
+    /**
+     * Generate simple YAML for an entry (fallback if editor.generateYAML not available)
+     */
+    generateSimpleYAML(entry, name) {
+        const cleanEntry = { ...entry };
+        delete cleanEntry.id;
+        delete cleanEntry._fileId;
+        delete cleanEntry._parentFile;
+        delete cleanEntry._placeholder;
+        
+        let yaml = `${name}:\n`;
+        
+        for (const [key, value] of Object.entries(cleanEntry)) {
+            if (key === 'internalName' || key === 'name') continue;
+            if (value === null || value === undefined || value === '') continue;
+            
+            if (typeof value === 'object') {
+                yaml += `  ${key}:\n`;
+                for (const [subKey, subValue] of Object.entries(value)) {
+                    yaml += `    ${subKey}: ${JSON.stringify(subValue)}\n`;
+                }
+            } else {
+                yaml += `  ${key}: ${value}\n`;
+            }
+        }
+        
+        return yaml;
     }
 }
 
