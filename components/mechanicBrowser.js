@@ -24,8 +24,8 @@ class MechanicBrowser {
         this.virtualScroller = null;
         
         // Initialize browser data merger
-        if (window.supabase && typeof BrowserDataMerger !== 'undefined') {
-            this.browserDataMerger = new BrowserDataMerger(window.supabase);
+        if (window.supabaseClient && typeof BrowserDataMerger !== 'undefined') {
+            this.browserDataMerger = new BrowserDataMerger(window.supabaseClient);
         }
         this.mechanicsData = MECHANICS_DATA; // Default to built-in, will be replaced with merged data
         

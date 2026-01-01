@@ -103,8 +103,19 @@ class TemplateSelector {
      * Increment view count for a template
      */
     incrementViewCount(templateId) {
+        // Local tracking
         this.viewCounts[templateId] = (this.viewCounts[templateId] || 0) + 1;
         this.saveViewCounts();
+        
+        // Cloud tracking (non-blocking)
+        if (this.templateManager) {
+            this.templateManager.trackTemplateView(templateId).catch(err => {
+                console.warn('Failed to track view in cloud:', err);
+            });
+        }
+        
+        // Activity tracking
+        window.activityTracker?.trackTemplateView(templateId);
     }
     
     /**
@@ -115,15 +126,42 @@ class TemplateSelector {
     }
 
     /**
-     * Load favorites from localStorage
+     * Load favorites from localStorage (and sync with cloud if authenticated)
      */
     loadFavorites() {
         const saved = localStorage.getItem('templateSelector_favorites');
-        return saved ? JSON.parse(saved) : [];
+        const localFavorites = saved ? JSON.parse(saved) : [];
+        
+        // Async cloud sync (don't block)
+        this.syncFavoritesWithCloud(localFavorites);
+        
+        return localFavorites;
+    }
+    
+    /**
+     * Sync favorites with cloud storage
+     */
+    async syncFavoritesWithCloud(localFavorites) {
+        if (!this.templateManager?.auth?.isAuthenticated()) return;
+        
+        try {
+            const merged = await this.templateManager.syncFavorites(localFavorites);
+            if (merged.length !== this.favorites.length || 
+                !merged.every(id => this.favorites.includes(id))) {
+                this.favorites = merged;
+                this.saveFavorites();
+                // Re-render if modal is open
+                if (document.getElementById('templateSelectorOverlay')?.style.display !== 'none') {
+                    this.renderTemplates();
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to sync favorites with cloud:', error);
+        }
     }
 
     /**
-     * Save favorites to localStorage
+     * Save favorites to localStorage (and cloud if authenticated)
      */
     saveFavorites() {
         localStorage.setItem('templateSelector_favorites', JSON.stringify(this.favorites));
@@ -158,14 +196,22 @@ class TemplateSelector {
     }
 
     /**
-     * Toggle favorite status
+     * Toggle favorite status (with cloud sync)
      */
-    toggleFavorite(templateId) {
+    async toggleFavorite(templateId) {
         const index = this.favorites.indexOf(templateId);
         if (index > -1) {
             this.favorites.splice(index, 1);
+            // Remove from cloud
+            if (this.templateManager?.auth?.isAuthenticated()) {
+                this.templateManager.removeCloudFavorite(templateId);
+            }
         } else {
             this.favorites.push(templateId);
+            // Add to cloud
+            if (this.templateManager?.auth?.isAuthenticated()) {
+                this.templateManager.addCloudFavorite(templateId);
+            }
         }
         this.saveFavorites();
     }
@@ -663,6 +709,60 @@ class TemplateSelector {
                     color: white;
                 }
                 
+                /* === Star Rating Display === */
+                .star-rating-display {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.15rem;
+                    font-size: 0.75rem;
+                }
+                
+                .star-rating-display .star {
+                    color: var(--text-muted, #6c757d);
+                }
+                
+                .star-rating-display .star.filled {
+                    color: #ffc107;
+                }
+                
+                .star-rating-display .star.half {
+                    background: linear-gradient(90deg, #ffc107 50%, var(--text-muted, #6c757d) 50%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                }
+                
+                .star-rating-display .rating-count {
+                    color: var(--text-muted, #6c757d);
+                    font-size: 0.7rem;
+                    margin-left: 0.25rem;
+                }
+                
+                /* === Interactive Star Rating (for rating modal) === */
+                .star-rating-input {
+                    display: flex;
+                    gap: 0.25rem;
+                    font-size: 1.5rem;
+                }
+                
+                .star-rating-input .star-btn {
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    color: var(--text-muted, #6c757d);
+                    transition: color 0.15s, transform 0.15s;
+                    padding: 0.25rem;
+                }
+                
+                .star-rating-input .star-btn:hover,
+                .star-rating-input .star-btn.active {
+                    color: #ffc107;
+                    transform: scale(1.2);
+                }
+                
+                .star-rating-input .star-btn.hovered {
+                    color: #ffc107;
+                }
+                
                 /* === View Count Badge === */
                 .view-count-badge {
                     display: inline-flex;
@@ -1047,6 +1147,11 @@ class TemplateSelector {
             this.searchDebounceTimer = setTimeout(() => {
                 this.searchQuery = query;
                 this.renderTemplates();
+                
+                // Track search activity (only if meaningful search)
+                if (query.length >= 3) {
+                    window.activityTracker?.trackSearch(query, 'templates');
+                }
             }, 300);
         });
         
@@ -1789,6 +1894,11 @@ class TemplateSelector {
         const viewCount = this.getViewCount(template.id);
         const viewCountBadge = viewCount > 0 ? `<span class="view-count-badge" title="Viewed ${viewCount} time${viewCount !== 1 ? 's' : ''}"><i class="fas fa-eye"></i> ${viewCount}</span>` : '';
         
+        // Star rating display
+        const avgRating = template.average_rating || 0;
+        const ratingCount = template.rating_count || 0;
+        const starRatingHtml = this.renderStarRating(avgRating, ratingCount);
+        
         // Check if selected for comparison
         const isSelected = this.selectedForComparison.includes(template.id);
         const compareClass = isSelected ? 'compare-selected' : '';
@@ -1810,6 +1920,7 @@ class TemplateSelector {
                     <h4 style="font-size: 0.95rem; margin: 0 0 0.5rem 0; font-weight: 600; line-height: 1.3; min-height: 2.6rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                         ${this.escapeHtml(template.name)}
                     </h4>
+                    ${starRatingHtml}
                     <div style="display: flex; gap: 0.3rem; justify-content: center; flex-wrap: wrap; margin-top: 0.3rem;">
                         ${officialBadge}
                         ${ownerBadge}
@@ -1832,6 +1943,9 @@ class TemplateSelector {
                     </button>
                     <button class="btn btn-secondary btn-sm template-preview-btn" data-template-id="${template.id}" title="View details" style="font-size: 0.85rem; padding: 0.5rem;">
                         <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-secondary btn-sm template-rate-btn" data-template-id="${template.id}" title="Rate this template" style="font-size: 0.85rem; padding: 0.5rem; color: #ffc107;">
+                        <i class="fas fa-star"></i>
                     </button>
                     ${this.canEdit(template) ? `
                         <button class="btn btn-warning btn-sm template-edit-btn" data-template-id="${template.id}" title="Edit template" style="font-size: 0.85rem; padding: 0.5rem;">
@@ -1897,6 +2011,11 @@ class TemplateSelector {
         const isSelected = this.selectedForComparison.includes(template.id);
         const compareClass = isSelected ? 'compare-selected' : '';
         
+        // Star rating display
+        const avgRating = template.average_rating || 0;
+        const ratingCount = template.rating_count || 0;
+        const starRatingHtml = this.renderStarRating(avgRating, ratingCount);
+        
         return `
             <div class="condition-item template-card template-list-card ${isIncompatible ? 'template-incompatible' : ''} ${compareClass}" data-template-id="${template.id}" style="margin-bottom: 1.5rem; padding: 1.25rem; position: relative;">
                 <button class="quick-copy-btn" data-template-id="${template.id}" title="Quick copy to clipboard" style="top: 0.75rem; right: 0.75rem;">
@@ -1906,6 +2025,7 @@ class TemplateSelector {
                     <div class="condition-item-icon">${categoryIcon}</div>
                     <div class="condition-item-title">
                         <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">${this.escapeHtml(template.name)} ${officialBadge} ${ownerBadge} ${viewCountBadge}</h3>
+                        ${starRatingHtml}
                         <div class="template-meta" style="gap: 0.5rem;">
                             <span class="meta-badge structure-badge" style="background: ${structureInfo.color}; color: white; padding: 0.25rem 0.6rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600;" title="${structureInfo.description}">
                                 ${structureInfo.icon} ${structureInfo.label}
@@ -1936,6 +2056,10 @@ class TemplateSelector {
                     <button class="btn btn-secondary btn-sm template-duplicate-btn" data-template-id="${template.id}">
                         <i class="fas fa-copy"></i>
                         Duplicate
+                    </button>
+                    <button class="btn btn-secondary btn-sm template-rate-btn" data-template-id="${template.id}" title="Rate this template" style="color: #ffc107;">
+                        <i class="fas fa-star"></i>
+                        Rate
                     </button>
                     ${this.canEdit(template) ? `
                         <button class="btn btn-warning btn-sm template-edit-btn" data-template-id="${template.id}">
@@ -2055,6 +2179,11 @@ class TemplateSelector {
                     this.toggleFavorite(templateId);
                     this.renderTabs();
                     this.renderTemplates();
+                }
+                // Rate button
+                else if (button.classList.contains('template-rate-btn')) {
+                    const templateId = button.dataset.templateId;
+                    this.showRatingModal(templateId);
                 }
             }
             // Handle card click
@@ -2195,6 +2324,16 @@ class TemplateSelector {
         // Add to recent
         this.addToRecent(templateId);
         
+        // Track template use in cloud (non-blocking)
+        if (this.templateManager) {
+            this.templateManager.trackTemplateUse(templateId).catch(err => {
+                console.warn('Failed to track use in cloud:', err);
+            });
+        }
+        
+        // Activity tracking
+        window.activityTracker?.trackTemplateUse(templateId);
+        
         if (this.onSelectCallback) {
             // Pass the full template object so receiving code can access sections, skillLines, etc.
             // This supports both old format (built-in with skillLine string) and new format (with sections array)
@@ -2273,6 +2412,177 @@ class TemplateSelector {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    
+    /**
+     * Render star rating display
+     * @param {number} rating - Average rating (0-5)
+     * @param {number} count - Number of ratings
+     * @returns {string} HTML for star rating display
+     */
+    renderStarRating(rating, count) {
+        if (!count || count === 0) {
+            return '<div class="star-rating-display" style="justify-content: center; margin-bottom: 0.25rem;"><span style="color: var(--text-muted); font-size: 0.75rem;">No ratings yet</span></div>';
+        }
+        
+        let starsHtml = '';
+        for (let i = 1; i <= 5; i++) {
+            if (rating >= i) {
+                starsHtml += '<i class="fas fa-star star filled"></i>';
+            } else if (rating >= i - 0.5) {
+                starsHtml += '<i class="fas fa-star-half-alt star filled"></i>';
+            } else {
+                starsHtml += '<i class="far fa-star star"></i>';
+            }
+        }
+        
+        return `
+            <div class="star-rating-display" style="justify-content: center; margin-bottom: 0.25rem;">
+                ${starsHtml}
+                <span class="rating-count">(${count})</span>
+            </div>
+        `;
+    }
+    
+    /**
+     * Render interactive star rating for rating modal
+     * @param {number} currentRating - User's current rating (0 if none)
+     * @param {string} templateId - Template ID
+     * @returns {string} HTML for interactive stars
+     */
+    renderInteractiveStars(currentRating, templateId) {
+        let starsHtml = '';
+        for (let i = 1; i <= 5; i++) {
+            const isActive = currentRating >= i;
+            starsHtml += `
+                <button class="star-btn ${isActive ? 'active' : ''}" 
+                        data-rating="${i}" 
+                        data-template-id="${templateId}"
+                        title="Rate ${i} star${i > 1 ? 's' : ''}">
+                    <i class="${isActive ? 'fas' : 'far'} fa-star"></i>
+                </button>
+            `;
+        }
+        
+        return `<div class="star-rating-input">${starsHtml}</div>`;
+    }
+    
+    /**
+     * Show rating modal for a template
+     */
+    async showRatingModal(templateId) {
+        const template = this.allTemplates.find(t => t.id === templateId);
+        if (!template) return;
+        
+        // Check if user is authenticated
+        if (!this.templateManager?.auth?.isAuthenticated()) {
+            window.notificationModal?.alert(
+                'Please log in to rate templates.',
+                'info',
+                'Login Required'
+            );
+            return;
+        }
+        
+        // Get user's current rating
+        const userRating = await this.templateManager.getUserRating(templateId);
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+        
+        modal.innerHTML = `
+            <div class="modal-content" style="background: var(--bg-primary); border-radius: 8px; padding: 1.5rem; max-width: 400px; width: 90%;">
+                <h3 style="margin: 0 0 1rem 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-star" style="color: #ffc107;"></i>
+                    Rate Template
+                </h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                    How would you rate "<strong>${this.escapeHtml(template.name)}</strong>"?
+                </p>
+                <div style="text-align: center; margin-bottom: 1.5rem;">
+                    ${this.renderInteractiveStars(userRating || 0, templateId)}
+                </div>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    ${userRating ? `
+                        <button class="btn btn-secondary" id="removeRatingBtn">
+                            <i class="fas fa-times"></i> Remove Rating
+                        </button>
+                    ` : ''}
+                    <button class="btn btn-secondary" id="cancelRatingBtn">Cancel</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Handle star clicks
+        modal.querySelectorAll('.star-btn').forEach(btn => {
+            btn.addEventListener('mouseover', (e) => {
+                const rating = parseInt(btn.dataset.rating);
+                modal.querySelectorAll('.star-btn').forEach((b, i) => {
+                    b.classList.toggle('hovered', i < rating);
+                });
+            });
+            
+            btn.addEventListener('mouseout', () => {
+                modal.querySelectorAll('.star-btn').forEach(b => {
+                    b.classList.remove('hovered');
+                });
+            });
+            
+            btn.addEventListener('click', async () => {
+                const rating = parseInt(btn.dataset.rating);
+                try {
+                    await this.templateManager.rateTemplate(templateId, rating);
+                    
+                    // Track activity
+                    window.activityTracker?.trackTemplateRate(templateId, rating);
+                    
+                    // Update local template data
+                    if (template) {
+                        // Re-fetch to get updated average
+                        const updated = await this.templateManager.getTemplateById(templateId);
+                        if (updated) {
+                            template.average_rating = updated.average_rating;
+                            template.rating_count = updated.rating_count;
+                        }
+                    }
+                    
+                    document.body.removeChild(modal);
+                    this.renderTemplates(); // Refresh display
+                    
+                    window.notificationModal?.toast('Rating saved!', 'success');
+                } catch (error) {
+                    console.error('Failed to rate:', error);
+                    window.notificationModal?.toast('Failed to save rating', 'error');
+                }
+            });
+        });
+        
+        // Cancel button
+        modal.querySelector('#cancelRatingBtn')?.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+        
+        // Remove rating button
+        modal.querySelector('#removeRatingBtn')?.addEventListener('click', async () => {
+            try {
+                await this.templateManager.removeRating(templateId);
+                document.body.removeChild(modal);
+                this.renderTemplates();
+                window.notificationModal?.toast('Rating removed', 'info');
+            } catch (error) {
+                console.error('Failed to remove rating:', error);
+            }
+        });
+        
+        // Click outside to close
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
     }
     
     // ========================================
@@ -2427,15 +2737,39 @@ class TemplateSelector {
     
     /**
      * Check if user can edit template
+     * Super admins can edit any template, regular users can only edit their own
      */
     canEdit(template) {
+        // Built-in templates can't be edited
+        if (template.isBuiltIn) {
+            return false;
+        }
+        
+        // Check if user is super admin or has edit_any permission
+        if (window.adminManager?.isAdmin && window.adminManager.hasPermission('edit_official_template')) {
+            return true;
+        }
+        
+        // Regular users can only edit their own templates
         return this.isOwner(template);
     }
     
     /**
      * Check if user can delete template
+     * Super admins can delete any template, regular users can only delete their own
      */
     canDelete(template) {
+        // Built-in templates can't be deleted
+        if (template.isBuiltIn) {
+            return false;
+        }
+        
+        // Check if user is super admin or has delete_any permission
+        if (window.adminManager?.isAdmin && window.adminManager.hasPermission('delete_official_template')) {
+            return true;
+        }
+        
+        // Regular users can only delete their own templates
         return this.isOwner(template);
     }
     
@@ -2455,7 +2789,7 @@ class TemplateSelector {
             }
             
             if (!this.canEdit(template)) {
-                this.showNotification('You can only edit your own templates. Try duplicating instead!', 'warning');
+                this.showNotification('You don\'t have permission to edit this template. Try duplicating instead!', 'warning');
                 return;
             }
             
@@ -2483,7 +2817,7 @@ class TemplateSelector {
         if (!template) return;
         
         if (!this.canDelete(template)) {
-            this.showNotification('You can only delete your own templates', 'warning');
+            this.showNotification('You don\'t have permission to delete this template', 'warning');
             return;
         }
         

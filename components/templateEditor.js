@@ -15,6 +15,8 @@ class TemplateEditor {
         this.sections = []; // New: for multi-section support
         this.structureType = 'multi-line'; // 'single', 'multi-line', or 'multi-section'
         this.onSaveCallback = null;
+        this.isDirty = false; // Track unsaved changes
+        this.initialState = null; // Store initial state for comparison
         
         this.createModal();
         this.attachEventListeners();
@@ -190,9 +192,12 @@ class TemplateEditor {
                                     <button type="button" class="btn btn-sm btn-secondary" id="yamlPreviewBtn" style="margin-left: 0.5rem;" title="Preview as YAML">
                                         <i class="fas fa-eye"></i> YAML
                                     </button>
+                                    <button type="button" class="btn btn-sm btn-primary" id="editLinesBtn" style="margin-left: 0.5rem;" title="Edit skill lines">
+                                        <i class="fas fa-edit"></i> Edit Lines
+                                    </button>
                                 </label>
-                                <div class="template-preview" style="background: var(--bg-secondary); padding: 1rem; border-radius: 4px; max-height: 200px; overflow-y: auto;">
-                                    <pre id="templatePreview" style="margin: 0; font-size: 0.9rem;"><code></code></pre>
+                                <div class="template-preview" style="background: var(--bg-secondary); padding: 1rem; border-radius: 4px; max-height: 200px; overflow: auto; cursor: pointer;" id="templatePreviewContainer" title="Click to edit lines">
+                                    <pre id="templatePreview" style="margin: 0; font-size: 0.9rem; white-space: pre;"><code></code></pre>
                                 </div>
                             </div>
 
@@ -272,6 +277,15 @@ class TemplateEditor {
             this.showYamlPreview();
         });
         
+        // Edit Lines button and preview container click
+        document.getElementById('editLinesBtn').addEventListener('click', () => {
+            this.openLinesEditor();
+        });
+        
+        document.getElementById('templatePreviewContainer').addEventListener('click', () => {
+            this.openLinesEditor();
+        });
+        
         // Import/Export buttons
         document.getElementById('importYamlBtn').addEventListener('click', () => {
             this.importYaml();
@@ -281,10 +295,10 @@ class TemplateEditor {
             this.exportYaml();
         });
         
-        // Click outside to close
+        // Click outside to close - but warn if unsaved changes
         document.getElementById('templateEditorOverlay').addEventListener('click', (e) => {
             if (e.target.id === 'templateEditorOverlay') {
-                this.close();
+                this.confirmClose();
             }
         });
         
@@ -294,6 +308,7 @@ class TemplateEditor {
             this.updateCharCounter('name', nameInput.value);
             this.validateName();
             this.updateSaveButton();
+            this.isDirty = true;
         });
         
         // Description input - validation and character counter
@@ -302,12 +317,30 @@ class TemplateEditor {
             this.updateCharCounter('description', descInput.value);
             this.validateDescription();
             this.updateSaveButton();
+            this.isDirty = true;
         });
         
         // Tags input - validation
         document.getElementById('templateTags').addEventListener('input', () => {
             this.updateSaveButton();
+            this.isDirty = true;
         });
+        
+        // Category and Icon select - mark dirty
+        document.getElementById('templateCategory').addEventListener('change', () => {
+            this.isDirty = true;
+        });
+        document.getElementById('templateIcon').addEventListener('change', () => {
+            this.isDirty = true;
+        });
+        
+        // Official checkbox (admin only) - mark dirty
+        const officialCheckbox = document.getElementById('templateIsOfficial');
+        if (officialCheckbox) {
+            officialCheckbox.addEventListener('change', () => {
+                this.isDirty = true;
+            });
+        }
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -315,7 +348,7 @@ class TemplateEditor {
             if (overlay.style.display === 'none') return;
             
             if (e.key === 'Escape') {
-                this.close();
+                this.confirmClose();
             } else if (e.ctrlKey && e.key === 'Enter') {
                 const saveBtn = document.getElementById('templateEditorSave');
                 if (!saveBtn.disabled) {
@@ -323,6 +356,20 @@ class TemplateEditor {
                 }
             }
         });
+    }
+    
+    /**
+     * Confirm close if there are unsaved changes
+     */
+    confirmClose() {
+        if (this.isDirty) {
+            // Show confirmation dialog
+            if (confirm('You have unsaved changes. Are you sure you want to close?')) {
+                this.close();
+            }
+        } else {
+            this.close();
+        }
     }
     
     /**
@@ -384,6 +431,9 @@ class TemplateEditor {
         // Update preview
         this.updatePreview();
         
+        // Reset dirty state on fresh open
+        this.isDirty = false;
+        
         // Show modal
         document.getElementById('templateEditorOverlay').style.display = 'flex';
         
@@ -432,6 +482,7 @@ class TemplateEditor {
         this.currentTemplate = null;
         this.skillLines = [];
         this.onSaveCallback = null;
+        this.isDirty = false; // Reset dirty state
     }
     
     /**
@@ -698,6 +749,363 @@ class TemplateEditor {
         }
         
         this.updatePreview();
+    }
+    
+    /**
+     * Open the skill line selection/editing modal
+     */
+    openLinesEditor() {
+        this.showLinesSelectionModal();
+    }
+    
+    /**
+     * Show modal with all skill lines for selection/editing
+     */
+    showLinesSelectionModal() {
+        // Get all lines organized by section
+        const allLines = this.getAllLinesWithSections();
+        
+        // Create modal
+        const modalOverlay = document.createElement('div');
+        modalOverlay.id = 'linesSelectionModal';
+        modalOverlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10100;';
+        
+        const hasMultipleSections = this.structureType === 'multi-section' && this.sections.length > 1;
+        
+        modalOverlay.innerHTML = `
+            <div class="lines-selection-modal" style="background: var(--bg-primary); padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 700px; max-height: 80vh; display: flex; flex-direction: column; border: 1px solid var(--border-color);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;"><i class="fas fa-edit"></i> Edit Skill Lines</h3>
+                    <button class="btn-icon close-modal-btn" title="Close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                ${hasMultipleSections ? `
+                    <div style="margin-bottom: 1rem;">
+                        <label style="margin-bottom: 0.5rem; display: block;">Section:</label>
+                        <select id="sectionSelector" class="form-control" style="width: 100%;">
+                            ${this.sections.map((s, i) => `<option value="${i}">${this.escapeHtml(s.name)} (${s.lines.length} lines)</option>`).join('')}
+                        </select>
+                    </div>
+                ` : ''}
+                
+                <div id="linesListContainer" style="flex: 1; overflow-y: auto; margin-bottom: 1rem; min-height: 200px;">
+                    ${this.renderLinesList(0)}
+                </div>
+                
+                <div style="display: flex; gap: 0.5rem; justify-content: space-between; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                    <button class="btn btn-secondary close-modal-btn">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                    <button class="btn btn-primary" id="addNewLineBtn">
+                        <i class="fas fa-plus"></i> Add New Line
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modalOverlay);
+        
+        // Event listeners
+        modalOverlay.querySelectorAll('.close-modal-btn').forEach(btn => {
+            btn.addEventListener('click', () => modalOverlay.remove());
+        });
+        
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) modalOverlay.remove();
+        });
+        
+        // Section selector change
+        const sectionSelector = modalOverlay.querySelector('#sectionSelector');
+        if (sectionSelector) {
+            sectionSelector.addEventListener('change', (e) => {
+                const container = modalOverlay.querySelector('#linesListContainer');
+                container.innerHTML = this.renderLinesList(parseInt(e.target.value));
+                this.attachLineEventListeners(modalOverlay, parseInt(e.target.value));
+            });
+        }
+        
+        // Add new line button
+        modalOverlay.querySelector('#addNewLineBtn').addEventListener('click', () => {
+            const sectionIndex = sectionSelector ? parseInt(sectionSelector.value) : 0;
+            modalOverlay.remove();
+            this.openSkillLineBuilder(sectionIndex, -1); // -1 means add new
+        });
+        
+        // Attach edit/delete listeners
+        const currentSection = sectionSelector ? parseInt(sectionSelector.value) : 0;
+        this.attachLineEventListeners(modalOverlay, currentSection);
+    }
+    
+    /**
+     * Get all lines organized by section
+     */
+    getAllLinesWithSections() {
+        if (this.structureType === 'multi-section') {
+            return this.sections.map((s, i) => ({
+                sectionIndex: i,
+                sectionName: s.name,
+                lines: s.lines || []
+            }));
+        } else {
+            return [{
+                sectionIndex: 0,
+                sectionName: 'Skills',
+                lines: this.skillLines || []
+            }];
+        }
+    }
+    
+    /**
+     * Render the list of lines for a section
+     */
+    renderLinesList(sectionIndex) {
+        const lines = this.structureType === 'multi-section'
+            ? (this.sections[sectionIndex]?.lines || [])
+            : (this.skillLines || []);
+        
+        if (lines.length === 0) {
+            return `
+                <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                    <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                    <p>No skill lines in this ${this.structureType === 'multi-section' ? 'section' : 'template'}.</p>
+                    <p style="font-size: 0.85rem;">Click "Add New Line" to create one.</p>
+                </div>
+            `;
+        }
+        
+        return `
+            <div class="lines-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                ${lines.map((line, i) => `
+                    <div class="line-item" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 4px; border: 1px solid var(--border-color);">
+                        <span class="line-number" style="color: var(--text-secondary); font-size: 0.85rem; min-width: 30px; flex-shrink: 0;">#${i + 1}</span>
+                        <code class="line-content" style="flex: 1; overflow-x: auto; white-space: nowrap; font-size: 0.85rem; color: var(--primary-color); padding: 0.25rem 0;" title="${this.escapeHtml(line)}">${this.escapeHtml(line)}</code>
+                        <div class="line-actions" style="display: flex; gap: 0.25rem; flex-shrink: 0;">
+                            <button class="btn btn-sm btn-secondary edit-line-btn" data-line-index="${i}" title="Edit this line">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-line-btn" data-line-index="${i}" title="Delete this line">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    /**
+     * Attach event listeners for edit/delete buttons
+     */
+    attachLineEventListeners(modalOverlay, sectionIndex) {
+        // Edit buttons
+        modalOverlay.querySelectorAll('.edit-line-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const lineIndex = parseInt(btn.dataset.lineIndex);
+                modalOverlay.remove();
+                this.openSkillLineBuilder(sectionIndex, lineIndex);
+            });
+        });
+        
+        // Delete buttons
+        modalOverlay.querySelectorAll('.delete-line-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const lineIndex = parseInt(btn.dataset.lineIndex);
+                this.deleteLine(sectionIndex, lineIndex, modalOverlay);
+            });
+        });
+    }
+    
+    /**
+     * Delete a skill line
+     */
+    deleteLine(sectionIndex, lineIndex, modalOverlay) {
+        const lines = this.structureType === 'multi-section'
+            ? this.sections[sectionIndex]?.lines
+            : this.skillLines;
+        
+        if (!lines || !lines[lineIndex]) return;
+        
+        const lineText = lines[lineIndex];
+        
+        if (confirm(`Delete this skill line?\n\n${lineText}`)) {
+            if (this.structureType === 'multi-section') {
+                this.sections[sectionIndex].lines.splice(lineIndex, 1);
+                this.renderSections();
+            } else {
+                this.skillLines.splice(lineIndex, 1);
+            }
+            
+            this.updatePreview();
+            this.updateSaveButton();
+            
+            // Refresh the modal list
+            const container = modalOverlay.querySelector('#linesListContainer');
+            container.innerHTML = this.renderLinesList(sectionIndex);
+            this.attachLineEventListeners(modalOverlay, sectionIndex);
+            
+            // Update section selector if multi-section
+            const sectionSelector = modalOverlay.querySelector('#sectionSelector');
+            if (sectionSelector) {
+                sectionSelector.innerHTML = this.sections.map((s, i) => 
+                    `<option value="${i}" ${i === sectionIndex ? 'selected' : ''}>${this.escapeHtml(s.name)} (${s.lines.length} lines)</option>`
+                ).join('');
+            }
+            
+            this.showNotification('Line deleted', 'success');
+        }
+    }
+    
+    /**
+     * Open skill line builder for editing or adding a line
+     * @param {number} sectionIndex - Section index (0 for non-multi-section)
+     * @param {number} lineIndex - Line index to edit, or -1 to add new
+     */
+    openSkillLineBuilder(sectionIndex, lineIndex) {
+        if (!window.skillLineBuilder) {
+            console.error('SkillLineBuilder not available');
+            window.notificationModal?.alert('Skill Line Builder is not available', 'error');
+            return;
+        }
+        
+        const isEditing = lineIndex >= 0;
+        const existingLine = isEditing
+            ? (this.structureType === 'multi-section'
+                ? this.sections[sectionIndex]?.lines[lineIndex]
+                : this.skillLines[lineIndex])
+            : null;
+        
+        // Store edit context
+        this.editContext = {
+            sectionIndex,
+            lineIndex,
+            isEditing
+        };
+        
+        // Determine context from template type (mob or skill)
+        const templateType = this.currentTemplate?.type || this.getTemplateTypeFromUI();
+        const builderContext = templateType === 'mob' ? 'mob' : 'skill';
+        
+        // Open skill line builder with higher z-index and correct context
+        window.skillLineBuilder.open({
+            context: builderContext,
+            zIndex: 10200, // Above lines selection modal
+            onAdd: (skillLine) => {
+                this.handleSkillLineResult(skillLine);
+            },
+            onAddMultiple: (skillLines) => {
+                // For multiple lines, add them all
+                skillLines.forEach(line => this.handleSkillLineResult(line, false));
+                this.updatePreview();
+                this.updateSaveButton();
+            },
+            onClose: () => {
+                this.editContext = null;
+            }
+        });
+        
+        // If editing, load the existing line into the builder after a short delay
+        if (isEditing && existingLine) {
+            setTimeout(() => {
+                if (window.skillLineBuilder.parseAndUpdateFromSkillLine) {
+                    window.skillLineBuilder.parseAndUpdateFromSkillLine(existingLine);
+                }
+            }, 100);
+        }
+    }
+    
+    /**
+     * Get template type from UI (fallback when currentTemplate not available)
+     */
+    getTemplateTypeFromUI() {
+        const typeText = document.getElementById('templateType')?.value || '';
+        return typeText.includes('Mob') ? 'mob' : 'skill';
+    }
+    
+    /**
+     * Handle result from skill line builder
+     */
+    handleSkillLineResult(skillLine, updateUI = true) {
+        if (!skillLine) return;
+        
+        const ctx = this.editContext || { sectionIndex: 0, lineIndex: -1, isEditing: false };
+        
+        if (this.structureType === 'multi-section') {
+            if (!this.sections[ctx.sectionIndex]) {
+                this.sections[ctx.sectionIndex] = { name: 'Skills', lines: [] };
+            }
+            
+            if (ctx.isEditing && ctx.lineIndex >= 0) {
+                // Replace existing line
+                this.sections[ctx.sectionIndex].lines[ctx.lineIndex] = skillLine;
+            } else {
+                // Add new line
+                this.sections[ctx.sectionIndex].lines.push(skillLine);
+            }
+            
+            if (updateUI) this.renderSections();
+        } else {
+            if (ctx.isEditing && ctx.lineIndex >= 0) {
+                // Replace existing line
+                this.skillLines[ctx.lineIndex] = skillLine;
+            } else {
+                // Add new line
+                this.skillLines.push(skillLine);
+            }
+        }
+        
+        if (updateUI) {
+            this.updatePreview();
+            this.updateSaveButton();
+        }
+    }
+    
+    /**
+     * Save lines from the editor modal (legacy - kept for import functionality)
+     */
+    saveLinesFromEditor(content) {
+        
+        if (this.structureType === 'multi-section') {
+            // Parse sections from text (lines starting with # are section names)
+            const lines = content.split('\n');
+            const newSections = [];
+            let currentSection = null;
+            
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('#')) {
+                    // New section
+                    if (currentSection) {
+                        newSections.push(currentSection);
+                    }
+                    currentSection = {
+                        name: trimmedLine.substring(1).trim() || 'Unnamed',
+                        lines: []
+                    };
+                } else if (trimmedLine && currentSection) {
+                    currentSection.lines.push(trimmedLine);
+                } else if (trimmedLine && !currentSection) {
+                    // Lines before first section - create default section
+                    currentSection = { name: 'Skills', lines: [trimmedLine] };
+                }
+            });
+            
+            if (currentSection) {
+                newSections.push(currentSection);
+            }
+            
+            this.sections = newSections.length > 0 ? newSections : [{ name: 'Skills', lines: [] }];
+            this.renderSections();
+        } else {
+            // Parse as simple line list
+            this.skillLines = content.split('\n')
+                .map(line => line.trim())
+                .filter(line => line && !line.startsWith('#'));
+        }
+        
+        this.updatePreview();
+        this.updateSaveButton();
     }
     
     /**
@@ -1022,7 +1430,7 @@ class TemplateEditor {
             
             if (this.mode === 'edit' && this.currentTemplate) {
                 // Update existing template
-                result = await this.templateManager.updateTemplate(this.currentTemplate.id, {
+                const updateData = {
                     name: templateData.name,
                     description: templateData.description,
                     tags: templateData.tags,
@@ -1033,7 +1441,18 @@ class TemplateEditor {
                         icon: templateData.icon,
                         sections: templateData.sections
                     }
-                });
+                };
+                
+                // If marking as official and wasn't before, record approval info
+                if (templateData.is_official && !this.currentTemplate.is_official) {
+                    const currentUser = this.templateManager.auth?.getCurrentUser();
+                    if (currentUser) {
+                        updateData.approved_by = currentUser.id;
+                        updateData.approved_at = new Date().toISOString();
+                    }
+                }
+                
+                result = await this.templateManager.updateTemplate(this.currentTemplate.id, updateData);
                 this.showNotification('Template updated successfully!', 'success');
             } else {
                 // Create new template - use templateManager.createTemplate which handles sections

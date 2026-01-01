@@ -925,6 +925,9 @@ class SkillLineBuilder {
             return;
         }
         
+        // Store z-index for this session (used by child browsers)
+        this.currentZIndex = options.zIndex || 10000;
+        
         // Reset state completely when opening (fresh start)
         this.setState({
             context: options.context || 'skill',
@@ -962,6 +965,9 @@ class SkillLineBuilder {
         this.dom.overlay.style.display = 'flex';
         this.dom.overlay.style.opacity = '1';
         this.dom.overlay.style.pointerEvents = 'auto';
+        
+        // Set z-index (allows opening above other modals like template editor)
+        this.dom.overlay.style.zIndex = this.currentZIndex.toString();
         
         this.updateContextUI();
         this.render();
@@ -1013,7 +1019,7 @@ class SkillLineBuilder {
         if (this.dom.overlay) {
             this.dom.overlay.style.opacity = '1';
             this.dom.overlay.style.pointerEvents = 'auto';
-            this.dom.overlay.style.zIndex = '10000'; // Restore original z-index
+            this.dom.overlay.style.zIndex = (this.currentZIndex || 10000).toString(); // Restore session z-index
         }
         
         // Focus back on builder
@@ -1682,7 +1688,7 @@ class SkillLineBuilder {
         // Open browser with callback and proper context
         this.browsers.mechanic.open({
             context: builderContext,
-            parentZIndex: 10000,
+            parentZIndex: (this.currentZIndex || 10000) + 10,
             onSelect: (skillLine) => {
                 // CRITICAL: Always clear state first, even on cancel
                 // This fixes the "Browser already open" bug
@@ -1791,7 +1797,7 @@ class SkillLineBuilder {
         
         // Open browser with callback
         this.browsers.targeter.open({
-            parentZIndex: 10000,
+            parentZIndex: (this.currentZIndex || 10000) + 10,
             onSelect: (result) => {
                 
                 // If cancelled (null), just restore state and return
@@ -1876,7 +1882,7 @@ class SkillLineBuilder {
         
         // Open browser with callback
         this.browsers.trigger.open({
-            parentZIndex: 10000,
+            parentZIndex: (this.currentZIndex || 10000) + 10,
             onSelect: (result) => {
                 
                 // Hide loading
@@ -1897,10 +1903,15 @@ class SkillLineBuilder {
                 // Result is an object: {trigger: {name: "onDamaged", ...}, parameter: null, autoEnableRequirements: null}
                 
                 let triggerName;
+                let triggerParameter = null;
+                
                 if (typeof result === 'string') {
                     // Result is already a string
                     triggerName = result.replace(/^~/, '');
                 } else if (result && result.trigger) {
+                    // Extract parameter if provided
+                    triggerParameter = result.parameter || null;
+                    
                     // Result is an object with trigger property
                     if (typeof result.trigger === 'string') {
                         // Trigger is a string
@@ -1915,6 +1926,11 @@ class SkillLineBuilder {
                 } else {
                     console.error('Invalid trigger result:', result);
                     return;
+                }
+                
+                // Append parameter to trigger name if provided (e.g., onTimer:20)
+                if (triggerParameter) {
+                    triggerName = `${triggerName}:${triggerParameter}`;
                 }
                 
                 // Update state with trigger
@@ -1971,7 +1987,7 @@ class SkillLineBuilder {
         window.conditionBrowser.open({
             usageMode: 'inline',  // KEY: Use inline mode for skill line builder
             conditionType: 'caster',  // Default to caster conditions
-            parentZIndex: 10000,
+            parentZIndex: (this.currentZIndex || 10000) + 10,
             onSelect: (result) => {
                 
                 // If cancelled (null), just restore state and return
@@ -2078,7 +2094,7 @@ class SkillLineBuilder {
         // Open builder with callback
         this.browsers.inlineCondition.open({
             context: context,
-            parentZIndex: 10000,
+            parentZIndex: (this.currentZIndex || 10000) + 10,
             onSelect: (result) => {
                 
                 // Hide loading

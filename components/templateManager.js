@@ -101,6 +101,12 @@ class TemplateManager {
             }
         };
         
+        // If marked as official, record approval info
+        if (templateData.is_official) {
+            template.approved_by = currentUser.id;
+            template.approved_at = new Date().toISOString();
+        }
+        
         try {
             const { data, error } = await this.supabase
                 .from('templates')
@@ -109,6 +115,9 @@ class TemplateManager {
                 .single();
             
             if (error) throw error;
+            
+            // Track template creation activity
+            window.activityTracker?.trackTemplateCreate(data.id, templateData.name);
             
             // Invalidate cache
             this.invalidateCache();
@@ -217,7 +226,7 @@ class TemplateManager {
         try {
             const { data, error } = await this.supabase
                 .from('templates')
-                .select('*, owner:owner_id(email)')
+                .select('*')
                 .eq('id', id)
                 .eq('deleted', false)
                 .single();
@@ -358,6 +367,276 @@ class TemplateManager {
         };
         
         return await this.createTemplate(duplicateData);
+    }
+    
+    // ========================================
+    // RATINGS
+    // ========================================
+    
+    /**
+     * Rate a template (1-5 stars)
+     * @param {string} templateId - Template ID
+     * @param {number} rating - Rating value (1-5)
+     * @returns {Promise<Object>} Rating result
+     */
+    async rateTemplate(templateId, rating) {
+        if (!this.supabase) {
+            throw new Error('Supabase client not initialized');
+        }
+        
+        if (!this.auth?.isAuthenticated()) {
+            throw new Error('You must be logged in to rate templates');
+        }
+        
+        if (rating < 1 || rating > 5) {
+            throw new Error('Rating must be between 1 and 5');
+        }
+        
+        const currentUser = this.auth.getCurrentUser();
+        
+        try {
+            // Upsert rating (insert or update)
+            const { data, error } = await this.supabase
+                .from('template_ratings')
+                .upsert({
+                    template_id: templateId,
+                    user_id: currentUser.id,
+                    rating: rating,
+                    updated_at: new Date().toISOString()
+                }, {
+                    onConflict: 'template_id,user_id'
+                })
+                .select()
+                .single();
+            
+            if (error) throw error;
+            
+            // Invalidate cache since rating affects template stats
+            this.invalidateCache();
+            
+            return data;
+        } catch (error) {
+            console.error('Failed to rate template:', error);
+            throw new Error(this.formatError(error));
+        }
+    }
+    
+    /**
+     * Get current user's rating for a template
+     * @param {string} templateId - Template ID
+     * @returns {Promise<number|null>} User's rating or null
+     */
+    async getUserRating(templateId) {
+        if (!this.supabase || !this.auth?.isAuthenticated()) {
+            return null;
+        }
+        
+        const currentUser = this.auth.getCurrentUser();
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('template_ratings')
+                .select('rating')
+                .eq('template_id', templateId)
+                .eq('user_id', currentUser.id)
+                .single();
+            
+            if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
+                throw error;
+            }
+            
+            return data?.rating || null;
+        } catch (error) {
+            console.error('Failed to get user rating:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Remove user's rating for a template
+     * @param {string} templateId - Template ID
+     * @returns {Promise<boolean>} Success
+     */
+    async removeRating(templateId) {
+        if (!this.supabase || !this.auth?.isAuthenticated()) {
+            return false;
+        }
+        
+        const currentUser = this.auth.getCurrentUser();
+        
+        try {
+            const { error } = await this.supabase
+                .from('template_ratings')
+                .delete()
+                .eq('template_id', templateId)
+                .eq('user_id', currentUser.id);
+            
+            if (error) throw error;
+            
+            this.invalidateCache();
+            return true;
+        } catch (error) {
+            console.error('Failed to remove rating:', error);
+            return false;
+        }
+    }
+    
+    // ========================================
+    // CLOUD FAVORITES
+    // ========================================
+    
+    /**
+     * Get user's favorite templates from cloud
+     * @returns {Promise<string[]>} Array of template IDs
+     */
+    async getCloudFavorites() {
+        if (!this.supabase || !this.auth?.isAuthenticated()) {
+            return [];
+        }
+        
+        const currentUser = this.auth.getCurrentUser();
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('user_favorites')
+                .select('template_id')
+                .eq('user_id', currentUser.id);
+            
+            if (error) throw error;
+            
+            return (data || []).map(f => f.template_id);
+        } catch (error) {
+            console.error('Failed to get cloud favorites:', error);
+            return [];
+        }
+    }
+    
+    /**
+     * Add template to cloud favorites
+     * @param {string} templateId - Template ID
+     * @returns {Promise<boolean>} Success
+     */
+    async addCloudFavorite(templateId) {
+        if (!this.supabase || !this.auth?.isAuthenticated()) {
+            return false;
+        }
+        
+        const currentUser = this.auth.getCurrentUser();
+        
+        try {
+            const { error } = await this.supabase
+                .from('user_favorites')
+                .insert({
+                    user_id: currentUser.id,
+                    template_id: templateId
+                });
+            
+            // Ignore duplicate errors
+            if (error && error.code !== '23505') {
+                throw error;
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Failed to add cloud favorite:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Remove template from cloud favorites
+     * @param {string} templateId - Template ID
+     * @returns {Promise<boolean>} Success
+     */
+    async removeCloudFavorite(templateId) {
+        if (!this.supabase || !this.auth?.isAuthenticated()) {
+            return false;
+        }
+        
+        const currentUser = this.auth.getCurrentUser();
+        
+        try {
+            const { error } = await this.supabase
+                .from('user_favorites')
+                .delete()
+                .eq('user_id', currentUser.id)
+                .eq('template_id', templateId);
+            
+            if (error) throw error;
+            
+            return true;
+        } catch (error) {
+            console.error('Failed to remove cloud favorite:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Sync local favorites to cloud (merge strategy)
+     * @param {string[]} localFavorites - Local favorite IDs
+     * @returns {Promise<string[]>} Merged favorites
+     */
+    async syncFavorites(localFavorites = []) {
+        if (!this.supabase || !this.auth?.isAuthenticated()) {
+            return localFavorites;
+        }
+        
+        try {
+            // Get cloud favorites
+            const cloudFavorites = await this.getCloudFavorites();
+            
+            // Merge: union of both sets
+            const merged = [...new Set([...localFavorites, ...cloudFavorites])];
+            
+            // Add any local-only favorites to cloud
+            const localOnly = localFavorites.filter(id => !cloudFavorites.includes(id));
+            for (const id of localOnly) {
+                await this.addCloudFavorite(id);
+            }
+            
+            return merged;
+        } catch (error) {
+            console.error('Failed to sync favorites:', error);
+            return localFavorites;
+        }
+    }
+    
+    // ========================================
+    // STATISTICS TRACKING
+    // ========================================
+    
+    /**
+     * Track template view (increments view_count)
+     * @param {string} templateId - Template ID
+     */
+    async trackTemplateView(templateId) {
+        if (!this.supabase) return;
+        
+        try {
+            await this.supabase.rpc('increment_template_view', {
+                template_id: templateId
+            });
+        } catch (error) {
+            // Silent fail - don't interrupt user flow for analytics
+            console.warn('Failed to track view:', error);
+        }
+    }
+    
+    /**
+     * Track template use (increments use_count)
+     * @param {string} templateId - Template ID
+     */
+    async trackTemplateUse(templateId) {
+        if (!this.supabase) return;
+        
+        try {
+            await this.supabase.rpc('increment_template_use', {
+                template_id: templateId
+            });
+        } catch (error) {
+            // Silent fail - don't interrupt user flow for analytics
+            console.warn('Failed to track use:', error);
+        }
     }
     
     // ========================================

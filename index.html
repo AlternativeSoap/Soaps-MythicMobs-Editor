@@ -1098,6 +1098,7 @@
     
     <!-- Core Systems -->
     <script src="utils/errorLogger.js"></script>
+    <script src="utils/activityTracker.js"></script>
     <script src="utils/permissionSystem.js"></script>
     <script src="components/userProfileManager.js"></script>
     
@@ -1297,6 +1298,14 @@
                     window.yamlPreviewModal = new YamlPreviewModal();
                     window.templateEditor = new TemplateEditor(window.templateManager, window.authManager, window.templateImportExport);
                     window.templateWizard = new TemplateWizard(window.templateManager, window.authManager, window.templateImportExport);
+                    
+                    // Initialize activity tracker for user activity logging
+                    window.activityTracker = new ActivityTracker(window.supabaseClient, window.authManager);
+                    
+                    // Track login if user is authenticated
+                    if (window.authManager?.isAuthenticated()) {
+                        window.activityTracker.trackLogin('session_init');
+                    }
                     
                     // Update global SkillLineBuilder with template dependencies
                     if (window.skillLineBuilder) {

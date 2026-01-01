@@ -2508,6 +2508,9 @@ class MythicMobsEditor {
     showConfirmDialog(title, message, optionsOrConfirmLabel = 'OK', cancelLabel = 'Cancel') {
         return new Promise((resolve) => {
             let buttons;
+            // Declare confirmAction and cancelAction in function scope for keyboard handler access
+            let confirmAction = () => resolve(true);
+            let cancelAction = () => resolve(false);
             
             // Check if third parameter is an array of options or a simple string
             if (Array.isArray(optionsOrConfirmLabel)) {
@@ -2517,10 +2520,15 @@ class MythicMobsEditor {
                     class: option.primary ? 'btn-primary' : 'btn-secondary',
                     action: () => resolve(option.value)
                 }));
+                // For arrays, Enter triggers first primary option
+                const primaryOption = optionsOrConfirmLabel.find(o => o.primary);
+                if (primaryOption) {
+                    confirmAction = () => resolve(primaryOption.value);
+                }
             } else if (typeof optionsOrConfirmLabel === 'object' && optionsOrConfirmLabel.confirmText) {
                 // Old format with options object: {confirmText, cancelText, showCancel}
-                const confirmAction = () => resolve(true);
-                const cancelAction = () => resolve(optionsOrConfirmLabel.showCancel ? null : false);
+                confirmAction = () => resolve(true);
+                cancelAction = () => resolve(optionsOrConfirmLabel.showCancel ? null : false);
                 
                 buttons = [
                     { label: optionsOrConfirmLabel.cancelText || 'Cancel', class: 'btn-secondary', action: cancelAction },
@@ -2528,8 +2536,8 @@ class MythicMobsEditor {
                 ];
             } else {
                 // Legacy format: simple confirm/cancel
-                const confirmAction = () => resolve(true);
-                const cancelAction = () => resolve(false);
+                confirmAction = () => resolve(true);
+                cancelAction = () => resolve(false);
                 
                 buttons = [
                     { label: cancelLabel, class: 'btn-secondary', action: cancelAction },

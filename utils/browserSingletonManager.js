@@ -35,8 +35,8 @@ class BrowserSingletonManager {
                 const promises = [];
                 
                 // Check if BrowserDataMerger exists
-                if (window.supabase && typeof BrowserDataMerger !== 'undefined') {
-                    const merger = new BrowserDataMerger(window.supabase);
+                if (window.supabaseClient && typeof BrowserDataMerger !== 'undefined') {
+                    const merger = new BrowserDataMerger(window.supabaseClient);
                     
                     // Load everything at once
                     promises.push(
@@ -294,12 +294,12 @@ if (typeof window !== 'undefined') {
         let attempts = 0;
         const maxAttempts = 20; // 20 * 100ms = 2 seconds
         
-        while (!window.supabase && attempts < maxAttempts) {
+        while (!window.supabaseClient && attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 100));
             attempts++;
         }
         
-        if (!window.supabase && window.DEBUG_MODE) {
+        if (!window.supabaseClient && window.DEBUG_MODE) {
             console.warn('⚠️ Supabase not available after 2s, using built-in data only');
         }
         

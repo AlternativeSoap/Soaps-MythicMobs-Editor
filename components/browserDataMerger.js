@@ -107,7 +107,36 @@ class BrowserDataMerger {
             // Build final structure matching MECHANICS_DATA format
             const result = {
                 categories: this.extractCategories(mergedData),
-                mechanics: mergedData
+                mechanics: mergedData,
+                
+                // Add helper method to match MECHANICS_DATA interface
+                getMechanic(name) {
+                    if (!name) return null;
+                    const normalized = name.toLowerCase();
+                    return this.mechanics.find(m => {
+                        if (!m || !m.name) return false;
+                        return m.name.toLowerCase() === normalized || 
+                            (m.id && m.id.toLowerCase() === normalized) ||
+                            (m.aliases && m.aliases.some(a => a && a.toLowerCase() === normalized));
+                    });
+                },
+                
+                // Search mechanics by query
+                searchMechanics(query) {
+                    if (!query) return this.mechanics;
+                    const lowerQuery = query.toLowerCase();
+                    return this.mechanics.filter(m => {
+                        if (!m || !m.name) return false;
+                        return m.name.toLowerCase().includes(lowerQuery) ||
+                            (m.description && m.description.toLowerCase().includes(lowerQuery)) ||
+                            (m.aliases && m.aliases.some(a => a && a.toLowerCase().includes(lowerQuery)));
+                    });
+                },
+                
+                // Get all mechanics in a category
+                getMechanicsByCategory(category) {
+                    return this.mechanics.filter(m => m && m.category === category);
+                }
             };
 
             // Update cache with tags for invalidation
@@ -276,7 +305,63 @@ class BrowserDataMerger {
             // Build final structure matching TRIGGERS_DATA format
             const result = {
                 categories: this.extractCategories(mergedData),
-                triggers: mergedData
+                triggers: mergedData,
+                
+                // Add helper method to match TRIGGERS_DATA interface
+                getTrigger(name) {
+                    if (!name) return null;
+                    const normalized = name.toLowerCase();
+                    return this.triggers.find(t => {
+                        if (!t || !t.name) return false;
+                        return t.name.toLowerCase() === normalized || 
+                            (t.id && t.id.toLowerCase() === normalized) ||
+                            (t.aliases && t.aliases.some(a => a && a.toLowerCase() === normalized));
+                    });
+                },
+                
+                // Search triggers by query
+                searchTriggers(query) {
+                    if (!query) return this.triggers;
+                    const lowerQuery = query.toLowerCase();
+                    return this.triggers.filter(t => {
+                        if (!t || !t.name) return false;
+                        return t.name.toLowerCase().includes(lowerQuery) ||
+                            (t.description && t.description.toLowerCase().includes(lowerQuery)) ||
+                            (t.aliases && t.aliases.some(a => a && a.toLowerCase().includes(lowerQuery)));
+                    });
+                },
+                
+                // Get all triggers in a category
+                getTriggersByCategory(category) {
+                    return this.triggers.filter(t => t && t.category === category);
+                },
+                
+                // Get triggers compatible with mob type
+                getCompatibleTriggers(mobType) {
+                    if (!mobType) return this.triggers;
+                    return this.triggers.filter(t => {
+                        if (!t) return false;
+                        return !t.mobTypeRestrictions || 
+                            t.mobTypeRestrictions.length === 0 || 
+                            t.mobTypeRestrictions.includes(mobType.toUpperCase());
+                    });
+                },
+                
+                // Check if trigger requires specific modules
+                checkRequirements(trigger, mobModules) {
+                    if (!trigger || !trigger.requirements || trigger.requirements.length === 0) {
+                        return { satisfied: true, missing: [] };
+                    }
+                    const missing = [];
+                    for (const req of trigger.requirements) {
+                        if (req === 'ThreatTable' && !mobModules?.ThreatTable) {
+                            missing.push(req);
+                        } else if (req === 'Hearing' && !mobModules?.Hearing?.Enabled) {
+                            missing.push(req);
+                        }
+                    }
+                    return { satisfied: missing.length === 0, missing: missing };
+                }
             };
 
             // Update cache with tags for invalidation
@@ -363,7 +448,50 @@ class BrowserDataMerger {
             // Build final structure matching TARGETERS_DATA format
             const result = {
                 categories: this.extractCategories(mergedData),
-                targeters: mergedData
+                targeters: mergedData,
+                
+                // Add helper method to match TARGETERS_DATA interface
+                getTargeter(name) {
+                    if (!name) return null;
+                    const normalized = name.toLowerCase().replace('@', '');
+                    return this.targeters.find(t => {
+                        if (!t || !t.name) return false;
+                        return t.name.toLowerCase() === normalized || 
+                            (t.id && t.id.toLowerCase() === normalized) ||
+                            (t.aliases && t.aliases.some(a => a && a.toLowerCase() === normalized));
+                    });
+                },
+                
+                // Search targeters by query
+                searchTargeters(query) {
+                    if (!query) return this.targeters;
+                    const lowerQuery = query.toLowerCase();
+                    return this.targeters.filter(t => {
+                        if (!t || !t.name) return false;
+                        return t.name.toLowerCase().includes(lowerQuery) ||
+                            (t.description && t.description.toLowerCase().includes(lowerQuery)) ||
+                            (t.aliases && t.aliases.some(a => a && a.toLowerCase().includes(lowerQuery)));
+                    });
+                },
+                
+                // Get all targeters in a category
+                getTargetersByCategory(category) {
+                    return this.targeters.filter(t => t && t.category === category);
+                },
+                
+                // Check if targeter requires specific modules
+                checkRequirements(targeter, mobModules) {
+                    if (!targeter || !targeter.requirements || targeter.requirements.length === 0) {
+                        return { satisfied: true, missing: [] };
+                    }
+                    const missing = [];
+                    for (const req of targeter.requirements) {
+                        if (req === 'ThreatTable' && !mobModules?.ThreatTable) {
+                            missing.push(req);
+                        }
+                    }
+                    return { satisfied: missing.length === 0, missing: missing };
+                }
             };
 
             // Update cache with tags for invalidation

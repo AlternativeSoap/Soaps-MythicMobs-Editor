@@ -122,15 +122,13 @@ class DatabaseStorageManager {
                     .select('value')
                     .eq('user_id', this.userId)
                     .eq('key', key)
-                    .single();
+                    .maybeSingle(); // Use maybeSingle() to avoid 406 error when no rows exist
                 
                 if (error) {
-                    if (error.code === 'PGRST116') {
-                        // No rows returned, key doesn't exist
-                        return null;
-                    }
+                    // Handle any actual errors
                     throw error;
                 }
+                // maybeSingle returns null if no rows found (instead of throwing 406)
                 return data?.value || null;
             } catch (error) {
                 if (window.DEBUG_MODE) console.warn(`Cloud get failed for ${key}, using localStorage:`, error);

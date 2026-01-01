@@ -66,7 +66,7 @@ class ErrorLogger {
         }
 
         // Send to server if user is admin
-        if (window.supabase && window.adminManager?.isAdmin) {
+        if (window.supabaseClient && window.adminManager?.isAdmin) {
             this.sendErrorToServer(error);
         }
 

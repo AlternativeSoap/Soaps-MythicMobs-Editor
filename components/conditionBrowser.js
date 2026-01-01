@@ -40,8 +40,8 @@ class ConditionBrowser {
         this.conditionType = 'caster';  // for inline: 'caster' or 'trigger'
         
         // Initialize browser data merger
-        if (window.supabase && typeof BrowserDataMerger !== 'undefined') {
-            this.browserDataMerger = new BrowserDataMerger(window.supabase);
+        if (window.supabaseClient && typeof BrowserDataMerger !== 'undefined') {
+            this.browserDataMerger = new BrowserDataMerger(window.supabaseClient);
         }
         this.conditionsData = window.ALL_CONDITIONS || []; // Use flat array, not category-keyed object
         

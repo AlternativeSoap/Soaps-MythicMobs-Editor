@@ -176,15 +176,15 @@ class AdminManager {
         }
 
         try {
-            // Find user by email
-            const { data: users, error: userError } = await this.supabase
-                .from('auth.users')
-                .select('id')
+            // Find user by email from user_profiles table (auth.users is not directly queryable)
+            const { data: userProfile, error: userError } = await this.supabase
+                .from('user_profiles')
+                .select('user_id')
                 .eq('email', userEmail)
                 .single();
 
-            if (userError) {
-                throw new Error('User not found');
+            if (userError || !userProfile) {
+                throw new Error('User not found. Make sure the user has logged in at least once.');
             }
 
             const currentUser = await this.authManager.getCurrentUser();
@@ -193,7 +193,7 @@ class AdminManager {
             const { data, error } = await this.supabase
                 .from('admin_roles')
                 .insert({
-                    user_id: users.id,
+                    user_id: userProfile.user_id,
                     role: role,
                     granted_by: currentUser.id,
                     notes: notes
@@ -209,7 +209,7 @@ class AdminManager {
             }
 
             // Log activity
-            await this.logActivity('grant_role', 'user', users.id, {
+            await this.logActivity('grant_role', 'user', userProfile.user_id, {
                 role: role,
                 target_email: userEmail,
                 notes: notes
@@ -342,17 +342,56 @@ class AdminManager {
     }
 
     /**
-     * Get all official templates
+     * Get all official templates with creator and approver info
      */
     async getOfficialTemplates() {
         try {
-            const { data, error } = await this.supabase
-                .from('official_templates_view')
+            // First, get all official templates
+            const { data: templates, error } = await this.supabase
+                .from('templates')
                 .select('*')
-                .order('approved_at', { ascending: false });
+                .eq('is_official', true)
+                .eq('deleted', false)
+                .order('updated_at', { ascending: false });
 
             if (error) throw error;
-            return data || [];
+            if (!templates || templates.length === 0) return [];
+
+            // Collect unique user IDs (owners and approvers)
+            const userIds = new Set();
+            templates.forEach(t => {
+                if (t.owner_id) userIds.add(t.owner_id);
+                if (t.approved_by) userIds.add(t.approved_by);
+            });
+
+            // Fetch user profiles for all relevant users
+            let userProfiles = {};
+            if (userIds.size > 0) {
+                const { data: profiles, error: profileError } = await this.supabase
+                    .from('user_profiles')
+                    .select('id, display_name, email')
+                    .in('id', Array.from(userIds));
+                
+                if (!profileError && profiles) {
+                    profiles.forEach(p => {
+                        userProfiles[p.id] = p;
+                    });
+                }
+            }
+
+            // Enrich templates with user info
+            return templates.map(template => {
+                const owner = userProfiles[template.owner_id];
+                const approver = userProfiles[template.approved_by];
+                
+                return {
+                    ...template,
+                    created_by_email: owner?.display_name || owner?.email || 'Unknown',
+                    approved_by_email: template.approved_by 
+                        ? (approver?.display_name || approver?.email || 'Admin')
+                        : (template.is_official ? 'System' : null)
+                };
+            });
         } catch (error) {
             console.error('Error fetching official templates:', error);
             throw error;

@@ -486,7 +486,7 @@ class AdminPanel {
         }
 
         try {
-            const template = await this.templateManager.getTemplate(templateId);
+            const template = await this.templateManager.getTemplateById(templateId);
             if (!template) {
                 window.notificationModal?.alert(
                     'The requested template could not be found.',

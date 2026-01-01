@@ -21,8 +21,8 @@ class TriggerBrowser {
         this.categoryDebounce = null;
         
         // Initialize browser data merger
-        if (window.supabase && typeof BrowserDataMerger !== 'undefined') {
-            this.browserDataMerger = new BrowserDataMerger(window.supabase);
+        if (window.supabaseClient && typeof BrowserDataMerger !== 'undefined') {
+            this.browserDataMerger = new BrowserDataMerger(window.supabaseClient);
         }
         this.triggersData = TRIGGERS_DATA; // Default to built-in
         
@@ -50,7 +50,7 @@ class TriggerBrowser {
     createModal() {
         const modalHTML = `
             <!-- Main Browser Modal -->
-            <div id="triggerBrowserOverlay" class="condition-modal" style="display: none;">
+            <div id="triggerBrowserOverlay" class="condition-modal" style="display: none; z-index: 10000;">
                 <div class="modal-content condition-browser">
                     <div class="modal-header">
                         <h2>Trigger Browser</h2>
@@ -395,9 +395,17 @@ class TriggerBrowser {
         }
 
         // Helper to render a single trigger card
-        const renderCard = (t) => `<div class="mechanic-list-item" data-trigger="${t.name}" tabindex="0">
+        const renderCard = (t) => {
+            // Build the trigger name with parameter syntax if needed
+            let displayName = `~${t.name}`;
+            if (t.parameters) {
+                // Show parameter syntax like ~onTimer:<ticks>
+                displayName = `~${t.name}:&lt;${t.parameters.name}&gt;`;
+            }
+            
+            return `<div class="mechanic-list-item" data-trigger="${t.name}" tabindex="0">
     <div class="mechanic-item-main">
-        <span class="mechanic-name">~${t.name}</span>
+        <span class="mechanic-name">${displayName}</span>
         <span class="mechanic-desc">${t.description}</span>
     </div>
     <div class="mechanic-item-actions">
@@ -405,6 +413,7 @@ class TriggerBrowser {
         <button class="btn btn-xs btn-select-trigger">Select</button>
     </div>
 </div>`;
+        };
 
         // Event delegation handler (shared)
         const setupClickHandler = () => {
@@ -493,7 +502,14 @@ class TriggerBrowser {
 
         document.getElementById('triggerConfirmMessage').innerHTML = message;
         document.getElementById('triggerConfirmRequirement').innerHTML = requirementDetails;
-        document.getElementById('triggerConfirmOverlay').classList.add('active');
+        
+        // Ensure confirmation modal appears above browser modal
+        const browserOverlay = document.getElementById('triggerBrowserOverlay');
+        const confirmOverlay = document.getElementById('triggerConfirmOverlay');
+        const browserZIndex = parseInt(browserOverlay.style.zIndex || getComputedStyle(browserOverlay).zIndex) || 10000;
+        confirmOverlay.style.zIndex = browserZIndex + 10;
+        
+        confirmOverlay.classList.add('active');
 
         // Store trigger for later
         this.pendingTrigger = trigger;
@@ -540,7 +556,13 @@ class TriggerBrowser {
         document.getElementById('triggerParamInput').value = param.defaultValue || '';
         document.getElementById('triggerParamInput').type = param.type === 'number' ? 'number' : 'text';
         
-        document.getElementById('triggerParamOverlay').classList.add('active');
+        // Ensure parameter modal appears above browser modal
+        const browserOverlay = document.getElementById('triggerBrowserOverlay');
+        const paramOverlay = document.getElementById('triggerParamOverlay');
+        const browserZIndex = parseInt(browserOverlay.style.zIndex || getComputedStyle(browserOverlay).zIndex) || 10000;
+        paramOverlay.style.zIndex = browserZIndex + 10;
+        
+        paramOverlay.classList.add('active');
         document.getElementById('triggerParamInput').focus();
 
         // Store trigger and requirements for later

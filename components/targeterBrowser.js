@@ -29,8 +29,8 @@ class TargeterBrowser {
         this.favoriteDebounce = null;
         
         // Initialize browser data merger
-        if (window.supabase && typeof BrowserDataMerger !== 'undefined') {
-            this.browserDataMerger = new BrowserDataMerger(window.supabase);
+        if (window.supabaseClient && typeof BrowserDataMerger !== 'undefined') {
+            this.browserDataMerger = new BrowserDataMerger(window.supabaseClient);
         }
         this.targetersData = TARGETERS_DATA; // Default to built-in
         
