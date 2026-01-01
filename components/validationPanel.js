@@ -250,6 +250,178 @@ class ValidationPanel {
             info: this.problems.filter(p => p.severity === 'info').length
         };
     }
+    
+    /**
+     * Validate skill references in skills
+     * Checks for missing skills, unused skills, and circular dependencies
+     */
+    validateSkillReferences(skills, existingSkillNames) {
+        const refProblems = [];
+        const allSkillNames = new Set(existingSkillNames.map(s => s.toLowerCase()));
+        const referencedSkills = new Set();
+        
+        // Patterns to find skill references in skill content
+        const skillRefPatterns = [
+            /onTickSkill\s*=\s*["']?([^"';\s\}]+)/gi,
+            /onHitSkill\s*=\s*["']?([^"';\s\}]+)/gi,
+            /onEndSkill\s*=\s*["']?([^"';\s\}]+)/gi,
+            /onStartSkill\s*=\s*["']?([^"';\s\}]+)/gi,
+            /onBounceSkill\s*=\s*["']?([^"';\s\}]+)/gi,
+            /skill\{s\s*=\s*["']?([^"';\s\}]+)/gi,
+            /skill\s*=\s*["']?([^"';\s\}]+)/gi,
+            /metaskill\{s\s*=\s*["']?([^"';\s\}]+)/gi,
+            /~skill\{([^}]+)\}/gi
+        ];
+        
+        // Check each skill for references
+        for (const skill of skills) {
+            const skillName = skill.name || skill.id;
+            const skillContent = typeof skill === 'string' ? skill : JSON.stringify(skill.content || skill);
+            
+            // Find all skill references in this skill
+            for (const pattern of skillRefPatterns) {
+                let match;
+                const regex = new RegExp(pattern.source, pattern.flags);
+                while ((match = regex.exec(skillContent)) !== null) {
+                    const refName = match[1]?.trim();
+                    if (refName && !refName.includes('<') && !refName.includes('>')) {
+                        referencedSkills.add(refName.toLowerCase());
+                        
+                        // Check if referenced skill exists
+                        if (!allSkillNames.has(refName.toLowerCase())) {
+                            refProblems.push({
+                                type: 'missing-skill-ref',
+                                name: 'Missing Skill Reference',
+                                severity: 'warning',
+                                message: `Skill "${skillName}" references "${refName}" which doesn't exist`,
+                                suggestion: `Create the skill "${refName}" or check for typos`,
+                                skillName: skillName,
+                                missingRef: refName
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Check for circular dependencies
+        const circularCheck = this.detectCircularDependencies(skills);
+        if (circularCheck.hasCircular) {
+            for (const cycle of circularCheck.cycles) {
+                refProblems.push({
+                    type: 'circular-reference',
+                    name: 'Circular Dependency',
+                    severity: 'error',
+                    message: `Circular skill reference detected: ${cycle.join(' → ')}`,
+                    suggestion: 'Break the circular dependency by reorganizing skill structure',
+                    cycle: cycle
+                });
+            }
+        }
+        
+        // Check for unused skills (skills that are never referenced)
+        for (const skillName of existingSkillNames) {
+            // Skip if it's referenced or might be a root skill (trigger-based)
+            if (!referencedSkills.has(skillName.toLowerCase())) {
+                // Only flag as info, not warning - might be intentional root skills
+                refProblems.push({
+                    type: 'unused-skill',
+                    name: 'Potentially Unused Skill',
+                    severity: 'info',
+                    message: `Skill "${skillName}" is not referenced by any other skill`,
+                    suggestion: 'This may be a root skill triggered by mobs, or can be removed if not needed',
+                    skillName: skillName
+                });
+            }
+        }
+        
+        return refProblems;
+    }
+    
+    /**
+     * Detect circular dependencies in skills
+     */
+    detectCircularDependencies(skills) {
+        const graph = new Map(); // skill -> set of referenced skills
+        const skillRefPatterns = [
+            /onTickSkill\s*=\s*["']?([^"';\s\}]+)/gi,
+            /onHitSkill\s*=\s*["']?([^"';\s\}]+)/gi,
+            /onEndSkill\s*=\s*["']?([^"';\s\}]+)/gi,
+            /skill\{s\s*=\s*["']?([^"';\s\}]+)/gi
+        ];
+        
+        // Build dependency graph
+        for (const skill of skills) {
+            const skillName = (skill.name || skill.id || '').toLowerCase();
+            const skillContent = typeof skill === 'string' ? skill : JSON.stringify(skill.content || skill);
+            const refs = new Set();
+            
+            for (const pattern of skillRefPatterns) {
+                let match;
+                const regex = new RegExp(pattern.source, pattern.flags);
+                while ((match = regex.exec(skillContent)) !== null) {
+                    const refName = match[1]?.trim()?.toLowerCase();
+                    if (refName && refName !== skillName) {
+                        refs.add(refName);
+                    }
+                }
+            }
+            
+            graph.set(skillName, refs);
+        }
+        
+        // Find cycles using DFS
+        const cycles = [];
+        const visited = new Set();
+        const recStack = new Set();
+        const path = [];
+        
+        const dfs = (node) => {
+            if (recStack.has(node)) {
+                // Found cycle - extract it
+                const cycleStart = path.indexOf(node);
+                if (cycleStart !== -1) {
+                    const cycle = path.slice(cycleStart).concat(node);
+                    cycles.push(cycle);
+                }
+                return;
+            }
+            
+            if (visited.has(node)) return;
+            
+            visited.add(node);
+            recStack.add(node);
+            path.push(node);
+            
+            const refs = graph.get(node) || new Set();
+            for (const ref of refs) {
+                dfs(ref);
+            }
+            
+            path.pop();
+            recStack.delete(node);
+        };
+        
+        for (const node of graph.keys()) {
+            if (!visited.has(node)) {
+                dfs(node);
+            }
+        }
+        
+        return {
+            hasCircular: cycles.length > 0,
+            cycles: cycles
+        };
+    }
+    
+    /**
+     * Add skill reference problems to the current problem list
+     */
+    addSkillReferenceValidation(skills, existingSkillNames) {
+        const refProblems = this.validateSkillReferences(skills, existingSkillNames);
+        this.problems = [...this.problems, ...refProblems];
+        this.render();
+    }
 }
 
 // Export

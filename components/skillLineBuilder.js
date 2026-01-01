@@ -946,12 +946,23 @@ class SkillLineBuilder {
             validationErrors: []
         });
         
+        // If editing an existing line, parse and load it
+        if (options.initialLine) {
+            // Defer to ensure state is fully initialized
+            setTimeout(() => {
+                this.parseAndUpdateFromSkillLine(options.initialLine);
+            }, 50);
+        }
+        
         this.callbacks = {
             onAdd: options.onAdd || null,
             onAddMultiple: options.onAddMultiple || null,
             onBack: options.onBack || null,
             onClose: options.onClose || null
         };
+        
+        // Store template wizard callback for section creation (if provided)
+        this.templateWizardCallback = options.onCreateSection || null;
         
         // Accept browser instances from parent editor if provided
         if (options.mechanicBrowser) this.browsers.mechanic = options.mechanicBrowser;
@@ -1685,9 +1696,20 @@ class SkillLineBuilder {
         
         const builderContext = this.state.context || 'skill';
         
+        // Determine creation context for skill reference handling
+        // - If opened from mob editor: 'mobEditor' - skill creation disabled
+        // - If opened with template wizard callback: 'templateWizard' - can add sections
+        // - If opened from skill editor: 'skillEditor' - can create skills in file
+        let creationContext = 'mobEditor'; // Default to most restrictive
+        if (builderContext === 'skill') {
+            creationContext = this.templateWizardCallback ? 'templateWizard' : 'skillEditor';
+        }
+        
         // Open browser with callback and proper context
         this.browsers.mechanic.open({
             context: builderContext,
+            creationContext: creationContext,
+            onCreateSection: this.templateWizardCallback, // Pass template wizard callback for skill creation
             parentZIndex: (this.currentZIndex || 10000) + 10,
             onSelect: (skillLine) => {
                 // CRITICAL: Always clear state first, even on cancel

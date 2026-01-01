@@ -56,6 +56,11 @@ class TargeterBrowser {
      * Create the targeter browser modal HTML
      */
     createModal() {
+        // Prevent duplicate modals - check if already exists
+        if (document.getElementById('targeterBrowserOverlay')) {
+            return;
+        }
+        
         const modalHTML = `
             <!-- Main Browser Modal -->
             <div id="targeterBrowserOverlay" class="condition-modal" style="display: none;">

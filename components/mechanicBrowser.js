@@ -18,7 +18,9 @@ class MechanicBrowser {
         this.targeterBrowser = targeterBrowser;
         this.triggerBrowser = triggerBrowser;
         this.conditionEditor = conditionEditor;
-        this.context = 'mob';
+        this.context = 'mob'; // 'mob' or 'skill'
+        this.creationContext = null; // 'skillEditor', 'templateWizard', 'mobEditor' - set by caller
+        this.templateWizardCallback = null; // Callback to add section when in template wizard
         this.onSelectCallback = null;
         this.searchCache = new LRUCache(10);
         this.virtualScroller = null;
@@ -304,6 +306,11 @@ class MechanicBrowser {
      * Create the mechanic browser modal HTML
      */
     createModal() {
+        // Prevent duplicate modals - check if already exists
+        if (document.getElementById('mechanicBrowserOverlay')) {
+            return;
+        }
+        
         const modalHTML = `
             <!-- Main Mechanic Browser Modal (Condition Browser Style) -->
             <div id="mechanicBrowserOverlay" class="condition-modal" style="display: none;">
@@ -579,6 +586,13 @@ class MechanicBrowser {
         this.context = options.context || 'mob';
         this.currentValue = options.currentValue || null;
         this.onSelectCallback = options.onSelect || null;
+        
+        // Set creation context - determines if/where skills can be created
+        // - 'skillEditor': Opened from skill editor, can create skills in current file
+        // - 'templateWizard': Opened from template wizard, can add sections
+        // - 'mobEditor': Opened from mob editor, skill creation NOT available
+        this.creationContext = options.creationContext || (this.context === 'skill' ? 'skillEditor' : 'mobEditor');
+        this.templateWizardCallback = options.onCreateSection || null; // Callback for template wizard section creation
 
         // Show overlay IMMEDIATELY
         const overlay = this.getElement('mechanicBrowserOverlay');
@@ -1214,119 +1228,15 @@ class MechanicBrowser {
             return;
         }
 
-        formContainer.innerHTML = this.currentMechanic.attributes.map(attr => {
-            const aliases = attr.alias && (Array.isArray(attr.alias) ? attr.alias : [attr.alias]);
-            const aliasText = aliases && aliases.length > 0 ? ` (${aliases.join(', ')})` : '';
-            const requiredMark = attr.required ? '<span class="required">*</span>' : '';
-            const defaultText = attr.default !== undefined && attr.default !== '' ? ` [default: ${attr.default}]` : '';
-            
-            // Build tooltip content
-            const tooltipContent = `
-                <div class="attribute-tooltip-content">
-                    <strong>${attr.name}</strong>
-                    ${aliases && aliases.length > 0 ? `<div class="tooltip-aliases">Aliases: ${aliases.join(', ')}</div>` : ''}
-                    <div class="tooltip-type">Type: ${attr.type || 'string'}</div>
-                    ${attr.default !== undefined ? `<div class="tooltip-default">Default: ${attr.default}</div>` : ''}
-                    <div class="tooltip-description">${attr.description}</div>
-                </div>
-            `.trim();
-            
-            let inputHTML = '';
-            // Check if this attribute should use entity picker
-            const shouldUseEntityPicker = this.shouldUseEntityPicker(attr);
-            
-            if (shouldUseEntityPicker) {
-                // Entity type picker for summon/mount/particle mob attributes
-                const inputId = `mechanic-entity-${attr.name}-${Math.random().toString(36).substr(2, 9)}`;
-                inputHTML = `
-                    <input type="hidden" 
-                           id="${inputId}"
-                           class="mechanic-attribute-input mechanic-entity-input" 
-                           data-attr="${attr.name}"
-                           data-modified="false"
-                           value="">
-                    ${this.createEntityPickerHTML(inputId)}
-                `;
-            } else if (attr.type === 'boolean') {
-                // Enhanced toggle switch for boolean values
-                const defaultChecked = attr.default === true || attr.default === 'true';
-                inputHTML = `
-                    <div class="boolean-toggle-wrapper">
-                        <label class="boolean-toggle">
-                            <input type="checkbox" 
-                                   class="mechanic-attribute-input boolean-toggle-input" 
-                                   data-attr="${attr.name}"
-                                   data-modified="false"
-                                   ${defaultChecked ? 'checked' : ''}>
-                            <span class="boolean-toggle-track">
-                                <span class="boolean-toggle-thumb"></span>
-                            </span>
-                            <span class="boolean-toggle-label ${defaultChecked ? 'is-true' : 'is-false'}">${defaultChecked ? 'true' : 'false'}</span>
-                        </label>
-                    </div>
-                `;
-            } else if (attr.type === 'particleSelect') {
-                // Smart particle type selector with categories
-                inputHTML = this.renderParticleSelector(attr);
-            } else if (attr.type === 'color') {
-                // Color picker
-                inputHTML = `
-                    <div class="color-input-wrapper">
-                        <input type="color" 
-                               class="mechanic-attribute-input mechanic-attribute-color" 
-                               data-attr="${attr.name}"
-                               data-default="${attr.default || '#FF0000'}"
-                               data-modified="false"
-                               value="${attr.default || '#FF0000'}">
-                        <input type="text" 
-                               class="color-hex-input" 
-                               data-attr="${attr.name}"
-                               data-modified="false"
-                               placeholder="${attr.default || '#FF0000'}"
-                               pattern="^#[0-9A-Fa-f]{6}$">
-                    </div>
-                `;
-            } else if (attr.type === 'materialSelect') {
-                // Material selector dropdown (for block/item particles)
-                inputHTML = this.renderMaterialSelector(attr);
-            } else if (attr.type === 'number') {
-                // Number input with step detection (don't pre-fill, only placeholder)
-                const step = attr.default && attr.default.toString().includes('.') ? '0.01' : '1';
-                inputHTML = `
-                    <input type="number" 
-                           class="mechanic-attribute-input" 
-                           data-attr="${attr.name}"
-                           data-default="${attr.default !== undefined ? attr.default : ''}"
-                           data-modified="false"
-                           step="${step}"
-                           placeholder="${attr.default !== undefined ? attr.default : ''}">
-                `;
-            } else {
-                // Text input (could be string, list, etc.) - don't pre-fill, only placeholder
-                inputHTML = `
-                    <input type="text" 
-                           class="mechanic-attribute-input" 
-                           data-attr="${attr.name}"
-                           data-default="${attr.default || ''}"
-                           data-modified="false"
-                           placeholder="${attr.default || ''}">
-                `;
-            }
-
-            // Check if field should be conditionally shown
-            const conditionalClass = attr.showWhen ? 'conditional-field' : '';
-            const conditionalData = attr.showWhen ? `data-show-when='${JSON.stringify(attr.showWhen)}'` : '';
-
-            return `
-                <div class="mechanic-attribute-field ${conditionalClass}" ${conditionalData} data-tooltip="${tooltipContent.replace(/"/g, '&quot;')}">
-                    <label class="attribute-label">
-                        ${attr.name}${aliasText} ${requiredMark}
-                    </label>
-                    ${inputHTML}
-                    <small class="attribute-description">${attr.description}${defaultText}</small>
-                </div>
-            `;
-        }).join('');
+        // Check if this mechanic has attribute groups
+        const hasGroups = this.currentMechanic.attributeGroups && this.currentMechanic.attributeGroups.length > 0;
+        
+        if (hasGroups) {
+            formContainer.innerHTML = this.renderGroupedAttributes();
+        } else {
+            // Fallback to flat attribute list
+            formContainer.innerHTML = this.currentMechanic.attributes.map(attr => this.renderSingleAttribute(attr)).join('');
+        }
 
         // Add inherited particle attributes section if applicable
         if (this.currentMechanic.inheritedParticleAttributes) {
@@ -1335,27 +1245,1511 @@ class MechanicBrowser {
             formContainer.innerHTML = attributesHTML + this.renderInheritedParticleAttributes();
         }
 
-        // Attach input listeners
+        // CRITICAL: Attach input listeners immediately (needed for preview)
         this.attachAttributeListeners(formContainer);
         
-        // Setup entity pickers for type/mob attributes
-        this.setupEntityPickers(formContainer);
-        
-        // Setup inherited attributes toggle if section exists
-        if (this.currentMechanic.inheritedParticleAttributes) {
-            this.setupInheritedAttributesToggle();
+        // Setup attribute group toggles and conditional visibility (needed immediately for UI)
+        if (hasGroups) {
+            this.setupAttributeGroupToggle(formContainer);
+            this.setupBulletTypeVisibility(formContainer);
         }
         
-        // Setup material dropdowns
-        this.setupMaterialDropdowns();
-        
-        // If smart particles, setup dynamic field visibility
-        if (this.currentMechanic.hasSmartParticles) {
-            this.setupSmartParticleFields(formContainer);
-        }
-        
-        // Update YAML preview
+        // Update YAML preview (critical for user feedback)
         this.updateSkillLinePreview();
+        
+        // PERFORMANCE: Defer non-critical setup operations using requestIdleCallback
+        // These setups are for dropdowns/pickers that aren't immediately visible
+        const deferredSetup = () => {
+            // Setup entity pickers for type/mob attributes
+            this.setupEntityPickers(formContainer);
+            
+            // Setup inherited attributes toggle if section exists
+            if (this.currentMechanic.inheritedParticleAttributes) {
+                this.setupInheritedAttributesToggle();
+            }
+            
+            // Setup material dropdowns
+            this.setupMaterialDropdowns();
+            
+            // If smart particles, setup dynamic field visibility
+            if (this.currentMechanic.hasSmartParticles) {
+                this.setupSmartParticleFields(formContainer);
+            }
+            
+            // Setup skillref inputs with autocomplete and create buttons
+            this.setupSkillRefInputs(formContainer);
+        };
+        
+        // Use requestIdleCallback if available, otherwise setTimeout with short delay
+        if (typeof requestIdleCallback !== 'undefined') {
+            requestIdleCallback(deferredSetup, { timeout: 100 });
+        } else {
+            setTimeout(deferredSetup, 16); // ~1 frame
+        }
+    }
+    
+    /**
+     * Render attributes organized by groups with collapsible sections
+     */
+    renderGroupedAttributes() {
+        const groups = this.currentMechanic.attributeGroups;
+        const attributes = this.currentMechanic.attributes;
+        
+        // Group attributes by their group property
+        const groupedAttrs = {};
+        const ungroupedAttrs = [];
+        
+        attributes.forEach(attr => {
+            if (attr.group) {
+                if (!groupedAttrs[attr.group]) {
+                    groupedAttrs[attr.group] = [];
+                }
+                groupedAttrs[attr.group].push(attr);
+            } else {
+                ungroupedAttrs.push(attr);
+            }
+        });
+        
+        let html = '';
+        
+        // Check if skill creation is allowed in current context
+        const canCreateSkills = this.creationContext === 'skillEditor' || this.creationContext === 'templateWizard';
+        
+        // PERFORMANCE: Store attribute data for lazy rendering of collapsed groups
+        this.pendingGroupRenders = this.pendingGroupRenders || {};
+        
+        // Render grouped attributes
+        groups.forEach(group => {
+            const attrs = groupedAttrs[group.id] || [];
+            if (attrs.length === 0) return; // Skip empty groups
+            
+            const isCollapsed = group.collapsed;
+            const collapsedClass = isCollapsed ? 'collapsed' : '';
+            const showWhenData = group.showWhen ? `data-group-show-when='${JSON.stringify(group.showWhen)}'` : '';
+            const hiddenStyle = group.showWhen ? 'style="display: none;"' : '';
+            
+            // Check if this is the skills group - add special "Create All" button (only if can create skills)
+            const isSkillsGroup = group.id === 'skills';
+            let skillsGroupActions = '';
+            if (isSkillsGroup) {
+                if (canCreateSkills) {
+                    skillsGroupActions = `
+                        <button type="button" class="skillref-create-all-btn" title="Create all entered sub-skills">
+                            <i class="fas fa-plus-circle"></i> Create All
+                        </button>
+                    `;
+                } else {
+                    skillsGroupActions = `
+                        <span class="skillref-mob-context-notice" title="Skill creation not available in mob editor">
+                            <i class="fas fa-info-circle"></i> Read-only
+                        </span>
+                    `;
+                }
+                
+                // Add batch create button for mechanics that commonly need multiple skills
+                if (canCreateSkills && this.shouldShowBatchCreate()) {
+                    skillsGroupActions += `
+                        <button type="button" class="skillref-batch-create-btn" title="Create all sub-skills with templates">
+                            <i class="fas fa-layer-group"></i> Batch
+                        </button>
+                    `;
+                }
+            }
+            
+            // PERFORMANCE: Lazy render collapsed groups - only render content when expanded
+            let contentHtml = '';
+            if (isCollapsed) {
+                // Store attributes for later rendering when group is expanded
+                this.pendingGroupRenders[group.id] = attrs;
+                contentHtml = `<div class="lazy-content-placeholder" data-lazy-group="${group.id}">Loading...</div>`;
+            } else {
+                // Render immediately for expanded groups
+                contentHtml = attrs.map(attr => this.renderSingleAttribute(attr)).join('');
+            }
+            
+            html += `
+                <div class="attribute-group ${collapsedClass}" data-group-id="${group.id}" ${showWhenData} ${hiddenStyle}>
+                    <div class="attribute-group-header" role="button" tabindex="0">
+                        <span class="group-toggle-icon">${isCollapsed ? '▶' : '▼'}</span>
+                        <span class="group-title">${group.name}</span>
+                        <span class="group-count">${attrs.length}</span>
+                        ${group.description ? `<span class="group-description">${group.description}</span>` : ''}
+                        ${skillsGroupActions}
+                    </div>
+                    <div class="attribute-group-content" ${isCollapsed ? 'style="display: none;"' : ''}>
+                        ${contentHtml}
+                    </div>
+                </div>
+            `;
+        });
+        
+        // Render ungrouped attributes at the end
+        if (ungroupedAttrs.length > 0) {
+            html += `
+                <div class="attribute-group" data-group-id="ungrouped">
+                    <div class="attribute-group-header" role="button" tabindex="0">
+                        <span class="group-toggle-icon">▼</span>
+                        <span class="group-title">Other Attributes</span>
+                        <span class="group-count">${ungroupedAttrs.length}</span>
+                    </div>
+                    <div class="attribute-group-content">
+                        ${ungroupedAttrs.map(attr => this.renderSingleAttribute(attr)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        return html;
+    }
+    
+    /**
+     * Render a single attribute field
+     */
+    renderSingleAttribute(attr) {
+        const aliases = attr.alias && (Array.isArray(attr.alias) ? attr.alias : [attr.alias]);
+        const aliasText = aliases && aliases.length > 0 ? ` (${aliases.join(', ')})` : '';
+        const requiredMark = attr.required ? '<span class="required">*</span>' : '';
+        const defaultText = attr.default !== undefined && attr.default !== '' ? ` [default: ${attr.default}]` : '';
+        
+        // Build tooltip content
+        const tooltipContent = `
+            <div class="attribute-tooltip-content">
+                <strong>${attr.name}</strong>
+                ${aliases && aliases.length > 0 ? `<div class="tooltip-aliases">Aliases: ${aliases.join(', ')}</div>` : ''}
+                <div class="tooltip-type">Type: ${attr.type || 'string'}</div>
+                ${attr.default !== undefined ? `<div class="tooltip-default">Default: ${attr.default}</div>` : ''}
+                <div class="tooltip-description">${attr.description}</div>
+            </div>
+        `.trim();
+        
+        let inputHTML = '';
+        // Check if this attribute should use entity picker
+        const shouldUseEntityPicker = this.shouldUseEntityPicker(attr);
+        
+        if (shouldUseEntityPicker) {
+            // Entity type picker for summon/mount/particle mob attributes
+            const inputId = `mechanic-entity-${attr.name}-${Math.random().toString(36).substr(2, 9)}`;
+            inputHTML = `
+                <input type="hidden" 
+                       id="${inputId}"
+                       class="mechanic-attribute-input mechanic-entity-input" 
+                       data-attr="${attr.name}"
+                       data-modified="false"
+                       value="">
+                ${this.createEntityPickerHTML(inputId)}
+            `;
+        } else if (attr.type === 'select' && attr.options) {
+            // Dropdown select for predefined options
+            inputHTML = `
+                <select class="mechanic-attribute-input mechanic-attribute-select" 
+                        data-attr="${attr.name}"
+                        data-modified="false">
+                    ${attr.options.map(opt => `
+                        <option value="${opt.value}" ${opt.value === attr.default ? 'selected' : ''}>
+                            ${opt.label}
+                        </option>
+                    `).join('')}
+                </select>
+            `;
+        } else if (attr.type === 'boolean') {
+            // Enhanced toggle switch for boolean values
+            const defaultChecked = attr.default === true || attr.default === 'true';
+            inputHTML = `
+                <div class="boolean-toggle-wrapper">
+                    <label class="boolean-toggle">
+                        <input type="checkbox" 
+                               class="mechanic-attribute-input boolean-toggle-input" 
+                               data-attr="${attr.name}"
+                               data-modified="false"
+                               ${defaultChecked ? 'checked' : ''}>
+                        <span class="boolean-toggle-track">
+                            <span class="boolean-toggle-thumb"></span>
+                        </span>
+                        <span class="boolean-toggle-label ${defaultChecked ? 'is-true' : 'is-false'}">${defaultChecked ? 'true' : 'false'}</span>
+                    </label>
+                </div>
+            `;
+        } else if (attr.type === 'particleSelect') {
+            // Smart particle type selector with categories
+            inputHTML = this.renderParticleSelector(attr);
+        } else if (attr.type === 'color') {
+            // Color picker
+            inputHTML = `
+                <div class="color-input-wrapper">
+                    <input type="color" 
+                           class="mechanic-attribute-input mechanic-attribute-color" 
+                           data-attr="${attr.name}"
+                           data-default="${attr.default || '#FF0000'}"
+                           data-modified="false"
+                           value="${attr.default || '#FF0000'}">
+                    <input type="text" 
+                           class="color-hex-input" 
+                           data-attr="${attr.name}"
+                           data-modified="false"
+                           placeholder="${attr.default || '#FF0000'}"
+                           pattern="^#[0-9A-Fa-f]{6}$">
+                </div>
+            `;
+        } else if (attr.type === 'materialSelect') {
+            // Material selector dropdown (for block/item particles)
+            inputHTML = this.renderMaterialSelector(attr);
+        } else if (attr.type === 'number') {
+            // Number input with step detection (don't pre-fill, only placeholder)
+            const step = attr.default && attr.default.toString().includes('.') ? '0.01' : '1';
+            inputHTML = `
+                <input type="number" 
+                       class="mechanic-attribute-input" 
+                       data-attr="${attr.name}"
+                       data-default="${attr.default !== undefined ? attr.default : ''}"
+                       data-modified="false"
+                       step="${step}"
+                       placeholder="${attr.default !== undefined ? attr.default : ''}">
+            `;
+        } else if (attr.type === 'skillref') {
+            // Skill reference input with autocomplete and create button
+            // Check if skill creation is allowed in current context
+            const canCreateSkills = this.creationContext === 'skillEditor' || this.creationContext === 'templateWizard';
+            const inputId = `skillref-${attr.name}-${Math.random().toString(36).substr(2, 9)}`;
+            const disabledClass = canCreateSkills ? '' : 'skillref-disabled';
+            const createBtnDisabled = canCreateSkills ? '' : 'disabled';
+            const createBtnTitle = canCreateSkills 
+                ? 'Create this skill' 
+                : 'Skill creation not available in mob editor. Open from skill editor or template wizard to create skills.';
+            
+            inputHTML = `
+                <div class="skillref-input-wrapper ${disabledClass}" data-attr="${attr.name}" data-can-create="${canCreateSkills}">
+                    <div class="skillref-input-container">
+                        <input type="text" 
+                               id="${inputId}"
+                               class="mechanic-attribute-input skillref-input" 
+                               data-attr="${attr.name}"
+                               data-modified="false"
+                               placeholder="Enter skill name..."
+                               autocomplete="off">
+                        <div class="skillref-autocomplete" id="${inputId}-autocomplete"></div>
+                    </div>
+                    <button type="button" class="skillref-create-btn" data-input-id="${inputId}" title="${createBtnTitle}" ${createBtnDisabled}>
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <div class="skillref-status" id="${inputId}-status"></div>
+                </div>
+            `;
+        } else {
+            // Text input (could be string, list, etc.) - don't pre-fill, only placeholder
+            inputHTML = `
+                <input type="text" 
+                       class="mechanic-attribute-input" 
+                       data-attr="${attr.name}"
+                       data-default="${attr.default || ''}"
+                       data-modified="false"
+                       placeholder="${attr.default || ''}">
+            `;
+        }
+
+        // Check if field should be conditionally shown
+        const conditionalClass = attr.showWhen ? 'conditional-field' : '';
+        const conditionalData = attr.showWhen ? `data-show-when='${JSON.stringify(attr.showWhen)}'` : '';
+
+        return `
+            <div class="mechanic-attribute-field ${conditionalClass}" ${conditionalData} data-tooltip="${tooltipContent.replace(/"/g, '&quot;')}">
+                <label class="attribute-label">
+                    ${attr.name}${aliasText} ${requiredMark}
+                </label>
+                ${inputHTML}
+                <small class="attribute-description">${attr.description}${defaultText}</small>
+            </div>
+        `;
+    }
+    
+    /**
+     * Setup attribute group toggle (expand/collapse)
+     * PERFORMANCE: Implements lazy rendering - collapsed groups only render when expanded
+     */
+    setupAttributeGroupToggle(container) {
+        container.querySelectorAll('.attribute-group-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const group = header.closest('.attribute-group');
+                const content = group.querySelector('.attribute-group-content');
+                const icon = header.querySelector('.group-toggle-icon');
+                const groupId = group.dataset.groupId;
+                
+                if (group.classList.contains('collapsed')) {
+                    group.classList.remove('collapsed');
+                    content.style.display = '';
+                    icon.textContent = '▼';
+                    
+                    // PERFORMANCE: Lazy render - check if content needs to be rendered
+                    const lazyPlaceholder = content.querySelector('.lazy-content-placeholder');
+                    if (lazyPlaceholder && this.pendingGroupRenders && this.pendingGroupRenders[groupId]) {
+                        const attrs = this.pendingGroupRenders[groupId];
+                        
+                        // Render the attributes
+                        content.innerHTML = attrs.map(attr => this.renderSingleAttribute(attr)).join('');
+                        
+                        // Clear from pending
+                        delete this.pendingGroupRenders[groupId];
+                        
+                        // Setup event listeners for the newly rendered content
+                        this.attachAttributeListeners(content);
+                        this.setupEntityPickers(content);
+                        this.setupMaterialDropdowns(content);
+                        this.setupSkillRefInputs(content);
+                        
+                        // Update preview
+                        this.updateSkillLinePreview();
+                    }
+                } else {
+                    group.classList.add('collapsed');
+                    content.style.display = 'none';
+                    icon.textContent = '▶';
+                }
+            });
+            
+            // Keyboard accessibility
+            header.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    header.click();
+                }
+            });
+        });
+    }
+    
+    /**
+     * Setup bullet type visibility - show/hide bullet-specific groups based on BulletType selection
+     * PERFORMANCE: Also triggers lazy rendering for shown groups
+     */
+    setupBulletTypeVisibility(container) {
+        const bulletTypeSelect = container.querySelector('[data-attr="BulletType"]');
+        if (!bulletTypeSelect) return;
+        
+        const updateVisibility = () => {
+            const selectedBulletType = bulletTypeSelect.value;
+            
+            // Find all groups with showWhen conditions
+            container.querySelectorAll('.attribute-group[data-group-show-when]').forEach(group => {
+                const showWhen = JSON.parse(group.dataset.groupShowWhen);
+                let shouldShow = false;
+                
+                if (showWhen.attr === 'BulletType') {
+                    if (showWhen.value) {
+                        shouldShow = selectedBulletType === showWhen.value;
+                    } else if (showWhen.values) {
+                        shouldShow = showWhen.values.includes(selectedBulletType);
+                    }
+                }
+                
+                group.style.display = shouldShow ? '' : 'none';
+                
+                // Auto-expand visible bullet groups, collapse hidden ones
+                if (shouldShow && group.classList.contains('collapsed')) {
+                    group.classList.remove('collapsed');
+                    const content = group.querySelector('.attribute-group-content');
+                    const icon = group.querySelector('.group-toggle-icon');
+                    const groupId = group.dataset.groupId;
+                    if (content) content.style.display = '';
+                    if (icon) icon.textContent = '▼';
+                    
+                    // PERFORMANCE: Lazy render when auto-expanding
+                    const lazyPlaceholder = content?.querySelector('.lazy-content-placeholder');
+                    if (lazyPlaceholder && this.pendingGroupRenders && this.pendingGroupRenders[groupId]) {
+                        const attrs = this.pendingGroupRenders[groupId];
+                        content.innerHTML = attrs.map(attr => this.renderSingleAttribute(attr)).join('');
+                        delete this.pendingGroupRenders[groupId];
+                        
+                        // Setup listeners for newly rendered content
+                        this.attachAttributeListeners(content);
+                        this.setupEntityPickers(content);
+                        this.setupMaterialDropdowns(content);
+                        this.setupSkillRefInputs(content);
+                    }
+                }
+            });
+        };
+        
+        bulletTypeSelect.addEventListener('change', updateVisibility);
+        // Initial update
+        updateVisibility();
+    }
+    
+    /**
+     * Setup skill reference inputs with autocomplete and create buttons
+     */
+    setupSkillRefInputs(container) {
+        const skillrefWrappers = container.querySelectorAll('.skillref-input-wrapper');
+        if (skillrefWrappers.length === 0) return;
+        
+        // Get existing skills from the current pack for autocomplete
+        const existingSkills = this.getExistingSkillNames();
+        
+        skillrefWrappers.forEach(wrapper => {
+            const input = wrapper.querySelector('.skillref-input');
+            const autocomplete = wrapper.querySelector('.skillref-autocomplete');
+            const createBtn = wrapper.querySelector('.skillref-create-btn');
+            const statusEl = wrapper.querySelector('.skillref-status');
+            
+            if (!input) return;
+            
+            // Input event for autocomplete
+            input.addEventListener('input', () => {
+                const value = input.value.trim();
+                this.updateSkillRefAutocomplete(value, autocomplete, existingSkills, input);
+                this.updateSkillRefStatus(value, statusEl, existingSkills);
+                input.dataset.modified = value !== '' ? 'true' : 'false';
+                this.updateSkillLinePreview();
+            });
+            
+            // Focus event to show autocomplete
+            input.addEventListener('focus', () => {
+                const value = input.value.trim();
+                this.updateSkillRefAutocomplete(value, autocomplete, existingSkills, input);
+            });
+            
+            // Blur event to hide autocomplete (with delay for click)
+            input.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (autocomplete) autocomplete.style.display = 'none';
+                }, 200);
+            });
+            
+            // Create button click - only if skill creation is enabled
+            const canCreate = wrapper.dataset.canCreate === 'true';
+            if (createBtn && canCreate) {
+                createBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const skillName = input.value.trim();
+                    if (skillName) {
+                        this.createSubSkill(skillName, input);
+                    }
+                });
+            } else if (createBtn && !canCreate) {
+                // Show tooltip on hover/click for disabled button
+                createBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    window.editor?.showToast('Skill creation is not available in mob editor. Open from skill editor or template wizard.', 'info');
+                });
+            }
+        });
+        
+        // Setup "Create All" button for skills group (only if skill creation is enabled)
+        const createAllBtn = container.querySelector('.skillref-create-all-btn');
+        if (createAllBtn) {
+            createAllBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // Don't toggle the group
+                
+                const pendingSkills = this.collectPendingSkillRefs();
+                if (pendingSkills.length === 0) {
+                    window.editor?.showToast('No new skills to create', 'info');
+                    return;
+                }
+                
+                const confirm = await window.notificationModal?.confirm(
+                    `Create ${pendingSkills.length} new skill(s)?\n\n• ${pendingSkills.join('\n• ')}`,
+                    'Create Sub-Skills',
+                    { confirmText: 'Create All', cancelText: 'Cancel' }
+                );
+                
+                if (confirm) {
+                    for (const skillName of pendingSkills) {
+                        await this.createSubSkill(skillName, null);
+                    }
+                    
+                    // Refresh all status indicators
+                    const newExistingSkills = this.getExistingSkillNames();
+                    container.querySelectorAll('.skillref-input-wrapper').forEach(wrapper => {
+                        const input = wrapper.querySelector('.skillref-input');
+                        const statusEl = wrapper.querySelector('.skillref-status');
+                        if (input && statusEl) {
+                            this.updateSkillRefStatus(input.value.trim(), statusEl, newExistingSkills);
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Setup "Batch Create" button for skills group (only if skill creation is enabled)
+        const batchCreateBtn = container.querySelector('.skillref-batch-create-btn');
+        if (batchCreateBtn) {
+            const canCreate = this.creationContext === 'skillEditor' || this.creationContext === 'templateWizard';
+            if (canCreate) {
+                batchCreateBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation(); // Don't toggle the group
+                    await this.showBatchCreateModal();
+                });
+            } else {
+                batchCreateBtn.disabled = true;
+                batchCreateBtn.title = 'Skill creation not available in mob editor';
+            }
+        }
+    }
+    
+    /**
+     * Update skill reference autocomplete dropdown
+     * ENHANCED: Fuzzy matching, skill preview, smart suggestions
+     */
+    updateSkillRefAutocomplete(query, autocompleteEl, existingSkills, input) {
+        if (!autocompleteEl) return;
+        
+        // Get attribute name for context-aware suggestions
+        const attrName = input?.dataset?.attr || '';
+        const parentSkillName = this.getCurrentParentSkillName();
+        
+        if (!query) {
+            // Show suggested names first, then existing skills
+            const suggestions = this.generateSkillNameSuggestions(attrName, parentSkillName);
+            const suggestionsHtml = suggestions.length > 0 ? suggestions.slice(0, 3).map(s => `
+                <div class="skillref-autocomplete-item skillref-suggestion" data-skill="${s.name}" title="${s.reason}">
+                    <i class="fas fa-lightbulb"></i> 
+                    <span class="suggestion-name">${s.name}</span>
+                    <span class="suggestion-hint">${s.hint}</span>
+                </div>
+            `).join('') : '';
+            
+            if (existingSkills.length === 0 && suggestions.length === 0) {
+                autocompleteEl.style.display = 'none';
+                return;
+            }
+            
+            const existingHtml = existingSkills.slice(0, 7).map(skill => 
+                this.renderSkillAutocompleteItem(skill)
+            ).join('');
+            
+            autocompleteEl.innerHTML = suggestionsHtml + existingHtml;
+            autocompleteEl.style.display = 'block';
+        } else {
+            // ENHANCED: Fuzzy matching with scoring
+            const scored = this.fuzzyMatchSkills(query, existingSkills, parentSkillName);
+            
+            if (scored.length === 0) {
+                // Show naming suggestion and create option
+                const suggestedName = this.suggestSkillName(query, attrName, parentSkillName);
+                autocompleteEl.innerHTML = `
+                    ${suggestedName !== query ? `
+                        <div class="skillref-autocomplete-item skillref-suggestion" data-skill="${suggestedName}">
+                            <i class="fas fa-lightbulb"></i> 
+                            <span class="suggestion-name">${suggestedName}</span>
+                            <span class="suggestion-hint">suggested</span>
+                        </div>
+                    ` : ''}
+                    <div class="skillref-autocomplete-item skillref-create-new" data-skill="${query}">
+                        <i class="fas fa-plus"></i> Create "${query}"
+                    </div>
+                `;
+                autocompleteEl.style.display = 'block';
+            } else {
+                autocompleteEl.innerHTML = scored.slice(0, 8).map(item => 
+                    this.renderSkillAutocompleteItem(item.skill, item.highlight)
+                ).join('');
+                
+                // Add create option if exact match doesn't exist
+                if (!scored.some(s => s.skill.toLowerCase() === query.toLowerCase())) {
+                    autocompleteEl.innerHTML += `
+                        <div class="skillref-autocomplete-item skillref-create-new" data-skill="${query}">
+                            <i class="fas fa-plus"></i> Create "${query}"
+                        </div>
+                    `;
+                }
+                autocompleteEl.style.display = 'block';
+            }
+        }
+        
+        // Attach click handlers and hover preview to autocomplete items
+        this.attachAutocompleteHandlers(autocompleteEl, input, existingSkills);
+    }
+    
+    /**
+     * Render a skill autocomplete item with preview tooltip
+     */
+    renderSkillAutocompleteItem(skillName, highlight = null) {
+        const skillContent = this.getSkillContent(skillName);
+        const previewHtml = skillContent ? this.renderSkillPreviewTooltip(skillName, skillContent) : '';
+        const displayName = highlight || skillName;
+        
+        return `
+            <div class="skillref-autocomplete-item" data-skill="${skillName}" data-has-preview="${skillContent ? 'true' : 'false'}">
+                <i class="fas fa-magic"></i> 
+                <span class="skill-name">${displayName}</span>
+                ${skillContent ? `<span class="skill-preview-indicator" title="Has content"><i class="fas fa-eye"></i></span>` : ''}
+                ${previewHtml}
+            </div>
+        `;
+    }
+    
+    /**
+     * Render skill preview tooltip HTML
+     */
+    renderSkillPreviewTooltip(skillName, content) {
+        const lines = content.lines || [];
+        const previewLines = lines.slice(0, 5);
+        const hasMore = lines.length > 5;
+        
+        return `
+            <div class="skillref-preview-tooltip">
+                <div class="preview-header">
+                    <i class="fas fa-magic"></i> ${skillName}
+                </div>
+                <div class="preview-content">
+                    ${previewLines.map(line => `<div class="preview-line">${this.escapeHtml(line)}</div>`).join('')}
+                    ${hasMore ? `<div class="preview-more">... and ${lines.length - 5} more lines</div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Attach handlers to autocomplete items
+     */
+    attachAutocompleteHandlers(autocompleteEl, input, existingSkills) {
+        autocompleteEl.querySelectorAll('.skillref-autocomplete-item').forEach(item => {
+            // Click handler
+            item.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                const skill = item.dataset.skill;
+                input.value = skill;
+                input.dataset.modified = 'true';
+                autocompleteEl.style.display = 'none';
+                this.updateSkillRefStatus(skill, input.closest('.skillref-input-wrapper').querySelector('.skillref-status'), existingSkills);
+                this.updateSkillLinePreview();
+                
+                // If clicking create new or suggestion, trigger skill creation
+                if (item.classList.contains('skillref-create-new') || item.classList.contains('skillref-suggestion')) {
+                    if (!existingSkills.some(s => s.toLowerCase() === skill.toLowerCase())) {
+                        this.createSubSkill(skill, input);
+                    }
+                }
+            });
+            
+            // Hover preview positioning
+            item.addEventListener('mouseenter', () => {
+                const tooltip = item.querySelector('.skillref-preview-tooltip');
+                if (tooltip) {
+                    tooltip.classList.add('visible');
+                }
+            });
+            
+            item.addEventListener('mouseleave', () => {
+                const tooltip = item.querySelector('.skillref-preview-tooltip');
+                if (tooltip) {
+                    tooltip.classList.remove('visible');
+                }
+            });
+        });
+    }
+    
+    /**
+     * Fuzzy match skills with scoring
+     */
+    fuzzyMatchSkills(query, skills, parentSkillName) {
+        const queryLower = query.toLowerCase();
+        const results = [];
+        
+        for (const skill of skills) {
+            const skillLower = skill.toLowerCase();
+            let score = 0;
+            let highlight = skill;
+            
+            // Exact match - highest score
+            if (skillLower === queryLower) {
+                score = 1000;
+            }
+            // Starts with query - high score
+            else if (skillLower.startsWith(queryLower)) {
+                score = 500 + (query.length / skill.length) * 100;
+                highlight = `<strong>${skill.substring(0, query.length)}</strong>${skill.substring(query.length)}`;
+            }
+            // Contains query - medium score
+            else if (skillLower.includes(queryLower)) {
+                const idx = skillLower.indexOf(queryLower);
+                score = 200 + (query.length / skill.length) * 50;
+                highlight = `${skill.substring(0, idx)}<strong>${skill.substring(idx, idx + query.length)}</strong>${skill.substring(idx + query.length)}`;
+            }
+            // Fuzzy match - low score
+            else {
+                const fuzzyScore = this.calculateFuzzyScore(queryLower, skillLower);
+                if (fuzzyScore > 0.3) {
+                    score = fuzzyScore * 100;
+                    highlight = this.highlightFuzzyMatch(query, skill);
+                }
+            }
+            
+            // Bonus for same file/parent
+            if (parentSkillName && skill.toLowerCase().startsWith(parentSkillName.toLowerCase().split('_')[0])) {
+                score += 50;
+            }
+            
+            if (score > 0) {
+                results.push({ skill, score, highlight });
+            }
+        }
+        
+        return results.sort((a, b) => b.score - a.score);
+    }
+    
+    /**
+     * Calculate fuzzy match score
+     */
+    calculateFuzzyScore(query, text) {
+        let queryIdx = 0;
+        let matches = 0;
+        let lastMatchIdx = -1;
+        let consecutiveBonus = 0;
+        
+        for (let i = 0; i < text.length && queryIdx < query.length; i++) {
+            if (text[i] === query[queryIdx]) {
+                matches++;
+                if (lastMatchIdx === i - 1) consecutiveBonus += 0.1;
+                lastMatchIdx = i;
+                queryIdx++;
+            }
+        }
+        
+        if (queryIdx < query.length) return 0; // Not all chars matched
+        
+        return (matches / query.length) * 0.5 + (matches / text.length) * 0.3 + consecutiveBonus;
+    }
+    
+    /**
+     * Highlight fuzzy matched characters
+     */
+    highlightFuzzyMatch(query, text) {
+        const queryLower = query.toLowerCase();
+        const textLower = text.toLowerCase();
+        let result = '';
+        let queryIdx = 0;
+        
+        for (let i = 0; i < text.length; i++) {
+            if (queryIdx < queryLower.length && textLower[i] === queryLower[queryIdx]) {
+                result += `<strong>${text[i]}</strong>`;
+                queryIdx++;
+            } else {
+                result += text[i];
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Get current parent skill name (for naming suggestions)
+     */
+    getCurrentParentSkillName() {
+        try {
+            if (window.editor?.state?.currentFile?.name) {
+                return window.editor.state.currentFile.name;
+            }
+        } catch (e) {}
+        return null;
+    }
+    
+    /**
+     * Generate smart skill name suggestions based on context
+     */
+    generateSkillNameSuggestions(attrName, parentSkillName) {
+        const suggestions = [];
+        const baseName = parentSkillName || this.currentMechanic?.name || 'Skill';
+        const cleanBase = baseName.replace(/[-_](on)?[A-Z][a-z]+$/, ''); // Remove existing suffixes
+        
+        // Attribute-specific suggestions
+        const attrSuffixes = {
+            'onTickSkill': { suffix: '_Tick', hint: 'Runs every tick', reason: 'Standard tick handler naming' },
+            'onHitSkill': { suffix: '_Hit', hint: 'On target hit', reason: 'Standard hit handler naming' },
+            'onEndSkill': { suffix: '_End', hint: 'When ends', reason: 'Standard end handler naming' },
+            'onStartSkill': { suffix: '_Start', hint: 'When starts', reason: 'Standard start handler naming' },
+            'onBlockHitSkill': { suffix: '_BlockHit', hint: 'On block hit', reason: 'Block collision handler' },
+            'onBounceSkill': { suffix: '_Bounce', hint: 'On bounce', reason: 'Bounce handler naming' },
+            'onShootSkill': { suffix: '_Shoot', hint: 'On shoot', reason: 'Shoot handler naming' }
+        };
+        
+        if (attrSuffixes[attrName]) {
+            const { suffix, hint, reason } = attrSuffixes[attrName];
+            suggestions.push({
+                name: cleanBase + suffix,
+                hint,
+                reason
+            });
+        }
+        
+        // Generic suggestions based on mechanic type
+        if (this.currentMechanic?.name === 'projectile' && !attrName) {
+            suggestions.push(
+                { name: cleanBase + '_Hit', hint: 'On target hit', reason: 'Common projectile handler' },
+                { name: cleanBase + '_Tick', hint: 'Every tick', reason: 'Common projectile handler' },
+                { name: cleanBase + '_End', hint: 'When ends', reason: 'Common projectile handler' }
+            );
+        }
+        
+        return suggestions;
+    }
+    
+    /**
+     * Suggest a skill name based on query and context
+     */
+    suggestSkillName(query, attrName, parentSkillName) {
+        // If query already looks good, return it
+        if (query.includes('_') || query.length > 15) return query;
+        
+        const baseName = parentSkillName || query;
+        const cleanBase = baseName.replace(/[-_](on)?[A-Z][a-z]+$/, '');
+        
+        const attrSuffixes = {
+            'onTickSkill': '_Tick',
+            'onHitSkill': '_Hit', 
+            'onEndSkill': '_End',
+            'onStartSkill': '_Start'
+        };
+        
+        if (attrSuffixes[attrName] && !query.toLowerCase().includes(attrSuffixes[attrName].toLowerCase().replace('_', ''))) {
+            return cleanBase + attrSuffixes[attrName];
+        }
+        
+        return query;
+    }
+    
+    /**
+     * Get skill content for preview
+     */
+    getSkillContent(skillName) {
+        try {
+            const pack = window.editor?.state?.currentPack;
+            if (!pack?.skills) return null;
+            
+            for (const file of pack.skills) {
+                for (const entry of (file.entries || [])) {
+                    if (entry.name?.toLowerCase() === skillName.toLowerCase()) {
+                        return {
+                            lines: entry.Skills || [],
+                            fileName: file.fileName
+                        };
+                    }
+                    // Check sub-skills
+                    if (entry.skills) {
+                        const subSkill = entry.skills[skillName];
+                        if (subSkill) {
+                            return {
+                                lines: subSkill.lines || [],
+                                fileName: file.fileName
+                            };
+                        }
+                    }
+                }
+            }
+        } catch (e) {}
+        return null;
+    }
+    
+    /**
+     * Get all skill references from a skill's content
+     */
+    getSkillReferences(skillName) {
+        const refs = [];
+        const content = this.getSkillContent(skillName);
+        if (!content?.lines) return refs;
+        
+        for (const line of content.lines) {
+            // Match skill= or skill{ patterns
+            const matches = line.match(/(?:skill|onTickSkill|onHitSkill|onEndSkill|onStartSkill)\s*[={]\s*([a-zA-Z0-9_-]+)/gi);
+            if (matches) {
+                for (const match of matches) {
+                    const skillRef = match.replace(/.*[={]\s*/, '');
+                    if (skillRef && !refs.includes(skillRef)) {
+                        refs.push(skillRef);
+                    }
+                }
+            }
+        }
+        
+        return refs;
+    }
+    
+    /**
+     * Check for circular skill references
+     */
+    detectCircularReferences(skillName, visited = new Set(), path = []) {
+        if (visited.has(skillName)) {
+            return { circular: true, path: [...path, skillName] };
+        }
+        
+        visited.add(skillName);
+        path.push(skillName);
+        
+        const refs = this.getSkillReferences(skillName);
+        for (const ref of refs) {
+            const result = this.detectCircularReferences(ref, new Set(visited), [...path]);
+            if (result.circular) {
+                return result;
+            }
+        }
+        
+        return { circular: false, path: [] };
+    }
+    
+    /**
+     * Escape HTML for safe display
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    /**
+     * Update skill reference status indicator
+     */
+    updateSkillRefStatus(skillName, statusEl, existingSkills) {
+        if (!statusEl) return;
+        
+        if (!skillName) {
+            statusEl.innerHTML = '';
+            statusEl.className = 'skillref-status';
+            return;
+        }
+        
+        const exists = existingSkills.some(s => s.toLowerCase() === skillName.toLowerCase());
+        
+        if (exists) {
+            statusEl.innerHTML = '<i class="fas fa-check"></i> Exists';
+            statusEl.className = 'skillref-status skillref-exists';
+        } else {
+            statusEl.innerHTML = '<i class="fas fa-plus-circle"></i> Will create';
+            statusEl.className = 'skillref-status skillref-will-create';
+        }
+    }
+    
+    /**
+     * Get list of existing skill names from the current pack
+     */
+    getExistingSkillNames() {
+        const skills = [];
+        
+        try {
+            // Get skills from the editor's current pack
+            if (window.editor && window.editor.state && window.editor.state.currentPack) {
+                const pack = window.editor.state.currentPack;
+                
+                // Check skills folder
+                if (pack.skills) {
+                    pack.skills.forEach(skillFile => {
+                        if (skillFile.entries && Array.isArray(skillFile.entries)) {
+                            skillFile.entries.forEach(entry => {
+                                if (entry.name) {
+                                    skills.push(entry.name);
+                                }
+                                // Also get sub-skills if using new multi-skill format
+                                if (entry.skills && typeof entry.skills === 'object') {
+                                    Object.keys(entry.skills).forEach(subSkillName => {
+                                        if (!skills.includes(subSkillName)) {
+                                            skills.push(subSkillName);
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('Could not get existing skill names:', e);
+        }
+        
+        return [...new Set(skills)].sort();
+    }
+    
+    /**
+     * Create a new sub-skill in the current file or template
+     * Supports both skill editor (creates in file) and template wizard (adds section)
+     */
+    async createSubSkill(skillName, inputEl) {
+        if (!skillName || !skillName.trim()) {
+            window.editor?.showToast('Please enter a skill name', 'warning');
+            return false;
+        }
+        
+        // Sanitize the skill name
+        const sanitizedName = skillName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+        
+        // Check context - only allow in skillEditor or templateWizard contexts
+        if (this.creationContext === 'mobEditor' || this.context === 'mob') {
+            window.editor?.showToast('Skill creation is not available in mob editor. Open from skill editor or template wizard.', 'info');
+            return false;
+        }
+        
+        // Check if skill already exists
+        const existingSkills = this.getExistingSkillNames();
+        if (existingSkills.some(s => s.toLowerCase() === sanitizedName.toLowerCase())) {
+            window.editor?.showToast(`Skill "${sanitizedName}" already exists`, 'info');
+            // Update the input to show it exists
+            const statusEl = inputEl?.closest('.skillref-input-wrapper')?.querySelector('.skillref-status');
+            if (statusEl) {
+                statusEl.innerHTML = '<i class="fas fa-check"></i> Exists';
+                statusEl.className = 'skillref-status skillref-exists';
+            }
+            return true;
+        }
+        
+        // TEMPLATE WIZARD CONTEXT: Add section via callback
+        if (this.creationContext === 'templateWizard' && this.templateWizardCallback) {
+            try {
+                const result = await this.templateWizardCallback(sanitizedName);
+                if (result) {
+                    // Update the status indicator
+                    const statusEl = inputEl?.closest('.skillref-input-wrapper')?.querySelector('.skillref-status');
+                    if (statusEl) {
+                        statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Added to template!';
+                        statusEl.className = 'skillref-status skillref-created';
+                        
+                        setTimeout(() => {
+                            statusEl.innerHTML = '<i class="fas fa-file-alt"></i> In template';
+                            statusEl.className = 'skillref-status skillref-pending';
+                        }, 2000);
+                    }
+                    window.editor?.showToast(`Section "${sanitizedName}" will be added to template`, 'success');
+                    return true;
+                }
+            } catch (error) {
+                console.error('Error adding section via template wizard callback:', error);
+            }
+            return false;
+        }
+        
+        // SKILL EDITOR CONTEXT: Create in current skill file
+        try {
+            // Find the current skill being edited to get its parent file
+            const currentSkillFile = window.editor?.state?.currentFile;
+            
+            if (!currentSkillFile) {
+                window.editor?.showToast('No skill file open. Skill will be created when you add the mechanic.', 'info');
+                // Store pending skills for later creation
+                this.pendingSubSkills = this.pendingSubSkills || [];
+                if (!this.pendingSubSkills.includes(sanitizedName)) {
+                    this.pendingSubSkills.push(sanitizedName);
+                }
+                return true;
+            }
+            
+            // Check if we're in a skill file context
+            if (window.editor.state.currentFileType !== 'skill') {
+                window.editor?.showToast('Can only create skills when editing a skill file', 'warning');
+                return false;
+            }
+            
+            // Find parent file from skill entry
+            let parentFile = null;
+            if (currentSkillFile._parentFile) {
+                const pack = window.editor.state.currentPack;
+                parentFile = pack.skills?.find(f => f.id === currentSkillFile._parentFile.id);
+            }
+            
+            if (!parentFile) {
+                // Try to find the file containing this skill
+                const pack = window.editor.state.currentPack;
+                parentFile = pack.skills?.find(f => 
+                    f.entries?.some(e => e.id === currentSkillFile.id)
+                );
+            }
+            
+            if (!parentFile) {
+                window.editor?.showToast('Could not find parent file for skill', 'error');
+                return false;
+            }
+            
+            // Check if skill name already exists in this file
+            if (parentFile.entries.some(e => e.name === sanitizedName)) {
+                window.editor?.showToast(`Skill "${sanitizedName}" already exists in this file`, 'info');
+                return true;
+            }
+            
+            // Generate smart default content based on skill name and mechanic context
+            const defaultLines = this.generateSmartSkillContent(sanitizedName, inputEl?.dataset?.attr);
+            
+            // Create new skill entry with auto-generated content
+            const newSkill = {
+                id: 'skill-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+                name: sanitizedName,
+                Skills: defaultLines,
+                skills: {
+                    [sanitizedName]: { lines: defaultLines }
+                },
+                _parentFile: { id: parentFile.id, fileName: parentFile.fileName },
+                _autoGenerated: true,
+                _generatedFor: this.currentMechanic?.name || 'Unknown'
+            };
+            
+            // Add to parent file
+            parentFile.entries.push(newSkill);
+            
+            // Update the status indicator
+            const statusEl = inputEl?.closest('.skillref-input-wrapper')?.querySelector('.skillref-status');
+            if (statusEl) {
+                statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Created!';
+                statusEl.className = 'skillref-status skillref-created';
+                
+                // Reset after a moment
+                setTimeout(() => {
+                    statusEl.innerHTML = '<i class="fas fa-check"></i> Exists';
+                    statusEl.className = 'skillref-status skillref-exists';
+                }, 2000);
+            }
+            
+            // Update pack tree if available
+            if (window.editor.packManager?.updateFileContainer) {
+                window.editor.packManager.updateFileContainer(parentFile.id, 'skill');
+            }
+            
+            // Mark dirty
+            window.editor.markDirty();
+            
+            // Show success with option to edit
+            this.showSkillCreatedNotification(sanitizedName, newSkill, parentFile);
+            return true;
+            
+        } catch (error) {
+            console.error('Error creating sub-skill:', error);
+            window.editor?.showToast('Failed to create skill: ' + error.message, 'error');
+            return false;
+        }
+    }
+    
+    /**
+     * Generate smart skill content based on context
+     */
+    generateSmartSkillContent(skillName, attrName) {
+        const lines = [];
+        const nameLower = skillName.toLowerCase();
+        
+        // Detect context from attribute name or skill name
+        const isHit = attrName === 'onHitSkill' || nameLower.includes('hit') || nameLower.includes('impact');
+        const isTick = attrName === 'onTickSkill' || nameLower.includes('tick') || nameLower.includes('trail');
+        const isEnd = attrName === 'onEndSkill' || nameLower.includes('end') || nameLower.includes('finish');
+        const isStart = attrName === 'onStartSkill' || nameLower.includes('start') || nameLower.includes('begin');
+        const isBounce = attrName === 'onBounceSkill' || nameLower.includes('bounce');
+        
+        // Mechanic-specific defaults
+        const mechanic = this.currentMechanic?.name?.toLowerCase();
+        
+        if (isHit) {
+            if (mechanic === 'projectile' || mechanic === 'missile' || mechanic === 'orbital') {
+                lines.push('- damage{a=5} @target');
+                lines.push('- particles{p=flame;a=20;s=0.2} @target');
+            } else if (mechanic === 'aura') {
+                lines.push('- damage{a=2} @trigger');
+                lines.push('- effect:slow{d=40;l=1} @trigger');
+            } else {
+                lines.push('- damage{a=5} @target');
+            }
+        } else if (isTick) {
+            if (mechanic === 'projectile' || mechanic === 'missile') {
+                lines.push('- particles{p=flame;a=5;s=0.1} @origin');
+            } else if (mechanic === 'aura') {
+                lines.push('- particles{p=enchantmenttable;a=3;s=0.3} @origin');
+            } else if (mechanic === 'totem') {
+                lines.push('- heal{a=1} @PIR{r=5}');
+                lines.push('- particles{p=heart;a=3;s=0.5} @origin');
+            } else {
+                lines.push('- particles{p=flame;a=3;s=0.1} @origin');
+            }
+        } else if (isEnd) {
+            if (mechanic === 'projectile' || mechanic === 'missile') {
+                lines.push('- particles{p=explosion_large;a=1} @origin');
+            } else if (mechanic === 'aura' || mechanic === 'totem') {
+                lines.push('- particles{p=smoke_normal;a=10;s=0.3} @origin');
+            } else {
+                lines.push('- particles{p=smoke_normal;a=5} @origin');
+            }
+        } else if (isStart) {
+            lines.push('- particles{p=fireworks_spark;a=10;s=0.3} @origin');
+            lines.push('- sound{s=entity.firework_rocket.launch;v=0.5} @origin');
+        } else if (isBounce) {
+            lines.push('- particles{p=crit;a=10;s=0.2} @origin');
+            lines.push('- sound{s=block.slime_block.hit;v=0.5} @origin');
+        } else {
+            // Generic default - just a comment placeholder
+            lines.push('# Add skill lines here');
+        }
+        
+        return lines;
+    }
+    
+    /**
+     * Show notification after skill creation with quick edit option
+     */
+    async showSkillCreatedNotification(skillName, skillEntry, parentFile) {
+        const hasContent = skillEntry.Skills && skillEntry.Skills.length > 0 && !skillEntry.Skills[0].startsWith('#');
+        
+        const message = hasContent 
+            ? `Created "${skillName}" with default content. Would you like to edit it now?`
+            : `Created "${skillName}". Would you like to add content now?`;
+        
+        // Use notification modal if available
+        if (window.notificationModal?.confirm) {
+            const shouldEdit = await window.notificationModal.confirm(
+                message,
+                `Skill Created: ${skillName}`,
+                { 
+                    confirmText: 'Edit Now', 
+                    cancelText: 'Continue',
+                    type: 'success'
+                }
+            );
+            
+            if (shouldEdit) {
+                // Open the skill for editing
+                this.openSkillForEditing(skillEntry, parentFile);
+            }
+        } else {
+            window.editor?.showToast(`Created skill "${skillName}"`, 'success');
+        }
+    }
+    
+    /**
+     * Open a skill entry for editing
+     */
+    openSkillForEditing(skillEntry, parentFile) {
+        try {
+            // Store current mechanic browser state
+            const currentState = {
+                mechanic: this.currentMechanic,
+                values: this.collectCurrentAttributeValues()
+            };
+            
+            // Use the editor's openFile method if available
+            if (window.editor?.openFile) {
+                // Set context for returning later
+                window.editor._returnToMechanicBrowser = currentState;
+                window.editor.openFile(skillEntry, 'skill');
+            } else if (window.editor?.packManager?.selectEntry) {
+                window.editor.packManager.selectEntry(skillEntry.id, 'skill');
+            }
+        } catch (e) {
+            console.warn('Could not open skill for editing:', e);
+        }
+    }
+    
+    /**
+     * Collect current attribute values (for state preservation)
+     */
+    collectCurrentAttributeValues() {
+        const values = {};
+        const form = document.getElementById('mechanicAttributesForm');
+        if (form) {
+            form.querySelectorAll('.mechanic-attribute-input').forEach(input => {
+                const attr = input.dataset.attr;
+                if (attr && input.value) {
+                    values[attr] = input.value;
+                }
+            });
+        }
+        return values;
+    }
+    
+    /**
+     * Create all pending sub-skills after mechanic is added
+     */
+    async createPendingSubSkills() {
+        if (!this.pendingSubSkills || this.pendingSubSkills.length === 0) return;
+        
+        const skills = [...this.pendingSubSkills];
+        this.pendingSubSkills = [];
+        
+        for (const skillName of skills) {
+            await this.createSubSkill(skillName, null);
+        }
+    }
+    
+    /**
+     * Check if batch create should be shown for current mechanic
+     */
+    shouldShowBatchCreate() {
+        const mechanic = this.currentMechanic?.name?.toLowerCase();
+        const batchMechanics = ['projectile', 'missile', 'orbital', 'aura', 'totem', 'beam'];
+        return batchMechanics.includes(mechanic);
+    }
+    
+    /**
+     * Get batch skill templates for current mechanic
+     */
+    getBatchSkillTemplates() {
+        const mechanic = this.currentMechanic?.name?.toLowerCase();
+        const parentName = this.getCurrentParentSkillName() || this.currentMechanic?.name || 'Skill';
+        const cleanBase = parentName.replace(/[-_](on)?[A-Z][a-z]+$/, '');
+        
+        const templates = {
+            projectile: [
+                { attr: 'onTickSkill', name: `${cleanBase}_Tick`, desc: 'Trail particles/effects each tick' },
+                { attr: 'onHitSkill', name: `${cleanBase}_Hit`, desc: 'Damage and effects on target hit' },
+                { attr: 'onEndSkill', name: `${cleanBase}_End`, desc: 'Effects when projectile ends' }
+            ],
+            missile: [
+                { attr: 'onTickSkill', name: `${cleanBase}_Tick`, desc: 'Trail particles/effects each tick' },
+                { attr: 'onHitSkill', name: `${cleanBase}_Hit`, desc: 'Damage and effects on target hit' },
+                { attr: 'onEndSkill', name: `${cleanBase}_End`, desc: 'Effects when missile ends' }
+            ],
+            orbital: [
+                { attr: 'onTickSkill', name: `${cleanBase}_Orbit`, desc: 'Effects while orbiting' },
+                { attr: 'onHitSkill', name: `${cleanBase}_OrbHit`, desc: 'Effects when hitting entity' }
+            ],
+            aura: [
+                { attr: 'onTickSkill', name: `${cleanBase}_Pulse`, desc: 'Effects on each aura tick' },
+                { attr: 'onStartSkill', name: `${cleanBase}_Start`, desc: 'Effects when aura starts' },
+                { attr: 'onEndSkill', name: `${cleanBase}_End`, desc: 'Effects when aura ends' }
+            ],
+            totem: [
+                { attr: 'onTickSkill', name: `${cleanBase}_Pulse`, desc: 'Healing/buff pulse' },
+                { attr: 'onStartSkill', name: `${cleanBase}_Spawn`, desc: 'Totem spawn effects' },
+                { attr: 'onEndSkill', name: `${cleanBase}_Despawn`, desc: 'Totem despawn effects' }
+            ],
+            beam: [
+                { attr: 'onTickSkill', name: `${cleanBase}_Beam`, desc: 'Beam trail effects' },
+                { attr: 'onHitSkill', name: `${cleanBase}_BeamHit`, desc: 'Beam hit effects' }
+            ]
+        };
+        
+        return templates[mechanic] || [];
+    }
+    
+    /**
+     * Show batch create modal
+     */
+    async showBatchCreateModal() {
+        const templates = this.getBatchSkillTemplates();
+        if (templates.length === 0) return;
+        
+        const existingSkills = this.getExistingSkillNames();
+        
+        // Build template selection UI
+        const templatesHtml = templates.map((t, i) => {
+            const exists = existingSkills.some(s => s.toLowerCase() === t.name.toLowerCase());
+            return `
+                <div class="batch-template-item ${exists ? 'exists' : ''}" data-index="${i}">
+                    <label class="batch-template-checkbox">
+                        <input type="checkbox" ${exists ? 'disabled' : 'checked'} data-attr="${t.attr}" data-name="${t.name}">
+                        <span class="checkmark"></span>
+                    </label>
+                    <div class="batch-template-info">
+                        <span class="batch-template-name">${t.name}</span>
+                        <span class="batch-template-attr">${t.attr}</span>
+                        <span class="batch-template-desc">${t.desc}</span>
+                        ${exists ? '<span class="batch-template-exists"><i class="fas fa-check"></i> Exists</span>' : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        const modalHtml = `
+            <div id="batchCreateModal" class="condition-modal" style="display: flex; z-index: 10005;">
+                <div class="modal-content condition-browser" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-layer-group"></i> Batch Create Sub-Skills</h3>
+                        <button class="btn-close" onclick="document.getElementById('batchCreateModal').remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="condition-browser-body" style="padding: 1rem;">
+                        <p class="batch-create-intro">Create all sub-skills for <strong>${this.currentMechanic?.name}</strong> mechanic with pre-filled content:</p>
+                        <div class="batch-templates-list">
+                            ${templatesHtml}
+                        </div>
+                        <div class="batch-options">
+                            <label class="batch-option">
+                                <input type="checkbox" id="batchAutoFill" checked>
+                                Auto-fill form after creation
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="document.getElementById('batchCreateModal').remove()">
+                            Cancel
+                        </button>
+                        <button class="btn btn-primary" id="batchCreateConfirm">
+                            <i class="fas fa-plus-circle"></i> Create Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Handle confirm
+        document.getElementById('batchCreateConfirm').onclick = async () => {
+            const modal = document.getElementById('batchCreateModal');
+            const checkboxes = modal.querySelectorAll('.batch-template-item input[type="checkbox"]:checked:not(:disabled)');
+            const autoFill = document.getElementById('batchAutoFill')?.checked;
+            
+            const toCreate = [];
+            checkboxes.forEach(cb => {
+                toCreate.push({
+                    name: cb.dataset.name,
+                    attr: cb.dataset.attr
+                });
+            });
+            
+            if (toCreate.length === 0) {
+                window.editor?.showToast('No skills selected for creation', 'info');
+                return;
+            }
+            
+            modal.remove();
+            
+            // Create each skill
+            let created = 0;
+            for (const skill of toCreate) {
+                const input = document.querySelector(`.skillref-input[data-attr="${skill.attr}"]`);
+                const result = await this.createSubSkill(skill.name, input);
+                if (result) {
+                    created++;
+                    // Auto-fill the input
+                    if (autoFill && input) {
+                        input.value = skill.name;
+                        input.dataset.modified = 'true';
+                        this.updateSkillRefStatus(skill.name, input.closest('.skillref-input-wrapper')?.querySelector('.skillref-status'), this.getExistingSkillNames());
+                    }
+                }
+            }
+            
+            this.updateSkillLinePreview();
+            window.editor?.showToast(`Created ${created} sub-skill(s)`, 'success');
+        };
+    }
+    
+    /**
+     * Build mini dependency graph for a skill
+     */
+    buildDependencyGraph(skillName, depth = 0, visited = new Set()) {
+        if (depth > 3 || visited.has(skillName)) {
+            return { name: skillName, children: [], truncated: true };
+        }
+        
+        visited.add(skillName);
+        const refs = this.getSkillReferences(skillName);
+        
+        return {
+            name: skillName,
+            children: refs.map(ref => this.buildDependencyGraph(ref, depth + 1, new Set(visited))),
+            truncated: false
+        };
+    }
+    
+    /**
+     * Render dependency graph as HTML
+     */
+    renderDependencyGraph(graph, level = 0) {
+        if (!graph) return '';
+        
+        const indent = '│ '.repeat(level);
+        const connector = level > 0 ? '├─ ' : '';
+        const icon = graph.children.length > 0 ? '📁' : '📄';
+        const truncatedIcon = graph.truncated ? ' ⋯' : '';
+        
+        let html = `<div class="dep-node level-${level}">${indent}${connector}${icon} ${graph.name}${truncatedIcon}</div>`;
+        
+        for (let i = 0; i < graph.children.length; i++) {
+            const isLast = i === graph.children.length - 1;
+            html += this.renderDependencyGraph(graph.children[i], level + 1);
+        }
+        
+        return html;
     }
 
     /**
@@ -2220,6 +3614,13 @@ class MechanicBrowser {
         const callback = this.onSelectCallback;
         const lineToInsert = skillLine;
         
+        // Collect skill refs that need to be created
+        const skillRefsToCreate = this.collectPendingSkillRefs();
+        
+        // Store creation context before any cleanup (needed for deferred skill creation)
+        const savedCreationContext = this.creationContext;
+        const savedTemplateWizardCallback = this.templateWizardCallback;
+        
         // Hide overlay immediately for instant feedback
         const overlay = this.getElement('mechanicBrowserOverlay');
         if (overlay) {
@@ -2234,6 +3635,26 @@ class MechanicBrowser {
             callback(lineToInsert);
         }
         
+        // Create any pending sub-skills after mechanic is added
+        if (skillRefsToCreate.length > 0) {
+            // Defer skill creation slightly to ensure main mechanic is added first
+            setTimeout(async () => {
+                // Temporarily restore context for skill creation
+                const originalContext = this.creationContext;
+                const originalCallback = this.templateWizardCallback;
+                this.creationContext = savedCreationContext;
+                this.templateWizardCallback = savedTemplateWizardCallback;
+                
+                for (const skillName of skillRefsToCreate) {
+                    await this.createSubSkill(skillName, null);
+                }
+                
+                // Restore context (in case browser is still being used)
+                this.creationContext = originalContext;
+                this.templateWizardCallback = originalCallback;
+            }, 100);
+        }
+        
         // Defer non-critical cleanup operations with RAF to prevent blocking
         requestAnimationFrame(() => {
             // Reset to selection step for next time
@@ -2242,7 +3663,40 @@ class MechanicBrowser {
             // Clear state
             this.currentMechanic = null;
             this.onSelectCallback = null;
+            this.pendingSubSkills = [];
         });
+    }
+    
+    /**
+     * Collect skill references that don't exist yet and should be created
+     */
+    collectPendingSkillRefs() {
+        const pendingSkills = [];
+        const existingSkills = this.getExistingSkillNames();
+        
+        // Check all skillref inputs for values
+        const formContainer = document.getElementById('mechanicAttributesForm');
+        if (!formContainer) return pendingSkills;
+        
+        formContainer.querySelectorAll('.skillref-input').forEach(input => {
+            const value = input.value.trim();
+            if (value && !existingSkills.some(s => s.toLowerCase() === value.toLowerCase())) {
+                if (!pendingSkills.includes(value)) {
+                    pendingSkills.push(value);
+                }
+            }
+        });
+        
+        // Also include any manually queued pending skills
+        if (this.pendingSubSkills && this.pendingSubSkills.length > 0) {
+            this.pendingSubSkills.forEach(skill => {
+                if (!pendingSkills.includes(skill)) {
+                    pendingSkills.push(skill);
+                }
+            });
+        }
+        
+        return pendingSkills;
     }
 
     /**

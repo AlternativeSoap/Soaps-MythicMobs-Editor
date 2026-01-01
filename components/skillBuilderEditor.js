@@ -556,9 +556,6 @@ class SkillBuilderEditor {
                     ${delayAnnotation}
                 </div>
                 <div class="skill-line-actions">
-                    <button class="btn-icon format-skill-line-btn" data-index="${index}" title="Format Line">
-                        <i class="fas fa-magic"></i>
-                    </button>
                     <button class="btn-icon edit-skill-line-btn" data-index="${index}" title="Edit in Builder">
                         <i class="fas fa-edit"></i>
                     </button>
@@ -889,14 +886,6 @@ class SkillBuilderEditor {
         if (addBtn) {
             addBtn.addEventListener('click', () => this.addSkillLine());
         }
-        
-        // Format skill line buttons
-        this.container.querySelectorAll('.format-skill-line-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const index = parseInt(e.target.closest('button').dataset.index);
-                this.formatLine(index);
-            });
-        });
         
         // Edit skill line buttons
         this.container.querySelectorAll('.edit-skill-line-btn').forEach(btn => {
@@ -1514,9 +1503,10 @@ class SkillBuilderEditor {
         const lines = this.context === 'mob' ? this.skillLines : this.getSkillLines();
         const currentLine = lines[index];
         
-        // Use skill line builder for editing - it's the most flexible
+        // Use skill line builder for editing - pass the initial line to pre-fill
         this.skillLineBuilder.open({
             context: this.context,
+            initialLine: currentLine, // Pre-fill with existing line
             onAdd: (skillLine) => {
                 if (this.context === 'mob') {
                     this.skillLines[index] = skillLine;
@@ -1528,18 +1518,6 @@ class SkillBuilderEditor {
                 this.triggerChange();
             }
         });
-        
-        // Pre-fill the skill line builder with current line
-        setTimeout(() => {
-            if (this.skillLineBuilder.input) {
-                this.skillLineBuilder.input.value = currentLine;
-                this.skillLineBuilder.currentInput = currentLine;
-                this.skillLineBuilder.applySyntaxHighlighting();
-                this.skillLineBuilder.updateValidation();
-                this.skillLineBuilder.updatePreview();
-                this.skillLineBuilder.updateAddButton();
-            }
-        }, 100);
     }
     
     // Parse skill line into components for editing

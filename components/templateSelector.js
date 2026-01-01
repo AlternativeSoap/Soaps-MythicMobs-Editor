@@ -231,36 +231,25 @@ class TemplateSelector {
             <div id="templateSelectorOverlay" class="condition-modal" style="display: none; z-index: 9000;">
                 <div class="modal-content condition-browser template-browser-content" style="max-width: 1200px; height: 85vh; max-height: 900px;">
                     <!-- Header -->
-                    <div class="modal-header">
+                    <div class="modal-header" style="display: flex; align-items: center; gap: 0.75rem;">
                         <button class="btn btn-secondary btn-back" id="templateSelectorBack" title="Back to options" style="display: none;">
-                            <i class="fas fa-arrow-left"></i> Back
+                            <i class="fas fa-arrow-left"></i>
                         </button>
-                        <h2>
+                        <h2 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                             <i class="fas fa-layer-group"></i>
                             Quick Templates
                         </h2>
-                        <div style="display: flex; gap: 0.5rem; margin-left: auto; margin-right: 0.5rem;">
-                            <button class="btn btn-secondary btn-icon" id="templateCompareBtn" title="Compare templates" style="display: none;">
-                                <i class="fas fa-columns"></i>
-                                <span class="compare-count" style="display: none;">0</span>
+                        <div style="display: flex; gap: 0.5rem; margin-left: auto; align-items: center;">
+                            <button class="btn btn-primary btn-sm" id="templateSelectorCreate" title="Create new template" style="display: none;">
+                                <i class="fas fa-plus"></i> New
                             </button>
-                            <button class="btn btn-secondary btn-icon" id="templateBatchExportBtn" title="Batch export">
-                                <i class="fas fa-file-export"></i>
+                            <button class="btn btn-secondary btn-icon" id="templateSelectorRefresh" title="Refresh">
+                                <i class="fas fa-sync-alt"></i>
                             </button>
-                            <button class="btn btn-secondary btn-icon" id="templateBatchImportBtn" title="Batch import">
-                                <i class="fas fa-file-import"></i>
+                            <button class="btn-close" id="templateSelectorClose" title="Close">
+                                <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <button class="btn btn-primary" id="templateSelectorCreate" title="Create new template" style="margin-right: 8px; display: none;">
-                            <i class="fas fa-plus"></i>
-                            Create Template
-                        </button>
-                        <button class="btn btn-secondary btn-icon" id="templateSelectorRefresh" title="Refresh templates" style="margin-right: 8px;">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                        <button class="btn-close" id="templateSelectorClose" title="Close">
-                            <i class="fas fa-times"></i>
-                        </button>
                     </div>
                     
                     <!-- Search Bar with Suggestions -->
@@ -279,62 +268,53 @@ class TemplateSelector {
                         </div>
                     </div>
                     
-                    <!-- Category Chips -->
-                    <div id="categoryChipsContainer" style="padding: 0 1.5rem; margin-bottom: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                        <span style="font-size: 0.85rem; color: var(--text-secondary); margin-right: 0.25rem;">Quick:</span>
-                        <!-- Chips will be rendered dynamically -->
-                    </div>
-                    
-                    <!-- Sub-Category Chips (shown when category selected) -->
-                    <div id="subCategoryChipsContainer" style="padding: 0 1.5rem; margin-bottom: 0.75rem; display: none; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                        <span style="font-size: 0.85rem; color: var(--text-secondary); margin-right: 0.25rem;">Sub:</span>
-                        <!-- Sub-chips will be rendered dynamically -->
-                    </div>
-                    
-                    <!-- Filters & View Toggle -->
-                    <div style="padding: 0 1.5rem; margin-bottom: 1rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <!-- Filters & View Toggle (Consolidated) -->
+                    <div class="template-toolbar" style="padding: 0.75rem 1.5rem; margin-bottom: 0.5rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; background: var(--bg-tertiary); border-radius: 8px; margin: 0 1rem 0.75rem 1rem;">
                         <!-- View Toggle -->
                         <div class="view-toggle" style="display: flex; gap: 0.25rem; background: var(--bg-secondary); border-radius: 6px; padding: 0.25rem;">
-                            <button id="viewGrid" class="view-btn active" title="Grid View" style="padding: 0.5rem 0.75rem; border: none; background: var(--primary-color); color: white; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+                            <button id="viewGrid" class="view-btn active" title="Grid View" style="padding: 0.4rem 0.6rem; border: none; background: var(--primary-color); color: white; border-radius: 4px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem;">
                                 <i class="fas fa-th"></i>
                             </button>
-                            <button id="viewList" class="view-btn" title="List View" style="padding: 0.5rem 0.75rem; border: none; background: transparent; color: var(--text-secondary); border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+                            <button id="viewList" class="view-btn" title="List View" style="padding: 0.4rem 0.6rem; border: none; background: transparent; color: var(--text-secondary); border-radius: 4px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem;">
                                 <i class="fas fa-list"></i>
                             </button>
                         </div>
                         
-                        <!-- Comparison Mode Toggle -->
-                        <button id="toggleComparisonMode" class="btn btn-secondary btn-sm" title="Toggle comparison mode" style="padding: 0.5rem 0.75rem;">
-                            <i class="fas fa-balance-scale"></i> Compare
-                        </button>
+                        <div style="height: 24px; width: 1px; background: var(--border-color);"></div>
                         
                         <!-- Filters -->
-                        <select id="filterComplexity" class="form-control" style="width: auto; padding: 0.5rem 0.75rem; font-size: 0.9rem;">
+                        <select id="filterComplexity" class="form-control form-control-sm" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.85rem;">
                             <option value="all">All Complexity</option>
-                            <option value="easy">Easy (1-3 lines)</option>
-                            <option value="medium">Medium (4-8 lines)</option>
-                            <option value="hard">Hard (9+ lines)</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
                         </select>
                         
-                        <select id="filterOwner" class="form-control" style="width: auto; padding: 0.5rem 0.75rem; font-size: 0.9rem;">
-                            <option value="all">All Templates</option>
-                            <option value="builtin">Built-in Only</option>
-                            <option value="community">Community Only</option>
+                        <select id="filterOwner" class="form-control form-control-sm" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.85rem;">
+                            <option value="all">All Sources</option>
+                            <option value="builtin">Built-in</option>
+                            <option value="community">Community</option>
                             <option value="yours">Your Templates</option>
                         </select>
                         
+                        <div style="height: 24px; width: 1px; background: var(--border-color);"></div>
+                        
                         <!-- Sort -->
-                        <select id="sortBy" class="form-control" style="width: auto; padding: 0.5rem 0.75rem; font-size: 0.9rem;">
-                            <option value="name">Sort by Name</option>
-                            <option value="date">Sort by Date</option>
-                            <option value="lines">Sort by Lines</option>
-                            <option value="category">Sort by Category</option>
-                            <option value="views">Sort by Views</option>
+                        <select id="sortBy" class="form-control form-control-sm" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.85rem;">
+                            <option value="name">Name</option>
+                            <option value="rating">Rating</option>
+                            <option value="views">Views</option>
+                            <option value="uses">Downloads</option>
+                            <option value="date">Date</option>
+                            <option value="lines">Lines</option>
                         </select>
                         
-                        <button id="sortOrder" class="btn btn-secondary btn-icon" title="Toggle sort order" style="padding: 0.5rem 0.75rem;">
+                        <button id="sortOrder" class="btn btn-secondary btn-icon btn-sm" title="Toggle sort order" style="padding: 0.35rem 0.5rem; font-size: 0.85rem;">
                             <i class="fas fa-sort-alpha-down"></i>
                         </button>
+                        
+                        <!-- Template Count -->
+                        <span id="toolbarTemplateCount" style="margin-left: auto; font-size: 0.8rem; color: var(--text-secondary);"></span>
                     </div>
                     
                     <!-- Tabs -->
@@ -445,7 +425,7 @@ class TemplateSelector {
                 /* === Grid & List Layouts === */
                 .template-grid {
                     display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
                     gap: 1rem;
                     padding: 0.5rem 0;
                     animation: view-fade-in 0.3s ease-out;
@@ -456,6 +436,369 @@ class TemplateSelector {
                     flex-direction: column;
                     gap: 1rem;
                     animation: view-fade-in 0.3s ease-out;
+                }
+                
+                /* === NEW: Redesigned Card Styles === */
+                .template-grid-card {
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border-color);
+                    border-radius: 12px;
+                    padding: 1rem;
+                    position: relative;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                    transition: all 0.2s ease;
+                }
+                
+                .template-grid-card:hover {
+                    border-color: var(--primary-color);
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+                    transform: translateY(-2px);
+                }
+                
+                .template-grid-card .card-actions {
+                    position: absolute;
+                    top: 0.5rem;
+                    right: 0.5rem;
+                    display: flex;
+                    gap: 0.35rem;
+                    opacity: 0;
+                    transition: opacity 0.2s;
+                    z-index: 5;
+                }
+                
+                .template-grid-card:hover .card-actions {
+                    opacity: 1;
+                }
+                
+                /* Always show card-actions when there's a favorited button */
+                .template-grid-card .card-actions:has(.favorited) {
+                    opacity: 1;
+                }
+                
+                .template-grid-card .action-btn {
+                    background: var(--bg-tertiary);
+                    border: 1px solid var(--border-color);
+                    padding: 0.35rem 0.45rem;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    color: var(--text-secondary);
+                    transition: all 0.15s;
+                    font-size: 0.85rem;
+                }
+                
+                .template-grid-card .action-btn:hover {
+                    background: var(--primary-color);
+                    color: white;
+                }
+                
+                .template-grid-card .action-btn.favorited {
+                    color: #ffc107;
+                    opacity: 1;
+                }
+                
+                .template-grid-card .card-header {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 0.75rem;
+                }
+                
+                .template-grid-card .card-icon {
+                    font-size: 2rem;
+                    flex-shrink: 0;
+                }
+                
+                .template-grid-card .card-title-area {
+                    flex: 1;
+                    min-width: 0;
+                }
+                
+                .template-grid-card .card-title {
+                    font-size: 0.95rem;
+                    font-weight: 600;
+                    margin: 0 0 0.35rem 0;
+                    line-height: 1.3;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                }
+                
+                .template-grid-card .card-badges {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.25rem;
+                }
+                
+                .template-grid-card .badge {
+                    font-size: 0.65rem;
+                    padding: 0.15rem 0.4rem;
+                    border-radius: 10px;
+                    font-weight: 500;
+                    white-space: nowrap;
+                }
+                
+                .template-grid-card .badge-official {
+                    background: linear-gradient(135deg, #ffd700, #ffed4e);
+                    color: #000;
+                }
+                
+                .template-grid-card .badge-builtin {
+                    background: var(--info-color, #17a2b8);
+                    color: white;
+                }
+                
+                .template-grid-card .badge-yours {
+                    background: var(--success-color, #28a745);
+                    color: white;
+                }
+                
+                .template-grid-card .badge-category {
+                    background: var(--bg-tertiary);
+                    color: var(--text-secondary);
+                }
+                
+                /* === Stats Bar === */
+                .template-grid-card .card-stats {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 0.5rem 0.75rem;
+                    background: var(--bg-tertiary);
+                    border-radius: 8px;
+                    gap: 0.5rem;
+                }
+                
+                .template-grid-card .stat {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 0.15rem;
+                    flex: 1;
+                }
+                
+                .template-grid-card .stat-icon {
+                    font-size: 0.75rem;
+                    color: var(--text-muted);
+                }
+                
+                .template-grid-card .stat-icon.star-rating {
+                    color: #ffc107;
+                }
+                
+                .template-grid-card .stat-icon.star-rating i {
+                    font-size: 0.65rem;
+                }
+                
+                .template-grid-card .stat-value {
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    color: var(--text-primary);
+                }
+                
+                .template-grid-card .card-description {
+                    font-size: 0.82rem;
+                    color: var(--text-secondary);
+                    line-height: 1.4;
+                    margin: 0;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                    flex: 1;
+                }
+                
+                .template-grid-card .card-footer {
+                    display: flex;
+                    gap: 0.4rem;
+                    margin-top: auto;
+                    padding-top: 0.5rem;
+                    border-top: 1px solid var(--border-color);
+                }
+                
+                .template-grid-card .card-footer .btn {
+                    font-size: 0.8rem;
+                    padding: 0.45rem 0.6rem;
+                }
+                
+                .template-grid-card .card-footer .btn-primary {
+                    flex: 1;
+                }
+                
+                .template-grid-card .card-footer .btn-ghost {
+                    background: transparent;
+                    border: 1px solid var(--border-color);
+                    color: var(--text-secondary);
+                }
+                
+                .template-grid-card .card-footer .btn-ghost:hover {
+                    background: var(--bg-tertiary);
+                    color: var(--text-primary);
+                }
+                
+                /* === List Card Styles === */
+                .template-list-card {
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border-color);
+                    border-radius: 12px;
+                    padding: 1rem 1.25rem;
+                    position: relative;
+                    transition: all 0.2s ease;
+                }
+                
+                .template-list-card:hover {
+                    border-color: var(--primary-color);
+                    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+                }
+                
+                .template-list-card .list-card-header {
+                    display: flex;
+                    gap: 1rem;
+                    align-items: flex-start;
+                }
+                
+                .template-list-card .list-card-icon {
+                    font-size: 2.5rem;
+                    flex-shrink: 0;
+                }
+                
+                .template-list-card .list-card-info {
+                    flex: 1;
+                    min-width: 0;
+                }
+                
+                .template-list-card .list-card-title-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    flex-wrap: wrap;
+                    margin-bottom: 0.35rem;
+                }
+                
+                .template-list-card .list-card-title {
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                    margin: 0;
+                }
+                
+                .template-list-card .list-card-badges {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.3rem;
+                }
+                
+                .template-list-card .badge {
+                    font-size: 0.65rem;
+                    padding: 0.15rem 0.4rem;
+                    border-radius: 10px;
+                    font-weight: 500;
+                }
+                
+                .template-list-card .badge-official {
+                    background: linear-gradient(135deg, #ffd700, #ffed4e);
+                    color: #000;
+                }
+                
+                .template-list-card .badge-builtin {
+                    background: var(--info-color, #17a2b8);
+                    color: white;
+                }
+                
+                .template-list-card .badge-yours {
+                    background: var(--success-color, #28a745);
+                    color: white;
+                }
+                
+                .template-list-card .badge-category {
+                    background: var(--bg-tertiary);
+                    color: var(--text-secondary);
+                }
+                
+                .template-list-card .badge-mob-only {
+                    background: var(--warning-color, #ffc107);
+                    color: #000;
+                }
+                
+                .template-list-card .list-card-description {
+                    font-size: 0.9rem;
+                    color: var(--text-secondary);
+                    margin: 0.25rem 0 0.5rem 0;
+                    line-height: 1.4;
+                }
+                
+                .template-list-card .list-card-stats {
+                    display: flex;
+                    gap: 1rem;
+                    font-size: 0.8rem;
+                    color: var(--text-muted);
+                }
+                
+                .template-list-card .list-stat {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.3rem;
+                }
+                
+                .template-list-card .list-stat i {
+                    font-size: 0.75rem;
+                }
+                
+                .template-list-card .favorite-btn {
+                    background: none;
+                    border: none;
+                    font-size: 1.25rem;
+                    color: var(--text-muted);
+                    cursor: pointer;
+                    padding: 0.25rem;
+                    transition: all 0.15s;
+                }
+                
+                .template-list-card .favorite-btn.favorited,
+                .template-list-card .favorite-btn:hover {
+                    color: #ffc107;
+                }
+                
+                .template-list-card .template-preview {
+                    margin: 0.75rem 0;
+                    background: var(--bg-tertiary);
+                    border-radius: 8px;
+                    padding: 0.75rem;
+                    overflow: hidden;
+                }
+                
+                .template-list-card .template-preview pre {
+                    margin: 0;
+                    font-size: 0.8rem;
+                    overflow-x: auto;
+                }
+                
+                .template-list-card .list-card-footer {
+                    display: flex;
+                    gap: 0.5rem;
+                    padding-top: 0.75rem;
+                    border-top: 1px solid var(--border-color);
+                    flex-wrap: wrap;
+                }
+                
+                .template-list-card .list-card-footer .btn {
+                    font-size: 0.8rem;
+                    padding: 0.4rem 0.6rem;
+                }
+                
+                .template-list-card .list-card-footer .btn-ghost {
+                    background: transparent;
+                    border: 1px solid var(--border-color);
+                    color: var(--text-secondary);
+                }
+                
+                .template-list-card .list-card-footer .btn-ghost:hover {
+                    background: var(--bg-tertiary);
+                    color: var(--text-primary);
+                }
+                
+                /* Dropdown menu hover */
+                .dropdown-item:hover {
+                    background: var(--bg-tertiary);
                 }
                 
                 /* === Responsive Grid Breakpoints === */
@@ -677,8 +1020,8 @@ class TemplateSelector {
                     outline-offset: -2px;
                 }
                 
-                /* === Quick Copy Button === */
-                .quick-copy-btn {
+                /* === Quick Copy Button (for list cards only) === */
+                .template-list-card .quick-copy-btn {
                     position: absolute;
                     top: 8px;
                     right: 8px;
@@ -693,20 +1036,19 @@ class TemplateSelector {
                     color: var(--text-secondary);
                 }
                 
-                .template-grid-card:hover .quick-copy-btn,
                 .template-list-card:hover .quick-copy-btn {
                     opacity: 1;
                 }
                 
-                .quick-copy-btn:hover {
+                .template-list-card .quick-copy-btn:hover {
                     background: var(--primary-color);
                     color: white;
                     transform: scale(1.1);
                 }
                 
                 .quick-copy-btn.copied {
-                    background: var(--success-color, #28a745);
-                    color: white;
+                    background: var(--success-color, #28a745) !important;
+                    color: white !important;
                 }
                 
                 /* === Star Rating Display === */
@@ -1198,14 +1540,38 @@ class TemplateSelector {
             document.getElementById('comparisonModal').style.display = 'none';
         });
         
-        // Batch export button
+        // Batch import button
+        document.getElementById('templateBatchImportBtn')?.addEventListener('click', () => {
+            document.getElementById('templateActionsMenu').style.display = 'none';
+            document.getElementById('batchImportModal').style.display = 'flex';
+        });
+        
+        // Batch export (close dropdown menu after click)
         document.getElementById('templateBatchExportBtn')?.addEventListener('click', () => {
+            document.getElementById('templateActionsMenu').style.display = 'none';
             this.handleBatchExport();
         });
         
-        // Batch import button
-        document.getElementById('templateBatchImportBtn')?.addEventListener('click', () => {
-            document.getElementById('batchImportModal').style.display = 'flex';
+        // Actions dropdown toggle
+        document.getElementById('templateActionsBtn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const menu = document.getElementById('templateActionsMenu');
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('templateActionsMenu');
+            const btn = document.getElementById('templateActionsBtn');
+            if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.style.display = 'none';
+            }
+        });
+        
+        // Comparison mode from dropdown
+        document.getElementById('toggleComparisonModeDropdown')?.addEventListener('click', () => {
+            document.getElementById('templateActionsMenu').style.display = 'none';
+            this.toggleComparisonMode();
         });
         
         // Batch import modal - cancel
@@ -1284,14 +1650,21 @@ class TemplateSelector {
         // Reset comparison mode
         this.comparisonMode = false;
         this.selectedForComparison = [];
-        document.getElementById('comparisonPanel').style.display = 'none';
-        document.getElementById('templateCompareBtn').style.display = 'none';
-        document.getElementById('templateList').classList.remove('comparison-mode');
+        const panel = document.getElementById('comparisonPanel');
+        const compareBtn = document.getElementById('templateCompareBtn');
+        const templateList = document.getElementById('templateList');
+        if (panel) panel.style.display = 'none';
+        if (compareBtn) compareBtn.style.display = 'none';
+        if (templateList) templateList.classList.remove('comparison-mode');
         const toggleBtn = document.getElementById('toggleComparisonMode');
         if (toggleBtn) {
             toggleBtn.classList.remove('active');
             toggleBtn.style.background = '';
             toggleBtn.style.color = '';
+        }
+        const toggleDropdownBtn = document.getElementById('toggleComparisonModeDropdown');
+        if (toggleDropdownBtn) {
+            toggleDropdownBtn.innerHTML = '<i class="fas fa-balance-scale"></i> Compare Mode';
         }
         
         // Restore view mode UI
@@ -1418,13 +1791,17 @@ class TemplateSelector {
                     aVal = this.getLineCount(a);
                     bVal = this.getLineCount(b);
                     break;
-                case 'category':
-                    aVal = a.category || '';
-                    bVal = b.category || '';
+                case 'rating':
+                    aVal = a.average_rating || 0;
+                    bVal = b.average_rating || 0;
                     break;
                 case 'views':
-                    aVal = this.getViewCount(a.id);
-                    bVal = this.getViewCount(b.id);
+                    aVal = a.view_count || this.getViewCount(a.id) || 0;
+                    bVal = b.view_count || this.getViewCount(b.id) || 0;
+                    break;
+                case 'uses':
+                    aVal = a.use_count || 0;
+                    bVal = b.use_count || 0;
                     break;
                 default:
                     return 0;
@@ -1694,8 +2071,13 @@ class TemplateSelector {
         // Sort templates
         templates = this.sortTemplates(templates);
         
-        // Update count
-        document.getElementById('templateCount').textContent = `${templates.length} template${templates.length !== 1 ? 's' : ''}`;
+        // Update count (both footer and toolbar)
+        const countText = `${templates.length} template${templates.length !== 1 ? 's' : ''}`;
+        document.getElementById('templateCount').textContent = countText;
+        const toolbarCount = document.getElementById('toolbarTemplateCount');
+        if (toolbarCount) {
+            toolbarCount.textContent = countText;
+        }
         
         // Render templates with sections
         if (templates.length === 0) {
@@ -1874,87 +2256,105 @@ class TemplateSelector {
             (this.getCategoryDisplayName(template.category) || template.category) : 'Utility';
         const categoryIcon = template.icon || this.getCategoryIcon(template.category) || '📦';
         const lineCount = this.getLineCount(template);
-        const complexity = this.getComplexity(lineCount, []);
-        const complexityClass = complexity === 'Easy' ? 'success' : complexity === 'Medium' ? 'warning' : 'danger';
-        
-        // Get structure type info
-        const structureInfo = this.getStructureInfo(template);
         
         // Official badge
         const isOfficial = template.is_official || template.data?.is_official || false;
-        const officialBadge = isOfficial ? '<span class="official-badge" style="font-size: 0.7rem; padding: 0.15rem 0.4rem; background: linear-gradient(135deg, #ffd700, #ffed4e); color: #000; border-radius: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 0.2rem;"><i class="fas fa-crown"></i> Official</span>' : '';
         
-        const ownerBadge = template.isBuiltIn 
-            ? '<span class="owner-badge built-in" style="font-size: 0.7rem; padding: 0.15rem 0.4rem;">Built-in</span>'
-            : this.isOwner(template)
-                ? '<span class="owner-badge owner-you" style="font-size: 0.7rem; padding: 0.15rem 0.4rem;">You</span>'
-                : '';
-        
-        // View count for this template
-        const viewCount = this.getViewCount(template.id);
-        const viewCountBadge = viewCount > 0 ? `<span class="view-count-badge" title="Viewed ${viewCount} time${viewCount !== 1 ? 's' : ''}"><i class="fas fa-eye"></i> ${viewCount}</span>` : '';
-        
-        // Star rating display
+        // Stats from database
+        const viewCount = template.view_count || this.getViewCount(template.id) || 0;
+        const useCount = template.use_count || 0;
         const avgRating = template.average_rating || 0;
         const ratingCount = template.rating_count || 0;
-        const starRatingHtml = this.renderStarRating(avgRating, ratingCount);
         
         // Check if selected for comparison
         const isSelected = this.selectedForComparison.includes(template.id);
         const compareClass = isSelected ? 'compare-selected' : '';
         
+        // Format numbers for display
+        const formatCount = (num) => {
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+            return num.toString();
+        };
+        
+        // Render compact star rating
+        const renderCompactStars = (rating) => {
+            if (rating === 0) return '<span style="color: var(--text-muted);">—</span>';
+            const fullStars = Math.floor(rating);
+            let stars = '';
+            for (let i = 0; i < fullStars; i++) {
+                stars += '<i class="fas fa-star"></i>';
+            }
+            if (rating % 1 >= 0.5) {
+                stars += '<i class="fas fa-star-half-alt"></i>';
+            }
+            return stars;
+        };
+
         return `
-            <div class="template-grid-card ${compareClass}" data-template-id="${template.id}" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; cursor: pointer; transition: all 0.2s; position: relative;">
-                <button class="quick-copy-btn" data-template-id="${template.id}" title="Quick copy to clipboard">
-                    <i class="fas fa-copy"></i>
-                </button>
-                <button class="favorite-btn ${isFav ? 'favorited' : ''}" 
-                        data-template-id="${template.id}" 
-                        title="${isFav ? 'Remove from favorites' : 'Add to favorites'}"
-                        style="position: absolute; top: 0.5rem; right: 2.5rem; background: none; border: none; color: ${isFav ? 'var(--warning-color)' : 'var(--text-secondary)'}; cursor: pointer; font-size: 1.2rem; padding: 0.25rem;">
-                    <i class="fas fa-star"></i>
-                </button>
+            <div class="template-grid-card ${compareClass}" data-template-id="${template.id}">
+                <!-- Top Row: Favorite & Copy -->
+                <div class="card-actions">
+                    <button class="action-btn favorite-btn ${isFav ? 'favorited' : ''}" 
+                            data-template-id="${template.id}" 
+                            title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
+                        <i class="fas fa-star"></i>
+                    </button>
+                    <button class="action-btn quick-copy-btn" data-template-id="${template.id}" title="Quick copy to clipboard">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
                 
-                <div style="text-align: center; margin-bottom: 0.75rem;">
-                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${categoryIcon}</div>
-                    <h4 style="font-size: 0.95rem; margin: 0 0 0.5rem 0; font-weight: 600; line-height: 1.3; min-height: 2.6rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                        ${this.escapeHtml(template.name)}
-                    </h4>
-                    ${starRatingHtml}
-                    <div style="display: flex; gap: 0.3rem; justify-content: center; flex-wrap: wrap; margin-top: 0.3rem;">
-                        ${officialBadge}
-                        ${ownerBadge}
-                        ${viewCountBadge}
+                <!-- Header: Icon + Name -->
+                <div class="card-header">
+                    <span class="card-icon">${categoryIcon}</span>
+                    <div class="card-title-area">
+                        <h4 class="card-title">${this.escapeHtml(template.name)}</h4>
+                        <div class="card-badges">
+                            ${isOfficial ? '<span class="badge badge-official"><i class="fas fa-crown"></i> Official</span>' : ''}
+                            ${template.isBuiltIn ? '<span class="badge badge-builtin">Built-in</span>' : ''}
+                            ${this.isOwner(template) ? '<span class="badge badge-yours">Yours</span>' : ''}
+                            <span class="badge badge-category">${categoryName}</span>
+                        </div>
                     </div>
                 </div>
                 
-                <div style="display: flex; gap: 0.25rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.75rem; font-size: 0.75rem;">
-                    <span class="template-badge category-badge" title="Category: ${categoryName}" style="background: var(--primary-color-transparent); color: var(--primary-color); padding: 0.2rem 0.5rem; border-radius: 12px; white-space: nowrap;">${categoryName}</span>
-                    <span class="template-badge structure-badge" title="${structureInfo.description}" style="background: ${structureInfo.color}; color: white; padding: 0.2rem 0.5rem; border-radius: 12px; white-space: nowrap; font-weight: 600;">${structureInfo.icon} ${structureInfo.label}</span>
+                <!-- Stats Bar -->
+                <div class="card-stats">
+                    <div class="stat" title="${ratingCount} ratings">
+                        <span class="stat-icon star-rating">${renderCompactStars(avgRating)}</span>
+                        <span class="stat-value">${avgRating > 0 ? avgRating.toFixed(1) : '—'}</span>
+                    </div>
+                    <div class="stat" title="${viewCount} views">
+                        <i class="fas fa-eye stat-icon"></i>
+                        <span class="stat-value">${formatCount(viewCount)}</span>
+                    </div>
+                    <div class="stat" title="${useCount} downloads">
+                        <i class="fas fa-download stat-icon"></i>
+                        <span class="stat-value">${formatCount(useCount)}</span>
+                    </div>
+                    <div class="stat" title="${lineCount} lines">
+                        <i class="fas fa-code stat-icon"></i>
+                        <span class="stat-value">${lineCount}</span>
+                    </div>
                 </div>
                 
-                <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0 0 1rem 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.4rem;">
-                    ${this.escapeHtml(template.description)}
-                </p>
+                <!-- Description -->
+                <p class="card-description">${this.escapeHtml(template.description)}</p>
                 
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    <button class="btn btn-primary btn-sm template-use-btn" data-template-id="${template.id}" style="flex: 1; min-width: 60px; font-size: 0.85rem; padding: 0.5rem;">
+                <!-- Actions -->
+                <div class="card-footer">
+                    <button class="btn btn-primary btn-sm template-use-btn" data-template-id="${template.id}">
                         <i class="fas fa-plus"></i> Use
                     </button>
-                    <button class="btn btn-secondary btn-sm template-preview-btn" data-template-id="${template.id}" title="View details" style="font-size: 0.85rem; padding: 0.5rem;">
+                    <button class="btn btn-ghost btn-sm template-preview-btn" data-template-id="${template.id}" title="Preview">
                         <i class="fas fa-eye"></i>
                     </button>
-                    <button class="btn btn-secondary btn-sm template-rate-btn" data-template-id="${template.id}" title="Rate this template" style="font-size: 0.85rem; padding: 0.5rem; color: #ffc107;">
+                    <button class="btn btn-ghost btn-sm template-rate-btn" data-template-id="${template.id}" title="Rate">
                         <i class="fas fa-star"></i>
                     </button>
                     ${this.canEdit(template) ? `
-                        <button class="btn btn-warning btn-sm template-edit-btn" data-template-id="${template.id}" title="Edit template" style="font-size: 0.85rem; padding: 0.5rem;">
+                        <button class="btn btn-ghost btn-sm template-edit-btn" data-template-id="${template.id}" title="Edit">
                             <i class="fas fa-edit"></i>
-                        </button>
-                    ` : ''}
-                    ${this.canDelete(template) ? `
-                        <button class="btn btn-danger btn-sm template-delete-btn" data-template-id="${template.id}" title="Delete template" style="font-size: 0.85rem; padding: 0.5rem;">
-                            <i class="fas fa-trash"></i>
                         </button>
                     ` : ''}
                 </div>
@@ -1963,7 +2363,7 @@ class TemplateSelector {
     }
     
     /**
-     * Render full list card (original style)
+     * Render full list card (improved style)
      */
     renderListCard(template) {
         const isFav = this.isFavorite(template.id);
@@ -1981,60 +2381,77 @@ class TemplateSelector {
             ? skillLines.slice(0, 3).join('\n') + (skillLines.length > 3 ? '\n...' : '')
             : skillLines;
         
-        // Get complexity badge
-        const complexity = this.getComplexity(lineCount, skillLines);
-        const complexityClass = complexity === 'Easy' ? 'success' : complexity === 'Medium' ? 'warning' : 'danger';
-        
         // Check if template requires mob file
         const requiresMobFile = this.hasTriggers(template);
         const isIncompatible = this.context === 'skill' && requiresMobFile;
         
-        // Get structure type info
-        const structureInfo = this.getStructureInfo(template);
-        
         // Official badge
         const isOfficial = template.is_official || template.data?.is_official || false;
-        const officialBadge = isOfficial ? '<span class="official-badge"><i class="fas fa-crown"></i> Official</span>' : '';
         
-        // Owner badge
-        const ownerBadge = template.isBuiltIn 
-            ? '<span class="owner-badge built-in">Built-in</span>'
-            : this.isOwner(template)
-                ? '<span class="owner-badge owner-you">You</span>'
-                : `<span class="owner-badge">${this.escapeHtml(template.ownerName || 'Community')}</span>`;
-        
-        // View count
-        const viewCount = this.getViewCount(template.id);
-        const viewCountBadge = viewCount > 0 ? `<span class="view-count-badge" title="Viewed ${viewCount} time${viewCount !== 1 ? 's' : ''}"><i class="fas fa-eye"></i> ${viewCount}</span>` : '';
+        // Stats from database
+        const viewCount = template.view_count || this.getViewCount(template.id) || 0;
+        const useCount = template.use_count || 0;
+        const avgRating = template.average_rating || 0;
+        const ratingCount = template.rating_count || 0;
         
         // Check if selected for comparison
         const isSelected = this.selectedForComparison.includes(template.id);
         const compareClass = isSelected ? 'compare-selected' : '';
         
-        // Star rating display
-        const avgRating = template.average_rating || 0;
-        const ratingCount = template.rating_count || 0;
-        const starRatingHtml = this.renderStarRating(avgRating, ratingCount);
+        // Format numbers for display
+        const formatCount = (num) => {
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+            return num.toString();
+        };
+        
+        // Render stars inline
+        const renderStars = (rating) => {
+            if (rating === 0) return '—';
+            let stars = '';
+            for (let i = 0; i < Math.floor(rating); i++) {
+                stars += '<i class="fas fa-star" style="color: #ffc107;"></i>';
+            }
+            if (rating % 1 >= 0.5) {
+                stars += '<i class="fas fa-star-half-alt" style="color: #ffc107;"></i>';
+            }
+            return stars;
+        };
         
         return `
-            <div class="condition-item template-card template-list-card ${isIncompatible ? 'template-incompatible' : ''} ${compareClass}" data-template-id="${template.id}" style="margin-bottom: 1.5rem; padding: 1.25rem; position: relative;">
-                <button class="quick-copy-btn" data-template-id="${template.id}" title="Quick copy to clipboard" style="top: 0.75rem; right: 0.75rem;">
+            <div class="template-list-card ${isIncompatible ? 'template-incompatible' : ''} ${compareClass}" data-template-id="${template.id}">
+                <button class="quick-copy-btn" data-template-id="${template.id}" title="Quick copy to clipboard">
                     <i class="fas fa-copy"></i>
                 </button>
-                <div class="condition-item-header" style="margin-bottom: 1rem;">
-                    <div class="condition-item-icon">${categoryIcon}</div>
-                    <div class="condition-item-title">
-                        <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">${this.escapeHtml(template.name)} ${officialBadge} ${ownerBadge} ${viewCountBadge}</h3>
-                        ${starRatingHtml}
-                        <div class="template-meta" style="gap: 0.5rem;">
-                            <span class="meta-badge structure-badge" style="background: ${structureInfo.color}; color: white; padding: 0.25rem 0.6rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600;" title="${structureInfo.description}">
-                                ${structureInfo.icon} ${structureInfo.label}
+                
+                <div class="list-card-header">
+                    <div class="list-card-icon">${categoryIcon}</div>
+                    <div class="list-card-info">
+                        <div class="list-card-title-row">
+                            <h3 class="list-card-title">${this.escapeHtml(template.name)}</h3>
+                            <div class="list-card-badges">
+                                ${isOfficial ? '<span class="badge badge-official"><i class="fas fa-crown"></i> Official</span>' : ''}
+                                ${template.isBuiltIn ? '<span class="badge badge-builtin">Built-in</span>' : ''}
+                                ${this.isOwner(template) ? '<span class="badge badge-yours">Yours</span>' : ''}
+                                <span class="badge badge-category">${categoryName}</span>
+                                ${requiresMobFile ? '<span class="badge badge-mob-only">🔒 Mob Only</span>' : ''}
+                            </div>
+                        </div>
+                        <p class="list-card-description">${this.escapeHtml(template.description)}</p>
+                        
+                        <!-- Stats Row -->
+                        <div class="list-card-stats">
+                            <span class="list-stat" title="${ratingCount} ratings">
+                                ${renderStars(avgRating)} ${avgRating > 0 ? avgRating.toFixed(1) : '—'}
                             </span>
-                            <span class="template-badge category-badge" title="Category: ${categoryName}">${categoryIcon} ${categoryName}</span>
-                            <span class="template-badge complexity-badge badge-${complexityClass}" title="Complexity: ${complexity}">${complexity}</span>
-                            ${lineCount > 1 ? `<span class="template-badge lines-badge" title="${lineCount} skill lines">${lineCount} lines</span>` : ''}
-                            ${requiresMobFile ? `<span class="template-badge mob-only-badge" title="This template uses triggers and only works in mob files">🔒 Mob Only</span>` : ''}
-                            ${isIncompatible ? `<span class="template-badge incompatible-badge" title="This template contains triggers and cannot be used in skill files">⚠️ Incompatible</span>` : ''}
+                            <span class="list-stat" title="${viewCount} views">
+                                <i class="fas fa-eye"></i> ${formatCount(viewCount)}
+                            </span>
+                            <span class="list-stat" title="${useCount} downloads">
+                                <i class="fas fa-download"></i> ${formatCount(useCount)}
+                            </span>
+                            <span class="list-stat" title="${lineCount} lines">
+                                <i class="fas fa-code"></i> ${lineCount}
+                            </span>
                         </div>
                     </div>
                     <button class="favorite-btn ${isFav ? 'favorited' : ''}" 
@@ -2043,40 +2460,32 @@ class TemplateSelector {
                         <i class="fas fa-star"></i>
                     </button>
                 </div>
-                <div class="condition-item-description" style="margin: 0.75rem 0; line-height: 1.5;">${this.escapeHtml(template.description)}</div>
-                <div class="template-preview" style="margin: 1rem 0;">
-                    <div class="preview-label">Preview:</div>
+                
+                <div class="template-preview">
                     <pre><code>${this.escapeHtml(displayLines)}</code></pre>
                 </div>
-                <div class="condition-item-footer">
+                
+                <div class="list-card-footer">
                     <button class="btn btn-primary btn-sm template-use-btn" data-template-id="${template.id}">
-                        <i class="fas fa-plus"></i>
-                        Use Template
+                        <i class="fas fa-plus"></i> Use
                     </button>
-                    <button class="btn btn-secondary btn-sm template-duplicate-btn" data-template-id="${template.id}">
-                        <i class="fas fa-copy"></i>
-                        Duplicate
+                    <button class="btn btn-ghost btn-sm template-preview-btn" data-template-id="${template.id}">
+                        <i class="fas fa-eye"></i> Preview
                     </button>
-                    <button class="btn btn-secondary btn-sm template-rate-btn" data-template-id="${template.id}" title="Rate this template" style="color: #ffc107;">
-                        <i class="fas fa-star"></i>
-                        Rate
+                    <button class="btn btn-ghost btn-sm template-rate-btn" data-template-id="${template.id}" title="Rate">
+                        <i class="fas fa-star"></i> Rate
+                    </button>
+                    <button class="btn btn-ghost btn-sm template-duplicate-btn" data-template-id="${template.id}">
+                        <i class="fas fa-copy"></i> Duplicate
                     </button>
                     ${this.canEdit(template) ? `
-                        <button class="btn btn-warning btn-sm template-edit-btn" data-template-id="${template.id}">
+                        <button class="btn btn-ghost btn-sm template-edit-btn" data-template-id="${template.id}" title="Edit">
                             <i class="fas fa-edit"></i>
-                            Edit
                         </button>
                     ` : ''}
                     ${this.canDelete(template) ? `
-                        <button class="btn btn-danger btn-sm template-delete-btn" data-template-id="${template.id}">
+                        <button class="btn btn-danger btn-sm template-delete-btn" data-template-id="${template.id}" title="Delete">
                             <i class="fas fa-trash"></i>
-                            Delete
-                        </button>
-                    ` : ''}
-                    ${lineCount > 3 ? `
-                        <button class="btn btn-secondary btn-sm template-preview-btn" data-template-id="${template.id}">
-                            <i class="fas fa-eye"></i>
-                            View All
                         </button>
                     ` : ''}
                 </div>
@@ -3037,24 +3446,36 @@ class TemplateSelector {
         this.comparisonMode = !this.comparisonMode;
         
         const toggleBtn = document.getElementById('toggleComparisonMode');
+        const toggleDropdownBtn = document.getElementById('toggleComparisonModeDropdown');
         const compareBtn = document.getElementById('templateCompareBtn');
         const panel = document.getElementById('comparisonPanel');
         const templateList = document.getElementById('templateList');
         
         if (this.comparisonMode) {
-            toggleBtn.classList.add('active');
-            toggleBtn.style.background = 'var(--primary-color)';
-            toggleBtn.style.color = 'white';
-            compareBtn.style.display = 'inline-flex';
-            panel.style.display = 'block';
-            templateList.classList.add('comparison-mode');
+            if (toggleBtn) {
+                toggleBtn.classList.add('active');
+                toggleBtn.style.background = 'var(--primary-color)';
+                toggleBtn.style.color = 'white';
+            }
+            if (toggleDropdownBtn) {
+                toggleDropdownBtn.innerHTML = '<i class="fas fa-check"></i> Compare Mode (On)';
+            }
+            if (compareBtn) compareBtn.style.display = 'inline-flex';
+            if (panel) panel.style.display = 'block';
+            if (templateList) templateList.classList.add('comparison-mode');
+            this.showNotification('Comparison mode enabled. Click templates to select.', 'info');
         } else {
-            toggleBtn.classList.remove('active');
-            toggleBtn.style.background = '';
-            toggleBtn.style.color = '';
-            compareBtn.style.display = 'none';
-            panel.style.display = 'none';
-            templateList.classList.remove('comparison-mode');
+            if (toggleBtn) {
+                toggleBtn.classList.remove('active');
+                toggleBtn.style.background = '';
+                toggleBtn.style.color = '';
+            }
+            if (toggleDropdownBtn) {
+                toggleDropdownBtn.innerHTML = '<i class="fas fa-balance-scale"></i> Compare Mode';
+            }
+            if (compareBtn) compareBtn.style.display = 'none';
+            if (panel) panel.style.display = 'none';
+            if (templateList) templateList.classList.remove('comparison-mode');
             this.clearComparison();
         }
     }

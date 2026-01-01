@@ -710,154 +710,187 @@ const MECHANICS_DATA = {
             aliases: ['p'],
             category: 'projectile',
             description: 'Fires a meta-projectile that can be decorated with particle/sound effects. Has the most attributes of any mechanic. Other mechanics (Missile, Totem, Orbital) inherit from this. Type can be NORMAL or METEOR.',
+            // ATTRIBUTE GROUPS for better organization
+            attributeGroups: [
+                { id: 'skills', name: '🎯 Skill Events', description: 'Metaskills triggered at different projectile events', collapsed: false },
+                { id: 'core', name: '⚙️ Core Settings', description: 'Basic projectile behavior settings', collapsed: false },
+                { id: 'position', name: '📍 Position & Offsets', description: 'Starting position and targeting offsets', collapsed: true },
+                { id: 'accuracy', name: '🎯 Accuracy & Noise', description: 'Projectile accuracy and randomness settings', collapsed: true },
+                { id: 'collision', name: '💥 Collision & Hitting', description: 'What the projectile can hit and collision behavior', collapsed: true },
+                { id: 'physics', name: '🌍 Physics & Movement', description: 'Gravity, bouncing, and surface hugging', collapsed: true },
+                { id: 'bullet_core', name: '🔫 Bullet Type', description: 'Visual representation of the projectile', collapsed: false },
+                { id: 'bullet_arrow', name: '🏹 Arrow Bullet', description: 'Arrow-specific attributes', collapsed: true, showWhen: { attr: 'BulletType', value: 'ARROW' } },
+                { id: 'bullet_block', name: '🧱 Block Bullet', description: 'Block-specific attributes', collapsed: true, showWhen: { attr: 'BulletType', values: ['BLOCK', 'SMALLBLOCK'] } },
+                { id: 'bullet_item', name: '📦 Item Bullet', description: 'Item-specific attributes', collapsed: true, showWhen: { attr: 'BulletType', value: 'ITEM' } },
+                { id: 'bullet_mob', name: '👾 Mob Bullet', description: 'Mob-specific attributes', collapsed: true, showWhen: { attr: 'BulletType', value: 'MOB' } },
+                { id: 'bullet_tracking', name: '🎯 Tracking Bullet', description: 'Tracking armor stand attributes', collapsed: true, showWhen: { attr: 'BulletType', values: ['TRACKING', 'REALTRACKING'] } },
+                { id: 'bullet_display', name: '🖥️ Display Bullet', description: 'Display entity attributes', collapsed: true, showWhen: { attr: 'BulletType', value: 'DISPLAY' } },
+                { id: 'bullet_me', name: '🎨 ModelEngine Bullet', description: 'ModelEngine model attributes', collapsed: true, showWhen: { attr: 'BulletType', value: 'ME' } },
+                { id: 'bullet_text', name: '📝 Text Bullet', description: 'Text display attributes', collapsed: true, showWhen: { attr: 'BulletType', value: 'TEXT' } },
+                { id: 'advanced', name: '🔧 Advanced', description: 'Advanced and debugging options', collapsed: true }
+            ],
             attributes: [
-                // Multi-Skill Attributes (Inheritable)
-                { name: 'onStartSkill', alias: ['onStart', 'oS'], type: 'skillref', default: '', description: 'Metaskill executed when projectile starts at origin' },
-                { name: 'onTickSkill', alias: ['onTick', 'oT', 'm', 'meta', 's', 'skill'], type: 'skillref', default: '', description: 'Metaskill executed every [interval] ticks at origin' },
-                { name: 'onHitSkill', alias: ['onHit', 'oH'], type: 'skillref', default: '', description: 'Metaskill executed when hitting entities. Targets inherited.' },
-                { name: 'onEndSkill', alias: ['onEnd', 'oE'], type: 'skillref', default: '', description: 'Metaskill executed when projectile ends' },
-                { name: 'onBounceSkill', alias: ['onBounce'], type: 'skillref', default: '', description: 'Metaskill executed on bounce (Premium)' },
-                { name: 'onHitBlockSkill', alias: ['onHitBlock', 'ohb'], type: 'skillref', default: '', description: 'Metaskill executed when hitting a block' },
-                { name: 'onInteractSkill', alias: ['onInteract'], type: 'skillref', default: '', description: 'Metaskill executed when projectile is interacted with' },
+                // ═══ SKILL EVENTS GROUP ═══
+                { name: 'onStartSkill', alias: ['onStart', 'oS'], type: 'skillref', default: '', description: 'Metaskill executed when projectile starts at origin', group: 'skills' },
+                { name: 'onTickSkill', alias: ['onTick', 'oT', 'm', 'meta', 's', 'skill'], type: 'skillref', default: '', description: 'Metaskill executed every [interval] ticks at origin', group: 'skills' },
+                { name: 'onHitSkill', alias: ['onHit', 'oH'], type: 'skillref', default: '', description: 'Metaskill executed when hitting entities. Targets inherited.', group: 'skills' },
+                { name: 'onEndSkill', alias: ['onEnd', 'oE'], type: 'skillref', default: '', description: 'Metaskill executed when projectile ends', group: 'skills' },
+                { name: 'onBounceSkill', alias: ['onBounce'], type: 'skillref', default: '', description: 'Metaskill executed on bounce (Premium)', group: 'skills' },
+                { name: 'onHitBlockSkill', alias: ['onHitBlock', 'ohb'], type: 'skillref', default: '', description: 'Metaskill executed when hitting a block', group: 'skills' },
+                { name: 'onInteractSkill', alias: ['onInteract'], type: 'skillref', default: '', description: 'Metaskill executed when projectile is interacted with', group: 'skills' },
                 
-                // Core Inheritable Attributes
-                { name: 'BulletType', alias: ['bullet', 'b'], type: 'select', default: '', description: 'Bullet type determines visual representation',
-                    options: [
-                        { value: '', label: 'None (Invisible)' },
-                        { value: 'ARROW', label: 'Arrow' },
-                        { value: 'BLOCK', label: 'Block' },
-                        { value: 'SMALLBLOCK', label: 'Small Block' },
-                        { value: 'ITEM', label: 'Item/MythicItem' },
-                        { value: 'MOB', label: 'Mob' },
-                        { value: 'TRACKING', label: 'Tracking (Armor Stand)' },
-                        { value: 'REALTRACKING', label: 'Real Tracking (Real Armor Stand)' },
-                        { value: 'DISPLAY', label: 'Display Entity' },
-                        { value: 'ME', label: 'ME (ModelEngine)' },
-                        { value: 'TEXT', label: 'Text' }
-                    ]
-                },
-                { name: 'Interval', alias: ['int', 'i'], type: 'number', default: 1, description: 'How often projectile updates position (ticks)' },
-                { name: 'HorizontalRadius', alias: ['hRadius', 'hR', 'r'], type: 'number', default: 1.25, description: 'Horizontal hit detection radius' },
-                { name: 'VerticalRadius', alias: ['vRadius', 'vR'], type: 'number', default: 1.25, description: 'Vertical hit detection radius' },
-                { name: 'Duration', alias: ['maxDuration', 'md', 'd'], type: 'number', default: 400, description: 'Max duration projectile persists (ticks)' },
-                { name: 'MaxRange', alias: ['mr'], type: 'number', default: 40, description: 'Max range projectile travels (blocks)' },
-                { name: 'Velocity', alias: ['v'], type: 'number', default: 5, description: 'Projectile velocity (blocks/second)' },
-                { name: 'DeathDelay', alias: ['death', 'dd'], type: 'number', default: 2, description: 'Delay before removing bullet on termination' },
-                { name: 'StartYOffset', alias: ['syo'], type: 'number', default: 1, description: 'Y offset from caster spawn point' },
-                { name: 'StartFOffset', alias: ['forwardoffset', 'sfo'], type: 'number', default: 1, description: 'Forward offset from caster' },
-                { name: 'TargetYOffset', alias: ['tyo', 'targety'], type: 'number', default: 0, description: 'Y offset on target' },
-                { name: 'SideOffset', alias: ['soffset', 'so'], type: 'number', default: 0, description: 'Inherited by Start/EndSideOffset' },
-                { name: 'StartSideOffset', alias: ['ssoffset', 'sso'], type: 'number', default: 0, description: 'Side offset from caster (uses SideOffset if not set)' },
-                { name: 'EndSideOffset', alias: ['endoffset', 'esoffset', 'eso'], type: 'number', default: 0, description: 'Side offset at target (uses SideOffset if not set)' },
-                { name: 'startingdirection', alias: ['startingdir', 'startdir', 'sdir'], type: 'string', default: '@Targeted', description: 'Start direction of projectile' },
-                { name: 'HorizontalOffset', alias: ['hO'], type: 'number', default: 0, description: 'Rotates horizontal starting velocity 360° axis' },
-                { name: 'VerticalOffset', alias: ['vO'], type: 'number', default: 0, description: 'Adds slope to starting direction' },
-                { name: 'Accuracy', alias: ['ac', 'a'], type: 'number', default: 1, description: 'Projectile accuracy (1=perfect)' },
-                { name: 'HorizontalNoise', alias: ['hn'], type: 'number', default: 0, description: 'Horizontal randomness (default: (1-ac)*45)' },
-                { name: 'VerticalNoise', alias: ['vn'], type: 'number', default: 0, description: 'Vertical randomness (default: (1-ac)*4.5)' },
-                { name: 'StopAtEntity', alias: ['sE'], type: 'boolean', default: true, description: 'Stop upon hitting targetable entity' },
-                { name: 'StopAtBlock', alias: ['sB'], type: 'boolean', default: true, description: 'Stop upon hitting opaque block' },
-                { name: 'PowerAffectsRange', alias: ['par'], type: 'boolean', default: true, description: 'Mob power affects range' },
-                { name: 'PowerAffectsVelocity', alias: ['pav'], type: 'boolean', default: true, description: 'Mob power affects velocity' },
-                { name: 'Interactable', alias: [], type: 'boolean', default: false, description: 'Projectile is interactable' },
-                { name: 'HitSelf', alias: [], type: 'boolean', default: false, description: 'Can hit caster' },
-                { name: 'HitPlayers', alias: ['hp'], type: 'boolean', default: true, description: 'Can hit players' },
-                { name: 'HitNonPlayers', alias: ['hnp'], type: 'boolean', default: false, description: 'Can hit non-player entities' },
-                { name: 'HitTarget', alias: ['ht'], type: 'boolean', default: true, description: 'Can hit mechanic target' },
-                { name: 'HitTargetOnly', alias: ['hto'], type: 'boolean', default: false, description: 'Can only hit mechanic target' },
-                { name: 'ImmuneDelay', alias: ['immune', 'id'], type: 'number', default: 2000, description: 'Hit immunity delay (ticks)' },
-                { name: 'hitConditions', alias: ['conditions', 'cond', 'c'], type: 'string', default: '', description: 'Inline conditions for hit detection (Premium)' },
-                { name: 'stopconditions', alias: ['stpcond'], type: 'string', default: '', description: 'Conditions to stop projectile on hit' },
-                { name: 'doEndSkillOnHit', alias: ['esoh'], type: 'boolean', default: true, description: 'Run onEnd when ending by hitting entity' },
-                { name: 'fromorigin', alias: ['fo'], type: 'boolean', default: false, description: 'Start from origin of mechanic' },
-                { name: 'requireLineOfSight', alias: ['rlos', 'los', 'requirelos'], type: 'string', default: 'PLAYERS_ONLY', description: 'Require line-of-sight (true/false/PLAYERS_ONLY)' },
-                { name: 'drawHitbox', alias: [], type: 'boolean', default: false, description: 'Draw hitbox for debugging' },
-                { name: 'tickinterpolation', alias: ['interpolation', 'ti'], type: 'number', default: 0, description: 'Additional interpolated points between ticks' },
-                { name: 'shareSubHitboxCooldown', alias: ['shcd'], type: 'boolean', default: true, description: 'All sub-hitboxes share immune delay' },
-                { name: 'hitTargeter', alias: ['htr'], type: 'string', default: '', description: 'Entity targeter for hit targeting' },
-                
-                // Projectile-Specific Attributes
-                { name: 'Type', alias: [], type: 'select', default: 'NORMAL', description: 'Projectile spawn behavior',
+                // ═══ CORE SETTINGS GROUP ═══
+                { name: 'Type', alias: [], type: 'select', default: 'NORMAL', description: 'Projectile spawn behavior', group: 'core',
                     options: [
                         { value: 'NORMAL', label: 'Normal (from caster)' },
                         { value: 'METEOR', label: 'Meteor (from sky)' }
                     ]
                 },
-                { name: 'gravity', alias: ['g'], type: 'number', default: 0, description: 'Gravity (use fractions 0.1-0.2 for low gravity)' },
-                { name: 'Bounces', alias: ['bounce'], type: 'boolean', default: false, description: 'Should projectile bounce (Premium)' },
-                { name: 'BounceVelocity', alias: ['bv'], type: 'number', default: 0.9, description: 'Velocity multiplier on bounce (Premium)' },
-                { name: 'HugSurface', alias: ['hs'], type: 'boolean', default: false, description: 'Move along ground' },
-                { name: 'HugLiquid', alias: ['hugwater', 'huglava'], type: 'boolean', default: false, description: 'Move on liquids when hugSurface=true' },
-                { name: 'HeightFromSurface', alias: ['hfs'], type: 'number', default: 0.5, description: 'Height above surface when hugging' },
-                { name: 'MaxClimbHeight', alias: ['mch'], type: 'number', default: 3, description: 'Max climb height attempts when hugging' },
-                { name: 'MaxDropHeight', alias: ['mdh'], type: 'number', default: 10, description: 'Max drop height attempts when hugging' },
-                { name: 'highAccuracyMode', alias: ['ham'], type: 'string', default: 'PLAYERS_ONLY', description: 'High accuracy raytracing (true/false/PLAYERS_ONLY)' },
+                { name: 'Interval', alias: ['int', 'i'], type: 'number', default: 1, description: 'How often projectile updates position (ticks)', group: 'core' },
+                { name: 'Duration', alias: ['maxDuration', 'md', 'd'], type: 'number', default: 400, description: 'Max duration projectile persists (ticks)', group: 'core' },
+                { name: 'MaxRange', alias: ['mr'], type: 'number', default: 40, description: 'Max range projectile travels (blocks)', group: 'core' },
+                { name: 'Velocity', alias: ['v'], type: 'number', default: 5, description: 'Projectile velocity (blocks/second)', group: 'core' },
+                { name: 'DeathDelay', alias: ['death', 'dd'], type: 'number', default: 2, description: 'Delay before removing bullet on termination', group: 'core' },
                 
-                // Universal Bullet Attributes
-                { name: 'bulletforwardoffset', alias: ['bulletfo', 'bulletoffset', 'bfo'], type: 'number', default: 1.8, description: 'Bullet forward offset' },
-                { name: 'bulletYOffset', alias: ['byo'], type: 'number', default: 0, description: 'Bullet Y offset' },
+                // ═══ POSITION & OFFSETS GROUP ═══
+                { name: 'StartYOffset', alias: ['syo'], type: 'number', default: 1, description: 'Y offset from caster spawn point', group: 'position' },
+                { name: 'StartFOffset', alias: ['forwardoffset', 'sfo'], type: 'number', default: 1, description: 'Forward offset from caster', group: 'position' },
+                { name: 'TargetYOffset', alias: ['tyo', 'targety'], type: 'number', default: 0, description: 'Y offset on target', group: 'position' },
+                { name: 'SideOffset', alias: ['soffset', 'so'], type: 'number', default: 0, description: 'Inherited by Start/EndSideOffset', group: 'position' },
+                { name: 'StartSideOffset', alias: ['ssoffset', 'sso'], type: 'number', default: 0, description: 'Side offset from caster (uses SideOffset if not set)', group: 'position' },
+                { name: 'EndSideOffset', alias: ['endoffset', 'esoffset', 'eso'], type: 'number', default: 0, description: 'Side offset at target (uses SideOffset if not set)', group: 'position' },
+                { name: 'startingdirection', alias: ['startingdir', 'startdir', 'sdir'], type: 'string', default: '@Targeted', description: 'Start direction of projectile', group: 'position' },
+                { name: 'HorizontalOffset', alias: ['hO'], type: 'number', default: 0, description: 'Rotates horizontal starting velocity 360° axis', group: 'position' },
+                { name: 'VerticalOffset', alias: ['vO'], type: 'number', default: 0, description: 'Adds slope to starting direction', group: 'position' },
+                { name: 'fromorigin', alias: ['fo'], type: 'boolean', default: false, description: 'Start from origin of mechanic', group: 'position' },
                 
-                // ARROW Bullet Attributes (when bulletType=ARROW)
-                { name: 'arrowtype', alias: ['bulletarrowtype'], type: 'string', default: 'NORMAL', description: 'Arrow type: NORMAL, SPECTRAL, TRIDENT' },
+                // ═══ ACCURACY & NOISE GROUP ═══
+                { name: 'Accuracy', alias: ['ac', 'a'], type: 'number', default: 1, description: 'Projectile accuracy (1=perfect)', group: 'accuracy' },
+                { name: 'HorizontalNoise', alias: ['hn'], type: 'number', default: 0, description: 'Horizontal randomness (default: (1-ac)*45)', group: 'accuracy' },
+                { name: 'VerticalNoise', alias: ['vn'], type: 'number', default: 0, description: 'Vertical randomness (default: (1-ac)*4.5)', group: 'accuracy' },
                 
-                // BLOCK/SMALLBLOCK Bullet Attributes (when bulletType=BLOCK or SMALLBLOCK)
-                { name: 'bulletmaterial', alias: ['material', 'mat'], type: 'string', default: 'STONE', description: 'Bullet material (block/item type or MythicItem)' },
-                { name: 'bulletspin', alias: ['bspin'], type: 'number', default: 0, description: 'Bullet spin rotation' },
-                { name: 'audience', alias: [], type: 'string', default: 'world', description: 'Bullet audience visibility' },
+                // ═══ COLLISION & HITTING GROUP ═══
+                { name: 'HorizontalRadius', alias: ['hRadius', 'hR', 'r'], type: 'number', default: 1.25, description: 'Horizontal hit detection radius', group: 'collision' },
+                { name: 'VerticalRadius', alias: ['vRadius', 'vR'], type: 'number', default: 1.25, description: 'Vertical hit detection radius', group: 'collision' },
+                { name: 'StopAtEntity', alias: ['sE'], type: 'boolean', default: true, description: 'Stop upon hitting targetable entity', group: 'collision' },
+                { name: 'StopAtBlock', alias: ['sB'], type: 'boolean', default: true, description: 'Stop upon hitting opaque block', group: 'collision' },
+                { name: 'HitSelf', alias: [], type: 'boolean', default: false, description: 'Can hit caster', group: 'collision' },
+                { name: 'HitPlayers', alias: ['hp'], type: 'boolean', default: true, description: 'Can hit players', group: 'collision' },
+                { name: 'HitNonPlayers', alias: ['hnp'], type: 'boolean', default: false, description: 'Can hit non-player entities', group: 'collision' },
+                { name: 'HitTarget', alias: ['ht'], type: 'boolean', default: true, description: 'Can hit mechanic target', group: 'collision' },
+                { name: 'HitTargetOnly', alias: ['hto'], type: 'boolean', default: false, description: 'Can only hit mechanic target', group: 'collision' },
+                { name: 'ImmuneDelay', alias: ['immune', 'id'], type: 'number', default: 2000, description: 'Hit immunity delay (ms)', group: 'collision' },
+                { name: 'hitConditions', alias: ['conditions', 'cond', 'c'], type: 'string', default: '', description: 'Inline conditions for hit detection (Premium)', group: 'collision' },
+                { name: 'stopconditions', alias: ['stpcond'], type: 'string', default: '', description: 'Conditions to stop projectile on hit', group: 'collision' },
+                { name: 'doEndSkillOnHit', alias: ['esoh'], type: 'boolean', default: true, description: 'Run onEnd when ending by hitting entity', group: 'collision' },
+                { name: 'hitTargeter', alias: ['htr'], type: 'string', default: '', description: 'Entity targeter for hit targeting', group: 'collision' },
                 
-                // ITEM Bullet Attributes (when bulletType=ITEM)
-                { name: 'bulletModel', alias: ['model'], type: 'number', default: 0, description: 'CustomModelData integer (or define on MythicItem)' },
-                { name: 'bulletColor', alias: [], type: 'string', default: '', description: 'Bullet color if applicable' },
-                { name: 'bulletmatchdirection', alias: ['bmd', 'bulletsmall'], type: 'boolean', default: false, description: 'Bullet faces projectile direction' },
-                { name: 'bulletEnchanted', alias: ['enchanted'], type: 'boolean', default: false, description: 'Bullet has enchanted glint' },
+                // ═══ PHYSICS & MOVEMENT GROUP ═══
+                { name: 'gravity', alias: ['g'], type: 'number', default: 0, description: 'Gravity (use fractions 0.1-0.2 for low gravity)', group: 'physics' },
+                { name: 'Bounces', alias: ['bounce'], type: 'boolean', default: false, description: 'Should projectile bounce (Premium)', group: 'physics' },
+                { name: 'BounceVelocity', alias: ['bv'], type: 'number', default: 0.9, description: 'Velocity multiplier on bounce (Premium)', group: 'physics' },
+                { name: 'HugSurface', alias: ['hs'], type: 'boolean', default: false, description: 'Move along ground', group: 'physics' },
+                { name: 'HugLiquid', alias: ['hugwater', 'huglava'], type: 'boolean', default: false, description: 'Move on liquids when hugSurface=true', group: 'physics' },
+                { name: 'HeightFromSurface', alias: ['hfs'], type: 'number', default: 0.5, description: 'Height above surface when hugging', group: 'physics' },
+                { name: 'MaxClimbHeight', alias: ['mch'], type: 'number', default: 3, description: 'Max climb height attempts when hugging', group: 'physics' },
+                { name: 'MaxDropHeight', alias: ['mdh'], type: 'number', default: 10, description: 'Max drop height attempts when hugging', group: 'physics' },
+                { name: 'PowerAffectsRange', alias: ['par'], type: 'boolean', default: true, description: 'Mob power affects range', group: 'physics' },
+                { name: 'PowerAffectsVelocity', alias: ['pav'], type: 'boolean', default: true, description: 'Mob power affects velocity', group: 'physics' },
                 
-                // MOB Bullet Attributes (when bulletType=MOB)
-                { name: 'mob', alias: ['mobType', 'mm'], type: 'string', default: 'SkeletalKnight', description: 'Mob type for bullet' },
-                { name: 'bulletKillable', alias: ['bk'], type: 'boolean', default: false, description: 'Allow entities to damage bullet' },
-                { name: 'bulletForwardOffset', alias: ['bfo'], type: 'number', default: 1.35, description: 'Mob bullet forward offset' },
+                // ═══ BULLET TYPE GROUP ═══
+                { name: 'BulletType', alias: ['bullet', 'b'], type: 'select', default: '', description: 'Bullet type determines visual representation', group: 'bullet_core',
+                    options: [
+                        { value: '', label: '🚫 None (Invisible)' },
+                        { value: 'ARROW', label: '🏹 Arrow' },
+                        { value: 'BLOCK', label: '🧱 Block' },
+                        { value: 'SMALLBLOCK', label: '🔳 Small Block' },
+                        { value: 'ITEM', label: '📦 Item/MythicItem' },
+                        { value: 'MOB', label: '👾 Mob' },
+                        { value: 'TRACKING', label: '🎯 Tracking (Armor Stand)' },
+                        { value: 'REALTRACKING', label: '🎯 Real Tracking' },
+                        { value: 'DISPLAY', label: '🖥️ Display Entity' },
+                        { value: 'ME', label: '🎨 ME (ModelEngine)' },
+                        { value: 'TEXT', label: '📝 Text' }
+                    ]
+                },
+                { name: 'bulletforwardoffset', alias: ['bulletfo', 'bulletoffset', 'bfo'], type: 'number', default: 1.8, description: 'Bullet forward offset', group: 'bullet_core' },
+                { name: 'bulletYOffset', alias: ['byo'], type: 'number', default: 0, description: 'Bullet Y offset', group: 'bullet_core' },
                 
-                // TRACKING Bullet Attributes (when bulletType=TRACKING)
-                { name: 'pitch', alias: [], type: 'number', default: 0, description: 'Pitch rotation (radians)' },
-                { name: 'yaw', alias: [], type: 'number', default: 0, description: 'Yaw rotation (radians)' },
-                { name: 'roll', alias: [], type: 'number', default: 0, description: 'Roll rotation (radians)' },
-                { name: 'rotation', alias: ['rot'], type: 'string', default: '0,0,0', description: 'Rotation in x,y,z format (radians)' },
-                { name: 'pitchspeed', alias: ['ps'], type: 'number', default: 0, description: 'Pitch rotation speed' },
-                { name: 'yawspeed', alias: ['ys'], type: 'number', default: 0, description: 'Yaw rotation speed' },
-                { name: 'rollspeed', alias: ['rs'], type: 'number', default: 0, description: 'Roll rotation speed' },
-                { name: 'rotationspeed', alias: ['rotspeed', 'rots'], type: 'string', default: '0,0,0', description: 'Rotation speed in x,y,z format' },
+                // ═══ ARROW BULLET GROUP ═══
+                { name: 'arrowtype', alias: ['bulletarrowtype'], type: 'select', default: 'NORMAL', description: 'Arrow type', group: 'bullet_arrow',
+                    options: [
+                        { value: 'NORMAL', label: 'Normal Arrow' },
+                        { value: 'SPECTRAL', label: 'Spectral Arrow' },
+                        { value: 'TRIDENT', label: 'Trident' }
+                    ]
+                },
                 
-                // DISPLAY Bullet Attributes (when bulletType=DISPLAY)
-                { name: 'bulletscale', alias: ['scale'], type: 'string', default: '0.5,0.5,0.5', description: 'Bullet scale in x,y,z format' },
-                { name: 'bulletyoffset', alias: ['byoffset'], type: 'number', default: 0.2, description: 'Display bullet Y offset' },
-                { name: 'bulletBillboarding', alias: ['bulletBillboard'], type: 'string', default: 'FIXED', description: 'Billboard type for display bullet' },
-                { name: 'bulletbrightness', alias: ['bulletbrightnessblock'], type: 'number', default: -1, description: 'Bullet brightness' },
-                { name: 'bulletbrightnesssky', alias: [], type: 'number', default: -1, description: 'Bullet sky light brightness' },
-                { name: 'bulletCullingDistance', alias: ['bulletViewDistance', 'bulletViewRange'], type: 'number', default: 50, description: 'Visibility range' },
-                { name: 'bulletCullingHeight', alias: ['cullHeight'], type: 'number', default: 0, description: 'Display culling height' },
-                { name: 'bulletCullingWidth', alias: ['cullWidth'], type: 'number', default: 0, description: 'Display culling width' },
-                { name: 'tx', alias: [], type: 'number', default: 0, description: 'Translation on X axis' },
-                { name: 'ty', alias: [], type: 'number', default: 0, description: 'Translation on Y axis' },
-                { name: 'tz', alias: [], type: 'number', default: 0, description: 'Translation on Z axis' },
-                { name: 'translation', alias: ['pos', 'offset'], type: 'string', default: '0,0,0', description: 'Translations in x,y,z format' },
-                { name: 'hideFirstTick', alias: ['hft'], type: 'boolean', default: false, description: 'Hide item on first tick' },
-                { name: 'bulletgen', alias: ['generation', 'bulletgeneration'], type: 'string', default: '', description: 'MythicCrucible generation option' },
+                // ═══ BLOCK BULLET GROUP ═══
+                { name: 'bulletmaterial', alias: ['material', 'mat'], type: 'string', default: 'STONE', description: 'Bullet material (block/item type or MythicItem)', group: 'bullet_block' },
+                { name: 'bulletspin', alias: ['bspin'], type: 'number', default: 0, description: 'Bullet spin rotation', group: 'bullet_block' },
+                { name: 'audience', alias: [], type: 'string', default: 'world', description: 'Bullet audience visibility', group: 'bullet_block' },
                 
-                // ME (ModelEngine) Bullet Attributes (when bulletType=ME)
-                { name: 'bulletstate', alias: ['state'], type: 'string', default: '', description: 'MEG model state to play' },
-                { name: 'bulletcolor', alias: [], type: 'string', default: '', description: 'Tint of bullet model' },
-                { name: 'bulletGlowing', alias: ['glowing'], type: 'boolean', default: false, description: 'Bullet model glowing' },
-                { name: 'bulletglowcolor', alias: [], type: 'string', default: '', description: 'Glow color if bulletGlowing=true' },
-                { name: 'bulletCulling', alias: ['culling'], type: 'boolean', default: true, description: 'Apply culling to bullet model' },
-                { name: 'bulletViewRadius', alias: [], type: 'number', default: -1, description: 'View distance for bullet (if >0)' },
+                // ═══ ITEM BULLET GROUP ═══
+                { name: 'bulletModel', alias: ['model'], type: 'number', default: 0, description: 'CustomModelData integer (or define on MythicItem)', group: 'bullet_item' },
+                { name: 'bulletColor', alias: [], type: 'string', default: '', description: 'Bullet color if applicable', group: 'bullet_item' },
+                { name: 'bulletmatchdirection', alias: ['bmd', 'bulletsmall'], type: 'boolean', default: false, description: 'Bullet faces projectile direction', group: 'bullet_item' },
+                { name: 'bulletEnchanted', alias: ['enchanted'], type: 'boolean', default: false, description: 'Bullet has enchanted glint', group: 'bullet_item' },
                 
-                // TEXT Bullet Attributes (when bulletType=TEXT)
-                { name: 'bulletText', alias: ['text'], type: 'string', default: '*', description: 'Text to display' },
-                { name: 'bulletBillboard', alias: ['billboard'], type: 'string', default: 'CENTER', description: 'Billboard type for text' },
-                { name: 'forcedBulletRotation', alias: ['forcedRotation'], type: 'string', default: '', description: 'Forced rotation (pitch,yaw,roll format)' },
-                { name: 'bulletRotatesBasedOnDirection', alias: [], type: 'boolean', default: false, description: 'Text rotates with movement' },
-                { name: 'backgroundcolor', alias: ['color'], type: 'string', default: '64,0,0,0', description: 'Background color (ARGB format)' },
-                { name: 'bulletBrightness', alias: ['bulletBrightnessBlock'], type: 'number', default: -1, description: 'Text bullet brightness' },
-                { name: 'bulletBrightnessSky', alias: [], type: 'number', default: -1, description: 'Text bullet sky brightness' }
+                // ═══ MOB BULLET GROUP ═══
+                { name: 'mob', alias: ['mobType', 'mm'], type: 'string', default: 'SkeletalKnight', description: 'Mob type for bullet', group: 'bullet_mob' },
+                { name: 'bulletKillable', alias: ['bk'], type: 'boolean', default: false, description: 'Allow entities to damage bullet', group: 'bullet_mob' },
+                { name: 'bulletForwardOffset', alias: ['bfo'], type: 'number', default: 1.35, description: 'Mob bullet forward offset', group: 'bullet_mob' },
+                
+                // ═══ TRACKING BULLET GROUP ═══
+                { name: 'pitch', alias: [], type: 'number', default: 0, description: 'Pitch rotation (radians)', group: 'bullet_tracking' },
+                { name: 'yaw', alias: [], type: 'number', default: 0, description: 'Yaw rotation (radians)', group: 'bullet_tracking' },
+                { name: 'roll', alias: [], type: 'number', default: 0, description: 'Roll rotation (radians)', group: 'bullet_tracking' },
+                { name: 'rotation', alias: ['rot'], type: 'string', default: '0,0,0', description: 'Rotation in x,y,z format (radians)', group: 'bullet_tracking' },
+                { name: 'pitchspeed', alias: ['ps'], type: 'number', default: 0, description: 'Pitch rotation speed', group: 'bullet_tracking' },
+                { name: 'yawspeed', alias: ['ys'], type: 'number', default: 0, description: 'Yaw rotation speed', group: 'bullet_tracking' },
+                { name: 'rollspeed', alias: ['rs'], type: 'number', default: 0, description: 'Roll rotation speed', group: 'bullet_tracking' },
+                { name: 'rotationspeed', alias: ['rotspeed', 'rots'], type: 'string', default: '0,0,0', description: 'Rotation speed in x,y,z format', group: 'bullet_tracking' },
+                
+                // ═══ DISPLAY BULLET GROUP ═══
+                { name: 'bulletscale', alias: ['scale'], type: 'string', default: '0.5,0.5,0.5', description: 'Bullet scale in x,y,z format', group: 'bullet_display' },
+                { name: 'bulletyoffset', alias: ['byoffset'], type: 'number', default: 0.2, description: 'Display bullet Y offset', group: 'bullet_display' },
+                { name: 'bulletBillboarding', alias: ['bulletBillboard'], type: 'string', default: 'FIXED', description: 'Billboard type for display bullet', group: 'bullet_display' },
+                { name: 'bulletbrightness', alias: ['bulletbrightnessblock'], type: 'number', default: -1, description: 'Bullet brightness', group: 'bullet_display' },
+                { name: 'bulletbrightnesssky', alias: [], type: 'number', default: -1, description: 'Bullet sky light brightness', group: 'bullet_display' },
+                { name: 'bulletCullingDistance', alias: ['bulletViewDistance', 'bulletViewRange'], type: 'number', default: 50, description: 'Visibility range', group: 'bullet_display' },
+                { name: 'bulletCullingHeight', alias: ['cullHeight'], type: 'number', default: 0, description: 'Display culling height', group: 'bullet_display' },
+                { name: 'bulletCullingWidth', alias: ['cullWidth'], type: 'number', default: 0, description: 'Display culling width', group: 'bullet_display' },
+                { name: 'tx', alias: [], type: 'number', default: 0, description: 'Translation on X axis', group: 'bullet_display' },
+                { name: 'ty', alias: [], type: 'number', default: 0, description: 'Translation on Y axis', group: 'bullet_display' },
+                { name: 'tz', alias: [], type: 'number', default: 0, description: 'Translation on Z axis', group: 'bullet_display' },
+                { name: 'translation', alias: ['pos', 'offset'], type: 'string', default: '0,0,0', description: 'Translations in x,y,z format', group: 'bullet_display' },
+                { name: 'hideFirstTick', alias: ['hft'], type: 'boolean', default: false, description: 'Hide item on first tick', group: 'bullet_display' },
+                { name: 'bulletgen', alias: ['generation', 'bulletgeneration'], type: 'string', default: '', description: 'MythicCrucible generation option', group: 'bullet_display' },
+                
+                // ═══ MODELENGINE BULLET GROUP ═══
+                { name: 'bulletstate', alias: ['state'], type: 'string', default: '', description: 'MEG model state to play', group: 'bullet_me' },
+                { name: 'bulletcolor', alias: [], type: 'string', default: '', description: 'Tint of bullet model', group: 'bullet_me' },
+                { name: 'bulletGlowing', alias: ['glowing'], type: 'boolean', default: false, description: 'Bullet model glowing', group: 'bullet_me' },
+                { name: 'bulletglowcolor', alias: [], type: 'string', default: '', description: 'Glow color if bulletGlowing=true', group: 'bullet_me' },
+                { name: 'bulletCulling', alias: ['culling'], type: 'boolean', default: true, description: 'Apply culling to bullet model', group: 'bullet_me' },
+                { name: 'bulletViewRadius', alias: [], type: 'number', default: -1, description: 'View distance for bullet (if >0)', group: 'bullet_me' },
+                
+                // ═══ TEXT BULLET GROUP ═══
+                { name: 'bulletText', alias: ['text'], type: 'string', default: '*', description: 'Text to display', group: 'bullet_text' },
+                { name: 'bulletBillboard', alias: ['billboard'], type: 'string', default: 'CENTER', description: 'Billboard type for text', group: 'bullet_text' },
+                { name: 'forcedBulletRotation', alias: ['forcedRotation'], type: 'string', default: '', description: 'Forced rotation (pitch,yaw,roll format)', group: 'bullet_text' },
+                { name: 'bulletRotatesBasedOnDirection', alias: [], type: 'boolean', default: false, description: 'Text rotates with movement', group: 'bullet_text' },
+                { name: 'backgroundcolor', alias: ['color'], type: 'string', default: '64,0,0,0', description: 'Background color (ARGB format)', group: 'bullet_text' },
+                { name: 'bulletBrightness', alias: ['bulletBrightnessBlock'], type: 'number', default: -1, description: 'Text bullet brightness', group: 'bullet_text' },
+                { name: 'bulletBrightnessSky', alias: [], type: 'number', default: -1, description: 'Text bullet sky brightness', group: 'bullet_text' },
+                
+                // ═══ ADVANCED GROUP ═══
+                { name: 'Interactable', alias: [], type: 'boolean', default: false, description: 'Projectile is interactable', group: 'advanced' },
+                { name: 'requireLineOfSight', alias: ['rlos', 'los', 'requirelos'], type: 'string', default: 'PLAYERS_ONLY', description: 'Require line-of-sight (true/false/PLAYERS_ONLY)', group: 'advanced' },
+                { name: 'highAccuracyMode', alias: ['ham'], type: 'string', default: 'PLAYERS_ONLY', description: 'High accuracy raytracing (true/false/PLAYERS_ONLY)', group: 'advanced' },
+                { name: 'drawHitbox', alias: [], type: 'boolean', default: false, description: 'Draw hitbox for debugging', group: 'advanced' },
+                { name: 'tickinterpolation', alias: ['interpolation', 'ti'], type: 'number', default: 0, description: 'Additional interpolated points between ticks', group: 'advanced' },
+                { name: 'shareSubHitboxCooldown', alias: ['shcd'], type: 'boolean', default: true, description: 'All sub-hitboxes share immune delay', group: 'advanced' }
             ],
             defaultTargeter: '@Target',
             examples: [

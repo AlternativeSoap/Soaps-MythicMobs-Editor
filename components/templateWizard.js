@@ -964,6 +964,37 @@ class TemplateWizard {
     }
 
     /**
+     * Add a new section from MechanicBrowser skillref input
+     * Called when user creates a skill reference in mechanic browser during template creation
+     * @param {string} skillName - The name of the skill/section to create
+     * @returns {boolean} - Whether the section was added successfully
+     */
+    addSectionFromMechanicBrowser(skillName) {
+        if (!skillName || !skillName.trim()) {
+            return false;
+        }
+        
+        const sanitizedName = skillName.trim();
+        
+        // Check if section already exists
+        if (this.templateData.sections.some(s => s.name.toLowerCase() === sanitizedName.toLowerCase())) {
+            window.editor?.showToast(`Section "${sanitizedName}" already exists in template`, 'info');
+            return true; // Return true since it exists
+        }
+        
+        // Add new section
+        this.templateData.sections.push({
+            name: sanitizedName,
+            lines: []
+        });
+        
+        // Note: Don't re-render here since wizard is hidden during builder use
+        // The sections will be rendered when wizard is shown again
+        
+        return true;
+    }
+
+    /**
      * Add a multi-line
      */
     addMultiLine() {
@@ -1123,6 +1154,10 @@ class TemplateWizard {
             // Don't pass browsers - let SkillLineBuilder use its own properly initialized browsers
             builder.open({
                 context: this.templateData.context,
+                // Callback for creating new sections from skillref inputs in mechanic browser
+                onCreateSection: (skillName) => {
+                    return this.addSectionFromMechanicBrowser(skillName);
+                },
                 onAddMultiple: (skillLines) => {
                     try {
                         if (skillLines && Array.isArray(skillLines)) {

@@ -290,14 +290,14 @@ class AdminPanelEnhanced {
                         </div>
                         <div class="setting-item">
                             <label class="toggle-label">
-                                <input type="checkbox" id="featureSocialSharing">
+                                <input type="checkbox" id="featureSocialSharing" checked>
                                 <span>Enable Social Sharing</span>
                             </label>
                             <small>Allow users to share packs publicly</small>
                         </div>
                         <div class="setting-item">
                             <label class="toggle-label">
-                                <input type="checkbox" id="featureAnalytics">
+                                <input type="checkbox" id="featureAnalytics" checked>
                                 <span>Enable Analytics</span>
                             </label>
                             <small>Track usage statistics</small>

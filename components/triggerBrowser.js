@@ -48,6 +48,11 @@ class TriggerBrowser {
      * Create the trigger browser modal HTML
      */
     createModal() {
+        // Prevent duplicate modals - check if already exists
+        if (document.getElementById('triggerBrowserOverlay')) {
+            return;
+        }
+        
         const modalHTML = `
             <!-- Main Browser Modal -->
             <div id="triggerBrowserOverlay" class="condition-modal" style="display: none; z-index: 10000;">
