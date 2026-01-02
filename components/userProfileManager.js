@@ -75,13 +75,18 @@ class UserProfileManager {
                 userEmailElement.textContent = this.currentProfile.display_name || this.currentProfile.email;
             }
 
-            // Update avatar in user menu button
-            const userMenuBtn = document.getElementById('user-menu-btn');
-            if (userMenuBtn && this.currentProfile.avatar_url) {
-                // Replace the icon with avatar if available
-                const avatarContainer = userMenuBtn.querySelector('.user-avatar');
+            // Update avatar in user menu button (header)
+            const userAccountBtn = document.getElementById('user-account-btn');
+            if (userAccountBtn) {
+                const avatarContainer = userAccountBtn.querySelector('.user-avatar');
                 if (avatarContainer) {
-                    avatarContainer.innerHTML = `<img src="${this.currentProfile.avatar_url}" alt="Avatar" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">`;
+                    if (this.currentProfile.avatar_url) {
+                        avatarContainer.innerHTML = `<img src="${this.currentProfile.avatar_url}" alt="Avatar" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">`;
+                    } else {
+                        // Show default icon or initials
+                        const initials = (this.currentProfile.display_name || this.currentProfile.email || 'U').charAt(0).toUpperCase();
+                        avatarContainer.innerHTML = `<div style="width: 24px; height: 24px; border-radius: 50%; background: var(--accent-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">${initials}</div>`;
+                    }
                 }
             }
 
@@ -90,9 +95,15 @@ class UserProfileManager {
                 el.textContent = this.currentProfile.display_name;
             });
 
+            // Update all avatar placeholders (including dropdown)
             document.querySelectorAll('[data-user-avatar]').forEach(el => {
                 if (this.currentProfile.avatar_url) {
                     el.innerHTML = `<img src="${this.currentProfile.avatar_url}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                } else {
+                    // Show default icon or initials based on container size
+                    const initials = (this.currentProfile.display_name || this.currentProfile.email || 'U').charAt(0).toUpperCase();
+                    const size = el.offsetWidth || 32;
+                    el.innerHTML = `<div style="width: 100%; height: 100%; border-radius: 50%; background: var(--accent-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: ${size * 0.5}px;">${initials}</div>`;
                 }
             });
         });

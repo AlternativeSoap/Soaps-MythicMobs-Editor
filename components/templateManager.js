@@ -640,6 +640,264 @@ class TemplateManager {
     }
     
     // ========================================
+    // COMMENTS
+    // ========================================
+    
+    /**
+     * Get comments for a template with user profile info
+     * @param {string} templateId - Template ID
+     * @param {number} limit - Max comments to fetch
+     * @param {number} offset - Pagination offset
+     * @returns {Promise<Array>} Array of comments with user info
+     */
+    async getTemplateComments(templateId, limit = 50, offset = 0) {
+        if (!this.supabase) {
+            console.warn('Supabase not available');
+            return [];
+        }
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('template_comments')
+                .select(`
+                    id,
+                    content,
+                    parent_id,
+                    is_edited,
+                    created_at,
+                    updated_at,
+                    user_id,
+                    user_profiles!template_comments_user_id_fkey (
+                        display_name,
+                        avatar_url,
+                        bio,
+                        website_url,
+                        discord_username,
+                        is_public
+                    )
+                `)
+                .eq('template_id', templateId)
+                .eq('is_deleted', false)
+                .order('created_at', { ascending: false })
+                .range(offset, offset + limit - 1);
+            
+            if (error) throw error;
+            
+            // Process comments to flatten user profile data
+            return (data || []).map(comment => ({
+                id: comment.id,
+                content: comment.content,
+                parent_id: comment.parent_id,
+                is_edited: comment.is_edited,
+                created_at: comment.created_at,
+                updated_at: comment.updated_at,
+                user_id: comment.user_id,
+                user: comment.user_profiles ? {
+                    display_name: comment.user_profiles.display_name || 'Anonymous',
+                    avatar_url: comment.user_profiles.avatar_url,
+                    bio: comment.user_profiles.bio,
+                    website_url: comment.user_profiles.website_url,
+                    discord_username: comment.user_profiles.discord_username,
+                    is_public: comment.user_profiles.is_public
+                } : {
+                    display_name: 'Anonymous',
+                    avatar_url: null,
+                    bio: null,
+                    website_url: null,
+                    discord_username: null,
+                    is_public: false
+                }
+            }));
+        } catch (error) {
+            console.error('Failed to load comments:', error);
+            return [];
+        }
+    }
+    
+    /**
+     * Add a comment to a template
+     * @param {string} templateId - Template ID
+     * @param {string} content - Comment content
+     * @param {string|null} parentId - Parent comment ID for replies
+     * @returns {Promise<Object>} Created comment
+     */
+    async addComment(templateId, content, parentId = null) {
+        if (!this.supabase) {
+            throw new Error('Supabase client not initialized');
+        }
+        
+        if (!this.auth?.isAuthenticated()) {
+            throw new Error('You must be logged in to comment');
+        }
+        
+        // Validate content
+        const trimmedContent = content?.trim();
+        if (!trimmedContent || trimmedContent.length < 1) {
+            throw new Error('Comment cannot be empty');
+        }
+        if (trimmedContent.length > 2000) {
+            throw new Error('Comment must be 2000 characters or less');
+        }
+        
+        const currentUser = this.auth.getCurrentUser();
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('template_comments')
+                .insert({
+                    template_id: templateId,
+                    user_id: currentUser.id,
+                    content: trimmedContent,
+                    parent_id: parentId
+                })
+                .select(`
+                    id,
+                    content,
+                    parent_id,
+                    is_edited,
+                    created_at,
+                    updated_at,
+                    user_id,
+                    user_profiles!template_comments_user_id_fkey (
+                        display_name,
+                        avatar_url,
+                        bio,
+                        website_url,
+                        discord_username,
+                        is_public
+                    )
+                `)
+                .single();
+            
+            if (error) throw error;
+            
+            // Process to flatten user profile
+            return {
+                id: data.id,
+                content: data.content,
+                parent_id: data.parent_id,
+                is_edited: data.is_edited,
+                created_at: data.created_at,
+                updated_at: data.updated_at,
+                user_id: data.user_id,
+                user: data.user_profiles ? {
+                    display_name: data.user_profiles.display_name || 'Anonymous',
+                    avatar_url: data.user_profiles.avatar_url,
+                    bio: data.user_profiles.bio,
+                    website_url: data.user_profiles.website_url,
+                    discord_username: data.user_profiles.discord_username,
+                    is_public: data.user_profiles.is_public
+                } : {
+                    display_name: 'Anonymous',
+                    avatar_url: null
+                }
+            };
+        } catch (error) {
+            console.error('Failed to add comment:', error);
+            throw new Error(this.formatError(error));
+        }
+    }
+    
+    /**
+     * Update a comment
+     * @param {string} commentId - Comment ID
+     * @param {string} content - New content
+     * @returns {Promise<Object>} Updated comment
+     */
+    async updateComment(commentId, content) {
+        if (!this.supabase) {
+            throw new Error('Supabase client not initialized');
+        }
+        
+        if (!this.auth?.isAuthenticated()) {
+            throw new Error('You must be logged in to edit comments');
+        }
+        
+        const trimmedContent = content?.trim();
+        if (!trimmedContent || trimmedContent.length < 1) {
+            throw new Error('Comment cannot be empty');
+        }
+        if (trimmedContent.length > 2000) {
+            throw new Error('Comment must be 2000 characters or less');
+        }
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('template_comments')
+                .update({
+                    content: trimmedContent,
+                    is_edited: true,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', commentId)
+                .select()
+                .single();
+            
+            if (error) throw error;
+            
+            return data;
+        } catch (error) {
+            console.error('Failed to update comment:', error);
+            throw new Error(this.formatError(error));
+        }
+    }
+    
+    /**
+     * Delete a comment (soft delete)
+     * @param {string} commentId - Comment ID
+     * @returns {Promise<boolean>} Success status
+     */
+    async deleteComment(commentId) {
+        if (!this.supabase) {
+            throw new Error('Supabase client not initialized');
+        }
+        
+        if (!this.auth?.isAuthenticated()) {
+            throw new Error('You must be logged in to delete comments');
+        }
+        
+        try {
+            const { error } = await this.supabase
+                .from('template_comments')
+                .update({ is_deleted: true })
+                .eq('id', commentId);
+            
+            if (error) throw error;
+            
+            return true;
+        } catch (error) {
+            console.error('Failed to delete comment:', error);
+            throw new Error(this.formatError(error));
+        }
+    }
+    
+    /**
+     * Get public user profile by user ID
+     * @param {string} userId - User ID
+     * @returns {Promise<Object|null>} User profile or null
+     */
+    async getUserProfile(userId) {
+        if (!this.supabase) {
+            return null;
+        }
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('user_profiles')
+                .select('user_id, display_name, avatar_url, bio, website_url, discord_username, is_public, created_at')
+                .eq('user_id', userId)
+                .single();
+            
+            if (error) throw error;
+            
+            return data;
+        } catch (error) {
+            console.error('Failed to get user profile:', error);
+            return null;
+        }
+    }
+    
+    // ========================================
     // VALIDATION
     // ========================================
     
@@ -981,6 +1239,13 @@ class TemplateManager {
             is_official: dbTemplate.is_official || false,
             created_at: dbTemplate.created_at,
             updated_at: dbTemplate.updated_at,
+            
+            // Statistics
+            view_count: dbTemplate.view_count || 0,
+            use_count: dbTemplate.use_count || 0,
+            average_rating: dbTemplate.average_rating || 0,
+            rating_count: dbTemplate.rating_count || 0,
+            comment_count: dbTemplate.comment_count || 0,
             
             // Structure information
             structureInfo: structureInfo,

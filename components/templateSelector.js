@@ -2265,6 +2265,7 @@ class TemplateSelector {
         const useCount = template.use_count || 0;
         const avgRating = template.average_rating || 0;
         const ratingCount = template.rating_count || 0;
+        const commentCount = template.comment_count || 0;
         
         // Check if selected for comparison
         const isSelected = this.selectedForComparison.includes(template.id);
@@ -2332,9 +2333,9 @@ class TemplateSelector {
                         <i class="fas fa-download stat-icon"></i>
                         <span class="stat-value">${formatCount(useCount)}</span>
                     </div>
-                    <div class="stat" title="${lineCount} lines">
-                        <i class="fas fa-code stat-icon"></i>
-                        <span class="stat-value">${lineCount}</span>
+                    <div class="stat" title="${commentCount} comments">
+                        <i class="fas fa-comment stat-icon"></i>
+                        <span class="stat-value">${formatCount(commentCount)}</span>
                     </div>
                 </div>
                 
@@ -2393,6 +2394,7 @@ class TemplateSelector {
         const useCount = template.use_count || 0;
         const avgRating = template.average_rating || 0;
         const ratingCount = template.rating_count || 0;
+        const commentCount = template.comment_count || 0;
         
         // Check if selected for comparison
         const isSelected = this.selectedForComparison.includes(template.id);
@@ -2449,8 +2451,8 @@ class TemplateSelector {
                             <span class="list-stat" title="${useCount} downloads">
                                 <i class="fas fa-download"></i> ${formatCount(useCount)}
                             </span>
-                            <span class="list-stat" title="${lineCount} lines">
-                                <i class="fas fa-code"></i> ${lineCount}
+                            <span class="list-stat" title="${commentCount} comments">
+                                <i class="fas fa-comment"></i> ${formatCount(commentCount)}
                             </span>
                         </div>
                     </div>
@@ -2623,9 +2625,9 @@ class TemplateSelector {
     }
 
     /**
-     * Show full preview of template
+     * Show full preview of template with comments section
      */
-    showFullPreview(templateId) {
+    async showFullPreview(templateId) {
         const template = this.allTemplates.find(t => t.id === templateId);
         if (!template) {
             console.error('Template not found:', templateId);
@@ -2649,12 +2651,14 @@ class TemplateSelector {
         
         const displayLines = Array.isArray(extractedLines) ? extractedLines.join('\n') : extractedLines;
         const viewCount = this.getViewCount(templateId);
+        const commentCount = template.comment_count || 0;
+        const isAuthenticated = this.templateManager?.auth?.isAuthenticated();
         
         const modal = document.createElement('div');
         modal.className = 'condition-modal-overlay active';
         modal.style.cssText = 'display: flex !important; z-index: 10000 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.8) !important; align-items: center !important; justify-content: center !important;';
         modal.innerHTML = `
-            <div class="condition-modal" style="max-width: 900px; max-height: 80vh; background: var(--bg-primary); border-radius: 8px; display: flex; flex-direction: column; position: relative;">
+            <div class="condition-modal" style="max-width: 950px; max-height: 90vh; width: 95%; background: var(--bg-primary); border-radius: 8px; display: flex; flex-direction: column; position: relative;">
                 <div class="condition-header" style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
                     <h2 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                         ${template.icon || this.getCategoryIcon(template.category)} ${template.name}
@@ -2673,7 +2677,53 @@ class TemplateSelector {
                                 <i class="fas fa-copy"></i> Copy
                             </button>
                         </div>
-                        <pre style="max-height: 400px; overflow-y: auto; background: var(--bg-secondary); padding: 1rem; border-radius: 4px; border: 1px solid var(--border-color);"><code>${this.escapeHtml(displayLines)}</code></pre>
+                        <pre style="max-height: 300px; overflow-y: auto; background: var(--bg-secondary); padding: 1rem; border-radius: 4px; border: 1px solid var(--border-color);"><code>${this.escapeHtml(displayLines)}</code></pre>
+                    </div>
+                    
+                    <!-- Comments Section -->
+                    <div class="template-comments-section" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="fas fa-comments"></i> Comments
+                                <span class="comment-count-badge" style="background: var(--bg-tertiary); padding: 0.2rem 0.5rem; border-radius: 10px; font-size: 0.75rem; color: var(--text-secondary);">${commentCount}</span>
+                            </h3>
+                        </div>
+                        
+                        <!-- Add Comment Form -->
+                        ${isAuthenticated ? `
+                            <div class="add-comment-form" style="margin-bottom: 1rem; display: flex; gap: 0.75rem; align-items: flex-start;">
+                                <div class="comment-avatar" style="width: 36px; height: 36px; flex-shrink: 0;" data-user-avatar>
+                                    ${this.renderCurrentUserAvatar(36)}
+                                </div>
+                                <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
+                                    <textarea 
+                                        id="newCommentInput" 
+                                        placeholder="Write a comment..." 
+                                        rows="2"
+                                        maxlength="2000"
+                                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); resize: vertical; font-family: inherit; font-size: 0.875rem;"
+                                    ></textarea>
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span class="char-count" style="font-size: 0.75rem; color: var(--text-tertiary);">0/2000</span>
+                                        <button class="btn btn-primary btn-sm submit-comment-btn" disabled>
+                                            <i class="fas fa-paper-plane"></i> Post Comment
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : `
+                            <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 6px; text-align: center; margin-bottom: 1rem;">
+                                <i class="fas fa-lock" style="color: var(--text-secondary); margin-right: 0.5rem;"></i>
+                                <span style="color: var(--text-secondary);">Please <a href="#" class="login-to-comment" style="color: var(--accent-primary);">sign in</a> to post comments</span>
+                            </div>
+                        `}
+                        
+                        <!-- Comments List -->
+                        <div class="comments-list" id="templateCommentsList" style="max-height: 250px; overflow-y: auto;">
+                            <div class="comments-loading" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                                <i class="fas fa-spinner fa-spin"></i> Loading comments...
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="condition-footer" style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; gap: 0.75rem; justify-content: flex-end;">
@@ -2687,6 +2737,9 @@ class TemplateSelector {
         `;
         
         document.body.appendChild(modal);
+        
+        // Load comments
+        this.loadAndRenderComments(templateId, modal);
         
         // Event handlers
         modal.querySelector('.preview-close').addEventListener('click', () => modal.remove());
@@ -2713,9 +2766,258 @@ class TemplateSelector {
                 this.showNotification('Failed to copy', 'error');
             }
         });
+        
+        // Login link handler
+        modal.querySelector('.login-to-comment')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.remove();
+            window.authUI?.showAuthModal();
+        });
+        
+        // Comment form handlers
+        const commentInput = modal.querySelector('#newCommentInput');
+        const charCount = modal.querySelector('.char-count');
+        const submitBtn = modal.querySelector('.submit-comment-btn');
+        
+        if (commentInput && submitBtn) {
+            commentInput.addEventListener('input', () => {
+                const length = commentInput.value.length;
+                charCount.textContent = `${length}/2000`;
+                submitBtn.disabled = length === 0 || length > 2000;
+            });
+            
+            submitBtn.addEventListener('click', async () => {
+                const content = commentInput.value.trim();
+                if (!content) return;
+                
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
+                
+                try {
+                    await this.templateManager.addComment(templateId, content);
+                    commentInput.value = '';
+                    charCount.textContent = '0/2000';
+                    this.showNotification('Comment posted!', 'success');
+                    
+                    // Reload comments
+                    await this.loadAndRenderComments(templateId, modal);
+                    
+                    // Update comment count badge
+                    const countBadge = modal.querySelector('.comment-count-badge');
+                    if (countBadge) {
+                        const currentCount = parseInt(countBadge.textContent) || 0;
+                        countBadge.textContent = currentCount + 1;
+                    }
+                } catch (error) {
+                    this.showNotification(error.message || 'Failed to post comment', 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Post Comment';
+                }
+            });
+        }
+        
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
         });
+    }
+    
+    /**
+     * Load and render comments for a template
+     */
+    async loadAndRenderComments(templateId, modal) {
+        const commentsList = modal.querySelector('#templateCommentsList');
+        if (!commentsList) return;
+        
+        try {
+            const comments = await this.templateManager?.getTemplateComments(templateId) || [];
+            
+            if (comments.length === 0) {
+                commentsList.innerHTML = `
+                    <div class="no-comments" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                        <i class="fas fa-comment-slash" style="font-size: 2rem; opacity: 0.5; margin-bottom: 0.5rem; display: block;"></i>
+                        <p style="margin: 0;">No comments yet. Be the first to share your thoughts!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            commentsList.innerHTML = comments.map(comment => this.renderComment(comment)).join('');
+            
+            // Attach click handlers for user profile popups
+            commentsList.querySelectorAll('.comment-user-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const userId = link.dataset.userId;
+                    if (userId) {
+                        this.showUserProfilePopup(userId);
+                    }
+                });
+            });
+            
+        } catch (error) {
+            console.error('Failed to load comments:', error);
+            commentsList.innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                    <i class="fas fa-exclamation-triangle" style="color: var(--warning-color);"></i>
+                    Failed to load comments
+                </div>
+            `;
+        }
+    }
+    
+    /**
+     * Render a single comment
+     */
+    renderComment(comment) {
+        const user = comment.user || {};
+        const displayName = user.display_name || 'Anonymous';
+        const avatarUrl = user.avatar_url;
+        const timeAgo = this.formatTimeAgo(comment.created_at);
+        const isEdited = comment.is_edited;
+        
+        // Avatar HTML
+        const avatarHtml = avatarUrl 
+            ? `<img src="${avatarUrl}" alt="${this.escapeHtml(displayName)}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`
+            : `<div style="width: 100%; height: 100%; border-radius: 50%; background: var(--accent-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">${displayName.charAt(0).toUpperCase()}</div>`;
+        
+        return `
+            <div class="comment-item" data-comment-id="${comment.id}" style="display: flex; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+                <a href="#" class="comment-user-link comment-avatar" data-user-id="${comment.user_id}" style="width: 36px; height: 36px; flex-shrink: 0; cursor: pointer; text-decoration: none;">
+                    ${avatarHtml}
+                </a>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                        <a href="#" class="comment-user-link" data-user-id="${comment.user_id}" style="font-weight: 600; color: var(--text-primary); text-decoration: none; cursor: pointer;">
+                            ${this.escapeHtml(displayName)}
+                        </a>
+                        <span style="font-size: 0.75rem; color: var(--text-tertiary);">${timeAgo}</span>
+                        ${isEdited ? '<span style="font-size: 0.7rem; color: var(--text-tertiary); font-style: italic;">(edited)</span>' : ''}
+                    </div>
+                    <p style="margin: 0; color: var(--text-secondary); font-size: 0.875rem; line-height: 1.4; word-wrap: break-word;">${this.escapeHtml(comment.content)}</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Render current user's avatar for the comment form
+     */
+    renderCurrentUserAvatar(size = 36) {
+        const avatar = window.userProfileManager?.getAvatarUrl();
+        const displayName = window.userProfileManager?.getDisplayName() || 'User';
+        
+        if (avatar) {
+            return `<img src="${avatar}" alt="${this.escapeHtml(displayName)}" style="width: ${size}px; height: ${size}px; border-radius: 50%; object-fit: cover;">`;
+        }
+        
+        const initials = displayName.charAt(0).toUpperCase();
+        return `<div style="width: ${size}px; height: ${size}px; border-radius: 50%; background: var(--accent-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: ${size * 0.4}px;">${initials}</div>`;
+    }
+    
+    /**
+     * Show user profile popup
+     */
+    async showUserProfilePopup(userId) {
+        const profile = await this.templateManager?.getUserProfile(userId);
+        
+        if (!profile) {
+            this.showNotification('Could not load user profile', 'error');
+            return;
+        }
+        
+        // If profile is not public and it's not the current user
+        const currentUserId = window.userProfileManager?.getUserId();
+        if (!profile.is_public && profile.user_id !== currentUserId) {
+            this.showNotification('This user has a private profile', 'info');
+            return;
+        }
+        
+        const displayName = profile.display_name || 'Anonymous';
+        const avatarUrl = profile.avatar_url;
+        const bio = profile.bio || 'No bio provided';
+        const website = profile.website_url;
+        const discord = profile.discord_username;
+        const joinDate = profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'Unknown';
+        
+        // Avatar HTML
+        const avatarHtml = avatarUrl 
+            ? `<img src="${avatarUrl}" alt="${this.escapeHtml(displayName)}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`
+            : `<div style="width: 100%; height: 100%; border-radius: 50%; background: var(--accent-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 32px;">${displayName.charAt(0).toUpperCase()}</div>`;
+        
+        const popup = document.createElement('div');
+        popup.className = 'user-profile-popup-overlay';
+        popup.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 11000;';
+        popup.innerHTML = `
+            <div class="user-profile-popup" style="background: var(--bg-primary); border-radius: 12px; padding: 1.5rem; max-width: 400px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+                <div style="display: flex; justify-content: flex-end; margin-bottom: -0.5rem;">
+                    <button class="popup-close" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0.5rem; font-size: 1.2rem;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div style="text-align: center; margin-bottom: 1rem;">
+                    <div style="width: 80px; height: 80px; margin: 0 auto 1rem;">
+                        ${avatarHtml}
+                    </div>
+                    <h3 style="margin: 0 0 0.25rem 0; font-size: 1.25rem;">${this.escapeHtml(displayName)}</h3>
+                    <p style="margin: 0; font-size: 0.8rem; color: var(--text-tertiary);">Member since ${joinDate}</p>
+                </div>
+                
+                <div style="background: var(--bg-secondary); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                    <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fas fa-user"></i> About
+                    </h4>
+                    <p style="margin: 0; color: var(--text-primary); font-size: 0.9rem; line-height: 1.5;">${this.escapeHtml(bio)}</p>
+                </div>
+                
+                ${website || discord ? `
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center;">
+                        ${website ? `
+                            <a href="${this.escapeHtml(website)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--bg-tertiary); border-radius: 6px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem;">
+                                <i class="fas fa-globe"></i> Website
+                            </a>
+                        ` : ''}
+                        ${discord ? `
+                            <span style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: #5865F2; border-radius: 6px; color: white; font-size: 0.85rem;">
+                                <i class="fab fa-discord"></i> ${this.escapeHtml(discord)}
+                            </span>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        
+        document.body.appendChild(popup);
+        
+        // Close handlers
+        popup.querySelector('.popup-close').addEventListener('click', () => popup.remove());
+        popup.addEventListener('click', (e) => {
+            if (e.target === popup) popup.remove();
+        });
+    }
+    
+    /**
+     * Format timestamp to relative time
+     */
+    formatTimeAgo(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSecs = Math.floor(diffMs / 1000);
+        const diffMins = Math.floor(diffSecs / 60);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        const diffWeeks = Math.floor(diffDays / 7);
+        const diffMonths = Math.floor(diffDays / 30);
+        
+        if (diffSecs < 60) return 'just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        if (diffWeeks < 4) return `${diffWeeks}w ago`;
+        if (diffMonths < 12) return `${diffMonths}mo ago`;
+        return date.toLocaleDateString();
     }
 
     /**

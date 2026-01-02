@@ -1025,7 +1025,91 @@ CREATE POLICY "Super admins can unhide items"
 
 ---
 
-## Summary Table Count: 14 Tables
+## 15. `template_comments`
+
+**Purpose:** Allow users to comment on templates with threaded replies.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY DEFAULT gen_random_uuid() | |
+| `template_id` | UUID | NOT NULL, REFERENCES templates(id) ON DELETE CASCADE | Template being commented on |
+| `user_id` | UUID | NOT NULL, REFERENCES auth.users(id) ON DELETE CASCADE | Comment author |
+| `parent_id` | UUID | REFERENCES template_comments(id) ON DELETE CASCADE | Parent comment (for replies) |
+| `content` | TEXT | NOT NULL, CHECK (length 1-2000) | Comment text |
+| `is_edited` | BOOLEAN | DEFAULT false | Was comment edited |
+| `is_deleted` | BOOLEAN | DEFAULT false | Soft delete for threads |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
+| `updated_at` | TIMESTAMPTZ | DEFAULT NOW() | |
+
+**Used by:** `templateManager.js`, `templateSelector.js`
+
+```sql
+-- =============================================
+-- TABLE: template_comments
+-- =============================================
+CREATE TABLE template_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    template_id UUID NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    parent_id UUID REFERENCES template_comments(id) ON DELETE CASCADE,
+    content TEXT NOT NULL CHECK (length(content) >= 1 AND length(content) <= 2000),
+    is_edited BOOLEAN DEFAULT false,
+    is_deleted BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Add comment_count to templates table
+ALTER TABLE templates ADD COLUMN IF NOT EXISTS comment_count INTEGER DEFAULT 0;
+
+-- Indexes for performance
+CREATE INDEX idx_comments_template ON template_comments(template_id);
+CREATE INDEX idx_comments_user ON template_comments(user_id);
+CREATE INDEX idx_comments_parent ON template_comments(parent_id);
+CREATE INDEX idx_comments_created ON template_comments(created_at DESC);
+
+-- Trigger function to update comment count
+CREATE OR REPLACE FUNCTION update_template_comment_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' AND NEW.is_deleted = false THEN
+        UPDATE templates SET comment_count = comment_count + 1 WHERE id = NEW.template_id;
+    ELSIF TG_OP = 'UPDATE' AND NEW.is_deleted = true AND OLD.is_deleted = false THEN
+        UPDATE templates SET comment_count = GREATEST(0, comment_count - 1) WHERE id = NEW.template_id;
+    ELSIF TG_OP = 'DELETE' AND OLD.is_deleted = false THEN
+        UPDATE templates SET comment_count = GREATEST(0, comment_count - 1) WHERE id = OLD.template_id;
+    END IF;
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_comment_count
+    AFTER INSERT OR UPDATE OR DELETE ON template_comments
+    FOR EACH ROW EXECUTE FUNCTION update_template_comment_count();
+
+-- RLS Policies
+ALTER TABLE template_comments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view non-deleted comments"
+    ON template_comments FOR SELECT
+    USING (is_deleted = false);
+
+CREATE POLICY "Authenticated users can comment"
+    ON template_comments FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can edit own comments"
+    ON template_comments FOR UPDATE
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own comments"
+    ON template_comments FOR DELETE
+    USING (auth.uid() = user_id);
+```
+
+---
+
+## Summary Table Count: 15 Tables
 
 | # | Table Name | Required For |
 |---|------------|--------------|
@@ -1043,11 +1127,13 @@ CREATE POLICY "Super admins can unhide items"
 | 12 | `custom_triggers` | Custom triggers browser |
 | 13 | `custom_targeters` | Custom targeters browser |
 | 14 | `hidden_built_ins` | Hide built-in browser items |
+| 15 | `template_comments` | 💬 Comment system on templates |
 
 ### New Features Enabled:
 - ⭐ **Ratings:** Users can rate templates 1-5 stars
 - 📊 **Statistics:** view_count, use_count, average_rating on templates
 - ❤️ **Cloud Favorites:** Favorites sync across devices (not just localStorage)
+- 💬 **Comments:** Users can comment on templates with user profile popups
 - 📈 **Popularity Sorting:** Sort by views, uses, or rating
 
 ---
