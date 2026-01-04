@@ -301,14 +301,62 @@ class AdminManager {
         }
 
         try {
-            const { data, error } = await this.supabase
+            // Fetch admin activity log
+            const { data: adminActivities, error: adminError } = await this.supabase
                 .from('admin_activity_log')
                 .select('*')
                 .order('created_at', { ascending: false })
                 .limit(limit);
 
-            if (error) throw error;
-            return data || [];
+            if (adminError) throw adminError;
+            
+            // Also fetch user template deletions from user_activity_logs
+            const { data: userActivities, error: userError } = await this.supabase
+                .from('user_activity_logs')
+                .select('*')
+                .in('activity_type', ['delete_user_template', 'delete_official_template'])
+                .order('timestamp', { ascending: false })
+                .limit(limit);
+            
+            // Normalize user activities to match admin activity format
+            const normalizedUserActivities = (userActivities || []).map(ua => ({
+                id: ua.id,
+                admin_user_id: ua.user_id,
+                action: ua.activity_type,
+                target_type: 'template',
+                target_id: ua.details?.template_id,
+                details: ua.details,
+                created_at: ua.timestamp
+            }));
+            
+            // Merge and sort by date
+            const allActivities = [...(adminActivities || []), ...normalizedUserActivities]
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .slice(0, limit);
+            
+            // Fetch user profiles for all unique user IDs
+            if (allActivities.length > 0) {
+                const userIds = [...new Set(allActivities.map(a => a.admin_user_id).filter(Boolean))];
+                
+                if (userIds.length > 0) {
+                    const { data: profiles } = await this.supabase
+                        .from('user_profiles')
+                        .select('user_id, display_name, email')
+                        .in('user_id', userIds);
+                    
+                    // Create lookup map
+                    const profileMap = new Map();
+                    (profiles || []).forEach(p => profileMap.set(p.user_id, p));
+                    
+                    // Attach user info to activities
+                    allActivities.forEach(activity => {
+                        const profile = profileMap.get(activity.admin_user_id);
+                        activity.admin_display_name = profile?.display_name || profile?.email || 'Unknown User';
+                    });
+                }
+            }
+            
+            return allActivities;
         } catch (error) {
             console.error('Error fetching activity log:', error);
             throw error;
@@ -369,12 +417,12 @@ class AdminManager {
             if (userIds.size > 0) {
                 const { data: profiles, error: profileError } = await this.supabase
                     .from('user_profiles')
-                    .select('id, display_name, email')
-                    .in('id', Array.from(userIds));
+                    .select('user_id, display_name, email')
+                    .in('user_id', Array.from(userIds));
                 
                 if (!profileError && profiles) {
                     profiles.forEach(p => {
-                        userProfiles[p.id] = p;
+                        userProfiles[p.user_id] = p;
                     });
                 }
             }
@@ -394,6 +442,73 @@ class AdminManager {
             });
         } catch (error) {
             console.error('Error fetching official templates:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get all templates with optional source filter
+     * @param {string} sourceFilter - 'all', 'official', or 'user'
+     */
+    async getAllTemplates(sourceFilter = 'all') {
+        try {
+            // Build query based on source filter
+            let query = this.supabase
+                .from('templates')
+                .select('*')
+                .eq('deleted', false)
+                .order('updated_at', { ascending: false });
+
+            // Apply source filter
+            if (sourceFilter === 'official') {
+                query = query.eq('is_official', true);
+            } else if (sourceFilter === 'user') {
+                query = query.eq('is_official', false);
+            }
+            // 'all' doesn't add any filter
+
+            const { data: templates, error } = await query;
+
+            if (error) throw error;
+            if (!templates || templates.length === 0) return [];
+
+            // Collect unique user IDs (owners and approvers)
+            const userIds = new Set();
+            templates.forEach(t => {
+                if (t.owner_id) userIds.add(t.owner_id);
+                if (t.approved_by) userIds.add(t.approved_by);
+            });
+
+            // Fetch user profiles for all relevant users
+            let userProfiles = {};
+            if (userIds.size > 0) {
+                const { data: profiles, error: profileError } = await this.supabase
+                    .from('user_profiles')
+                    .select('user_id, display_name, email')
+                    .in('user_id', Array.from(userIds));
+                
+                if (!profileError && profiles) {
+                    profiles.forEach(p => {
+                        userProfiles[p.user_id] = p;
+                    });
+                }
+            }
+
+            // Enrich templates with user info
+            return templates.map(template => {
+                const owner = userProfiles[template.owner_id];
+                const approver = userProfiles[template.approved_by];
+                
+                return {
+                    ...template,
+                    created_by_email: owner?.display_name || owner?.email || 'Unknown',
+                    approved_by_email: template.approved_by 
+                        ? (approver?.display_name || approver?.email || 'Admin')
+                        : (template.is_official ? 'System' : null)
+                };
+            });
+        } catch (error) {
+            console.error('Error fetching templates:', error);
             throw error;
         }
     }

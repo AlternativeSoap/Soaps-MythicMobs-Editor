@@ -22,6 +22,12 @@ class AdminPanelEnhanced {
         const tabContainer = document.querySelector('.admin-panel-tabs');
         if (!tabContainer) return;
 
+        // Prevent duplicate injection
+        if (tabContainer.querySelector('[data-tab="errors"]')) {
+            console.log('[AdminPanelEnhanced] Tabs already injected, skipping');
+            return;
+        }
+
         // Add Error Console tab
         const errorTab = document.createElement('button');
         errorTab.className = 'admin-tab';
@@ -343,6 +349,21 @@ class AdminPanelEnhanced {
                         <div class="form-group">
                             <label>Max Packs per User</label>
                             <input type="number" id="maxPacksPerUser" class="form-input" value="100" min="1" max="1000">
+                        </div>
+                    </div>
+
+                    <!-- Template Limits -->
+                    <div class="settings-section">
+                        <h4><i class="fas fa-layer-group"></i> Template Limits</h4>
+                        <div class="form-group">
+                            <label>Max Templates per User</label>
+                            <input type="number" id="maxTemplatesPerUser" class="form-input" value="10" min="1" max="100">
+                            <small style="color: var(--text-secondary); display: block; margin-top: 5px;">Maximum number of templates a single user can create (does not apply to admins)</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Max Pending Templates per User</label>
+                            <input type="number" id="maxPendingTemplatesPerUser" class="form-input" value="3" min="1" max="20">
+                            <small style="color: var(--text-secondary); display: block; margin-top: 5px;">Maximum templates waiting for approval per user</small>
                         </div>
                     </div>
                 </div>
@@ -738,9 +759,27 @@ class AdminPanelEnhanced {
         });
     }
 
-    loadSettings() {
+    async loadSettings() {
         try {
-            const settings = JSON.parse(localStorage.getItem('admin_settings') || '{}');
+            // Try to load from database first
+            let settings = {};
+            if (window.supabaseClient) {
+                const { data, error } = await window.supabaseClient
+                    .from('system_settings')
+                    .select('key, value')
+                    .order('key');
+                
+                if (!error && data) {
+                    data.forEach(row => {
+                        settings[row.key] = row.value;
+                    });
+                }
+            }
+            
+            // Fall back to localStorage if no database settings
+            if (Object.keys(settings).length === 0) {
+                settings = JSON.parse(localStorage.getItem('admin_settings') || '{}');
+            }
             
             // Feature flags
             if (settings.featureTemplates !== undefined) {
@@ -776,12 +815,20 @@ class AdminPanelEnhanced {
             if (settings.maxPacksPerUser) {
                 document.getElementById('maxPacksPerUser').value = settings.maxPacksPerUser;
             }
+            
+            // Template limits
+            if (settings.maxTemplatesPerUser) {
+                document.getElementById('maxTemplatesPerUser').value = settings.maxTemplatesPerUser;
+            }
+            if (settings.maxPendingTemplatesPerUser) {
+                document.getElementById('maxPendingTemplatesPerUser').value = settings.maxPendingTemplatesPerUser;
+            }
         } catch (e) {
             console.error('Failed to load settings:', e);
         }
     }
 
-    saveSettings() {
+    async saveSettings() {
         const settings = {
             featureTemplates: document.getElementById('featureTemplates').checked,
             featureSocialSharing: document.getElementById('featureSocialSharing').checked,
@@ -791,11 +838,39 @@ class AdminPanelEnhanced {
             apiRateLimit: parseInt(document.getElementById('apiRateLimit').value),
             templateRateLimit: parseInt(document.getElementById('templateRateLimit').value),
             maxPackSize: parseInt(document.getElementById('maxPackSize').value),
-            maxPacksPerUser: parseInt(document.getElementById('maxPacksPerUser').value)
+            maxPacksPerUser: parseInt(document.getElementById('maxPacksPerUser').value),
+            maxTemplatesPerUser: parseInt(document.getElementById('maxTemplatesPerUser').value),
+            maxPendingTemplatesPerUser: parseInt(document.getElementById('maxPendingTemplatesPerUser').value)
         };
 
+        // Save to localStorage as backup
         localStorage.setItem('admin_settings', JSON.stringify(settings));
-        window.notificationModal?.alert('Settings saved successfully!', 'success', 'Success');
+        
+        // Save to database if available
+        if (window.supabaseClient) {
+            try {
+                // Upsert each setting to database
+                for (const [key, value] of Object.entries(settings)) {
+                    await window.supabaseClient
+                        .from('system_settings')
+                        .upsert({
+                            key: key,
+                            value: value,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'key' });
+                }
+                
+                // Update global settings cache
+                window.systemSettings = settings;
+                
+                window.notificationModal?.alert('Settings saved to database successfully!', 'success', 'Success');
+            } catch (error) {
+                console.error('Failed to save settings to database:', error);
+                window.notificationModal?.alert('Settings saved locally. Database sync failed.', 'warning', 'Partial Save');
+            }
+        } else {
+            window.notificationModal?.alert('Settings saved locally!', 'success', 'Success');
+        }
     }
 
     formatTime(timestamp) {

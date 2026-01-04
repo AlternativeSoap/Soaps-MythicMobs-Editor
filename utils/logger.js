@@ -81,7 +81,8 @@ class Logger {
         if (this.context) {
             console.log(`%c✅ [${this.context}]`, 'color: #27ae60', ...args);
         } else {
-                    }
+            console.log('%c✅', 'color: #27ae60', ...args);
+        }
     }
 
     /**
@@ -93,7 +94,8 @@ class Logger {
         if (this.context) {
             console.log(`%c🔍 [${this.context}]`, 'color: #f39c12', ...args);
         } else {
-                    }
+            console.log('%c🔍', 'color: #f39c12', ...args);
+        }
     }
 }
 

@@ -648,8 +648,8 @@ class ConditionBrowser {
         <button class="btn-icon-inline btn-favorite" data-condition-id="${condition.name}" title="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
             <i class="${isFavorite ? 'fas' : 'far'} fa-star" style="color: ${isFavorite ? '#ffc107' : '#666'}; font-size: 12px;"></i>
         </button>
-        <span class="mechanic-name">${condition.name}</span>
-        <span class="mechanic-desc">${condition.description}</span>
+        <span class="mechanic-name" title="${condition.name}">${condition.name}</span>
+        <span class="mechanic-desc" title="${condition.description}">${condition.description}</span>
     </div>
     <div class="mechanic-item-actions">
         <span class="mechanic-category-tag mechanic-category-${condition.category?.toLowerCase() || 'utility'}">${(condition.category || 'UTILITY').toUpperCase()}</span>

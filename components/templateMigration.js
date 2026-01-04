@@ -36,13 +36,9 @@ class TemplateMigration {
             lines: lines
         }];
         
-        // Detect structure type
-        let structure_type = 'multi-line';
-        if (lines.length === 1) {
-            structure_type = 'single';
-        } else if (lines.length > 1) {
-            structure_type = 'multi-line';
-        }
+        // Detect structure type (database only allows 'single' or 'pack')
+        // Single section = 'single', multiple sections would be 'pack'
+        let structure_type = 'single';
         
         return {
             name: builtInTemplate.name,

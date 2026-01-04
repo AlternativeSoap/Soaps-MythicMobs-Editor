@@ -164,6 +164,26 @@ class FileManager {
         this.editor.packManager.createEmptyFile(type, fileName);
     }
     
+    /**
+     * Create a file with pre-populated data (from templates)
+     * @param {string} type - File type (skill, mob, etc.)
+     * @param {string} fileName - File name
+     * @param {Object} data - Pre-populated data object
+     */
+    createFileWithData(type, fileName, data) {
+        this.editor.packManager.createFileWithData(type, fileName, data);
+    }
+    
+    /**
+     * Find a file by name and type
+     * @param {string} fileName - File name to find
+     * @param {string} type - File type
+     * @returns {Object|null} File object or null
+     */
+    findFile(fileName, type) {
+        return this.editor.packManager.findFile(fileName, type);
+    }
+    
     async saveFile(file, type, immediate = false) {
         // File is already in pack, just need to save packs
         // Pass immediate flag to bypass debounce for manual saves

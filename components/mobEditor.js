@@ -36,6 +36,9 @@ class MobEditor {
                 </h2>
                 <div class="editor-actions">
                     <div class="action-group secondary-actions">
+                        <button class="btn btn-outline" id="mob-save-as-template" title="Save this mob as a reusable template">
+                            <i class="fas fa-file-export"></i> Save as Template
+                        </button>
                         <button class="btn btn-outline" id="duplicate-mob" title="Create a copy of this mob (Ctrl+D)">
                             <i class="fas fa-copy"></i> Duplicate
                         </button>
@@ -139,6 +142,9 @@ class MobEditor {
      * Add a new mob section to the current file
      */
     async addNewSection() {
+        // Show template selection modal first
+        const useTemplate = await this.showTemplateSelectionModal();
+        
         let newName = await this.editor.showPrompt('New Mob', 'Enter name for new mob:');
         if (!newName || newName.trim() === '') return;
         
@@ -158,14 +164,22 @@ class MobEditor {
             return;
         }
         
-        // Create new mob with defaults
-        const newMob = {
-            id: 'mob-' + Date.now(),
-            name: newName.trim(),
-            type: 'ZOMBIE',
-            health: 0,
-            damage: 0
-        };
+        // Create new mob - apply template if selected
+        let newMob;
+        
+        if (useTemplate) {
+            // Apply template data
+            newMob = this.createMobFromTemplate(useTemplate, newName.trim());
+        } else {
+            // Create new mob with defaults
+            newMob = {
+                id: 'mob-' + Date.now(),
+                name: newName.trim(),
+                type: 'ZOMBIE',
+                health: 0,
+                damage: 0
+            };
+        }
         
         // Add to parent file's entries
         parentFile.entries.push(newMob);
@@ -173,13 +187,180 @@ class MobEditor {
         // Open the new mob
         newMob._parentFile = { id: parentFile.id, fileName: parentFile.fileName };
         this.editor.openFile(newMob, 'mob');
-        this.editor.showToast(`Created new mob "${newName}"`, 'success');
+        
+        if (useTemplate) {
+            this.editor.showToast(`Created new mob "${newName}" from template "${useTemplate.name}"`, 'success');
+        } else {
+            this.editor.showToast(`Created new mob "${newName}"`, 'success');
+        }
+        
         this.editor.markDirty();
         
         // Refresh just this file container
         if (this.editor.packManager) {
             this.editor.packManager.updateFileContainer(parentFile.id, 'mob');
         }
+    }
+
+    /**
+     * Show template selection modal for new mob creation
+     * @returns {Promise<Object|null>} Selected template or null
+     */
+    async showTemplateSelectionModal() {
+        return new Promise((resolve) => {
+            // Check if template selector is available
+            if (!window.templateSelector) {
+                resolve(null);
+                return;
+            }
+            
+            // Create simple modal
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-layer-group"></i> Start with Template?</h2>
+                    </div>
+                    <div class="modal-body">
+                        <p style="margin-bottom: 1.5rem;">Would you like to start with a template, or create a blank mob?</p>
+                        <div style="display: flex; gap: 1rem;">
+                            <button class="btn btn-outline" id="create-blank" style="flex: 1;">
+                                <i class="fas fa-file"></i> Blank Mob
+                            </button>
+                            <button class="btn btn-primary" id="choose-template" style="flex: 1;">
+                                <i class="fas fa-layer-group"></i> Choose Template
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            document.getElementById('create-blank').addEventListener('click', () => {
+                modal.remove();
+                resolve(null);
+            });
+            
+            document.getElementById('choose-template').addEventListener('click', () => {
+                modal.remove();
+                // Open template selector
+                window.templateSelector.open({
+                    entityType: 'mob',
+                    onSelect: (template) => {
+                        resolve(template);
+                    },
+                    onBack: () => {
+                        resolve(null);
+                    }
+                });
+            });
+            
+            // Close on backdrop click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                    resolve(null);
+                }
+            });
+        });
+    }
+
+    /**
+     * Create a mob from a template
+     * @param {Object} template - Template data
+     * @param {string} mobName - Name for the new mob
+     * @returns {Object} New mob object
+     */
+    createMobFromTemplate(template, mobName) {
+        // Check for mob template with mobConfigs (from imported mob files)
+        const mobConfigs = template.mobConfigs || template.data?.mobConfigs;
+        const sections = template.sections || template.data?.sections;
+        
+        // Try to get mob config from various sources
+        let mobConfig = null;
+        
+        if (mobConfigs && mobConfigs.length > 0) {
+            // Use first mob config from imported mob template
+            mobConfig = mobConfigs[0];
+        } else if (sections && sections.length > 0 && sections[0].mobConfig) {
+            // Use mob config from first section
+            mobConfig = sections[0].mobConfig;
+        }
+        
+        if (mobConfig) {
+            // Create mob from full mob configuration
+            return {
+                id: 'mob-' + Date.now(),
+                name: mobName,
+                type: mobConfig.Type || mobConfig.MobType || 'ZOMBIE',
+                displayName: mobConfig.Display || mobConfig.DisplayName,
+                health: mobConfig.Health || 0,
+                damage: mobConfig.Damage || 0,
+                armor: mobConfig.Armor,
+                faction: mobConfig.Faction,
+                level: mobConfig.Level,
+                healthScale: mobConfig.HealthScale,
+                damageScale: mobConfig.DamageScale,
+                knockbackResistance: mobConfig.KnockbackResistance,
+                movementSpeed: mobConfig.MovementSpeed || mobConfig.Options?.MovementSpeed,
+                followRange: mobConfig.FollowRange || mobConfig.Options?.FollowRange,
+                attackSpeed: mobConfig.AttackSpeed,
+                equipment: mobConfig.Equipment,
+                skills: mobConfig.Skills,
+                drops: mobConfig.Drops,
+                droptables: mobConfig.Droptables,
+                aiGoalSelectors: mobConfig.AIGoalSelectors,
+                aiTargetSelectors: mobConfig.AITargetSelectors,
+                options: mobConfig.Options,
+                modules: mobConfig.Modules,
+                bossBar: mobConfig.BossBar,
+                disguise: mobConfig.Disguise,
+                model: mobConfig.Model,
+                modelEngine: mobConfig.ModelEngine,
+                damageModifiers: mobConfig.DamageModifiers,
+                killMessages: mobConfig.KillMessages,
+                levelModifiers: mobConfig.LevelModifiers,
+                hearing: mobConfig.Hearing,
+                components: mobConfig.Components,
+                trades: mobConfig.Trades,
+                variables: mobConfig.Variables,
+                nameplate: mobConfig.Nameplate
+            };
+        }
+        
+        // Fallback to old format (fullSection)
+        const fullSection = template.data?.fullSection || {};
+        
+        return {
+            id: 'mob-' + Date.now(),
+            name: mobName,
+            type: fullSection.type || 'ZOMBIE',
+            displayName: fullSection.displayName,
+            health: fullSection.health || 0,
+            damage: fullSection.damage || 0,
+            armor: fullSection.armor,
+            faction: fullSection.faction,
+            level: fullSection.level,
+            healthScale: fullSection.healthScale,
+            damageScale: fullSection.damageScale,
+            knockbackResistance: fullSection.knockbackResistance,
+            movementSpeed: fullSection.movementSpeed,
+            followRange: fullSection.followRange,
+            attackSpeed: fullSection.attackSpeed,
+            equipment: fullSection.equipment,
+            skills: fullSection.skills,
+            drops: fullSection.drops,
+            droptables: fullSection.droptables,
+            aiGoalSelectors: fullSection.aiGoalSelectors,
+            aiTargetSelectors: fullSection.aiTargetSelectors,
+            options: fullSection.options,
+            bossBar: fullSection.bossBar,
+            disguise: fullSection.disguise,
+            model: fullSection.model,
+            modelEngine: fullSection.modelEngine
+        };
     }
     
     /**
@@ -4046,6 +4227,11 @@ class MobEditor {
         // Save button
         document.getElementById('save-mob')?.addEventListener('click', async () => {
             await this.saveMob(this.currentMob);
+        });
+        
+        // Save as Template button
+        document.getElementById('mob-save-as-template')?.addEventListener('click', () => {
+            this.openSaveAsTemplateModal();
         });
         
         // New section button (add new mob to current file)
@@ -8001,6 +8187,848 @@ class MobEditor {
                 selectTemplate(item.dataset.value);
             }
         });
+    }
+
+    // ========================================
+    // TEMPLATE FUNCTIONALITY
+    // ========================================
+
+    /**
+     * Open modal to save current mob as a template
+     */
+    openSaveAsTemplateModal() {
+        // Check if user is authenticated
+        if (!window.authManager?.isAuthenticated()) {
+            this.editor.showToast('You must be logged in to save templates', 'warning');
+            if (window.authUI) {
+                window.authUI.showLoginModal();
+            }
+            return;
+        }
+
+        if (!this.currentMob) {
+            this.editor.showToast('No mob selected', 'error');
+            return;
+        }
+
+        const mob = this.currentMob;
+        
+        // Analyze mob content
+        const analysis = this.analyzeMobForTemplate();
+        
+        // Inject enhanced styles
+        this.injectMobTemplateModalStyles();
+        
+        // Create modal with section selection
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay mob-template-overlay';
+        modal.id = 'save-template-modal';
+        modal.innerHTML = `
+            <div class="modal mob-template-modal">
+                <div class="mob-template-header">
+                    <div class="header-content">
+                        <div class="header-icon">
+                            <i class="fas fa-skull"></i>
+                        </div>
+                        <div class="header-text">
+                            <h2>Save Mob as Template</h2>
+                            <p>Create a reusable template from "<strong>${mob.name}</strong>"</p>
+                        </div>
+                    </div>
+                    <button class="modal-close" id="close-template-modal">&times;</button>
+                </div>
+                <div class="mob-template-body">
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label class="form-label"><i class="fas fa-tag"></i> Template Name <span class="required">*</span></label>
+                            <input type="text" class="form-input enhanced-input" id="template-name" value="${mob.name} Template" placeholder="Enter template name">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label"><i class="fas fa-align-left"></i> Description</label>
+                        <textarea class="form-input enhanced-input" id="template-description" rows="2" placeholder="Describe what this template provides...">${this.generateMobTemplateDescription(mob, analysis)}</textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label"><i class="fas fa-folder"></i> Category</label>
+                            <select class="form-input enhanced-select" id="template-category">
+                                <option value="boss" ${analysis.suggestedCategory === 'boss' ? 'selected' : ''}>👑 Boss</option>
+                                <option value="elite" ${analysis.suggestedCategory === 'elite' ? 'selected' : ''}>⭐ Elite</option>
+                                <option value="undead" ${analysis.suggestedCategory === 'undead' ? 'selected' : ''}>💀 Undead</option>
+                                <option value="creature" ${analysis.suggestedCategory === 'creature' ? 'selected' : ''}>🐾 Creature</option>
+                                <option value="humanoid" ${analysis.suggestedCategory === 'humanoid' ? 'selected' : ''}>👤 Humanoid</option>
+                                <option value="general" ${analysis.suggestedCategory === 'general' ? 'selected' : ''}>📁 General</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label"><i class="fas fa-signal"></i> Difficulty</label>
+                            <select class="form-input enhanced-select" id="template-difficulty">
+                                <option value="beginner" ${analysis.suggestedDifficulty === 'beginner' ? 'selected' : ''}>🟢 Beginner</option>
+                                <option value="intermediate" ${analysis.suggestedDifficulty === 'intermediate' ? 'selected' : ''}>🟡 Intermediate</option>
+                                <option value="advanced" ${analysis.suggestedDifficulty === 'advanced' ? 'selected' : ''}>🟠 Advanced</option>
+                                <option value="expert" ${analysis.suggestedDifficulty === 'expert' ? 'selected' : ''}>🔴 Expert</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label"><i class="fas fa-tags"></i> Tags <small>(comma-separated)</small></label>
+                        <input type="text" class="form-input enhanced-input" id="template-tags" value="${analysis.suggestedTags.join(', ')}" placeholder="boss, fire, mythic">
+                    </div>
+                    
+                    <div class="sections-card">
+                        <div class="sections-header">
+                            <i class="fas fa-puzzle-piece"></i>
+                            <span>Sections to Include</span>
+                            <small>Select which parts of the mob to save</small>
+                        </div>
+                        <div class="sections-grid">
+                            ${this.renderEnhancedSectionCheckboxes(analysis)}
+                        </div>
+                    </div>
+                    
+                    <div class="template-summary-card">
+                        <div class="summary-header">
+                            <i class="fas fa-clipboard-list"></i>
+                            <span>Template Summary</span>
+                        </div>
+                        <div id="template-summary" class="summary-content">
+                            ${this.renderEnhancedTemplateSummary(analysis)}
+                        </div>
+                    </div>
+                </div>
+                <div class="mob-template-footer">
+                    <button class="btn btn-ghost" id="cancel-template">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button class="btn btn-primary btn-glow" id="confirm-save-template">
+                        <i class="fas fa-cloud-upload-alt"></i> Save Template
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Focus name input
+        setTimeout(() => {
+            document.getElementById('template-name')?.focus();
+        }, 100);
+        
+        // Update summary when checkboxes change
+        modal.querySelectorAll('.section-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => {
+                this.updateEnhancedTemplateSummary(analysis);
+            });
+        });
+        
+        // Event listeners
+        document.getElementById('close-template-modal')?.addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        document.getElementById('cancel-template')?.addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        document.getElementById('confirm-save-template')?.addEventListener('click', async () => {
+            await this.saveAsTemplate();
+        });
+        
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+        
+        // Close on Escape
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    }
+
+    /**
+     * Analyze mob to determine what sections have content
+     */
+    analyzeMobForTemplate() {
+        const mob = this.currentMob;
+        
+        const sections = {
+            basic: {
+                label: 'Basic Info',
+                icon: 'fa-info-circle',
+                hasContent: true, // Always has content
+                description: 'Name, type, display name'
+            },
+            stats: {
+                label: 'Combat Stats',
+                icon: 'fa-heart',
+                hasContent: mob.health || mob.damage || mob.armor || mob.knockbackResistance,
+                description: 'Health, damage, armor'
+            },
+            equipment: {
+                label: 'Equipment',
+                icon: 'fa-shield-alt',
+                hasContent: mob.equipment && Object.keys(mob.equipment).length > 0,
+                description: 'Armor and weapons'
+            },
+            skills: {
+                label: 'Skills',
+                icon: 'fa-magic',
+                hasContent: mob.skills && mob.skills.length > 0,
+                description: `${(mob.skills || []).length} skill(s)`
+            },
+            drops: {
+                label: 'Drops',
+                icon: 'fa-gift',
+                hasContent: (mob.drops && mob.drops.length > 0) || (mob.droptables && mob.droptables.length > 0),
+                description: 'Loot tables'
+            },
+            ai: {
+                label: 'AI Selectors',
+                icon: 'fa-brain',
+                hasContent: (mob.aiGoalSelectors && mob.aiGoalSelectors.length > 0) || 
+                           (mob.aiTargetSelectors && mob.aiTargetSelectors.length > 0),
+                description: 'AI goals and targets'
+            },
+            options: {
+                label: 'Options',
+                icon: 'fa-sliders-h',
+                hasContent: mob.options && Object.keys(mob.options).length > 0,
+                description: 'Universal options'
+            },
+            bossBar: {
+                label: 'Boss Bar',
+                icon: 'fa-signal',
+                hasContent: mob.bossBar !== undefined,
+                description: 'Boss bar settings'
+            },
+            disguise: {
+                label: 'Disguise',
+                icon: 'fa-mask',
+                hasContent: mob.disguise !== undefined,
+                description: 'LibsDisguises setup'
+            },
+            model: {
+                label: 'Model',
+                icon: 'fa-cube',
+                hasContent: mob.model || mob.modelEngine,
+                description: 'Custom model'
+            }
+        };
+        
+        // Suggest category
+        let suggestedCategory = 'general';
+        const type = (mob.type || '').toLowerCase();
+        const name = (mob.name || '').toLowerCase();
+        
+        if (mob.bossBar || name.includes('boss')) suggestedCategory = 'boss';
+        else if (name.includes('elite') || name.includes('champion')) suggestedCategory = 'elite';
+        else if (['zombie', 'skeleton', 'phantom', 'wither'].some(t => type.includes(t))) suggestedCategory = 'undead';
+        else if (['wolf', 'spider', 'bee', 'silverfish'].some(t => type.includes(t))) suggestedCategory = 'creature';
+        else if (['villager', 'pillager', 'vindicator', 'witch'].some(t => type.includes(t))) suggestedCategory = 'humanoid';
+        
+        // Calculate difficulty
+        let difficultyScore = 0;
+        const health = parseFloat(mob.health) || 20;
+        if (health > 200) difficultyScore += 3;
+        else if (health > 100) difficultyScore += 2;
+        else if (health > 50) difficultyScore += 1;
+        
+        const skillCount = (mob.skills || []).length;
+        if (skillCount > 10) difficultyScore += 3;
+        else if (skillCount > 5) difficultyScore += 2;
+        else if (skillCount > 0) difficultyScore += 1;
+        
+        if (mob.bossBar) difficultyScore += 2;
+        
+        let suggestedDifficulty = 'beginner';
+        if (difficultyScore >= 6) suggestedDifficulty = 'expert';
+        else if (difficultyScore >= 4) suggestedDifficulty = 'advanced';
+        else if (difficultyScore >= 2) suggestedDifficulty = 'intermediate';
+        
+        // Generate tags
+        const suggestedTags = [];
+        if (mob.bossBar) suggestedTags.push('boss');
+        if (type) suggestedTags.push(type.toLowerCase());
+        if (mob.skills?.length > 5) suggestedTags.push('complex');
+        if (mob.equipment) suggestedTags.push('equipped');
+        
+        return {
+            sections,
+            suggestedCategory,
+            suggestedDifficulty,
+            suggestedTags: suggestedTags.slice(0, 5) // Limit to 5 tags
+        };
+    }
+
+    /**
+     * Render section checkboxes
+     */
+    renderSectionCheckboxes(analysis) {
+        return Object.entries(analysis.sections).map(([key, section]) => `
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border-radius: 0.25rem; ${!section.hasContent ? 'opacity: 0.5;' : ''}">
+                <input type="checkbox" class="section-checkbox" data-section="${key}" 
+                    ${section.hasContent ? 'checked' : ''} 
+                    ${!section.hasContent ? 'disabled' : ''}>
+                <i class="fas ${section.icon}" style="width: 20px;"></i>
+                <span style="flex: 1;">${section.label}</span>
+                ${section.hasContent ? '<i class="fas fa-check-circle" style="color: var(--success);"></i>' : '<i class="fas fa-minus-circle" style="color: var(--text-secondary);"></i>'}
+            </label>
+        `).join('');
+    }
+
+    /**
+     * Render enhanced section checkboxes with better visuals
+     */
+    renderEnhancedSectionCheckboxes(analysis) {
+        return Object.entries(analysis.sections).map(([key, section]) => `
+            <div class="section-item ${section.hasContent ? 'has-content' : 'no-content'}">
+                <label class="section-checkbox-label">
+                    <input type="checkbox" class="section-checkbox" data-section="${key}" 
+                        ${section.hasContent ? 'checked' : ''} 
+                        ${!section.hasContent ? 'disabled' : ''}>
+                    <div class="checkbox-visual">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="section-info">
+                        <div class="section-icon"><i class="fas ${section.icon}"></i></div>
+                        <div class="section-text">
+                            <span class="section-name">${section.label}</span>
+                        </div>
+                    </div>
+                    <div class="section-status">
+                        ${section.hasContent 
+                            ? '<i class="fas fa-check-circle status-icon has"></i>' 
+                            : '<i class="fas fa-minus-circle status-icon empty"></i>'}
+                    </div>
+                </label>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * Render enhanced template summary
+     */
+    renderEnhancedTemplateSummary(analysis) {
+        const activeSections = Object.entries(analysis.sections)
+            .filter(([_, s]) => s.hasContent);
+        
+        if (activeSections.length === 0) {
+            return '<p class="no-sections">No sections with content</p>';
+        }
+        
+        return `
+            <div class="summary-stats">
+                ${activeSections.map(([key, s]) => `
+                    <div class="summary-stat-item">
+                        <i class="fas ${s.icon}"></i>
+                        <span class="stat-name">${s.label}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    /**
+     * Update enhanced template summary
+     */
+    updateEnhancedTemplateSummary(analysis) {
+        const summaryEl = document.getElementById('template-summary');
+        if (!summaryEl) return;
+        
+        const checkedSections = [];
+        document.querySelectorAll('.section-checkbox:checked').forEach(cb => {
+            const key = cb.dataset.section;
+            if (analysis.sections[key]) {
+                const s = analysis.sections[key];
+                checkedSections.push(`
+                    <div class="summary-stat-item">
+                        <i class="fas ${s.icon}"></i>
+                        <span class="stat-name">${s.label}</span>
+                    </div>
+                `);
+            }
+        });
+        
+        summaryEl.innerHTML = checkedSections.length > 0 
+            ? `<div class="summary-stats">${checkedSections.join('')}</div>`
+            : '<p class="no-sections">No sections selected</p>';
+    }
+
+    /**
+     * Inject styles for mob template modal
+     */
+    injectMobTemplateModalStyles() {
+        if (document.getElementById('mobTemplateModalStyles')) return;
+        
+        const styles = document.createElement('style');
+        styles.id = 'mobTemplateModalStyles';
+        styles.textContent = `
+            /* Mob Template Modal Overlay */
+            .mob-template-overlay {
+                z-index: 10000 !important;
+                background: rgba(0, 0, 0, 0.75);
+            }
+            
+            /* Modal Container */
+            .mob-template-modal {
+                max-width: 600px;
+                width: 95%;
+                max-height: 90vh;
+                border-radius: 16px;
+                overflow: hidden;
+                box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+                animation: mobModalSlide 0.25s ease-out;
+                display: flex;
+                flex-direction: column;
+            }
+            
+            @keyframes mobModalSlide {
+                from { opacity: 0; transform: translateY(-15px) scale(0.97); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+            
+            /* Header */
+            .mob-template-header {
+                background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+                padding: 1.25rem 1.5rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-shrink: 0;
+            }
+            .mob-template-header .header-content {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            }
+            .mob-template-header .header-icon {
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+                background: rgba(255, 255, 255, 0.2);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.25rem;
+                color: white;
+            }
+            .mob-template-header .header-text h2 {
+                margin: 0;
+                font-size: 1.15rem;
+                font-weight: 600;
+                color: white;
+            }
+            .mob-template-header .header-text p {
+                margin: 0.25rem 0 0;
+                font-size: 0.8rem;
+                color: rgba(255, 255, 255, 0.85);
+            }
+            .mob-template-header .modal-close {
+                background: rgba(255, 255, 255, 0.15);
+                border: none;
+                color: white;
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 1.25rem;
+                transition: all 0.2s;
+            }
+            .mob-template-header .modal-close:hover {
+                background: rgba(255, 255, 255, 0.25);
+            }
+            
+            /* Body */
+            .mob-template-body {
+                padding: 1.25rem 1.5rem;
+                background: var(--bg-secondary);
+                overflow-y: auto;
+                flex: 1;
+            }
+            .mob-template-body .form-group {
+                margin-bottom: 1rem;
+            }
+            .mob-template-body .form-label {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-size: 0.85rem;
+                font-weight: 500;
+                color: var(--text-secondary);
+                margin-bottom: 0.5rem;
+            }
+            .mob-template-body .form-label i {
+                color: #dc2626;
+                font-size: 0.8rem;
+            }
+            .mob-template-body .form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1rem;
+            }
+            .mob-template-body .enhanced-input,
+            .mob-template-body .enhanced-select {
+                width: 100%;
+                padding: 0.7rem 1rem;
+                border: 2px solid var(--border-color);
+                border-radius: 10px;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                font-size: 0.9rem;
+                transition: all 0.2s;
+            }
+            .mob-template-body .enhanced-input:focus,
+            .mob-template-body .enhanced-select:focus {
+                border-color: #dc2626;
+                outline: none;
+                box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+            }
+            .mob-template-body textarea.enhanced-input {
+                resize: vertical;
+                min-height: 50px;
+            }
+            
+            /* Sections Card */
+            .sections-card {
+                background: var(--bg-tertiary);
+                border: 1px solid var(--border-color);
+                border-radius: 12px;
+                overflow: hidden;
+                margin-bottom: 1rem;
+            }
+            .sections-header {
+                background: var(--bg-primary);
+                padding: 0.75rem 1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-weight: 600;
+                font-size: 0.9rem;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .sections-header i {
+                color: #dc2626;
+            }
+            .sections-header small {
+                font-weight: 400;
+                color: var(--text-secondary);
+                margin-left: auto;
+            }
+            .sections-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.5rem;
+                padding: 0.75rem;
+            }
+            
+            /* Section Items */
+            .section-item {
+                background: var(--bg-secondary);
+                border-radius: 8px;
+                overflow: hidden;
+                transition: all 0.2s;
+            }
+            .section-item.no-content {
+                opacity: 0.5;
+            }
+            .section-checkbox-label {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.6rem 0.75rem;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            .section-item.has-content .section-checkbox-label:hover {
+                background: var(--bg-tertiary);
+            }
+            .section-checkbox-label input[type="checkbox"] {
+                display: none;
+            }
+            .checkbox-visual {
+                width: 18px;
+                height: 18px;
+                border: 2px solid var(--border-color);
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+                flex-shrink: 0;
+            }
+            .checkbox-visual i {
+                font-size: 0.6rem;
+                color: white;
+                opacity: 0;
+                transform: scale(0);
+                transition: all 0.15s;
+            }
+            .section-checkbox-label input:checked + .checkbox-visual {
+                background: #dc2626;
+                border-color: #dc2626;
+            }
+            .section-checkbox-label input:checked + .checkbox-visual i {
+                opacity: 1;
+                transform: scale(1);
+            }
+            .section-info {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                flex: 1;
+                min-width: 0;
+            }
+            .section-icon {
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--text-secondary);
+                font-size: 0.8rem;
+            }
+            .section-name {
+                font-size: 0.8rem;
+                font-weight: 500;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .section-status {
+                flex-shrink: 0;
+            }
+            .status-icon.has {
+                color: #10b981;
+            }
+            .status-icon.empty {
+                color: var(--text-secondary);
+            }
+            
+            /* Summary Card */
+            .template-summary-card {
+                background: var(--bg-tertiary);
+                border: 1px solid var(--border-color);
+                border-radius: 12px;
+                overflow: hidden;
+            }
+            .summary-header {
+                background: var(--bg-primary);
+                padding: 0.75rem 1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-weight: 600;
+                font-size: 0.9rem;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .summary-header i {
+                color: #dc2626;
+            }
+            .summary-content {
+                padding: 0.75rem 1rem;
+            }
+            .summary-stats {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            .summary-stat-item {
+                display: flex;
+                align-items: center;
+                gap: 0.4rem;
+                padding: 0.35rem 0.65rem;
+                background: var(--bg-secondary);
+                border-radius: 6px;
+                font-size: 0.75rem;
+            }
+            .summary-stat-item i {
+                color: #dc2626;
+                font-size: 0.7rem;
+            }
+            .no-sections {
+                color: var(--warning);
+                font-size: 0.85rem;
+                margin: 0;
+            }
+            
+            /* Footer */
+            .mob-template-footer {
+                background: var(--bg-tertiary);
+                padding: 1rem 1.5rem;
+                display: flex;
+                justify-content: flex-end;
+                gap: 0.75rem;
+                border-top: 1px solid var(--border-color);
+                flex-shrink: 0;
+            }
+            .mob-template-footer .btn-ghost {
+                background: transparent;
+                border: 1px solid var(--border-color);
+                color: var(--text-secondary);
+                padding: 0.6rem 1.25rem;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 0.9rem;
+                transition: all 0.2s;
+            }
+            .mob-template-footer .btn-ghost:hover {
+                background: var(--bg-secondary);
+                color: var(--text-primary);
+            }
+            .mob-template-footer .btn-glow {
+                background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+                border: none;
+                color: white;
+                padding: 0.6rem 1.25rem;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 0.9rem;
+                font-weight: 500;
+                box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+                transition: all 0.2s;
+            }
+            .mob-template-footer .btn-glow:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4);
+            }
+            .mob-template-footer .btn-glow:disabled {
+                opacity: 0.7;
+                cursor: not-allowed;
+                transform: none;
+            }
+        `;
+        document.head.appendChild(styles);
+    }
+
+    /**
+     * Render template summary
+     */
+    renderTemplateSummary(analysis) {
+        const activeSections = Object.entries(analysis.sections)
+            .filter(([_, s]) => s.hasContent)
+            .map(([key, s]) => `<li><i class="fas ${s.icon}"></i> ${s.label}: ${s.description}</li>`)
+            .join('');
+        
+        return `<ul style="margin: 0; padding-left: 1.5rem; color: var(--text-secondary);">${activeSections}</ul>`;
+    }
+
+    /**
+     * Update template summary based on checkbox selections
+     */
+    updateTemplateSummary(analysis) {
+        const summaryEl = document.getElementById('template-summary');
+        if (!summaryEl) return;
+        
+        const checkedSections = [];
+        document.querySelectorAll('.section-checkbox:checked').forEach(cb => {
+            const key = cb.dataset.section;
+            if (analysis.sections[key]) {
+                const s = analysis.sections[key];
+                checkedSections.push(`<li><i class="fas ${s.icon}"></i> ${s.label}: ${s.description}</li>`);
+            }
+        });
+        
+        summaryEl.innerHTML = checkedSections.length > 0 
+            ? `<ul style="margin: 0; padding-left: 1.5rem; color: var(--text-secondary);">${checkedSections.join('')}</ul>`
+            : '<p style="color: var(--warning);">No sections selected</p>';
+    }
+
+    /**
+     * Generate description based on mob content
+     */
+    generateMobTemplateDescription(mob, analysis) {
+        const parts = [];
+        
+        if (mob.type) {
+            parts.push(`${mob.type} based mob`);
+        }
+        
+        if (mob.health) {
+            parts.push(`${mob.health} health`);
+        }
+        
+        if (mob.skills?.length) {
+            parts.push(`${mob.skills.length} skill(s)`);
+        }
+        
+        if (mob.bossBar) {
+            parts.push('with boss bar');
+        }
+        
+        return parts.join(', ') + (parts.length ? '.' : 'A reusable mob template.');
+    }
+
+    /**
+     * Save the mob as a template
+     */
+    async saveAsTemplate() {
+        const templateName = document.getElementById('template-name')?.value?.trim();
+        const templateDescription = document.getElementById('template-description')?.value?.trim();
+        const templateCategory = document.getElementById('template-category')?.value;
+        const templateDifficulty = document.getElementById('template-difficulty')?.value;
+        const templateTags = document.getElementById('template-tags')?.value?.split(',').map(t => t.trim()).filter(Boolean);
+        
+        if (!templateName) {
+            this.editor.showToast('Please enter a template name', 'error');
+            return;
+        }
+        
+        // Get selected sections
+        const includeSections = {};
+        document.querySelectorAll('.section-checkbox').forEach(cb => {
+            includeSections[`include${cb.dataset.section.charAt(0).toUpperCase() + cb.dataset.section.slice(1)}`] = cb.checked;
+        });
+        
+        // Get template manager
+        const templateManager = window.templateManager;
+        if (!templateManager) {
+            this.editor.showToast('Template system not available', 'error');
+            return;
+        }
+        
+        try {
+            // Disable save button
+            const saveBtn = document.getElementById('confirm-save-template');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            }
+            
+            // Create template using templateManager
+            const metadata = {
+                name: templateName,
+                description: templateDescription || '',
+                category: templateCategory,
+                difficulty: templateDifficulty,
+                tags: templateTags || []
+            };
+            
+            await templateManager.createFromMobEditor(this.currentMob, metadata, includeSections);
+            
+            // Close modal and show success
+            document.getElementById('save-template-modal')?.remove();
+            this.editor.showToast(`Template "${templateName}" saved successfully!`, 'success');
+            
+        } catch (error) {
+            console.error('Failed to save template:', error);
+            this.editor.showToast(`Failed to save template: ${error.message}`, 'error');
+            
+            // Re-enable save button
+            const saveBtn = document.getElementById('confirm-save-template');
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Save Template';
+            }
+        }
     }
     
 }

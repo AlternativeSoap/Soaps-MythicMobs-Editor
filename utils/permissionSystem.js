@@ -14,7 +14,9 @@ class PermissionSystem {
             'templates.edit_any': 'Edit any template',
             'templates.delete_own': 'Delete own templates',
             'templates.delete_any': 'Delete any template',
-            'templates.approve': 'Approve templates',
+            'templates.submit_official': 'Submit templates for approval',
+            'templates.approve': 'Approve pending templates',
+            'templates.reject': 'Reject pending templates',
             'templates.feature': 'Feature templates',
             
             // User permissions
@@ -45,6 +47,7 @@ class PermissionSystem {
                 'templates.create',
                 'templates.edit_own',
                 'templates.delete_own',
+                'templates.submit_official',
                 'packs.create',
                 'packs.edit_own',
                 'packs.delete_own'
@@ -55,7 +58,9 @@ class PermissionSystem {
                 'templates.edit_own',
                 'templates.edit_any',
                 'templates.delete_own',
+                'templates.submit_official',
                 'templates.approve',
+                'templates.reject',
                 'users.view',
                 'users.ban',
                 'admin.panel',
@@ -71,7 +76,9 @@ class PermissionSystem {
                 'templates.edit_any',
                 'templates.delete_own',
                 'templates.delete_any',
+                'templates.submit_official',
                 'templates.approve',
+                'templates.reject',
                 'templates.feature',
                 'users.view',
                 'admin.panel',

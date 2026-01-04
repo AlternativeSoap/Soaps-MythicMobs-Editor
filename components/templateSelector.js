@@ -15,6 +15,9 @@ class TemplateSelector {
         this.recentTemplates = this.loadRecent();
         this.selectedTemplate = null;
         
+        // Entity type filter (skill or mob)
+        this.entityType = 'skill'; // Default to skills
+        
         // NEW: Template management
         this.templateManager = templateManager;
         this.templateEditor = templateEditor;
@@ -31,6 +34,7 @@ class TemplateSelector {
         this.filterCategory = 'all';
         this.filterComplexity = 'all';
         this.filterOwner = 'all';
+        this.filterStructureType = 'all'; // 'all', 'skill-lines', 'full-skills', 'skill-packs'
         this.sortBy = localStorage.getItem('templateSelector_sortBy') || 'name'; // 'name', 'date', 'lines'
         this.sortOrder = localStorage.getItem('templateSelector_sortOrder') || 'asc';
         
@@ -268,6 +272,20 @@ class TemplateSelector {
                         </div>
                     </div>
                     
+                    <!-- Entity Type Tabs (Skills | Mobs) -->
+                    <div class="entity-type-tabs" id="entityTypeTabs" style="display: flex; gap: 0.5rem; padding: 0 1rem; margin-bottom: 0.75rem;">
+                        <button class="entity-type-tab active" data-entity="skill" style="flex: 1; padding: 0.75rem 1.5rem; border: 2px solid var(--primary-color); background: var(--primary-color); color: white; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <i class="fas fa-magic"></i>
+                            <span>Skill Templates</span>
+                            <span class="entity-count" id="skillTemplateCount" style="background: rgba(255,255,255,0.2); padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.8rem;">0</span>
+                        </button>
+                        <button class="entity-type-tab" data-entity="mob" style="flex: 1; padding: 0.75rem 1.5rem; border: 2px solid var(--border-color); background: var(--bg-secondary); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <i class="fas fa-skull"></i>
+                            <span>Mob Templates</span>
+                            <span class="entity-count" id="mobTemplateCount" style="background: var(--bg-tertiary); padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.8rem;">0</span>
+                        </button>
+                    </div>
+                    
                     <!-- Filters & View Toggle (Consolidated) -->
                     <div class="template-toolbar" style="padding: 0.75rem 1.5rem; margin-bottom: 0.5rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; background: var(--bg-tertiary); border-radius: 8px; margin: 0 1rem 0.75rem 1rem;">
                         <!-- View Toggle -->
@@ -283,6 +301,13 @@ class TemplateSelector {
                         <div style="height: 24px; width: 1px; background: var(--border-color);"></div>
                         
                         <!-- Filters -->
+                        <select id="filterStructureType" class="form-control form-control-sm" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.85rem;" title="Filter by template type">
+                            <option value="all">📦 All Types</option>
+                            <option value="skill-lines">📝 Skill Lines</option>
+                            <option value="full-skills">⚡ Full Skills</option>
+                            <option value="skill-packs">📚 Skill Packs</option>
+                        </select>
+                        
                         <select id="filterComplexity" class="form-control form-control-sm" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.85rem;">
                             <option value="all">All Complexity</option>
                             <option value="easy">Easy</option>
@@ -554,6 +579,42 @@ class TemplateSelector {
                     color: white;
                 }
                 
+                .template-grid-card .badge-pending {
+                    background: var(--warning-color, #ffc107);
+                    color: #000;
+                }
+                
+                .template-grid-card .badge-rejected {
+                    background: var(--error-color, #dc3545);
+                    color: white;
+                }
+                
+                /* Structure type badges */
+                .template-grid-card .badge-structure {
+                    font-size: 0.65rem;
+                    padding: 0.15rem 0.4rem;
+                    border-radius: 4px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.25rem;
+                }
+                .template-grid-card .badge-structure-single {
+                    background: rgba(108, 117, 125, 0.3);
+                    color: #adb5bd;
+                }
+                .template-grid-card .badge-structure-multiline {
+                    background: rgba(23, 162, 184, 0.3);
+                    color: #17a2b8;
+                }
+                .template-grid-card .badge-structure-skill {
+                    background: rgba(255, 193, 7, 0.3);
+                    color: #ffc107;
+                }
+                .template-grid-card .badge-structure-pack {
+                    background: rgba(111, 66, 193, 0.3);
+                    color: #a78bfa;
+                }
+                
                 .template-grid-card .badge-category {
                     background: var(--bg-tertiary);
                     color: var(--text-secondary);
@@ -707,6 +768,42 @@ class TemplateSelector {
                 .template-list-card .badge-yours {
                     background: var(--success-color, #28a745);
                     color: white;
+                }
+                
+                .template-list-card .badge-pending {
+                    background: var(--warning-color, #ffc107);
+                    color: #000;
+                }
+                
+                .template-list-card .badge-rejected {
+                    background: var(--error-color, #dc3545);
+                    color: white;
+                }
+                
+                /* Structure type badges for list view */
+                .template-list-card .badge-structure {
+                    font-size: 0.6rem;
+                    padding: 0.1rem 0.35rem;
+                    border-radius: 4px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.2rem;
+                }
+                .template-list-card .badge-structure-single {
+                    background: rgba(108, 117, 125, 0.3);
+                    color: #adb5bd;
+                }
+                .template-list-card .badge-structure-multiline {
+                    background: rgba(23, 162, 184, 0.3);
+                    color: #17a2b8;
+                }
+                .template-list-card .badge-structure-skill {
+                    background: rgba(255, 193, 7, 0.3);
+                    color: #ffc107;
+                }
+                .template-list-card .badge-structure-pack {
+                    background: rgba(111, 66, 193, 0.3);
+                    color: #a78bfa;
                 }
                 
                 .template-list-card .badge-category {
@@ -1421,6 +1518,14 @@ class TemplateSelector {
             this.close();
         });
         
+        // Entity type tabs (Skills | Mobs)
+        document.querySelectorAll('.entity-type-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const entity = e.currentTarget.dataset.entity;
+                this.setEntityType(entity);
+            });
+        });
+        
         // Back button
         document.getElementById('templateSelectorBack')?.addEventListener('click', () => {
             this.close();
@@ -1456,6 +1561,10 @@ class TemplateSelector {
         });
         
         // Filters
+        document.getElementById('filterStructureType')?.addEventListener('change', (e) => {
+            this.filterStructureType = e.target.value;
+            this.renderTemplates();
+        });
         document.getElementById('filterComplexity')?.addEventListener('change', (e) => {
             this.filterComplexity = e.target.value;
             this.renderTemplates();
@@ -1696,6 +1805,15 @@ class TemplateSelector {
         // Hide loading BEFORE rendering (fixes empty state infinite loading)
         this.hideLoading();
         
+        // Update entity type counts
+        this.updateEntityTypeCounts();
+        
+        // Set entity type based on context if provided
+        if (options.entityType) {
+            this.entityType = options.entityType;
+            this.setEntityType(this.entityType);
+        }
+        
         // Render tabs, category chips, and templates
         this.renderTabs();
         this.renderCategoryChips();
@@ -1715,6 +1833,7 @@ class TemplateSelector {
         document.getElementById('templateSelectorOverlay').style.display = 'none';
         this.onSelectCallback = null;
         this.selectedTemplate = null;
+        this.creationMode = false; // Reset creation mode flag
         
         // Phase 2: Clear any pending debounce timers
         if (this.searchDebounceTimer) {
@@ -1727,6 +1846,93 @@ class TemplateSelector {
             clearTimeout(this.skeletonTimeout);
             this.skeletonTimeout = null;
         }
+    }
+    
+    /**
+     * Open template selector in CREATION mode
+     * Used when creating new skills from the main menu
+     * Templates are applied to create NEW files
+     */
+    async openForCreation(options = {}) {
+        this.creationMode = true;
+        this.importMode = false;
+        
+        // Update modal title to reflect creation mode
+        const modalTitle = document.querySelector('#templateSelectorOverlay .template-browser-header h2');
+        if (modalTitle) {
+            modalTitle.innerHTML = '<i class="fas fa-box-open"></i> Create from Template';
+        }
+        
+        // Update the "Use Template" button text
+        const useBtn = document.getElementById('templateSelectorUse');
+        if (useBtn) {
+            useBtn.innerHTML = '<i class="fas fa-plus"></i> Create Skill';
+        }
+        
+        // Hide back button in creation mode (no previous modal)
+        const backBtn = document.getElementById('templateSelectorBack');
+        if (backBtn) {
+            backBtn.style.display = 'none';
+        }
+        
+        // Open with modified callback
+        await this.open({
+            context: options.context || 'skill',
+            onSelect: (template) => {
+                if (options.onSelect) {
+                    options.onSelect(template);
+                }
+                this.close();
+            },
+            onBack: null // No back in creation mode
+        });
+    }
+    
+    /**
+     * Open template selector in IMPORT mode
+     * Used when adding templates to an existing skill
+     * Shows merge/replace options
+     */
+    async openForImport(options = {}) {
+        this.creationMode = false;
+        this.importMode = true;
+        
+        // Update modal title to reflect import mode
+        const modalTitle = document.querySelector('#templateSelectorOverlay .template-browser-header h2');
+        if (modalTitle) {
+            modalTitle.innerHTML = '<i class="fas fa-file-import"></i> Import Template';
+        }
+        
+        // Update the "Use Template" button text
+        const useBtn = document.getElementById('templateSelectorUse');
+        if (useBtn) {
+            useBtn.innerHTML = '<i class="fas fa-download"></i> Import';
+        }
+        
+        // Open with standard options
+        await this.open({
+            context: options.context || 'skill',
+            onSelect: options.onSelect,
+            onBack: options.onBack
+        });
+    }
+    
+    /**
+     * Reset modal to default state (for normal "Add Skill Line" flow)
+     */
+    resetModalState() {
+        const modalTitle = document.querySelector('#templateSelectorOverlay .template-browser-header h2');
+        if (modalTitle) {
+            modalTitle.innerHTML = '<i class="fas fa-box-open"></i> Template Browser';
+        }
+        
+        const useBtn = document.getElementById('templateSelectorUse');
+        if (useBtn) {
+            useBtn.innerHTML = '<i class="fas fa-check"></i> Use Template';
+        }
+        
+        this.creationMode = false;
+        this.importMode = false;
     }
     
     /**
@@ -1816,6 +2022,25 @@ class TemplateSelector {
     }
     
     /**
+     * Render structure type badge HTML
+     */
+    renderStructureBadge(structureType, sectionCount = 1) {
+        switch (structureType) {
+            case 'single':
+                return '<span class="badge badge-structure badge-structure-single" title="Single skill line"><i class="fas fa-minus"></i> Line</span>';
+            case 'multi-line':
+                return '<span class="badge badge-structure badge-structure-multiline" title="Multiple skill lines"><i class="fas fa-bars"></i> Lines</span>';
+            case 'multi-section':
+                if (sectionCount > 1) {
+                    return `<span class="badge badge-structure badge-structure-pack" title="Skill pack with ${sectionCount} skills"><i class="fas fa-layer-group"></i> Pack (${sectionCount})</span>`;
+                }
+                return '<span class="badge badge-structure badge-structure-skill" title="Full skill template"><i class="fas fa-bolt"></i> Skill</span>';
+            default:
+                return '';
+        }
+    }
+    
+    /**
      * Get line count for a template
      */
     getLineCount(template) {
@@ -1840,10 +2065,63 @@ class TemplateSelector {
     }
     
     /**
+     * Get structure type for a template (single, multi-line, multi-section)
+     */
+    getStructureType(template) {
+        // Check for explicit structure_type
+        if (template.structure_type) {
+            return template.structure_type;
+        }
+        
+        // Check for sections array (multi-section format)
+        if (template.sections && Array.isArray(template.sections)) {
+            if (template.sections.length > 1) {
+                return 'multi-section';
+            }
+            // Single section with lines
+            const firstSection = template.sections[0];
+            if (firstSection && Array.isArray(firstSection.lines) && firstSection.lines.length > 1) {
+                return 'multi-line';
+            }
+            return 'single';
+        }
+        
+        // Fallback to old format
+        if (Array.isArray(template.skillLines)) {
+            return template.skillLines.length > 1 ? 'multi-line' : 'single';
+        }
+        
+        return 'single';
+    }
+    
+    /**
+     * Get section count for a template
+     */
+    getSectionCount(template) {
+        if (template.sections && Array.isArray(template.sections)) {
+            return template.sections.length;
+        }
+        return 1;
+    }
+    
+    /**
      * Apply filters to templates
      */
     applyFilters(templates) {
         let filtered = [...templates];
+        
+        // Structure type filter (NEW)
+        if (this.filterStructureType !== 'all') {
+            filtered = filtered.filter(t => {
+                const structureType = this.getStructureType(t);
+                switch (this.filterStructureType) {
+                    case 'skill-lines': return structureType === 'single' || structureType === 'multi-line';
+                    case 'full-skills': return structureType === 'multi-section' && this.getSectionCount(t) === 1;
+                    case 'skill-packs': return structureType === 'multi-section' && this.getSectionCount(t) > 1;
+                    default: return true;
+                }
+            });
+        }
         
         // Complexity filter
         if (this.filterComplexity !== 'all') {
@@ -1878,11 +2156,14 @@ class TemplateSelector {
      */
     renderTabs() {
         const container = document.getElementById('templateTabs');
-        const contextTemplates = this.allTemplates.filter(t => t.type === this.context);
+        // Filter templates by current entity type
+        const entityTemplates = this.allTemplates.filter(t => (t.entity_type || t.type) === this.entityType);
         const categories = this.getAllCategories();
         
-        const favoriteCount = this.getFavoriteTemplates().length;
-        const recentCount = this.getRecentTemplates().length;
+        // Count favorites and recent for current entity type
+        const favoriteCount = entityTemplates.filter(t => this.isFavorite(t.id)).length;
+        const recentIds = this.recentTemplates.slice(0, 20);
+        const recentCount = entityTemplates.filter(t => recentIds.includes(t.id)).length;
         
         let html = `
             <button class="category-tab ${this.currentTab === 'favorites' ? 'active' : ''}" data-tab="favorites">
@@ -1898,13 +2179,13 @@ class TemplateSelector {
             <button class="category-tab ${this.currentTab === 'all' ? 'active' : ''}" data-tab="all">
                 <i class="fas fa-th"></i>
                 <span>All</span>
-                <span class="tab-badge">${this.getTotalTemplateCount()}</span>
+                <span class="tab-badge">${entityTemplates.length}</span>
             </button>
         `;
         
-        // Add category tabs
+        // Add category tabs (filtered by entity type)
         categories.forEach(category => {
-            const templates = this.getByCategory(category);
+            const templates = entityTemplates.filter(t => t.category === category);
             const icon = this.getCategoryIcon(category);
             const name = this.getCategoryDisplayName(category);
             const isActive = this.currentTab === category;
@@ -1936,6 +2217,51 @@ class TemplateSelector {
         this.currentTab = tab;
         this.renderTabs();
         this.renderTemplates();
+    }
+
+    /**
+     * Set entity type filter (skill or mob) and update UI
+     */
+    setEntityType(entityType) {
+        this.entityType = entityType;
+        
+        // Update tab styles
+        document.querySelectorAll('.entity-type-tab').forEach(tab => {
+            const isActive = tab.dataset.entity === entityType;
+            if (isActive) {
+                tab.classList.add('active');
+                tab.style.background = 'var(--primary-color)';
+                tab.style.borderColor = 'var(--primary-color)';
+                tab.style.color = 'white';
+            } else {
+                tab.classList.remove('active');
+                tab.style.background = 'var(--bg-secondary)';
+                tab.style.borderColor = 'var(--border-color)';
+                tab.style.color = 'var(--text-secondary)';
+            }
+        });
+        
+        // Reset to all tab when switching entity types
+        this.currentTab = 'all';
+        
+        // Re-render tabs and templates
+        this.renderTabs();
+        this.updateEntityTypeCounts();
+        this.renderTemplates();
+    }
+
+    /**
+     * Update entity type tab counts
+     */
+    updateEntityTypeCounts() {
+        const skillCount = this.allTemplates.filter(t => (t.entity_type || t.type) === 'skill').length;
+        const mobCount = this.allTemplates.filter(t => (t.entity_type || t.type) === 'mob').length;
+        
+        const skillCountEl = document.getElementById('skillTemplateCount');
+        const mobCountEl = document.getElementById('mobTemplateCount');
+        
+        if (skillCountEl) skillCountEl.textContent = skillCount;
+        if (mobCountEl) mobCountEl.textContent = mobCount;
     }
 
     /**
@@ -2007,7 +2333,7 @@ class TemplateSelector {
      * Generate cache key based on current filter state
      */
     getCacheKey() {
-        return `${this.currentTab}_${this.context}_${this.searchQuery}_${this.filterCategory}_${this.filterComplexity}_${this.filterOwner}_${this.sortBy}_${this.sortOrder}_${this.viewMode}_${this.favorites.join(',')}_${this.allTemplates?.length || 0}`;
+        return `${this.currentTab}_${this.context}_${this.searchQuery}_${this.filterCategory}_${this.filterComplexity}_${this.filterOwner}_${this.filterStructureType}_${this.sortBy}_${this.sortOrder}_${this.viewMode}_${this.favorites.join(',')}_${this.allTemplates?.length || 0}`;
     }
     
     /**
@@ -2223,28 +2549,113 @@ class TemplateSelector {
     }
     
     /**
-     * Check if template has triggers
+     * Check if template has triggers - CACHED for performance
+     * Results are cached on template object to avoid recalculation
      */
     hasTriggers(template) {
-        if (template.requiresMobFile) return true;
-        if (template.type === 'mob') return true;
+        // Return cached result if available
+        if (template._hasTriggers !== undefined) {
+            return template._hasTriggers;
+        }
+        
+        // Calculate and cache
+        if (template.requiresMobFile) {
+            template._hasTriggers = true;
+            return true;
+        }
+        if (template.type === 'mob') {
+            template._hasTriggers = true;
+            return true;
+        }
         
         const skillLines = Array.isArray(template.skillLines) 
             ? template.skillLines 
             : (template.skillLine ? [template.skillLine] : []);
         
-        return skillLines.some(line => typeof line === 'string' && line.includes('~on'));
+        template._hasTriggers = skillLines.some(line => typeof line === 'string' && line.includes('~on'));
+        return template._hasTriggers;
+    }
+    
+    /**
+     * Get line count for template - CACHED for performance
+     * Results are cached on template object to avoid recalculation
+     */
+    getLineCountCached(template) {
+        // Return cached result if available
+        if (template._lineCount !== undefined) {
+            return template._lineCount;
+        }
+        
+        // Calculate and cache
+        template._lineCount = this.getLineCount(template);
+        return template._lineCount;
+    }
+    
+    /**
+     * Get structure info - CACHED for performance
+     */
+    getStructureInfoCached(template) {
+        if (template._structureInfo !== undefined) {
+            return template._structureInfo;
+        }
+        template._structureInfo = this.getStructureInfo(template);
+        return template._structureInfo;
+    }
+    
+    /**
+     * Clear computed cache (call when templates are updated)
+     */
+    clearComputedCache() {
+        if (this.allTemplates) {
+            for (const template of this.allTemplates) {
+                delete template._hasTriggers;
+                delete template._lineCount;
+                delete template._structureInfo;
+            }
+        }
     }
     
     /**
      * Render template cards based on current view mode
+     * OPTIMIZED: Uses cached values and document fragments for large lists
      */
     renderTemplateCards(templates) {
-        if (this.viewMode === 'grid') {
-            return templates.map(template => this.renderGridCard(template)).join('');
-        } else {
-            return templates.map(template => this.renderListCard(template)).join('');
+        // For large lists, render in chunks to avoid blocking UI
+        const CHUNK_SIZE = 50;
+        
+        if (templates.length <= CHUNK_SIZE) {
+            // Small list - render all at once
+            if (this.viewMode === 'grid') {
+                return templates.map(template => this.renderGridCard(template)).join('');
+            } else {
+                return templates.map(template => this.renderListCard(template)).join('');
+            }
         }
+        
+        // Large list - render initial chunk and add "Load More" button
+        const initialTemplates = templates.slice(0, CHUNK_SIZE);
+        const remaining = templates.slice(CHUNK_SIZE);
+        
+        let html;
+        if (this.viewMode === 'grid') {
+            html = initialTemplates.map(template => this.renderGridCard(template)).join('');
+        } else {
+            html = initialTemplates.map(template => this.renderListCard(template)).join('');
+        }
+        
+        if (remaining.length > 0) {
+            html += `
+                <div class="load-more-container" style="grid-column: 1 / -1; text-align: center; padding: 1.5rem;">
+                    <button class="btn btn-secondary load-more-templates-btn" data-remaining="${remaining.length}">
+                        <i class="fas fa-plus-circle"></i> Load ${Math.min(CHUNK_SIZE, remaining.length)} more (${remaining.length} remaining)
+                    </button>
+                </div>
+            `;
+            // Store remaining templates for lazy loading
+            this._remainingTemplates = remaining;
+        }
+        
+        return html;
     }
     
     /**
@@ -2259,6 +2670,11 @@ class TemplateSelector {
         
         // Official badge
         const isOfficial = template.is_official || template.data?.is_official || false;
+        
+        // Structure type badge
+        const structureType = this.getStructureType(template);
+        const sectionCount = this.getSectionCount(template);
+        const structureBadge = this.renderStructureBadge(structureType, sectionCount);
         
         // Stats from database
         const viewCount = template.view_count || this.getViewCount(template.id) || 0;
@@ -2311,9 +2727,12 @@ class TemplateSelector {
                     <div class="card-title-area">
                         <h4 class="card-title">${this.escapeHtml(template.name)}</h4>
                         <div class="card-badges">
+                            ${structureBadge}
                             ${isOfficial ? '<span class="badge badge-official"><i class="fas fa-crown"></i> Official</span>' : ''}
                             ${template.isBuiltIn ? '<span class="badge badge-builtin">Built-in</span>' : ''}
                             ${this.isOwner(template) ? '<span class="badge badge-yours">Yours</span>' : ''}
+                            ${template.approval_status === 'pending' && this.isOwner(template) ? '<span class="badge badge-pending"><i class="fas fa-clock"></i> Pending</span>' : ''}
+                            ${template.approval_status === 'rejected' && this.isOwner(template) ? '<span class="badge badge-rejected"><i class="fas fa-times-circle"></i> Rejected</span>' : ''}
                             <span class="badge badge-category">${categoryName}</span>
                         </div>
                     </div>
@@ -2389,6 +2808,11 @@ class TemplateSelector {
         // Official badge
         const isOfficial = template.is_official || template.data?.is_official || false;
         
+        // Structure type badge
+        const structureType = this.getStructureType(template);
+        const sectionCount = this.getSectionCount(template);
+        const structureBadge = this.renderStructureBadge(structureType, sectionCount);
+        
         // Stats from database
         const viewCount = template.view_count || this.getViewCount(template.id) || 0;
         const useCount = template.use_count || 0;
@@ -2431,9 +2855,12 @@ class TemplateSelector {
                         <div class="list-card-title-row">
                             <h3 class="list-card-title">${this.escapeHtml(template.name)}</h3>
                             <div class="list-card-badges">
+                                ${structureBadge}
                                 ${isOfficial ? '<span class="badge badge-official"><i class="fas fa-crown"></i> Official</span>' : ''}
                                 ${template.isBuiltIn ? '<span class="badge badge-builtin">Built-in</span>' : ''}
                                 ${this.isOwner(template) ? '<span class="badge badge-yours">Yours</span>' : ''}
+                                ${template.approval_status === 'pending' && this.isOwner(template) ? '<span class="badge badge-pending"><i class="fas fa-clock"></i> Pending</span>' : ''}
+                                ${template.approval_status === 'rejected' && this.isOwner(template) ? '<span class="badge badge-rejected"><i class="fas fa-times-circle"></i> Rejected</span>' : ''}
                                 <span class="badge badge-category">${categoryName}</span>
                                 ${requiresMobFile ? '<span class="badge badge-mob-only">🔒 Mob Only</span>' : ''}
                             </div>
@@ -2596,6 +3023,10 @@ class TemplateSelector {
                     const templateId = button.dataset.templateId;
                     this.showRatingModal(templateId);
                 }
+                // Load more templates button (virtual scrolling)
+                else if (button.classList.contains('load-more-templates-btn')) {
+                    this._loadMoreTemplates(button);
+                }
             }
             // Handle card click
             else if (card && !target.closest('button')) {
@@ -2613,6 +3044,49 @@ class TemplateSelector {
         
         // Attach single delegated event handler
         container.addEventListener('click', this.templateListClickHandler);
+    }
+    
+    /**
+     * Load more templates (lazy loading for large lists)
+     * Called when user clicks the "Load More" button
+     */
+    _loadMoreTemplates(button) {
+        if (!this._remainingTemplates || this._remainingTemplates.length === 0) return;
+        
+        const CHUNK_SIZE = 50;
+        const container = button.closest('.template-section')?.querySelector('.template-grid, .template-list') ||
+                         document.getElementById('templateList').querySelector('.template-grid, .template-list');
+        const loadMoreContainer = button.closest('.load-more-container');
+        
+        if (!container) return;
+        
+        const nextBatch = this._remainingTemplates.splice(0, CHUNK_SIZE);
+        
+        // Render next batch using document fragment for efficiency
+        const fragment = document.createDocumentFragment();
+        const tempContainer = document.createElement('div');
+        
+        if (this.viewMode === 'grid') {
+            tempContainer.innerHTML = nextBatch.map(template => this.renderGridCard(template)).join('');
+        } else {
+            tempContainer.innerHTML = nextBatch.map(template => this.renderListCard(template)).join('');
+        }
+        
+        while (tempContainer.firstChild) {
+            fragment.appendChild(tempContainer.firstChild);
+        }
+        
+        // Insert before the load more button
+        container.appendChild(fragment);
+        
+        // Update or remove the load more button
+        if (this._remainingTemplates.length > 0) {
+            button.innerHTML = `
+                <i class="fas fa-plus-circle"></i> Load ${Math.min(CHUNK_SIZE, this._remainingTemplates.length)} more (${this._remainingTemplates.length} remaining)
+            `;
+        } else {
+            loadMoreContainer?.remove();
+        }
     }
 
     /**
@@ -2637,22 +3111,27 @@ class TemplateSelector {
         // Increment view count
         this.incrementViewCount(templateId);
         
+        // Build full YAML preview with sections, conditions, etc.
+        const fullYAML = this.buildFullYAMLPreview(template);
+        const lineCount = fullYAML.split('\n').filter(l => l.trim()).length;
+        
+        // Also get just the skill lines for the "Use" functionality
         let extractedLines;
         if (template.skillLine) {
-            // Built-in template
             extractedLines = this.extractSkillLines(template.skillLine);
         } else if (template.skillLines) {
-            // User template
             extractedLines = template.skillLines;
         } else {
-            console.error('Template has no skill lines:', template);
-            return;
+            extractedLines = [];
         }
         
-        const displayLines = Array.isArray(extractedLines) ? extractedLines.join('\n') : extractedLines;
         const viewCount = this.getViewCount(templateId);
         const commentCount = template.comment_count || 0;
         const isAuthenticated = this.templateManager?.auth?.isAuthenticated();
+        
+        // Check if this is a multi-section template
+        const sections = template.sections || template.data?.sections;
+        const isMultiSection = sections && Array.isArray(sections) && sections.length > 0;
         
         const modal = document.createElement('div');
         modal.className = 'condition-modal-overlay active';
@@ -2662,6 +3141,7 @@ class TemplateSelector {
                 <div class="condition-header" style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
                     <h2 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                         ${template.icon || this.getCategoryIcon(template.category)} ${template.name}
+                        ${isMultiSection ? `<span class="badge" style="background: var(--primary-color); color: white; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px;"><i class="fas fa-layer-group"></i> ${sections.length} sections</span>` : ''}
                         <span class="view-count-badge" style="font-size: 0.8rem;"><i class="fas fa-eye"></i> ${viewCount}</span>
                     </h2>
                     <button class="close-modal preview-close" style="background: none; border: none; color: var(--text-primary); font-size: 1.5rem; cursor: pointer; padding: 0.5rem;">
@@ -2672,12 +3152,12 @@ class TemplateSelector {
                     <p style="margin-bottom: 1rem; color: var(--text-secondary);">${template.description}</p>
                     <div class="template-preview" style="margin: 0; position: relative;">
                         <div class="preview-label" style="font-weight: 600; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
-                            <span>Full Template (${Array.isArray(extractedLines) ? extractedLines.length : 1} lines):</span>
+                            <span>Full Template (${lineCount} lines):</span>
                             <button class="btn btn-secondary btn-sm preview-copy-btn" title="Copy to clipboard">
                                 <i class="fas fa-copy"></i> Copy
                             </button>
                         </div>
-                        <pre style="max-height: 300px; overflow-y: auto; background: var(--bg-secondary); padding: 1rem; border-radius: 4px; border: 1px solid var(--border-color);"><code>${this.escapeHtml(displayLines)}</code></pre>
+                        <pre style="max-height: 300px; overflow-y: auto; background: var(--bg-secondary); padding: 1rem; border-radius: 4px; border: 1px solid var(--border-color);"><code>${this.escapeHtml(fullYAML)}</code></pre>
                     </div>
                     
                     <!-- Comments Section -->
@@ -2750,7 +3230,7 @@ class TemplateSelector {
         });
         modal.querySelector('.preview-copy-btn').addEventListener('click', async (e) => {
             try {
-                await navigator.clipboard.writeText(displayLines);
+                await navigator.clipboard.writeText(fullYAML);
                 const btn = e.currentTarget;
                 const originalHTML = btn.innerHTML;
                 btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
@@ -3052,6 +3532,168 @@ class TemplateSelector {
         }
         
         this.close();
+    }
+    
+    /**
+     * Build full YAML preview for a template
+     * Shows skill internal names, Skills: section, Conditions:, and Triggers:
+     */
+    buildFullYAMLPreview(template) {
+        let yaml = '';
+        
+        // Check if this is a mob template with mob configs
+        const isMobTemplate = template.entity_type === 'mob';
+        const mobConfigs = template.mobConfigs || template.data?.mobConfigs;
+        
+        if (isMobTemplate && mobConfigs && mobConfigs.length > 0) {
+            // Export full mob configurations
+            for (const mobConfig of mobConfigs) {
+                yaml += this.formatMobConfigYAML(mobConfig);
+                yaml += '\n';
+            }
+            return yaml.trim();
+        }
+        
+        // Check for sections (multi-section templates from importer)
+        const sections = template.sections || template.data?.sections;
+        
+        if (sections && Array.isArray(sections) && sections.length > 0) {
+            // Multi-section template
+            for (const section of sections) {
+                // Check if section has mobConfig (mob template)
+                if (section.mobConfig) {
+                    yaml += this.formatMobConfigYAML(section.mobConfig, section.name);
+                    yaml += '\n';
+                    continue;
+                }
+                
+                const sectionName = section.name || 'UnnamedSkill';
+                yaml += `${sectionName}:\n`;
+                
+                // Add Skills array
+                const lines = section.lines || section.skillLines || [];
+                if (lines.length > 0) {
+                    yaml += `  Skills:\n`;
+                    for (const line of lines) {
+                        // Ensure line starts with '- '
+                        const formattedLine = line.startsWith('- ') ? line : `- ${line}`;
+                        yaml += `  ${formattedLine}\n`;
+                    }
+                }
+                
+                // Add Conditions if present
+                const conditions = section.conditions || [];
+                if (conditions.length > 0) {
+                    yaml += `  Conditions:\n`;
+                    for (const cond of conditions) {
+                        const formattedCond = cond.startsWith('- ') ? cond : `- ${cond}`;
+                        yaml += `  ${formattedCond}\n`;
+                    }
+                }
+                
+                // Add Triggers if present
+                const triggers = section.triggers || [];
+                if (triggers.length > 0) {
+                    yaml += `  Triggers:\n`;
+                    for (const trig of triggers) {
+                        const formattedTrig = trig.startsWith('- ') ? trig : `- ${trig}`;
+                        yaml += `  ${formattedTrig}\n`;
+                    }
+                }
+                
+                yaml += '\n';
+            }
+            return yaml.trim();
+        }
+        
+        // Single section or built-in template
+        let skillLines;
+        if (template.skillLine) {
+            // Built-in template
+            skillLines = this.extractSkillLines(template.skillLine);
+        } else if (template.skillLines) {
+            // User template with skillLines array
+            skillLines = Array.isArray(template.skillLines) ? template.skillLines : [template.skillLines];
+        } else {
+            return 'No skill lines available';
+        }
+        
+        // For simple templates, just show the skill lines (used inline)
+        return skillLines.join('\n');
+    }
+    
+    /**
+     * Format a mob config as YAML
+     */
+    formatMobConfigYAML(mobConfig, overrideName = null) {
+        const mobName = overrideName || mobConfig.internalName || 'UnnamedMob';
+        let yaml = `${mobName}:\n`;
+        
+        // Define the order of mob fields for clean output
+        const fieldOrder = [
+            'Type', 'MobType', 'Display', 'DisplayName', 'Health', 'Damage', 'Armor',
+            'Faction', 'Level', 'Mount', 'Options', 'Modules',
+            'AIGoalSelectors', 'AITargetSelectors', 'Equipment',
+            'Skills', 'Drops', 'DamageModifiers', 'KillMessages',
+            'LevelModifiers', 'Disguise', 'BossBar', 'Hearing',
+            'Components', 'Trades', 'Variables', 'Nameplate', 'Model', 'ModelEngine'
+        ];
+        
+        // Output fields in order
+        for (const field of fieldOrder) {
+            if (mobConfig[field] !== undefined && field !== 'internalName') {
+                yaml += this.formatYAMLFieldForPreview(field, mobConfig[field], 1);
+            }
+        }
+        
+        // Output any remaining fields not in the order list
+        for (const [key, value] of Object.entries(mobConfig)) {
+            if (!fieldOrder.includes(key) && key !== 'internalName' && value !== undefined) {
+                yaml += this.formatYAMLFieldForPreview(key, value, 1);
+            }
+        }
+        
+        return yaml;
+    }
+    
+    /**
+     * Format a YAML field with proper indentation for preview
+     */
+    formatYAMLFieldForPreview(key, value, indentLevel) {
+        let result = '';
+        const indent = '  '.repeat(indentLevel);
+        
+        if (Array.isArray(value)) {
+            result += `${indent}${key}:\n`;
+            for (const item of value) {
+                if (typeof item === 'object' && item !== null) {
+                    result += `${indent}  - ${JSON.stringify(item)}\n`;
+                } else {
+                    result += `${indent}  - ${item}\n`;
+                }
+            }
+        } else if (typeof value === 'object' && value !== null) {
+            result += `${indent}${key}:\n`;
+            for (const [subKey, subValue] of Object.entries(value)) {
+                if (typeof subValue === 'boolean' || typeof subValue === 'number') {
+                    result += `${indent}  ${subKey}: ${subValue}\n`;
+                } else if (typeof subValue === 'string') {
+                    if (subValue.includes(':') || subValue.includes("'") || subValue.startsWith('&')) {
+                        result += `${indent}  ${subKey}: '${subValue.replace(/'/g, "''")}'\n`;
+                    } else {
+                        result += `${indent}  ${subKey}: ${subValue}\n`;
+                    }
+                } else if (Array.isArray(subValue) || typeof subValue === 'object') {
+                    result += this.formatYAMLFieldForPreview(subKey, subValue, indentLevel + 1);
+                }
+            }
+        } else if (typeof value === 'string' && (value.includes(':') || value.includes("'") || value.startsWith('&'))) {
+            result += `${indent}${key}: '${value.replace(/'/g, "''")}'\n`;
+        } else {
+            result += `${indent}${key}: ${value}\n`;
+        }
+        
+        return result;
     }
     
     /**
@@ -3548,6 +4190,26 @@ class TemplateSelector {
         
         try {
             await this.templateManager.deleteTemplate(templateId);
+            
+            // Log the deletion
+            const actionType = template.is_official ? 'delete_official_template' : 'delete_user_template';
+            
+            // For admin actions, use admin activity log
+            if (template.is_official && window.adminManager?.logActivity) {
+                await window.adminManager.logActivity(actionType, 'template', templateId, {
+                    template_name: template.name
+                });
+            }
+            
+            // Also log to user activity tracker for analytics
+            if (window.activityTracker) {
+                window.activityTracker.track(actionType, {
+                    template_id: templateId,
+                    template_name: template.name,
+                    was_official: template.is_official || false
+                });
+            }
+            
             await this.refresh();
             this.showNotification('Template deleted successfully', 'success');
         } catch (error) {
@@ -3635,6 +4297,8 @@ class TemplateSelector {
             this.showNotification('Failed to open template wizard', 'error');
         }
     }
+
+
 
     /**
      * Get all categories from loaded templates
@@ -4267,6 +4931,12 @@ class TemplateSelector {
      */
     getFilteredTemplates() {
         let templates = [...this.allTemplates];
+        
+        // Entity type filter (skill or mob) - always apply first
+        templates = templates.filter(t => {
+            const templateType = t.entity_type || t.type;
+            return templateType === this.entityType;
+        });
         
         // Tab filter
         if (this.currentTab === 'favorites') {

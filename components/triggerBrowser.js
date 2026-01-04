@@ -410,8 +410,8 @@ class TriggerBrowser {
             
             return `<div class="mechanic-list-item" data-trigger="${t.name}" tabindex="0">
     <div class="mechanic-item-main">
-        <span class="mechanic-name">${displayName}</span>
-        <span class="mechanic-desc">${t.description}</span>
+        <span class="mechanic-name" title="${displayName.replace(/&lt;/g, '<').replace(/&gt;/g, '>')}">${displayName}</span>
+        <span class="mechanic-desc" title="${t.description}">${t.description}</span>
     </div>
     <div class="mechanic-item-actions">
         <span class="mechanic-category-tag mechanic-category-${t.category.toLowerCase()}">${t.category.toUpperCase()}</span>

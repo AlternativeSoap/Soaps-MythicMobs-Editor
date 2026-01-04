@@ -57,9 +57,16 @@ class AIEditor {
                             <span>Active ${isGoals ? 'Goals' : 'Targets'}</span>
                             <span class="ai-count-badge">${this.items.length}</span>
                         </div>
-                        <button class="btn btn-sm btn-secondary ai-clear-all" ${this.items.length === 0 ? 'disabled' : ''}>
-                            <i class="fas fa-trash-alt"></i> Clear All
-                        </button>
+                        <div class="ai-section-actions">
+                            <label class="mini-toggle" title="Show numbering in YAML output (e.g., '0 clear' vs 'clear')">
+                                <input type="checkbox" class="ai-priority-toggle" data-type="${this.type}" ${window.editor?.settings?.showAIPriority !== false ? 'checked' : ''}>
+                                <span class="mini-toggle-slider"></span>
+                                <span class="mini-toggle-label">Numbering</span>
+                            </label>
+                            <button class="btn btn-sm btn-secondary ai-clear-all" ${this.items.length === 0 ? 'disabled' : ''}>
+                                <i class="fas fa-trash-alt"></i> Clear All
+                            </button>
+                        </div>
                     </div>
                     <div class="ai-current-list" id="ai-current-${this.type}">
                         ${this.renderCurrentItems()}
@@ -294,6 +301,25 @@ class AIEditor {
                 this.triggerChange();
             }
         });
+
+        // Numbering toggle - directly update preview
+        const toggleEl = document.querySelector(`#${this.containerId} .ai-priority-toggle`);
+        if (toggleEl) {
+            toggleEl.addEventListener('change', (e) => {
+                // Update setting
+                if (!window.editor.settings) window.editor.settings = {};
+                window.editor.settings.showAIPriority = e.target.checked;
+                window.editor.saveSettings();
+                
+                // Sync all toggles on page
+                document.querySelectorAll('.ai-priority-toggle').forEach(t => {
+                    t.checked = e.target.checked;
+                });
+                
+                // Trigger preview update via the onChange callback
+                this.triggerChange();
+            });
+        }
 
         // Search
         document.getElementById(`ai-search-${this.type}`)?.addEventListener('input', (e) => {

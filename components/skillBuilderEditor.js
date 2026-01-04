@@ -209,11 +209,6 @@ class SkillBuilderEditor {
                 this.showNotification('Changes saved!', 'success');
                 break;
                 
-            case 'toggle-duplicates':
-                this.showDuplicates = !this.showDuplicates;
-                this.render();
-                break;
-                
             case 'toggle-groups':
                 this.showGroups = !this.showGroups;
                 this.render();
@@ -232,7 +227,6 @@ class SkillBuilderEditor {
             case 'escape':
                 // Close all panels
                 this.showAnalysis = false;
-                this.showDuplicates = false;
                 this.render();
                 break;
         }
@@ -337,72 +331,52 @@ class SkillBuilderEditor {
         const linesToAnalyze = this.context === 'mob' ? this.skillLines : this.getSkillLines();
         this.groups = this.groupDetector.detectGroups(linesToAnalyze);
         
-        // Analyze duplicates
-        this.duplicateResults = this.duplicateDetector.analyze(linesToAnalyze);
-        
-        const dupSummary = this.duplicateResults.summary;
+        const lineCount = linesToAnalyze.length;
         
         this.container.innerHTML = `
-            <div class="skill-builder-editor">
-                <div class="skill-builder-main">
-                    <!-- Analysis & Action Toolbar -->
-                    <div class="skill-builder-toolbar">
-                        <!-- View Toggles -->
-                        <div class="toolbar-section">
-                            <button class="btn btn-sm toggle-groups-btn ${this.groups.length === 0 ? 'disabled' : ''}" id="toggle-groups-btn" title="${this.groups.length === 0 ? 'No groups detected - add comments like # Group Name to create groups' : (this.showGroups ? 'Switch to flat list view' : 'Switch to grouped view')}">
-                                <i class="fas fa-${this.showGroups ? 'layer-group' : 'list'}"></i>
-                                ${this.showGroups ? 'Grouped' : 'List'}
-                            </button>
-                            ${this.groups.length > 0 ? `
-                                <span class="group-stats">
-                                    ${this.groups.length} group${this.groups.length !== 1 ? 's' : ''}
-                                </span>
-                            ` : ''}
+            <div class="skill-builder-editor-v2">
+                <!-- Modern Header with Stats -->
+                <div class="skill-header-bar">
+                    <div class="skill-header-left">
+                        <div class="skill-count-badge">
+                            <i class="fas fa-bolt"></i>
+                            <span>${lineCount}</span>
                         </div>
-                        
-                        <!-- Analysis Tools -->
-                        <div class="toolbar-section toolbar-divider">
-                            <button class="btn btn-sm toggle-duplicates-btn ${this.showDuplicates ? 'active' : ''}" id="toggle-duplicates-btn" title="${this.showDuplicates ? 'Hide' : 'Show'} duplicates">
-                                <i class="fas fa-clone"></i>
-                                Duplicates
-                                ${dupSummary.exactDuplicates + dupSummary.similarGroups > 0 ? `<span class="badge badge-warning">${dupSummary.exactDuplicates + dupSummary.similarGroups}</span>` : ''}
-                            </button>
-                        </div>
-                        
-                        <!-- Documentation Help -->
-                        <div class="toolbar-section toolbar-divider">
-                            <button class="btn btn-sm btn-help audience-help" id="audience-help-btn" title="Learn about Audience mechanics">
-                                <i class="fas fa-users"></i>
-                                Audience Help
-                            </button>
-                            <button class="btn btn-sm btn-help math-help" id="math-help-btn" title="Learn about Math operations">
-                                <i class="fas fa-calculator"></i>
-                                Math Help
-                            </button>
-                        </div>
-                        
-                        <!-- Actions -->
-                        <div class="toolbar-section toolbar-divider ml-auto">
-                            <button class="btn btn-sm btn-icon undo-btn" disabled title="Undo (Ctrl+Z)">
-                                <i class="fas fa-undo"></i>
-                            </button>
-                            <button class="btn btn-sm btn-icon redo-btn" disabled title="Redo (Ctrl+Y)">
-                                <i class="fas fa-redo"></i>
-                            </button>
-                        </div>
+                        <span class="skill-count-label">${lineCount === 1 ? 'Skill Line' : 'Skill Lines'}</span>
                     </div>
-                    
-                    ${this.showDuplicates ? this.renderDuplicatePanel() : ''}
-                    
-                    <div class="skill-lines-list">
-                        ${this.renderSkillLinesList()}
-                    </div>
-                    <div class="skill-builder-footer" style="position: sticky; bottom: 0; background: var(--bg-primary); padding: 12px 0; border-top: 1px solid var(--border-primary); z-index: 10;">
-                        <button class="btn btn-primary add-skill-line-btn" id="add-skill-line-btn" style="width: 100%;">
-                            <i class="fas fa-plus"></i> Add Skill Line
+                    <div class="skill-header-actions">
+                        <button class="skill-action-btn ${this.showGroups ? 'active' : ''}" id="toggle-groups-btn" 
+                                title="${this.groups.length === 0 ? 'No groups detected' : (this.showGroups ? 'List View' : 'Grouped View')}"
+                                ${this.groups.length === 0 ? 'disabled' : ''}>
+                            <i class="fas fa-${this.showGroups ? 'layer-group' : 'list'}"></i>
+                        </button>
+                        <div class="skill-action-divider"></div>
+                        <button class="skill-action-btn" id="audience-help-btn" title="Audience Help">
+                            <i class="fas fa-users"></i>
+                        </button>
+                        <button class="skill-action-btn" id="math-help-btn" title="Math Help">
+                            <i class="fas fa-calculator"></i>
+                        </button>
+                        <div class="skill-action-divider"></div>
+                        <button class="skill-action-btn undo-btn" disabled title="Undo (Ctrl+Z)">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <button class="skill-action-btn redo-btn" disabled title="Redo (Ctrl+Y)">
+                            <i class="fas fa-redo"></i>
                         </button>
                     </div>
                 </div>
+                
+                <!-- Skills Content Area -->
+                <div class="skill-content-area">
+                    ${this.renderSkillLinesList()}
+                </div>
+                
+                <!-- Modern Add Button -->
+                <button class="skill-add-btn" id="add-skill-line-btn">
+                    <i class="fas fa-plus"></i>
+                    <span>Add Skill Line</span>
+                </button>
             </div>
         `;
         
@@ -416,15 +390,33 @@ class SkillBuilderEditor {
         const lines = this.context === 'mob' ? this.skillLines : this.getSkillLines();
         if (lines.length === 0) {
             const emptyMsg = this.context === 'skill' 
-                ? `No lines in skill "${this.currentSkill}". Click "Add Skill Line" to create one.`
-                : 'No skill lines configured. Click "Add Skill Line" to create one.';
-            return `<div class="empty-state">${emptyMsg}</div>`;
+                ? `skill "<strong>${this.currentSkill}</strong>"`
+                : 'this mob';
+            return `
+                <div class="skill-empty-state-v2">
+                    <div class="empty-icon-container">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                    </div>
+                    <h3>No Skill Lines Yet</h3>
+                    <p>Add your first skill line to ${emptyMsg} to define its abilities and behaviors.</p>
+                    <div class="empty-hints">
+                        <div class="hint-item">
+                            <i class="fas fa-lightbulb"></i>
+                            <span>Use mechanics like <code>damage</code>, <code>heal</code>, or <code>message</code></span>
+                        </div>
+                        <div class="hint-item">
+                            <i class="fas fa-crosshairs"></i>
+                            <span>Target entities with <code>@target</code> or <code>@self</code></span>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
         
         if (this.showGroups && this.groups.length > 0) {
-            return this.renderGroupedView();
+            return `<div class="skill-lines-container">${this.renderGroupedView()}</div>`;
         } else {
-            return this.renderFlatView();
+            return `<div class="skill-lines-container">${this.renderFlatView()}</div>`;
         }
     }
     
@@ -519,15 +511,15 @@ class SkillBuilderEditor {
         
         if (validation.valid) {
             validationClass = 'valid';
-            validationIcon = '<span class="validation-icon valid" title="Valid">✅</span>';
+            validationIcon = '<span class="skill-validation-badge valid"><i class="fas fa-check"></i></span>';
             validationTooltip = 'Valid skill line';
         } else if (validation.errors.length > 0) {
             validationClass = 'error';
-            validationIcon = '<span class="validation-icon error" title="Has errors">❌</span>';
+            validationIcon = '<span class="skill-validation-badge error"><i class="fas fa-times"></i></span>';
             validationTooltip = validation.errors.join('\n');
         } else if (validation.warnings.length > 0) {
             validationClass = 'warning';
-            validationIcon = '<span class="validation-icon warning" title="Has warnings">⚠️</span>';
+            validationIcon = '<span class="skill-validation-badge warning"><i class="fas fa-exclamation"></i></span>';
             validationTooltip = validation.warnings.join('\n');
         }
         
@@ -540,29 +532,33 @@ class SkillBuilderEditor {
             const delayInfo = window.DelayAnalyzer.getDelayInfoForLine(delayInfoArray, index);
             
             if (delayInfo && delayInfo.displayText) {
-                delayAnnotation = `<span class="delay-info"># ${delayInfo.displayText}</span>`;
+                delayAnnotation = `<span class="skill-delay-badge">${delayInfo.displayText}</span>`;
             }
         }
         
         return `
-            <div class="skill-line-card ${validationClass} ${inGroup ? 'in-group' : ''} ${isParent ? 'parent' : ''}" data-index="${index}" draggable="true" title="${validationTooltip}">
-                <div class="skill-line-grip">
+            <div class="skill-line-item ${validationClass} ${inGroup ? 'in-group' : ''} ${isParent ? 'parent' : ''}" 
+                 data-index="${index}" draggable="true" title="${validationTooltip}">
+                <div class="skill-line-drag">
                     <i class="fas fa-grip-vertical"></i>
                 </div>
-                <div class="skill-line-content">
-                    ${validationIcon}
-                    ${isParent ? '<span class="parent-badge" title="Parent skill">P</span>' : ''}
-                    <code class="skill-line-preview">${this.syntaxHighlighter.highlight(line)}</code>
-                    ${delayAnnotation}
+                <div class="skill-line-main">
+                    <div class="skill-line-header">
+                        ${validationIcon}
+                        ${isParent ? '<span class="skill-parent-badge">P</span>' : ''}
+                        <span class="skill-line-number">#${index + 1}</span>
+                        ${delayAnnotation}
+                    </div>
+                    <code class="skill-line-code-v2">${this.syntaxHighlighter.highlight(line)}</code>
                 </div>
-                <div class="skill-line-actions">
-                    <button class="btn-icon edit-skill-line-btn" data-index="${index}" title="Edit in Builder">
-                        <i class="fas fa-edit"></i>
+                <div class="skill-line-controls">
+                    <button class="skill-ctrl-btn edit edit-skill-line-btn" data-index="${index}" title="Edit">
+                        <i class="fas fa-pen"></i>
                     </button>
-                    <button class="btn-icon duplicate-skill-line-btn" data-index="${index}" title="Duplicate">
+                    <button class="skill-ctrl-btn copy duplicate-skill-line-btn" data-index="${index}" title="Duplicate">
                         <i class="fas fa-copy"></i>
                     </button>
-                    <button class="btn-icon delete-skill-line-btn" data-index="${index}" title="Delete">
+                    <button class="skill-ctrl-btn delete delete-skill-line-btn" data-index="${index}" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -757,15 +753,6 @@ class SkillBuilderEditor {
             });
         }
         
-        // Toggle duplicates button
-        const toggleDuplicatesBtn = this.container.querySelector('#toggle-duplicates-btn');
-        if (toggleDuplicatesBtn) {
-            toggleDuplicatesBtn.addEventListener('click', () => {
-                this.showDuplicates = !this.showDuplicates;
-                this.render();
-            });
-        }
-        
         // Audience help button
         const audienceHelpBtn = this.container.querySelector('#audience-help-btn');
         if (audienceHelpBtn) {
@@ -885,6 +872,12 @@ class SkillBuilderEditor {
         const addBtn = this.container.querySelector('#add-skill-line-btn');
         if (addBtn) {
             addBtn.addEventListener('click', () => this.addSkillLine());
+        }
+        
+        // Import template button
+        const importBtn = this.container.querySelector('#import-template-btn');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => this.openImportTemplates());
         }
         
         // Edit skill line buttons
@@ -1059,7 +1052,50 @@ class SkillBuilderEditor {
         }
     }
     
-    // Show template selector (quick templates)
+    /**
+     * Open template selector directly for importing (bypasses creation mode selector)
+     * This is the dedicated "Templates" button flow
+     */
+    openImportTemplates() {
+        // Use openForImport for import-specific UI
+        this.templateSelector.openForImport({
+            context: this.context,
+            onSelect: (template) => {
+                // Handle different template formats
+                let skillLines = [];
+                
+                // Priority 1: New format with sections array
+                if (template.sections && Array.isArray(template.sections) && template.sections.length > 0) {
+                    if (template.sections.length > 1) {
+                        // Multi-section template - show per-section options
+                        this.handleMultipleSections(template);
+                        return;
+                    } else {
+                        // Single section - extract lines
+                        skillLines = template.sections[0].lines || [];
+                    }
+                }
+                // Priority 2: Flattened skillLines array
+                else if (template.skillLines && Array.isArray(template.skillLines) && template.skillLines.length > 0) {
+                    skillLines = template.skillLines;
+                }
+                // Priority 3: Built-in template with skillLine string
+                else if (template.skillLine && typeof template.skillLine === 'string') {
+                    skillLines = template.skillLine.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+                }
+                
+                // Add the skill lines if found
+                if (skillLines.length > 0) {
+                    this.handleMultipleSkillLines(skillLines);
+                } else {
+                    if (window.DEBUG_MODE) console.warn('Template has no skill lines to add', template);
+                }
+            },
+            onBack: null // No back in direct import mode
+        });
+    }
+    
+    // Show template selector (from creation mode selector flow)
     showTemplateSelector() {
         
         this.templateSelector.open({
@@ -1236,38 +1272,54 @@ class SkillBuilderEditor {
     }
     
     /**
-     * Handle multi-section template insertion
-     * Shows prompt asking user how to insert the sections
+     * Handle multi-section template insertion (Skill Pack Import)
+     * Enhanced version with per-section import options
      */
     handleMultipleSections(template) {
-        
         const sectionCount = template.sections.length;
         const totalLines = template.sections.reduce((sum, section) => sum + (section.lines?.length || 0), 0);
         
-        // If in skill context, allow separate sections
-        // If in mob context, force merge (mob files are flat arrays)
-        const allowSeparate = this.context === 'skill';
+        // If in skill context, allow advanced options
+        // If in mob context, only merge is allowed
+        const isSkillContext = this.context === 'skill';
         
-        // Create modal for user choice
+        // Get current skill name for replace option
+        const currentSkillName = this.currentSkill || 'CurrentSkill';
+        
+        // If single section, use simple flow
+        if (sectionCount === 1) {
+            this.showSingleSectionOptions(template, template.sections[0]);
+            return;
+        }
+        
+        // Create enhanced modal for skill pack import
         const modal = document.createElement('div');
-        modal.className = 'condition-modal';
+        modal.className = 'condition-modal skill-pack-import-modal';
         modal.style.display = 'flex';
         modal.style.zIndex = '10001';
         modal.innerHTML = `
-            <div class="modal-content" style="width: 600px; max-width: 90vw;">
-                <div class="modal-header">
-                    <h2><i class="fas fa-layer-group"></i> Multi-Section Template</h2>
-                    <button class="btn-close">&times;</button>
+            <div class="modal-content" style="width: 750px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), #6f42c1); color: white;">
+                    <h2 style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-box-open"></i> Import Skill Pack
+                    </h2>
+                    <button class="btn-close" style="color: white; opacity: 0.8;">&times;</button>
                 </div>
-                <div class="modal-body" style="padding: var(--spacing-lg);">
+                <div class="modal-body" style="padding: var(--spacing-lg); overflow-y: auto; flex: 1;">
+                    <!-- Template Info -->
                     <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--primary-color);">
-                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">${this.escapeHtml(template.name)}</h3>
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="badge" style="background: rgba(111, 66, 193, 0.3); color: #a78bfa; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">
+                                <i class="fas fa-layer-group"></i> Skill Pack
+                            </span>
+                            ${this.escapeHtml(template.name)}
+                        </h3>
                         <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
-                            ${this.escapeHtml(template.description)}
+                            ${this.escapeHtml(template.description || 'No description')}
                         </p>
                         <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; font-size: 0.85rem;">
                             <span style="background: var(--primary-color); color: white; padding: 0.2rem 0.6rem; border-radius: 12px; font-weight: 600;">
-                                📚 ${sectionCount} sections
+                                📚 ${sectionCount} skills
                             </span>
                             <span style="background: var(--info-color); color: white; padding: 0.2rem 0.6rem; border-radius: 12px;">
                                 📋 ${totalLines} lines total
@@ -1275,8 +1327,66 @@ class SkillBuilderEditor {
                         </div>
                     </div>
                     
-                    <div style="margin-bottom: 1rem;">
-                        <h4 style="margin: 0 0 0.75rem 0; font-size: 0.95rem; color: var(--text-secondary);">Sections in this template:</h4>
+                    ${!isSkillContext ? `
+                        <div style="background: rgba(255, 193, 7, 0.15); border: 1px solid #ffc107; padding: 0.75rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                            <strong style="color: #ffc107;"><i class="fas fa-info-circle"></i> Mob Context</strong>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; color: var(--text-secondary);">
+                                In mob files, all skill lines will be merged into a single list (mob files use flat structure).
+                            </p>
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Per-Section Options (skill context only) -->
+                    ${isSkillContext ? `
+                        <h4 style="margin: 0 0 1rem 0; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-cog"></i> Configure Import Options
+                        </h4>
+                        <p style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--text-secondary);">
+                            Choose how to handle each skill section. The <strong>first skill</strong> can replace your current skill, others will be created as new.
+                        </p>
+                        
+                        <div class="skill-pack-sections" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            ${template.sections.map((section, idx) => `
+                                <div class="skill-pack-section-item" style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                                        <div>
+                                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                                                <span style="background: var(--primary-color); color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600;">
+                                                    ${idx + 1}
+                                                </span>
+                                                <strong style="color: var(--text-primary);">${this.escapeHtml(section.name)}</strong>
+                                                ${idx === 0 ? '<span style="background: rgba(40, 167, 69, 0.2); color: #28a745; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">MAIN</span>' : ''}
+                                            </div>
+                                            <span style="color: var(--text-secondary); font-size: 0.85rem;">
+                                                ${section.lines?.length || 0} skill ${section.lines?.length === 1 ? 'line' : 'lines'}
+                                            </span>
+                                        </div>
+                                        
+                                        <select class="form-control form-control-sm section-action-select" data-section-idx="${idx}" style="width: auto; min-width: 150px;">
+                                            ${idx === 0 ? `
+                                                <option value="replace">🔄 Replace "${this.escapeHtml(currentSkillName)}"</option>
+                                                <option value="create">➕ Create New Skill</option>
+                                                <option value="merge">📥 Merge into Current</option>
+                                                <option value="skip">⏭️ Skip</option>
+                                            ` : `
+                                                <option value="create" selected>➕ Create New Skill</option>
+                                                <option value="merge">📥 Merge into Current</option>
+                                                <option value="skip">⏭️ Skip</option>
+                                            `}
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- Preview of lines -->
+                                    <div style="background: var(--bg-secondary); padding: 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.8rem; color: var(--text-secondary); max-height: 80px; overflow-y: auto;">
+                                        ${(section.lines || []).slice(0, 3).map(line => `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(line)}</div>`).join('')}
+                                        ${(section.lines?.length || 0) > 3 ? `<div style="color: var(--text-muted); font-style: italic;">... and ${section.lines.length - 3} more lines</div>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `
+                        <!-- Mob context - show simple preview -->
+                        <h4 style="margin: 0 0 1rem 0;">Skills in this pack:</h4>
                         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                             ${template.sections.map((section, idx) => `
                                 <div style="background: var(--bg-tertiary); padding: 0.75rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
@@ -1286,42 +1396,19 @@ class SkillBuilderEditor {
                                             (${section.lines?.length || 0} ${section.lines?.length === 1 ? 'line' : 'lines'})
                                         </span>
                                     </div>
-                                    <span style="background: var(--bg-secondary); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; color: var(--text-secondary);">
-                                        #${idx + 1}
-                                    </span>
                                 </div>
                             `).join('')}
                         </div>
-                    </div>
-                    
-                    <div style="margin-top: 1.5rem;">
-                        <h4 style="margin: 0 0 1rem 0;">How would you like to insert this template?</h4>
-                        
-                        ${allowSeparate ? `
-                            <button class="btn btn-primary btn-block multi-section-choice" data-mode="separate" style="margin-bottom: 0.75rem; padding: 1rem; text-align: left; display: flex; align-items: start; gap: 1rem;">
-                                <i class="fas fa-layer-group" style="font-size: 1.5rem; margin-top: 0.2rem;"></i>
-                                <div style="flex: 1;">
-                                    <div style="font-weight: 600; margin-bottom: 0.25rem;">Insert as Separate Sections</div>
-                                    <div style="font-size: 0.85rem; opacity: 0.9;">
-                                        Create ${sectionCount} new skill sections (${template.sections.map(s => s.name).join(', ')})
-                                    </div>
-                                </div>
-                            </button>
-                        ` : ''}
-                        
-                        <button class="btn btn-secondary btn-block multi-section-choice" data-mode="merge" style="padding: 1rem; text-align: left; display: flex; align-items: start; gap: 1rem;">
-                            <i class="fas fa-compress-alt" style="font-size: 1.5rem; margin-top: 0.2rem;"></i>
-                            <div style="flex: 1;">
-                                <div style="font-weight: 600; margin-bottom: 0.25rem;">Merge Into ${allowSeparate ? 'Current Section' : 'Skill Lines'}</div>
-                                <div style="font-size: 0.85rem; opacity: 0.9;">
-                                    Add all ${totalLines} lines ${allowSeparate ? 'to the current section' : 'as a flat list'}${allowSeparate ? '' : ' (mob files require flat structure)'}
-                                </div>
-                            </div>
-                        </button>
-                    </div>
+                    `}
                 </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" id="multiSectionCancel">Cancel</button>
+                <div class="modal-footer" style="background: var(--bg-secondary); border-top: 1px solid var(--border-color);">
+                    <div style="flex: 1; font-size: 0.85rem; color: var(--text-secondary);">
+                        ${isSkillContext ? '<i class="fas fa-info-circle"></i> You can customize how each section is imported' : ''}
+                    </div>
+                    <button class="btn btn-secondary" id="skillPackCancel">Cancel</button>
+                    <button class="btn btn-primary" id="skillPackImport">
+                        <i class="fas fa-file-import"></i> Import ${isSkillContext ? 'Skills' : 'All Lines'}
+                    </button>
                 </div>
             </div>
         `;
@@ -1329,8 +1416,8 @@ class SkillBuilderEditor {
         document.body.appendChild(modal);
         
         const closeBtn = modal.querySelector('.btn-close');
-        const cancelBtn = modal.querySelector('#multiSectionCancel');
-        const choiceBtns = modal.querySelectorAll('.multi-section-choice');
+        const cancelBtn = modal.querySelector('#skillPackCancel');
+        const importBtn = modal.querySelector('#skillPackImport');
         
         const closeModal = () => {
             modal.remove();
@@ -1339,19 +1426,23 @@ class SkillBuilderEditor {
         closeBtn.addEventListener('click', closeModal);
         cancelBtn.addEventListener('click', closeModal);
         
-        choiceBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const mode = btn.dataset.mode;
+        importBtn.addEventListener('click', () => {
+            if (isSkillContext) {
+                // Collect actions for each section
+                const actions = [];
+                modal.querySelectorAll('.section-action-select').forEach((select, idx) => {
+                    actions.push({
+                        section: template.sections[idx],
+                        action: select.value
+                    });
+                });
                 closeModal();
-                
-                if (mode === 'separate' && allowSeparate) {
-                    // Create separate skill sections
-                    this.insertSectionsAsSeparate(template.sections);
-                } else {
-                    // Merge all lines into one
-                    this.insertSectionsAsMerged(template.sections);
-                }
-            });
+                this.executeSkillPackImport(actions);
+            } else {
+                // Mob context - merge all
+                closeModal();
+                this.insertSectionsAsMerged(template.sections);
+            }
         });
         
         // Close on escape
@@ -1362,6 +1453,183 @@ class SkillBuilderEditor {
             }
         };
         document.addEventListener('keydown', escapeHandler);
+    }
+    
+    /**
+     * Show options for single section template
+     */
+    showSingleSectionOptions(template, section) {
+        const isSkillContext = this.context === 'skill';
+        const currentSkillName = this.currentSkill || 'CurrentSkill';
+        const lineCount = section.lines?.length || 0;
+        
+        if (!isSkillContext) {
+            // Mob context - just add the lines
+            this.handleMultipleSkillLines(section.lines || []);
+            return;
+        }
+        
+        const modal = document.createElement('div');
+        modal.className = 'condition-modal';
+        modal.style.display = 'flex';
+        modal.style.zIndex = '10001';
+        modal.innerHTML = `
+            <div class="modal-content" style="width: 500px; max-width: 90vw;">
+                <div class="modal-header">
+                    <h2><i class="fas fa-bolt"></i> Import Full Skill</h2>
+                    <button class="btn-close">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: var(--spacing-lg);">
+                    <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--warning-color);">
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">
+                            <span class="badge" style="background: rgba(255, 193, 7, 0.3); color: #ffc107; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; margin-right: 0.5rem;">
+                                <i class="fas fa-bolt"></i> Full Skill
+                            </span>
+                            ${this.escapeHtml(template.name)}
+                        </h3>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">${lineCount} skill lines</p>
+                    </div>
+                    
+                    <h4 style="margin: 0 0 1rem 0;">How would you like to import this skill?</h4>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <button class="btn btn-primary btn-block single-section-choice" data-mode="replace" style="padding: 1rem; text-align: left;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <i class="fas fa-exchange-alt" style="font-size: 1.2rem;"></i>
+                                <div>
+                                    <div style="font-weight: 600;">Replace "${this.escapeHtml(currentSkillName)}"</div>
+                                    <div style="font-size: 0.85rem; opacity: 0.9;">Replace current skill section with this template</div>
+                                </div>
+                            </div>
+                        </button>
+                        
+                        <button class="btn btn-secondary btn-block single-section-choice" data-mode="merge" style="padding: 1rem; text-align: left;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <i class="fas fa-plus" style="font-size: 1.2rem;"></i>
+                                <div>
+                                    <div style="font-weight: 600;">Add to Current</div>
+                                    <div style="font-size: 0.85rem; opacity: 0.9;">Add ${lineCount} lines to "${this.escapeHtml(currentSkillName)}"</div>
+                                </div>
+                            </div>
+                        </button>
+                        
+                        <button class="btn btn-secondary btn-block single-section-choice" data-mode="create" style="padding: 1rem; text-align: left;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <i class="fas fa-file-medical" style="font-size: 1.2rem;"></i>
+                                <div>
+                                    <div style="font-weight: 600;">Create New Skill</div>
+                                    <div style="font-size: 0.85rem; opacity: 0.9;">Create "${this.escapeHtml(section.name)}" as a new skill section</div>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="singleSectionCancel">Cancel</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        const closeBtn = modal.querySelector('.btn-close');
+        const cancelBtn = modal.querySelector('#singleSectionCancel');
+        const choiceBtns = modal.querySelectorAll('.single-section-choice');
+        
+        const closeModal = () => modal.remove();
+        
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        
+        choiceBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.mode;
+                closeModal();
+                
+                switch (mode) {
+                    case 'replace':
+                        this.replaceCurrentSkill(section);
+                        break;
+                    case 'merge':
+                        this.handleMultipleSkillLines(section.lines || []);
+                        break;
+                    case 'create':
+                        this.insertSectionsAsSeparate([section]);
+                        break;
+                }
+            });
+        });
+        
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+    }
+    
+    /**
+     * Execute skill pack import with per-section actions
+     */
+    executeSkillPackImport(actions) {
+        if (window.DEBUG_MODE) console.log('Executing skill pack import:', actions);
+        
+        let replacedCurrent = false;
+        let mergeLines = [];
+        let createSections = [];
+        
+        actions.forEach(({ section, action }) => {
+            switch (action) {
+                case 'replace':
+                    if (!replacedCurrent) {
+                        this.replaceCurrentSkill(section);
+                        replacedCurrent = true;
+                    }
+                    break;
+                case 'merge':
+                    mergeLines.push(...(section.lines || []));
+                    break;
+                case 'create':
+                    createSections.push(section);
+                    break;
+                case 'skip':
+                    // Do nothing
+                    break;
+            }
+        });
+        
+        // Add merged lines to current skill (if not replaced)
+        if (mergeLines.length > 0) {
+            this.handleMultipleSkillLines(mergeLines);
+        }
+        
+        // Create new skill sections
+        if (createSections.length > 0) {
+            this.insertSectionsAsSeparate(createSections);
+        }
+    }
+    
+    /**
+     * Replace current skill section with template section
+     */
+    replaceCurrentSkill(section) {
+        if (this.context !== 'skill') return;
+        
+        const currentSkillName = this.currentSkill;
+        if (!currentSkillName) return;
+        
+        // Replace the lines
+        if (!this.skills[currentSkillName]) {
+            this.skills[currentSkillName] = { lines: [] };
+        }
+        
+        this.skills[currentSkillName].lines = [...(section.lines || [])];
+        
+        if (window.DEBUG_MODE) console.log(`Replaced skill "${currentSkillName}" with ${section.lines?.length || 0} lines`);
+        
+        this.render();
+        this.triggerChange();
     }
     
     /**

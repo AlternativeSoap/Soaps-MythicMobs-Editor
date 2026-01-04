@@ -50,48 +50,30 @@ class CreationModeSelector {
                         <p class="creation-mode-subtitle">Choose how to create your skill line:</p>
                         
                         <div class="creation-mode-options">
-                            <!-- Option 1: Quick Templates -->
-                            <div class="creation-mode-card" data-mode="templates">
-                                <div class="mode-icon">🎁</div>
-                                <h3 class="mode-title">Quick Templates</h3>
-                                <p class="mode-description">Browse and select from pre-made skill line templates</p>
-                                <div class="mode-features">
-                                    <span class="mode-tag">Fast</span>
-                                    <span class="mode-tag">Easy</span>
-                                    <span class="mode-tag">Beginner-Friendly</span>
-                                    <span class="mode-tag">Favorites</span>
-                                </div>
-                                <button class="btn btn-primary mode-select-btn" data-mode="templates">
-                                    Browse Templates →
-                                </button>
-                            </div>
-                            
-                            <!-- Option 2: Skill Line Builder -->
+                            <!-- Option 1: Skill Line Builder -->
                             <div class="creation-mode-card" data-mode="builder">
                                 <div class="mode-icon">🛠️</div>
                                 <h3 class="mode-title">Skill Line Builder</h3>
-                                <p class="mode-description">Visual builder with Quick Build, Templates & Bulk Import</p>
+                                <p class="mode-description">Visual builder with mechanics, conditions, targeters & more</p>
                                 <div class="mode-features">
                                     <span class="mode-tag">Visual</span>
                                     <span class="mode-tag">Component Browser</span>
-                                    <span class="mode-tag">Queue System</span>
-                                    <span class="mode-tag">Advanced</span>
+                                    <span class="mode-tag">Recommended</span>
                                 </div>
                                 <button class="btn btn-primary mode-select-btn" data-mode="builder">
                                     Open Builder →
                                 </button>
                             </div>
                             
-                            <!-- Option 3: Manual Entry -->
+                            <!-- Option 2: Manual Entry -->
                             <div class="creation-mode-card" data-mode="manual">
                                 <div class="mode-icon">📝</div>
                                 <h3 class="mode-title">Manual Entry</h3>
-                                <p class="mode-description">Direct YAML/text input with syntax highlighting and validation</p>
+                                <p class="mode-description">Direct YAML/text input with syntax highlighting</p>
                                 <div class="mode-features">
                                     <span class="mode-tag">Quick</span>
                                     <span class="mode-tag">Expert</span>
                                     <span class="mode-tag">Copy/Paste</span>
-                                    <span class="mode-tag">Power User</span>
                                 </div>
                                 <button class="btn btn-primary mode-select-btn" data-mode="manual">
                                     Manual Editor →

@@ -623,6 +623,9 @@ class YAMLExporter {
         }
         
         // === PHASE 2: AIGoalSelectors ===
+        // Check if we should show priority numbers (setting)
+        const showAIPriority = window.editor?.settings?.showAIPriority !== false;
+        
         if (mob.aiGoalSelectors && mob.aiGoalSelectors.length > 0) {
             yaml += `  AIGoalSelectors:\n`;
             mob.aiGoalSelectors.forEach(goal => {
@@ -631,7 +634,8 @@ class YAMLExporter {
                     yaml += `  - ${goal}\n`;
                 } else if (typeof goal === 'object' && goal !== null) {
                     // Object format with priority, name, params
-                    yaml += `  - ${goal.priority || 0} ${goal.name || 'unknown'}`;
+                    const priorityPart = showAIPriority ? `${goal.priority || 0} ` : '';
+                    yaml += `  - ${priorityPart}${goal.name || 'unknown'}`;
                     if (goal.params) yaml += ` ${goal.params}`;
                     yaml += `\n`;
                 }
@@ -647,7 +651,8 @@ class YAMLExporter {
                     yaml += `  - ${target}\n`;
                 } else if (typeof target === 'object' && target !== null) {
                     // Object format with priority, name, params
-                    yaml += `  - ${target.priority || 0} ${target.name || 'unknown'}`;
+                    const priorityPart = showAIPriority ? `${target.priority || 0} ` : '';
+                    yaml += `  - ${priorityPart}${target.name || 'unknown'}`;
                     if (target.params) yaml += ` ${target.params}`;
                     yaml += `\n`;
                 }
@@ -1202,12 +1207,14 @@ class YAMLExporter {
      */
     exportAIGoalSelectorsSection(aiGoalSelectors) {
         if (!aiGoalSelectors || aiGoalSelectors.length === 0) return '';
+        const showAIPriority = window.editor?.settings?.showAIPriority !== false;
         let yaml = `  AIGoalSelectors:\n`;
         aiGoalSelectors.forEach(goal => {
             if (typeof goal === 'string') {
                 yaml += `  - ${goal}\n`;
             } else if (typeof goal === 'object' && goal !== null) {
-                yaml += `  - ${goal.priority || 0} ${goal.name || 'unknown'}`;
+                const priorityPart = showAIPriority ? `${goal.priority || 0} ` : '';
+                yaml += `  - ${priorityPart}${goal.name || 'unknown'}`;
                 if (goal.params) yaml += ` ${goal.params}`;
                 yaml += `\n`;
             }
@@ -1220,12 +1227,14 @@ class YAMLExporter {
      */
     exportAITargetSelectorsSection(aiTargetSelectors) {
         if (!aiTargetSelectors || aiTargetSelectors.length === 0) return '';
+        const showAIPriority = window.editor?.settings?.showAIPriority !== false;
         let yaml = `  AITargetSelectors:\n`;
         aiTargetSelectors.forEach(target => {
             if (typeof target === 'string') {
                 yaml += `  - ${target}\n`;
             } else if (typeof target === 'object' && target !== null) {
-                yaml += `  - ${target.priority || 0} ${target.name || 'unknown'}`;
+                const priorityPart = showAIPriority ? `${target.priority || 0} ` : '';
+                yaml += `  - ${priorityPart}${target.name || 'unknown'}`;
                 if (target.params) yaml += ` ${target.params}`;
                 yaml += `\n`;
             }

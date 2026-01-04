@@ -15,6 +15,7 @@ class TemplateEditor {
         this.sections = []; // New: for multi-section support
         this.structureType = 'multi-line'; // 'single', 'multi-line', or 'multi-section'
         this.onSaveCallback = null;
+        this.onCloseCallback = null; // Callback when editor closes (e.g., re-open admin panel)
         this.isDirty = false; // Track unsaved changes
         this.initialState = null; // Store initial state for comparison
         
@@ -77,23 +78,22 @@ class TemplateEditor {
                                 <small class="form-text text-danger" id="descriptionError" style="display: none;"></small>
                             </div>
                             
-                            <!-- Structure Type Selector -->
+                            <!-- Structure Type Indicator (Auto-detected) -->
                             <div class="form-group">
                                 <label>
                                     Structure Type
-                                    <i class="fas fa-info-circle" title="Single: one line | Multi-line: multiple lines in one section | Multi-section: multiple named sections" style="cursor: help; color: var(--text-secondary);"></i>
+                                    <span class="structure-auto-badge" id="structureTypeIndicator" title="Auto-detected based on your skill lines">
+                                        <i class="fas fa-magic"></i> Auto
+                                    </span>
                                 </label>
-                                <div class="structure-type-selector" style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                                    <button type="button" class="btn btn-structure" data-structure="single" title="Single skill line">
-                                        🎯 Single Line
-                                    </button>
-                                    <button type="button" class="btn btn-structure active" data-structure="multi-line" title="Multiple lines in one section">
-                                        📋 Multi-Line
-                                    </button>
-                                    <button type="button" class="btn btn-structure" data-structure="multi-section" title="Multiple named sections">
-                                        📚 Multi-Section
-                                    </button>
+                                <div class="structure-type-display" id="structureTypeDisplay">
+                                    <span class="structure-badge active" data-structure="multi-line">
+                                        <i class="fas fa-list"></i> Multi-Line
+                                    </span>
                                 </div>
+                                <small class="form-text" style="color: var(--text-tertiary); margin-top: 0.25rem;">
+                                    Structure type is automatically detected based on your skill lines
+                                </small>
                             </div>
 
                             <!-- Row: Category, Icon, Type -->
@@ -217,14 +217,9 @@ class TemplateEditor {
                     
                     <!-- Footer -->
                     <div class="modal-footer">
-                        <div style="display: flex; gap: 0.5rem; margin-right: auto;">
-                            <button class="btn btn-secondary" id="importYamlBtn" title="Import from YAML file">
-                                <i class="fas fa-file-import"></i> Import
-                            </button>
-                            <button class="btn btn-secondary" id="exportYamlBtn" title="Export as YAML file">
-                                <i class="fas fa-file-export"></i> Export
-                            </button>
-                        </div>
+                        <button class="btn btn-secondary" id="exportYamlBtn" title="Export as YAML file" style="margin-right: auto;">
+                            <i class="fas fa-file-export"></i> Export
+                        </button>
                         <button class="btn btn-secondary" id="templateEditorCancel">Cancel</button>
                         <button class="btn btn-primary" id="templateEditorSave" disabled>
                             <i class="fas fa-save"></i>
@@ -259,14 +254,6 @@ class TemplateEditor {
             this.save();
         });
         
-        // Structure type buttons
-        document.querySelectorAll('.btn-structure').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const structureType = e.currentTarget.dataset.structure;
-                this.setStructureType(structureType);
-            });
-        });
-        
         // Add section button
         document.getElementById('addSectionBtn').addEventListener('click', () => {
             this.addSection();
@@ -286,11 +273,7 @@ class TemplateEditor {
             this.openLinesEditor();
         });
         
-        // Import/Export buttons
-        document.getElementById('importYamlBtn').addEventListener('click', () => {
-            this.importYaml();
-        });
-        
+        // Export button
         document.getElementById('exportYamlBtn').addEventListener('click', () => {
             this.exportYaml();
         });
@@ -483,6 +466,12 @@ class TemplateEditor {
         this.skillLines = [];
         this.onSaveCallback = null;
         this.isDirty = false; // Reset dirty state
+        
+        // Call close callback if provided (e.g., to re-open admin panel)
+        if (this.onCloseCallback) {
+            this.onCloseCallback();
+            this.onCloseCallback = null; // Clear after calling
+        }
     }
     
     /**
@@ -498,28 +487,27 @@ class TemplateEditor {
         const tags = template.tags || [];
         document.getElementById('templateTags').value = tags.join(', ');
         
-        // Handle structure type
-        const structureType = template.structure_type || template.data?.structure_type || 'multi-line';
-        this.setStructureType(structureType);
-        
-        // Load sections or skillLines
+        // Always convert to multi-section format for editing (most flexible)
         if (template.sections && template.sections.length > 0) {
             this.sections = template.sections.map(s => ({
                 name: s.name,
                 lines: Array.isArray(s.lines) ? s.lines : []
             }));
-            
-            if (structureType === 'multi-section') {
-                this.renderSections();
-            } else {
-                // For backward compatibility: extract lines from first section
-                this.skillLines = template.sections[0]?.lines || [];
-            }
+            this.skillLines = template.sections[0]?.lines || [];
         } else {
-            // Fallback to old skillLines format
+            // Fallback to old skillLines format - convert to single section
             this.skillLines = template.data?.skillLines || template.skillLines || [];
             this.sections = [{ name: 'Skills', lines: this.skillLines }];
         }
+        
+        // Always use multi-section mode for editing (most flexible)
+        // Structure type will be auto-detected on save
+        this.setStructureType('multi-section');
+        this.renderSections();
+        
+        // Auto-detect and display current type
+        const detectedType = this.autoDetectStructureType();
+        this.updateStructureTypeDisplay(detectedType);
         
         // Admin option
         const isOfficial = template.is_official || template.data?.is_official || false;
@@ -548,8 +536,8 @@ class TemplateEditor {
         document.getElementById('nameError').style.display = 'none';
         document.getElementById('descriptionError').style.display = 'none';
         
-        // Reset structure type to multi-line
-        this.setStructureType('multi-line');
+        // Reset structure type to multi-section (most flexible)
+        this.setStructureType('multi-section');
         
         // Reset sections
         this.sections = [];
@@ -675,41 +663,33 @@ class TemplateEditor {
         let previewLines = [];
         let totalLines = 0;
         
-        if (this.structureType === 'multi-section') {
-            // Preview multi-section format
-            if (this.sections.length === 0) {
-                preview.innerHTML = '<code style="color: var(--text-secondary);">No sections defined</code>';
-                lineCount.textContent = '(0 lines)';
-                return;
-            }
-            
-            this.sections.forEach(section => {
-                if (section.lines && section.lines.length > 0) {
-                    previewLines.push(`${section.name}:`);
-                    previewLines.push('  Skills:');
-                    section.lines.forEach(line => {
-                        previewLines.push(`    ${line}`);
-                        totalLines++;
-                    });
-                }
-            });
-            
-            lineCount.textContent = `(${this.sections.length} section${this.sections.length !== 1 ? 's' : ''}, ${totalLines} line${totalLines !== 1 ? 's' : ''})`;
-        } else {
-            // Preview single/multi-line format
-            if (!this.skillLines || this.skillLines.length === 0) {
-                preview.innerHTML = '<code style="color: var(--text-secondary);">No skill lines to preview</code>';
-                lineCount.textContent = '(0 lines)';
-                return;
-            }
-            
-            const lines = Array.isArray(this.skillLines) ? this.skillLines : [this.skillLines];
-            previewLines = lines;
-            totalLines = lines.length;
-            lineCount.textContent = `(${totalLines} line${totalLines !== 1 ? 's' : ''})`;
+        // Always use multi-section mode for preview
+        if (this.sections.length === 0) {
+            preview.innerHTML = '<code style="color: var(--text-secondary);">No sections defined</code>';
+            lineCount.textContent = '(0 lines)';
+            this.updateStructureTypeDisplay('multi-line'); // Default
+            return;
         }
         
+        this.sections.forEach(section => {
+            if (section.lines && section.lines.length > 0) {
+                previewLines.push(`${section.name}:`);
+                previewLines.push('  Skills:');
+                section.lines.forEach(line => {
+                    previewLines.push(`    ${line}`);
+                    totalLines++;
+                });
+            }
+        });
+        
+        const sectionsWithLines = this.sections.filter(s => s.lines && s.lines.length > 0);
+        lineCount.textContent = `(${sectionsWithLines.length} section${sectionsWithLines.length !== 1 ? 's' : ''}, ${totalLines} line${totalLines !== 1 ? 's' : ''})`;
+        
         preview.innerHTML = `<code>${this.escapeHtml(previewLines.join('\n'))}</code>`;
+        
+        // Update the auto-detected structure type display
+        const detectedType = this.autoDetectStructureType();
+        this.updateStructureTypeDisplay(detectedType);
     }
     
     /**
@@ -722,19 +702,34 @@ class TemplateEditor {
     }
     
     /**
-     * Set structure type
+     * Set structure type (now auto-detected)
      */
     setStructureType(type) {
         this.structureType = type;
         
-        // Update button states
-        document.querySelectorAll('.btn-structure').forEach(btn => {
-            if (btn.dataset.structure === type) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
+        // Update the display indicator
+        const display = document.getElementById('structureTypeDisplay');
+        if (display) {
+            let icon, label;
+            switch (type) {
+                case 'single':
+                    icon = 'fa-crosshairs';
+                    label = 'Single Line';
+                    break;
+                case 'multi-section':
+                    icon = 'fa-layer-group';
+                    label = 'Multi-Section';
+                    break;
+                default:
+                    icon = 'fa-list';
+                    label = 'Multi-Line';
             }
-        });
+            display.innerHTML = `
+                <span class="structure-badge active" data-structure="${type}">
+                    <i class="fas ${icon}"></i> ${label}
+                </span>
+            `;
+        }
         
         // Show/hide sections container
         const sectionsContainer = document.getElementById('sectionsContainer');
@@ -751,6 +746,58 @@ class TemplateEditor {
         this.updatePreview();
     }
     
+    /**
+     * Auto-detect structure type based on skill lines
+     */
+    autoDetectStructureType() {
+        // Check if we have multiple sections
+        if (this.sections.length > 1) {
+            return 'multi-section';
+        }
+        
+        // Get the lines to analyze
+        const lines = this.skillLines.length > 0 ? this.skillLines : 
+                      (this.sections.length > 0 ? this.sections[0].lines : []);
+        
+        if (lines.length === 0) {
+            return 'multi-line'; // Default
+        }
+        
+        if (lines.length === 1) {
+            return 'single';
+        }
+        
+        return 'multi-line';
+    }
+    
+    /**
+     * Update the structure type display indicator without changing structureType
+     */
+    updateStructureTypeDisplay(type) {
+        const display = document.getElementById('structureTypeDisplay');
+        if (display) {
+            let icon, label;
+            switch (type) {
+                case 'single':
+                    icon = 'fa-crosshairs';
+                    label = 'Single Line';
+                    break;
+                case 'multi-section':
+                    icon = 'fa-layer-group';
+                    label = 'Multi-Section';
+                    break;
+                default:
+                    icon = 'fa-list';
+                    label = 'Multi-Line';
+            }
+            display.innerHTML = `
+                <span class="structure-badge active" data-structure="${type}">
+                    <i class="fas ${icon}"></i> ${label}
+                </span>
+            `;
+        }
+    }
+
     /**
      * Open the skill line selection/editing modal
      */
@@ -1280,24 +1327,14 @@ class TemplateEditor {
     }
     
     /**
-     * Import from YAML file
+     * Import from YAML file - opens the smart import wizard
      */
     importYaml() {
-        if (!this.importExportManager) {
-            this.showNotification('YAML import not available', 'warning');
-            return;
+        // Use the new smart import wizard
+        if (!window.templateImportWizard) {
+            window.templateImportWizard = new TemplateImportWizard();
         }
-        
-        this.importExportManager.importFromFile(
-            (templateData) => {
-                // Populate form with imported data
-                this.populateFormFromImport(templateData);
-                this.showNotification('Template imported successfully!', 'success');
-            },
-            (error) => {
-                this.showNotification(`Import failed: ${error}`, 'error');
-            }
-        );
+        window.templateImportWizard.open();
     }
     
     /**
@@ -1338,16 +1375,15 @@ class TemplateEditor {
         
         const isOfficial = document.getElementById('templateIsOfficial')?.checked || false;
         
-        // Build sections based on structure type
-        let sections;
-        if (this.structureType === 'multi-section') {
-            sections = this.sections;
-        } else if (this.structureType === 'single') {
-            sections = [{ name: 'Skills', lines: [this.skillLines[0] || ''] }];
-        } else {
-            // multi-line
-            sections = [{ name: 'Skills', lines: this.skillLines }];
-        }
+        // Always use multi-section format, filter empty sections/lines
+        let sections = this.sections.map(s => ({
+            name: s.name,
+            lines: (s.lines || []).filter(l => l.trim())
+        })).filter(s => s.lines.length > 0);
+        
+        // Auto-detect structure type based on actual content
+        // Database constraint only allows 'single' or 'pack'
+        let structureType = sections.length > 1 ? 'pack' : 'single';
         
         return {
             name,
@@ -1357,7 +1393,7 @@ class TemplateEditor {
             tags,
             type,
             sections,
-            structure_type: this.structureType,
+            structure_type: structureType,
             is_official: isOfficial
         };
     }
@@ -1373,8 +1409,11 @@ class TemplateEditor {
         document.getElementById('templateType').value = templateData.type === 'mob' ? '🔒 Mob' : '📝 Skill';
         document.getElementById('templateTags').value = (templateData.tags || []).join(', ');
         
-        // Set structure type
-        const structureType = templateData.structure_type || 'multi-line';
+        // Set structure type (normalize old values to new allowed values)
+        let structureType = templateData.structure_type || 'single';
+        // Map old values to new valid values
+        if (structureType === 'multi-section') structureType = 'pack';
+        if (structureType === 'multi-line') structureType = 'single';
         this.setStructureType(structureType);
         
         // Load sections
@@ -1384,10 +1423,10 @@ class TemplateEditor {
                 lines: s.lines || []
             }));
             
-            if (structureType === 'multi-section') {
+            if (structureType === 'pack') {
                 this.renderSections();
             } else {
-                // For single/multi-line, extract lines
+                // For single, extract lines
                 this.skillLines = templateData.sections[0]?.lines || [];
             }
         }

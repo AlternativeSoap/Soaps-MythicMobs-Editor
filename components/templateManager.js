@@ -70,6 +70,15 @@ class TemplateManager {
         
         const currentUser = this.auth.getCurrentUser();
         
+        // Check template limit (skip for admins)
+        const isAdmin = window.adminManager?.isAdmin || false;
+        if (!isAdmin && !templateData.is_official) {
+            const limitCheck = await this.checkTemplateLimit(currentUser.id);
+            if (!limitCheck.allowed) {
+                throw new Error(limitCheck.message);
+            }
+        }
+        
         // Detect structure type and normalize data
         const structureInfo = this.detectStructureType(templateData);
         const sections = templateData.sections || (templateData.skillLines ? [{
@@ -77,18 +86,25 @@ class TemplateManager {
             lines: templateData.skillLines
         }] : []);
         
-        // Get all lines for analysis (flatten sections)
+// Get all lines for analysis (flatten sections)
         const allLines = sections.flatMap(s => s.lines || []);
+        
+        // Check if this is a mob template with mob configurations
+        const isMobTemplate = templateData.entity_type === 'mob';
+        const hasMobConfigs = templateData.mobConfigs && templateData.mobConfigs.length > 0;
+        const sectionMobConfigs = sections.filter(s => s.mobConfig).map(s => s.mobConfig);
         
         // Prepare template object for database
         const template = {
             owner_id: currentUser.id,
             name: templateData.name.trim(),
             description: templateData.description.trim(),
-            type: templateData.type || this.detectTemplateType(allLines),
+            entity_type: templateData.entity_type || templateData.type || this.detectTemplateType(allLines),
             tags: templateData.tags || [],
             structure_type: structureInfo.type,
             is_official: templateData.is_official || false,
+            // Set approval status based on whether admin is creating official template
+            approval_status: (templateData.is_official && isAdmin) ? 'approved' : 'pending',
             data: {
                 sections: sections,
                 // Keep skillLines for backward compatibility
@@ -97,12 +113,15 @@ class TemplateManager {
                 conditions: templateData.conditions || [],
                 category: templateData.category || this.suggestCategory(allLines),
                 icon: templateData.icon || this.suggestIcon(allLines),
-                difficulty: templateData.difficulty || this.calculateDifficulty(allLines)
+                difficulty: templateData.difficulty || this.calculateDifficulty(allLines),
+                // Store mob configurations for mob templates
+                mobConfigs: hasMobConfigs ? templateData.mobConfigs : 
+                           (sectionMobConfigs.length > 0 ? sectionMobConfigs : null)
             }
         };
         
-        // If marked as official, record approval info
-        if (templateData.is_official) {
+        // If marked as official by admin, record approval info
+        if (templateData.is_official && isAdmin) {
             template.approved_by = currentUser.id;
             template.approved_at = new Date().toISOString();
         }
@@ -129,6 +148,92 @@ class TemplateManager {
         }
     }
     
+    /**
+     * Check if user has reached their template limit
+     * @param {string} userId - User ID to check
+     * @returns {Promise<Object>} { allowed: boolean, message: string, current: number, max: number }
+     */
+    async checkTemplateLimit(userId) {
+        try {
+            // Get system settings for limits
+            const maxTemplates = await this.getSystemSetting('maxTemplatesPerUser', 10);
+            
+            // Count user's existing templates
+            const { count, error } = await this.supabase
+                .from('templates')
+                .select('*', { count: 'exact', head: true })
+                .eq('owner_id', userId)
+                .eq('deleted', false);
+            
+            if (error) {
+                console.error('Error checking template count:', error);
+                // Allow on error to not block users
+                return { allowed: true, message: '', current: 0, max: maxTemplates };
+            }
+            
+            const currentCount = count || 0;
+            
+            if (currentCount >= maxTemplates) {
+                return {
+                    allowed: false,
+                    message: `You have reached the maximum limit of ${maxTemplates} templates. Please delete some existing templates before creating new ones.`,
+                    current: currentCount,
+                    max: maxTemplates
+                };
+            }
+            
+            return {
+                allowed: true,
+                message: '',
+                current: currentCount,
+                max: maxTemplates
+            };
+        } catch (error) {
+            console.error('Error in checkTemplateLimit:', error);
+            // Allow on error
+            return { allowed: true, message: '', current: 0, max: 10 };
+        }
+    }
+    
+    /**
+     * Get a system setting value
+     * @param {string} key - Setting key
+     * @param {any} defaultValue - Default value if not found
+     * @returns {Promise<any>} Setting value
+     */
+    async getSystemSetting(key, defaultValue) {
+        try {
+            // Check global cache first
+            if (window.systemSettings && window.systemSettings[key] !== undefined) {
+                return window.systemSettings[key];
+            }
+            
+            // Try database
+            if (this.supabase) {
+                const { data, error } = await this.supabase
+                    .from('system_settings')
+                    .select('value')
+                    .eq('key', key)
+                    .single();
+                
+                if (!error && data) {
+                    return data.value;
+                }
+            }
+            
+            // Fall back to localStorage
+            const localSettings = JSON.parse(localStorage.getItem('admin_settings') || '{}');
+            if (localSettings[key] !== undefined) {
+                return localSettings[key];
+            }
+            
+            return defaultValue;
+        } catch (error) {
+            console.error(`Error getting system setting ${key}:`, error);
+            return defaultValue;
+        }
+    }
+    
     // ========================================
     // READ
     // ========================================
@@ -147,10 +252,14 @@ class TemplateManager {
         // Check cache first
         if (this.isCacheValid()) {
             const cached = this.cache.get('templates');
-            return type ? cached.filter(t => t.type === type) : cached;
+            return type ? cached.filter(t => (t.entity_type || t.type) === type) : cached;
         }
         
         try {
+            // Get current user to include their own templates regardless of status
+            const currentUserId = this.auth?.getCurrentUser()?.id;
+            
+            // Query templates: approved templates OR user's own templates (any status)
             let query = this.supabase
                 .from('templates')
                 .select('*')
@@ -158,22 +267,28 @@ class TemplateManager {
                 .order('created_at', { ascending: false });
             
             if (type) {
-                query = query.eq('type', type);
+                query = query.eq('entity_type', type);
             }
             
             const { data, error } = await query;
             
             if (error) throw error;
             
+            // Filter: show approved templates + user's own templates (any status)
+            const filteredData = data.filter(t => 
+                t.approval_status === 'approved' || 
+                t.owner_id === currentUserId
+            );
+            
             // Process and cache
-            const templates = data.map(t => this.processTemplate(t));
+            const templates = filteredData.map(t => this.processTemplate(t));
             
             if (!type) {
                 // Only cache if fetching all templates
                 this.setCache(templates);
             }
             
-            if (window.DEBUG_MODE) console.log(`Loaded ${templates.length} templates from Supabase`);
+            if (window.DEBUG_MODE) console.log(`Loaded ${templates.length} templates from Supabase (${data.length} total, filtered for approval)`);
             
             return templates;
         } catch (error) {
@@ -297,7 +412,7 @@ class TemplateManager {
     // ========================================
     
     /**
-     * Soft delete template
+     * Delete template (hard delete for user templates, soft delete if is_deleted column exists)
      * @param {string} id - Template ID
      * @returns {Promise<boolean>} Success status
      */
@@ -310,19 +425,46 @@ class TemplateManager {
             throw new Error('You must be logged in to delete templates');
         }
         
+        const currentUser = this.auth.getCurrentUser();
+        const isAdmin = window.adminManager?.isAdmin || false;
+        
         try {
-            // Call the secure database function instead of direct update
-            const { data, error } = await this.supabase
-                .rpc('delete_template', { template_id: id });
+            // First, verify the template exists and check ownership
+            const { data: template, error: fetchError } = await this.supabase
+                .from('templates')
+                .select('id, owner_id, name')
+                .eq('id', id)
+                .single();
             
-            if (error) {
-                console.error('Delete function error:', error);
-                throw error;
+            if (fetchError) {
+                console.error('Error fetching template:', fetchError);
+                throw new Error('Template not found');
             }
             
-            // Check the function's response
-            if (!data.success) {
-                throw new Error(data.error || 'Failed to delete template');
+            // Check if user can delete (owner or admin)
+            if (template.owner_id !== currentUser.id && !isAdmin) {
+                throw new Error('You can only delete your own templates');
+            }
+            
+            // Try hard delete first (permanently remove from database)
+            const { error: deleteError } = await this.supabase
+                .from('templates')
+                .delete()
+                .eq('id', id);
+            
+            if (deleteError) {
+                // If hard delete fails due to RLS, try soft delete
+                const { error: softDeleteError } = await this.supabase
+                    .from('templates')
+                    .update({ 
+                        is_deleted: true,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', id);
+                
+                if (softDeleteError) {
+                    throw softDeleteError;
+                }
             }
             
             // Invalidate cache
@@ -356,7 +498,7 @@ class TemplateManager {
         const duplicateData = {
             name: `${original.name} (Copy)`,
             description: original.description,
-            type: original.type,
+            entity_type: original.entity_type || original.type,
             tags: original.tags || [],
             skillLines: original.data.skillLines,
             triggers: original.data.triggers,
@@ -367,6 +509,299 @@ class TemplateManager {
         };
         
         return await this.createTemplate(duplicateData);
+    }
+
+    // ========================================
+    // CREATE FROM EDITORS
+    // ========================================
+
+    /**
+     * Create a template from a skill section
+     * @param {Object} skillData - The skill section data from skillEditor
+     * @param {Object} metadata - Template metadata (name, description, tags, category)
+     * @returns {Promise<Object>} Created template
+     */
+    async createFromSkillEditor(skillData, metadata = {}) {
+        if (!this.auth?.isAuthenticated()) {
+            throw new Error('You must be logged in to create templates');
+        }
+
+        if (!skillData) {
+            throw new Error('No skill data provided');
+        }
+
+        // Extract template data from skill section
+        const templateData = {
+            name: metadata.name || skillData.name || 'Untitled Skill Template',
+            description: metadata.description || `Skill template created from ${skillData.name || 'skill section'}`,
+            entity_type: 'skill',
+            tags: metadata.tags || [],
+            category: metadata.category || this.suggestCategory(skillData.skillLines || []),
+            icon: metadata.icon || this.suggestIcon(skillData.skillLines || []),
+            difficulty: metadata.difficulty || this.calculateDifficulty(skillData.skillLines || []),
+            
+            // Store the full skill section data
+            skillLines: skillData.skillLines || [],
+            triggers: skillData.triggers || [],
+            conditions: skillData.conditions || [],
+            
+            // Store full skill section for complete restoration
+            fullSection: {
+                name: skillData.name,
+                cooldown: skillData.cooldown,
+                conditions: skillData.conditions,
+                targetConditions: skillData.targetConditions,
+                triggerConditions: skillData.triggerConditions,
+                skills: skillData.skillLines || skillData.skills,
+                triggers: skillData.triggers,
+                // Include any other skill-specific settings
+                cancelIfNoTargets: skillData.cancelIfNoTargets,
+                onCooldownSkill: skillData.onCooldownSkill,
+                onNoTargetSkill: skillData.onNoTargetSkill
+            }
+        };
+
+        return await this.createTemplate(templateData);
+    }
+
+    /**
+     * Create a template from a mob section
+     * @param {Object} mobData - The mob section data from mobEditor
+     * @param {Object} metadata - Template metadata (name, description, tags, category)
+     * @param {Object} options - Options for what sections to include
+     * @returns {Promise<Object>} Created template
+     */
+    async createFromMobEditor(mobData, metadata = {}, options = {}) {
+        if (!this.auth?.isAuthenticated()) {
+            throw new Error('You must be logged in to create templates');
+        }
+
+        if (!mobData) {
+            throw new Error('No mob data provided');
+        }
+
+        // Default to including all sections
+        const includeSections = {
+            basic: options.includeBasic !== false,
+            stats: options.includeStats !== false,
+            equipment: options.includeEquipment !== false,
+            skills: options.includeSkills !== false,
+            drops: options.includeDrops !== false,
+            ai: options.includeAI !== false,
+            options: options.includeOptions !== false,
+            bossBar: options.includeBossBar !== false,
+            disguise: options.includeDisguise !== false,
+            model: options.includeModel !== false
+        };
+
+        // Build the full section data based on selected sections
+        const fullSection = {};
+
+        if (includeSections.basic) {
+            fullSection.name = mobData.name;
+            fullSection.type = mobData.type;
+            fullSection.displayName = mobData.displayName;
+            fullSection.health = mobData.health;
+            fullSection.damage = mobData.damage;
+            fullSection.armor = mobData.armor;
+            fullSection.faction = mobData.faction;
+            fullSection.level = mobData.level;
+        }
+
+        if (includeSections.stats) {
+            fullSection.healthScale = mobData.healthScale;
+            fullSection.damageScale = mobData.damageScale;
+            fullSection.knockbackResistance = mobData.knockbackResistance;
+            fullSection.movementSpeed = mobData.movementSpeed;
+            fullSection.followRange = mobData.followRange;
+            fullSection.attackSpeed = mobData.attackSpeed;
+        }
+
+        if (includeSections.equipment) {
+            fullSection.equipment = mobData.equipment;
+        }
+
+        if (includeSections.skills) {
+            fullSection.skills = mobData.skills;
+        }
+
+        if (includeSections.drops) {
+            fullSection.drops = mobData.drops;
+            fullSection.droptables = mobData.droptables;
+        }
+
+        if (includeSections.ai) {
+            fullSection.aiGoalSelectors = mobData.aiGoalSelectors;
+            fullSection.aiTargetSelectors = mobData.aiTargetSelectors;
+        }
+
+        if (includeSections.options) {
+            fullSection.options = mobData.options;
+        }
+
+        if (includeSections.bossBar) {
+            fullSection.bossBar = mobData.bossBar;
+        }
+
+        if (includeSections.disguise) {
+            fullSection.disguise = mobData.disguise;
+        }
+
+        if (includeSections.model) {
+            fullSection.model = mobData.model;
+            fullSection.modelEngine = mobData.modelEngine;
+        }
+
+        // Extract template data
+        const templateData = {
+            name: metadata.name || mobData.name || 'Untitled Mob Template',
+            description: metadata.description || `Mob template created from ${mobData.name || 'mob section'}`,
+            entity_type: 'mob',
+            tags: metadata.tags || [],
+            category: metadata.category || this.suggestMobCategory(mobData),
+            icon: metadata.icon || this.suggestMobIcon(mobData),
+            difficulty: metadata.difficulty || this.calculateMobDifficulty(mobData),
+            
+            // Store skill lines if present (for compatibility)
+            skillLines: this.extractMobSkillLines(mobData),
+            triggers: [],
+            conditions: [],
+            
+            // Store full mob section for complete restoration
+            fullSection: fullSection,
+            
+            // Store which sections are included
+            includedSections: Object.keys(includeSections).filter(k => includeSections[k])
+        };
+
+        return await this.createTemplate(templateData);
+    }
+
+    /**
+     * Suggest a category for mob templates
+     * @param {Object} mobData - Mob data
+     * @returns {string} Suggested category
+     */
+    suggestMobCategory(mobData) {
+        const type = (mobData.type || '').toLowerCase();
+        const name = (mobData.name || '').toLowerCase();
+        const displayName = (mobData.displayName || '').toLowerCase();
+        
+        // Check for boss indicators
+        if (mobData.bossBar || name.includes('boss') || displayName.includes('boss')) {
+            return 'boss';
+        }
+        
+        // Check for elite/miniboss
+        if (name.includes('elite') || displayName.includes('elite') || 
+            name.includes('mini') || displayName.includes('champion')) {
+            return 'elite';
+        }
+        
+        // Check by mob type
+        if (['zombie', 'skeleton', 'phantom', 'wither', 'zombie_villager'].includes(type)) {
+            return 'undead';
+        }
+        
+        if (['wolf', 'spider', 'cave_spider', 'silverfish', 'bee', 'endermite'].includes(type)) {
+            return 'creature';
+        }
+        
+        if (['villager', 'iron_golem', 'pillager', 'vindicator', 'witch'].includes(type)) {
+            return 'humanoid';
+        }
+        
+        if (['ender_dragon', 'wither', 'elder_guardian', 'warden'].includes(type)) {
+            return 'boss';
+        }
+        
+        return 'general';
+    }
+
+    /**
+     * Suggest an icon for mob templates
+     * @param {Object} mobData - Mob data
+     * @returns {string} Suggested icon
+     */
+    suggestMobIcon(mobData) {
+        const type = (mobData.type || '').toUpperCase();
+        const name = (mobData.name || '').toLowerCase();
+        
+        // Map mob types to spawn eggs
+        const spawnEggMap = {
+            'ZOMBIE': 'ZOMBIE_SPAWN_EGG',
+            'SKELETON': 'SKELETON_SPAWN_EGG',
+            'SPIDER': 'SPIDER_SPAWN_EGG',
+            'CREEPER': 'CREEPER_SPAWN_EGG',
+            'ENDERMAN': 'ENDERMAN_SPAWN_EGG',
+            'BLAZE': 'BLAZE_SPAWN_EGG',
+            'WITCH': 'WITCH_SPAWN_EGG',
+            'WITHER_SKELETON': 'WITHER_SKELETON_SPAWN_EGG',
+            'PIGLIN': 'PIGLIN_SPAWN_EGG',
+            'VINDICATOR': 'VINDICATOR_SPAWN_EGG',
+            'PILLAGER': 'PILLAGER_SPAWN_EGG'
+        };
+        
+        if (spawnEggMap[type]) {
+            return spawnEggMap[type];
+        }
+        
+        // Default icons based on category
+        if (name.includes('boss')) return 'WITHER_SKELETON_SKULL';
+        if (name.includes('elite')) return 'DIAMOND_SWORD';
+        
+        return 'SPAWNER';
+    }
+
+    /**
+     * Calculate difficulty for mob templates
+     * @param {Object} mobData - Mob data
+     * @returns {string} Difficulty level
+     */
+    calculateMobDifficulty(mobData) {
+        let score = 0;
+        
+        // Health scoring
+        const health = parseFloat(mobData.health) || 20;
+        if (health > 200) score += 3;
+        else if (health > 100) score += 2;
+        else if (health > 50) score += 1;
+        
+        // Damage scoring
+        const damage = parseFloat(mobData.damage) || 0;
+        if (damage > 15) score += 3;
+        else if (damage > 10) score += 2;
+        else if (damage > 5) score += 1;
+        
+        // Skills scoring
+        const skillCount = (mobData.skills || []).length;
+        if (skillCount > 10) score += 3;
+        else if (skillCount > 5) score += 2;
+        else if (skillCount > 0) score += 1;
+        
+        // Boss bar indicates higher difficulty
+        if (mobData.bossBar) score += 2;
+        
+        // Map score to difficulty
+        if (score >= 8) return 'expert';
+        if (score >= 5) return 'advanced';
+        if (score >= 2) return 'intermediate';
+        return 'beginner';
+    }
+
+    /**
+     * Extract skill lines from mob data
+     * @param {Object} mobData - Mob data
+     * @returns {Array} Skill lines
+     */
+    extractMobSkillLines(mobData) {
+        const skills = mobData.skills || [];
+        return skills.map(skill => {
+            if (typeof skill === 'string') {
+                return { line: skill };
+            }
+            return skill;
+        });
     }
     
     // ========================================
@@ -572,7 +1007,7 @@ class TemplateManager {
     }
     
     /**
-     * Sync local favorites to cloud (merge strategy)
+     * Sync local favorites to cloud (merge strategy) - OPTIMIZED with batch operations
      * @param {string[]} localFavorites - Local favorite IDs
      * @returns {Promise<string[]>} Merged favorites
      */
@@ -585,13 +1020,42 @@ class TemplateManager {
             // Get cloud favorites
             const cloudFavorites = await this.getCloudFavorites();
             
+            // Use Set for O(1) lookups instead of Array.includes()
+            const cloudFavoritesSet = new Set(cloudFavorites);
+            const localFavoritesSet = new Set(localFavorites);
+            
             // Merge: union of both sets
             const merged = [...new Set([...localFavorites, ...cloudFavorites])];
             
-            // Add any local-only favorites to cloud
-            const localOnly = localFavorites.filter(id => !cloudFavorites.includes(id));
-            for (const id of localOnly) {
-                await this.addCloudFavorite(id);
+            // Find local-only favorites (not in cloud)
+            const localOnly = localFavorites.filter(id => !cloudFavoritesSet.has(id));
+            
+            // PERFORMANCE: Batch insert local-only favorites using Promise.all
+            // instead of sequential await for each
+            if (localOnly.length > 0) {
+                const currentUser = this.auth.getCurrentUser();
+                
+                // Prepare batch insert data
+                const insertData = localOnly.map(templateId => ({
+                    user_id: currentUser.id,
+                    template_id: templateId
+                }));
+                
+                // Try batch insert (much faster than individual inserts)
+                try {
+                    await this.supabase
+                        .from('user_favorites')
+                        .upsert(insertData, { 
+                            onConflict: 'user_id,template_id',
+                            ignoreDuplicates: true 
+                        });
+                } catch (batchError) {
+                    // Fallback: parallel individual inserts if batch fails
+                    console.warn('Batch insert failed, using parallel inserts:', batchError);
+                    await Promise.all(
+                        localOnly.map(id => this.addCloudFavorite(id).catch(() => false))
+                    );
+                }
             }
             
             return merged;
@@ -933,13 +1397,25 @@ class TemplateManager {
             return { valid: false, error: 'Template description must be 500 characters or less' };
         }
         
-        // Skill lines validation
-        if (!data.skillLines || !Array.isArray(data.skillLines) || data.skillLines.length === 0) {
-            return { valid: false, error: 'Template must have at least one skill line' };
+        // Skill lines validation - check both skillLines and sections
+        const hasSkillLines = data.skillLines && Array.isArray(data.skillLines) && data.skillLines.length > 0;
+        const hasSections = data.sections && Array.isArray(data.sections) && data.sections.length > 0;
+        
+        // For mob templates, we don't require skill lines (they have full mob config)
+        // For skill templates, we need at least one skill line or section with lines
+        if (!hasSkillLines && !hasSections && data.entity_type !== 'mob') {
+            return { valid: false, error: 'Template must have at least one skill line or section' };
         }
         
-        if (data.skillLines.length > 50) {
-            return { valid: false, error: 'Template cannot have more than 50 skill lines' };
+        // Count total lines across all sections if using multi-section format
+        let totalLines = hasSkillLines ? data.skillLines.length : 0;
+        if (hasSections) {
+            totalLines += data.sections.reduce((sum, s) => sum + (s.lines?.length || s.skillLines?.length || 0), 0);
+        }
+        
+        // Generous limit for complex templates (500 lines - allows boss mobs and complex skills)
+        if (totalLines > 500) {
+            return { valid: false, error: `Template has too many lines (${totalLines}). Maximum is 500 lines.` };
         }
         
         // Tags validation (optional)
@@ -965,17 +1441,18 @@ class TemplateManager {
     /**
      * Detect structure type of template
      * @param {Object} templateData - Template data
-     * @returns {Object} { type: 'single'|'multi-line'|'multi-section', lineCount, sectionCount }
+     * @returns {Object} { type: 'single'|'pack', lineCount, sectionCount }
+     * Note: Database constraint only allows 'single' or 'pack' values
      */
     detectStructureType(templateData) {
         const sections = templateData.sections || [];
         const skillLines = templateData.skillLines || [];
         
-        // If sections array exists and has multiple sections
+        // If sections array exists and has multiple sections -> 'pack'
         if (sections.length > 1) {
             const totalLines = sections.reduce((sum, s) => sum + (s.lines?.length || 0), 0);
             return {
-                type: 'multi-section',
+                type: 'pack',
                 sectionCount: sections.length,
                 lineCount: totalLines
             };
@@ -985,7 +1462,7 @@ class TemplateManager {
         if (sections.length === 1) {
             const lines = sections[0].lines || [];
             return {
-                type: lines.length === 1 ? 'single' : 'multi-line',
+                type: 'single',
                 sectionCount: 1,
                 lineCount: lines.length
             };
@@ -993,72 +1470,7 @@ class TemplateManager {
         
         // Fallback to skillLines array
         return {
-            type: skillLines.length === 1 ? 'single' : 'multi-line',
-            sectionCount: 1,
-            lineCount: skillLines.length
-        };
-    }
-    
-    /**
-     * Validate section names (must be valid YAML keys)
-     * @param {string} sectionName - Section name to validate
-     * @returns {Object} { valid: boolean, error?: string }
-     */
-    validateSectionName(sectionName) {
-        if (!sectionName || typeof sectionName !== 'string') {
-            return { valid: false, error: 'Section name is required' };
-        }
-        
-        // Must start with letter or underscore
-        if (!/^[a-zA-Z_]/.test(sectionName)) {
-            return { valid: false, error: 'Section name must start with a letter or underscore' };
-        }
-        
-        // Can only contain letters, numbers, underscores, hyphens
-        if (!/^[a-zA-Z0-9_-]+$/.test(sectionName)) {
-            return { valid: false, error: 'Section name can only contain letters, numbers, underscores, and hyphens' };
-        }
-        
-        // Length check
-        if (sectionName.length < 2 || sectionName.length > 50) {
-            return { valid: false, error: 'Section name must be 2-50 characters' };
-        }
-        
-        return { valid: true };
-    }
-    
-    /**
-     * Detect structure type of template
-     * @param {Object} templateData - Template data
-     * @returns {Object} { type: 'single'|'multi-line'|'multi-section', lineCount, sectionCount }
-     */
-    detectStructureType(templateData) {
-        const sections = templateData.sections || [];
-        const skillLines = templateData.skillLines || [];
-        
-        // If sections array exists and has multiple sections
-        if (sections.length > 1) {
-            const totalLines = sections.reduce((sum, s) => sum + (s.lines?.length || 0), 0);
-            return {
-                type: 'multi-section',
-                sectionCount: sections.length,
-                lineCount: totalLines
-            };
-        }
-        
-        // If sections array has one section
-        if (sections.length === 1) {
-            const lines = sections[0].lines || [];
-            return {
-                type: lines.length === 1 ? 'single' : 'multi-line',
-                sectionCount: 1,
-                lineCount: lines.length
-            };
-        }
-        
-        // Fallback to skillLines array
-        return {
-            type: skillLines.length === 1 ? 'single' : 'multi-line',
+            type: 'single',
             sectionCount: 1,
             lineCount: skillLines.length
         };
@@ -1159,6 +1571,8 @@ class TemplateManager {
      * @returns {string} Emoji icon
      */
     suggestIcon(skillLines) {
+        if (!Array.isArray(skillLines)) return '⚡';
+        
         const category = this.suggestCategory(skillLines);
         const text = skillLines.join(' ').toLowerCase();
         
@@ -1224,7 +1638,7 @@ class TemplateManager {
             }];
         }
         
-        // Calculate structure info
+// Calculate structure info
         const structureInfo = this.detectStructureType({ sections });
         
         return {
@@ -1233,7 +1647,8 @@ class TemplateManager {
             ownerName: dbTemplate.owner?.email?.split('@')[0] || 'Unknown',
             name: dbTemplate.name,
             description: dbTemplate.description,
-            type: dbTemplate.type,
+            entity_type: dbTemplate.entity_type || dbTemplate.type,
+            type: dbTemplate.entity_type || dbTemplate.type, // backward compatibility
             tags: dbTemplate.tags || [],
             structure_type: dbTemplate.structure_type || structureInfo.type,
             is_official: dbTemplate.is_official || false,
@@ -1267,7 +1682,7 @@ class TemplateManager {
             // UI helpers
             isBuiltIn: false,
             isOfficial: dbTemplate.is_official || false,
-            requiresMobFile: dbTemplate.type === 'mob'
+            requiresMobFile: (dbTemplate.entity_type || dbTemplate.type) === 'mob'
         };
     }
     

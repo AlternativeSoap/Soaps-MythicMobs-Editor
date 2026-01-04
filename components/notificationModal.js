@@ -24,14 +24,13 @@ class NotificationModal {
                     left: 0;
                     width: 100%;
                     height: 100%;
-                    background: rgba(0, 0, 0, 0.85);
-                    backdrop-filter: blur(8px);
+                    background: rgba(0, 0, 0, 0.75);
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     z-index: 99999;
                     opacity: 0;
-                    animation: notificationFadeIn 0.25s ease-out forwards;
+                    animation: notificationFadeIn 0.15s ease-out forwards;
                 }
                 
                 @keyframes notificationFadeIn {
@@ -51,8 +50,8 @@ class NotificationModal {
                     min-width: 420px;
                     max-width: 520px;
                     overflow: hidden;
-                    transform: scale(0.85) translateY(30px);
-                    animation: notificationSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                    transform: scale(0.95) translateY(10px);
+                    animation: notificationSlideIn 0.15s ease-out forwards;
                 }
                 
                 .notification-modal-box::before {
@@ -89,38 +88,27 @@ class NotificationModal {
                     justify-content: center;
                     border-radius: 12px;
                     position: relative;
-                    animation: iconPulse 2s ease-in-out infinite;
-                }
-                
-                @keyframes iconPulse {
-                    0%, 100% { transform: scale(1); }
-                    50% { transform: scale(1.05); }
                 }
                 
                 .notification-modal-icon.info { 
                     background: rgba(52, 152, 219, 0.15);
                     color: #3498db;
-                    box-shadow: 0 0 20px rgba(52, 152, 219, 0.2);
                 }
                 .notification-modal-icon.success { 
                     background: rgba(46, 204, 113, 0.15);
                     color: #2ecc71;
-                    box-shadow: 0 0 20px rgba(46, 204, 113, 0.2);
                 }
                 .notification-modal-icon.warning { 
                     background: rgba(243, 156, 18, 0.15);
                     color: #f39c12;
-                    box-shadow: 0 0 20px rgba(243, 156, 18, 0.2);
                 }
                 .notification-modal-icon.error { 
                     background: rgba(231, 76, 60, 0.15);
                     color: #e74c3c;
-                    box-shadow: 0 0 20px rgba(231, 76, 60, 0.2);
                 }
                 .notification-modal-icon.question { 
                     background: rgba(155, 89, 182, 0.15);
                     color: #9b59b6;
-                    box-shadow: 0 0 20px rgba(155, 89, 182, 0.2);
                 }
                 
                 .notification-modal-title {
@@ -157,39 +145,19 @@ class NotificationModal {
                     font-weight: 600;
                     font-size: 0.95rem;
                     cursor: pointer;
-                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                    transition: background 0.15s, box-shadow 0.15s;
                     border: none;
                     outline: none;
                     min-width: 110px;
-                    position: relative;
-                    overflow: hidden;
                     letter-spacing: 0.02em;
                 }
                 
-                .notification-modal-btn::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
-                    opacity: 0;
-                    transition: opacity 0.25s;
-                }
-                
-                .notification-modal-btn:hover::before {
-                    opacity: 1;
-                }
-                
                 .notification-modal-btn:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
                 }
                 
                 .notification-modal-btn:active {
-                    transform: translateY(0);
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
                 }
                 
                 .notification-modal-btn.primary {
@@ -200,20 +168,17 @@ class NotificationModal {
                 
                 .notification-modal-btn.primary:hover {
                     background: linear-gradient(135deg, #7a8ef5 0%, #8a5cb8 100%);
-                    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
                 }
                 
                 .notification-modal-btn.secondary {
                     background: rgba(255, 255, 255, 0.05);
                     color: rgba(255, 255, 255, 0.8);
                     border: 1.5px solid rgba(255, 255, 255, 0.1);
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
                 }
                 
                 .notification-modal-btn.secondary:hover {
-                    background: rgba(255, 255, 255, 0.08);
+                    background: rgba(255, 255, 255, 0.1);
                     color: #ffffff;
-                    border-color: rgba(255, 255, 255, 0.2);
                 }
                 
                 .notification-modal-btn.danger {
@@ -224,7 +189,6 @@ class NotificationModal {
                 
                 .notification-modal-btn.danger:hover {
                     background: linear-gradient(135deg, #f15d4d 0%, #d4483a 100%);
-                    box-shadow: 0 8px 24px rgba(231, 76, 60, 0.5);
                 }
                 
                 @media (max-width: 600px) {

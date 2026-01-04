@@ -1016,8 +1016,8 @@ class MechanicBrowser {
         <button class="btn-icon-inline btn-favorite" data-mechanic-id="${mechanic.id}" title="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
             <i class="${isFavorite ? 'fas' : 'far'} fa-star" style="color: ${isFavorite ? '#ffc107' : '#666'}; font-size: 12px;"></i>
         </button>
-        <span class="mechanic-name">${mechanic.id}</span>
-        <span class="mechanic-desc">${mechanic.description}</span>
+        <span class="mechanic-name" title="${mechanic.id}">${mechanic.id}</span>
+        <span class="mechanic-desc" title="${mechanic.description}">${mechanic.description}</span>
     </div>
     <div class="mechanic-item-actions">
         <span class="mechanic-category-tag mechanic-category-${mechanic.category.toLowerCase()}">${mechanic.category.toUpperCase()}</span>

@@ -18,14 +18,88 @@ class AdminPanel {
         this.currentTab = 'templates';
         this.currentBrowserType = 'mechanics'; // Default browser type
         this.showHiddenOnly = false; // Track show hidden filter state
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // PERFORMANCE OPTIMIZATIONS
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // Debounce timers for search inputs
+        this._filterDebounceTimer = null;
+        this._browserFilterTimer = null;
+        this._renderPending = false;
+        
+        // Cached DOM elements (populated on first use)
+        this._cachedElements = {};
+        
+        // Template render cache
+        this._templateCardCache = new Map();
+        this._lastFilterKey = null;
+        
+        // Batch operation tracking
+        this._pendingDeletes = [];
+        this._deleteDebounceTimer = null;
+        
+        // Multi-select state for bulk operations
+        this._selectedTemplates = new Set();
+        
         this.createModal();
         this.attachEventListeners();
+    }
+    
+    /**
+     * Get cached DOM element or query and cache it
+     * @param {string} id - Element ID
+     * @returns {HTMLElement|null}
+     */
+    _getElement(id) {
+        if (!this._cachedElements[id]) {
+            this._cachedElements[id] = document.getElementById(id);
+        }
+        return this._cachedElements[id];
+    }
+    
+    /**
+     * Clear element cache (call when modal is closed/reopened)
+     */
+    _clearElementCache() {
+        this._cachedElements = {};
+        this._templateCardCache.clear();
+        this._lastFilterKey = null;
+    }
+    
+    /**
+     * Debounced filter with configurable delay
+     * @param {Function} fn - Function to debounce
+     * @param {number} delay - Delay in ms (default 150ms)
+     */
+    _debounce(fn, delay = 150) {
+        clearTimeout(this._filterDebounceTimer);
+        this._filterDebounceTimer = setTimeout(fn, delay);
+    }
+    
+    /**
+     * Schedule render on next animation frame for smooth updates
+     * @param {Function} renderFn - Render function
+     */
+    _scheduleRender(renderFn) {
+        if (this._renderPending) return;
+        this._renderPending = true;
+        requestAnimationFrame(() => {
+            renderFn();
+            this._renderPending = false;
+        });
     }
 
     /**
      * Create admin panel modal
      */
     createModal() {
+        // Prevent duplicate modal creation
+        if (document.getElementById('adminPanelOverlay')) {
+            console.log('[AdminPanel] Modal already exists, skipping creation');
+            return;
+        }
+
         const modalHTML = `
             <div id="adminPanelOverlay" class="modal-overlay" style="display: none; z-index: 10000;">
                 <div class="modal-content admin-panel-modal" style="max-width: 1400px; height: 90vh; max-height: 1000px;">
@@ -70,13 +144,23 @@ class AdminPanel {
                                     <h3>Official Templates</h3>
                                     <p>Create and manage official skill templates</p>
                                 </div>
-                                <button class="btn btn-primary" id="btnCreateOfficialTemplate">
-                                    <i class="fas fa-plus"></i> Create Official Template
-                                </button>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button class="btn btn-secondary" id="btnImportYAML" title="Import multiple templates from YAML files">
+                                        <i class="fas fa-file-import"></i> Import from YAML
+                                    </button>
+                                    <button class="btn btn-primary" id="btnCreateOfficialTemplate">
+                                        <i class="fas fa-plus"></i> Create Official Template
+                                    </button>
+                                </div>
                             </div>
                             
                             <div class="admin-templates-filters">
-                                <input type="text" id="adminTemplateSearch" class="form-input" placeholder="Search official templates...">
+                                <input type="text" id="adminTemplateSearch" class="form-input" placeholder="Search templates...">
+                                <select id="adminTemplateSourceFilter" class="form-select">
+                                    <option value="all">All Templates</option>
+                                    <option value="official">Official Only</option>
+                                    <option value="user">User-Made Only</option>
+                                </select>
                                 <select id="adminTemplateTypeFilter" class="form-select">
                                     <option value="all">All Types</option>
                                     <option value="skill">Skill</option>
@@ -84,10 +168,37 @@ class AdminPanel {
                                 </select>
                                 <select id="adminTemplateStructureFilter" class="form-select">
                                     <option value="all">All Structures</option>
-                                    <option value="single">Single Line</option>
-                                    <option value="multi-line">Multi-Line</option>
-                                    <option value="multi-section">Multi-Section</option>
+                                    <option value="single">Single</option>
+                                    <option value="pack">Pack</option>
                                 </select>
+                                <select id="adminTemplateApprovalFilter" class="form-select">
+                                    <option value="all">All Status</option>
+                                    <option value="pending">⏳ Pending Approval</option>
+                                    <option value="approved">✅ Approved</option>
+                                    <option value="rejected">❌ Rejected</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Bulk Action Bar -->
+                            <div id="adminBulkActionBar" class="admin-bulk-action-bar" style="display: none;">
+                                <div class="bulk-action-info">
+                                    <label class="checkbox-wrapper">
+                                        <input type="checkbox" id="adminSelectAllTemplates">
+                                        <span class="checkmark"></span>
+                                    </label>
+                                    <span id="adminSelectedCount">0 selected</span>
+                                </div>
+                                <div class="bulk-actions">
+                                    <button class="btn btn-sm btn-secondary" id="btnSelectAllVisible">
+                                        <i class="fas fa-check-double"></i> Select All Visible
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" id="btnDeselectAll">
+                                        <i class="fas fa-times"></i> Deselect All
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" id="btnDeleteSelected">
+                                        <i class="fas fa-trash"></i> Delete Selected
+                                    </button>
+                                </div>
                             </div>
                             
                             <div id="adminTemplatesList" class="admin-templates-grid"></div>
@@ -226,6 +337,14 @@ class AdminPanel {
             this.createOfficialTemplate();
         });
         
+        // Import from YAML button
+        document.getElementById('btnImportYAML')?.addEventListener('click', () => {
+            if (!window.templateImportWizard) {
+                window.templateImportWizard = new TemplateImportWizard();
+            }
+            window.templateImportWizard.open();
+        });
+        
         // Grant role button
         document.getElementById('btnGrantRole')?.addEventListener('click', () => {
             this.showGrantRoleDialog();
@@ -236,17 +355,93 @@ class AdminPanel {
             this.loadActivityLog();
         });
         
-        // Search and filters
+        // ════════════════════════════════════════════════════════════════════════
+        // EVENT DELEGATION for template cards - much more efficient than inline onclick
+        // ════════════════════════════════════════════════════════════════════════
+        document.getElementById('adminTemplatesList')?.addEventListener('click', (e) => {
+            const actionBtn = e.target.closest('[data-action]');
+            if (!actionBtn) return;
+            
+            const action = actionBtn.dataset.action;
+            const id = actionBtn.dataset.id;
+            const name = actionBtn.dataset.name;
+            
+            switch (action) {
+                case 'preview':
+                    this.previewTemplate(id);
+                    break;
+                case 'approve':
+                    this.approveTemplate(id, name);
+                    break;
+                case 'reject':
+                    this.rejectTemplate(id, name);
+                    break;
+                case 'edit':
+                    this.editTemplate(id);
+                    break;
+                case 'delete':
+                    this.deleteTemplate(id, name);
+                    break;
+            }
+        });
+        
+        // Search and filters - WITH DEBOUNCING FOR PERFORMANCE
         document.getElementById('adminTemplateSearch')?.addEventListener('input', (e) => {
-            this.filterTemplates();
+            // Debounce search input to avoid excessive filtering on each keystroke
+            this._debounce(() => this.filterTemplates(), 200);
+        });
+        
+        document.getElementById('adminTemplateSourceFilter')?.addEventListener('change', () => {
+            this.loadTemplates(); // Reload templates based on source filter
         });
         
         document.getElementById('adminTemplateTypeFilter')?.addEventListener('change', () => {
-            this.filterTemplates();
+            // Small debounce for filter changes
+            this._debounce(() => this.filterTemplates(), 50);
         });
         
         document.getElementById('adminTemplateStructureFilter')?.addEventListener('change', () => {
-            this.filterTemplates();
+            this._debounce(() => this.filterTemplates(), 50);
+        });
+
+        document.getElementById('adminTemplateApprovalFilter')?.addEventListener('change', () => {
+            this._debounce(() => this.filterTemplates(), 50);
+        });
+
+        // ════════════════════════════════════════════════════════════════════════
+        // BULK ACTION EVENTS - Multi-select for template management
+        // ════════════════════════════════════════════════════════════════════════
+        
+        // Checkbox in template cards (delegated event)
+        document.getElementById('adminTemplatesList')?.addEventListener('change', (e) => {
+            if (e.target.classList.contains('template-select-checkbox')) {
+                const templateId = e.target.dataset.templateId;
+                this.toggleTemplateSelection(templateId, e.target.checked);
+            }
+        });
+        
+        // Select all checkbox in bulk action bar
+        document.getElementById('adminSelectAllTemplates')?.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                this.selectAllVisibleTemplates();
+            } else {
+                this.deselectAllTemplates();
+            }
+        });
+        
+        // Select all visible button
+        document.getElementById('btnSelectAllVisible')?.addEventListener('click', () => {
+            this.selectAllVisibleTemplates();
+        });
+        
+        // Deselect all button
+        document.getElementById('btnDeselectAll')?.addEventListener('click', () => {
+            this.deselectAllTemplates();
+        });
+        
+        // Delete selected button
+        document.getElementById('btnDeleteSelected')?.addEventListener('click', () => {
+            this.deleteSelectedTemplates();
         });
 
         // Browser management events
@@ -260,11 +455,15 @@ class AdminPanel {
         });
 
         document.getElementById('customItemSearch')?.addEventListener('input', () => {
-            this.filterBrowserItems('custom');
+            // Debounce browser search for performance
+            clearTimeout(this._browserFilterTimer);
+            this._browserFilterTimer = setTimeout(() => this.filterBrowserItems('custom'), 200);
         });
 
         document.getElementById('builtInSearch')?.addEventListener('input', () => {
-            this.filterBrowserItems('builtin');
+            // Debounce browser search for performance
+            clearTimeout(this._browserFilterTimer);
+            this._browserFilterTimer = setTimeout(() => this.filterBrowserItems('builtin'), 200);
         });
 
         document.getElementById('showHiddenOnly')?.addEventListener('change', (e) => {
@@ -343,11 +542,12 @@ class AdminPanel {
     }
 
     /**
-     * Load official templates
+     * Load templates based on source filter
      */
     async loadTemplates() {
         try {
-            const templates = await this.adminManager.getOfficialTemplates();
+            const sourceFilter = document.getElementById('adminTemplateSourceFilter')?.value || 'all';
+            const templates = await this.adminManager.getAllTemplates(sourceFilter);
             this.allTemplates = templates;
             this.renderTemplates(templates);
         } catch (error) {
@@ -357,11 +557,32 @@ class AdminPanel {
     }
 
     /**
-     * Render templates grid
+     * Get approval status info
+     */
+    getApprovalStatusInfo(template) {
+        const status = template.approval_status || 'approved'; // Default to approved for existing templates
+        switch (status) {
+            case 'pending':
+                return { label: 'Pending', icon: '⏳', class: 'badge-warning', color: '#f59e0b' };
+            case 'approved':
+                return { label: 'Approved', icon: '✅', class: 'badge-success', color: '#10b981' };
+            case 'rejected':
+                return { label: 'Rejected', icon: '❌', class: 'badge-danger', color: '#ef4444' };
+            default:
+                return { label: 'Unknown', icon: '❓', class: 'badge-secondary', color: '#6b7280' };
+        }
+    }
+
+    /**
+     * Render templates grid - OPTIMIZED with document fragments and virtual rendering
      */
     renderTemplates(templates) {
-        const container = document.getElementById('adminTemplatesList');
+        const container = this._getElement('adminTemplatesList');
         if (!container) return;
+
+        // Clear selection state when re-rendering templates
+        this._selectedTemplates.clear();
+        this._updateBulkActionBar();
 
         if (templates.length === 0) {
             container.innerHTML = `
@@ -376,71 +597,401 @@ class AdminPanel {
             return;
         }
 
-        container.innerHTML = templates.map(template => `
-            <div class="admin-template-card">
-                <div class="template-card-header">
-                    <div>
-                        <h4>
-                            <span class="template-icon">${this.getStructureIcon(template.structure_type)}</span>
-                            ${template.name}
-                        </h4>
-                        <div class="template-meta">
-                            <span class="badge badge-${template.type}">${template.type}</span>
-                            <span class="badge">${template.structure_type || 'multi-line'}</span>
-                            ${template.category ? `<span class="badge">${template.category}</span>` : ''}
-                        </div>
-                    </div>
-                    <div class="template-actions">
-                        <button class="btn btn-sm btn-secondary" onclick="window.adminPanel.editTemplate('${template.id}')">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="window.adminPanel.deleteTemplate('${template.id}', '${template.name}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
+        const canApprove = this.adminManager.hasPermission('approve_template') || this.adminManager.hasPermission('templates.approve');
+        const canReject = this.adminManager.hasPermission('approve_template') || this.adminManager.hasPermission('templates.reject');
+        
+        // PERFORMANCE: Use document fragment for batch DOM insertion
+        const fragment = document.createDocumentFragment();
+        const tempContainer = document.createElement('div');
+        
+        // PERFORMANCE: Build HTML in chunks for large lists
+        const CHUNK_SIZE = 50;
+        const totalTemplates = templates.length;
+        
+        // For lists under 100, render all at once
+        if (totalTemplates <= 100) {
+            tempContainer.innerHTML = templates.map(template => this._renderTemplateCard(template, canApprove, canReject)).join('');
+            while (tempContainer.firstChild) {
+                fragment.appendChild(tempContainer.firstChild);
+            }
+            container.innerHTML = '';
+            container.appendChild(fragment);
+        } else {
+            // PERFORMANCE: Virtual rendering for large lists - show first 50, lazy load rest
+            const initialTemplates = templates.slice(0, CHUNK_SIZE);
+            tempContainer.innerHTML = initialTemplates.map(template => this._renderTemplateCard(template, canApprove, canReject)).join('');
+            while (tempContainer.firstChild) {
+                fragment.appendChild(tempContainer.firstChild);
+            }
+            container.innerHTML = '';
+            container.appendChild(fragment);
+            
+            // Add "Load More" button if there are more templates
+            if (totalTemplates > CHUNK_SIZE) {
+                const loadMoreBtn = document.createElement('div');
+                loadMoreBtn.className = 'load-more-container';
+                loadMoreBtn.innerHTML = `
+                    <button class="btn btn-secondary" id="loadMoreTemplatesBtn">
+                        <i class="fas fa-plus-circle"></i> Load ${Math.min(CHUNK_SIZE, totalTemplates - CHUNK_SIZE)} more templates (${totalTemplates - CHUNK_SIZE} remaining)
+                    </button>
+                `;
+                container.appendChild(loadMoreBtn);
+                
+                // Store remaining templates for lazy loading
+                this._remainingTemplates = templates.slice(CHUNK_SIZE);
+                this._canApprove = canApprove;
+                this._canReject = canReject;
+                
+                loadMoreBtn.addEventListener('click', () => this._loadMoreTemplates());
+            }
+        }
+    }
+    
+    /**
+     * Load more templates (lazy loading for large lists)
+     */
+    _loadMoreTemplates() {
+        if (!this._remainingTemplates || this._remainingTemplates.length === 0) return;
+        
+        const container = this._getElement('adminTemplatesList');
+        const loadMoreContainer = container.querySelector('.load-more-container');
+        
+        const CHUNK_SIZE = 50;
+        const nextBatch = this._remainingTemplates.splice(0, CHUNK_SIZE);
+        
+        const fragment = document.createDocumentFragment();
+        const tempContainer = document.createElement('div');
+        tempContainer.innerHTML = nextBatch.map(template => 
+            this._renderTemplateCard(template, this._canApprove, this._canReject)
+        ).join('');
+        
+        while (tempContainer.firstChild) {
+            fragment.appendChild(tempContainer.firstChild);
+        }
+        
+        // Insert before the load more button
+        if (loadMoreContainer) {
+            container.insertBefore(fragment, loadMoreContainer);
+            
+            // Update or remove the load more button
+            if (this._remainingTemplates.length > 0) {
+                loadMoreContainer.innerHTML = `
+                    <button class="btn btn-secondary" id="loadMoreTemplatesBtn">
+                        <i class="fas fa-plus-circle"></i> Load ${Math.min(CHUNK_SIZE, this._remainingTemplates.length)} more templates (${this._remainingTemplates.length} remaining)
+                    </button>
+                `;
+            } else {
+                loadMoreContainer.remove();
+            }
+        }
+    }
+    
+    /**
+     * Render a single template card - extracted for reuse
+     */
+    _renderTemplateCard(template, canApprove, canReject) {
+        const statusInfo = this.getApprovalStatusInfo(template);
+        const isPending = (template.approval_status || 'approved') === 'pending';
+        const isRejected = (template.approval_status || 'approved') === 'rejected';
+        const isOfficial = template.is_official;
+        
+        // Escape template name for onclick handlers
+        const escapedName = template.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        
+        // Check if this template is selected
+        const isSelected = this._selectedTemplates.has(template.id);
+        
+        return `
+        <div class="admin-template-card ${isPending ? 'template-pending' : ''} ${isRejected ? 'template-rejected' : ''} ${!isOfficial ? 'template-user' : ''} ${isSelected ? 'template-selected' : ''}" data-template-id="${template.id}">
+            <div class="template-card-header">
+                <div class="template-select-wrapper">
+                    <label class="template-checkbox-label" title="Select for bulk action">
+                        <input type="checkbox" class="template-select-checkbox" data-template-id="${template.id}" data-template-name="${escapedName}" ${isSelected ? 'checked' : ''}>
+                        <span class="template-checkmark"></span>
+                    </label>
+                </div>
+                <div class="template-title-section">
+                    <h4>
+                        <span class="template-icon">${this.getStructureIcon(template.structure_type)}</span>
+                        ${template.name}
+                        ${isOfficial ? '<span class="official-badge" title="Official Template">⭐</span>' : '<span class="user-badge" title="User Template">👤</span>'}
+                    </h4>
+                    <div class="template-meta">
+                        <span class="badge badge-${template.type || 'skill'}">${(template.type || 'skill').toUpperCase()}</span>
+                        <span class="badge">${template.structure_type || 'single'}</span>
+                        ${template.category ? `<span class="badge">${template.category}</span>` : ''}
+                        <span class="badge ${statusInfo.class}" style="background: ${statusInfo.color};">${statusInfo.icon} ${statusInfo.label}</span>
                     </div>
                 </div>
-                <div class="template-card-body">
-                    <div class="template-info">
-                        <div>
-                            <small>Created by:</small>
-                            <span>${template.created_by_email || 'Unknown'}</span>
-                        </div>
-                        <div>
-                            <small>Approved by:</small>
-                            <span>${template.approved_by_email || 'System'}</span>
-                        </div>
-                        <div>
-                            <small>Approved:</small>
-                            <span>${this.formatDate(template.approved_at)}</span>
-                        </div>
-                    </div>
+                <div class="template-actions">
+                    <button class="btn btn-sm btn-info" data-action="preview" data-id="${template.id}" title="Preview YAML">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    ${isPending && canApprove ? `
+                        <button class="btn btn-sm btn-success" data-action="approve" data-id="${template.id}" data-name="${escapedName}" title="Approve Template">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    ` : ''}
+                    ${isPending && canReject ? `
+                        <button class="btn btn-sm btn-warning" data-action="reject" data-id="${template.id}" data-name="${escapedName}" title="Reject Template">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    ` : ''}
+                    <button class="btn btn-sm btn-secondary" data-action="edit" data-id="${template.id}" title="Edit Template">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" data-action="delete" data-id="${template.id}" data-name="${escapedName}" title="Delete Template">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </div>
             </div>
-        `).join('');
+            <div class="template-card-body">
+                <div class="template-info">
+                    <div>
+                        <small>CREATED BY:</small>
+                        <span>${template.created_by_email || 'Unknown'}</span>
+                    </div>
+                    <div>
+                        <small>APPROVED BY:</small>
+                        <span>${template.approved_by_email || (isPending ? 'Pending' : 'System')}</span>
+                    </div>
+                    <div>
+                        <small>APPROVED:</small>
+                        <span>${isPending ? 'Awaiting approval' : (isRejected ? 'Rejected' : this.formatDate(template.approved_at))}</span>
+                    </div>
+                </div>
+                ${template.rejection_reason ? `
+                    <div class="rejection-reason" style="margin-top: 10px; padding: 8px; background: rgba(239, 68, 68, 0.1); border-radius: 4px; border-left: 3px solid #ef4444;">
+                        <small style="color: #ef4444;"><i class="fas fa-exclamation-circle"></i> Rejection reason:</small>
+                        <p style="margin: 5px 0 0 0; font-size: 13px;">${template.rejection_reason}</p>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
     }
 
     /**
-     * Filter templates
+     * Filter templates - OPTIMIZED with cached elements and early exit
      */
     filterTemplates() {
         if (!this.allTemplates) return;
 
-        const searchTerm = document.getElementById('adminTemplateSearch')?.value.toLowerCase() || '';
-        const typeFilter = document.getElementById('adminTemplateTypeFilter')?.value || 'all';
-        const structureFilter = document.getElementById('adminTemplateStructureFilter')?.value || 'all';
+        // Use cached element references instead of querying DOM each time
+        const searchTerm = (this._getElement('adminTemplateSearch')?.value || '').toLowerCase();
+        const typeFilter = this._getElement('adminTemplateTypeFilter')?.value || 'all';
+        const structureFilter = this._getElement('adminTemplateStructureFilter')?.value || 'all';
+        const approvalFilter = this._getElement('adminTemplateApprovalFilter')?.value || 'all';
+        
+        // Generate cache key to skip re-filtering if nothing changed
+        const filterKey = `${searchTerm}|${typeFilter}|${structureFilter}|${approvalFilter}`;
+        if (filterKey === this._lastFilterKey) return;
+        this._lastFilterKey = filterKey;
+        
+        // Pre-compute filter conditions for faster iteration
+        const hasSearch = searchTerm.length > 0;
+        const filterByType = typeFilter !== 'all';
+        const filterByStructure = structureFilter !== 'all';
+        const filterByApproval = approvalFilter !== 'all';
+        
+        // Fast path: no filters active
+        if (!hasSearch && !filterByType && !filterByStructure && !filterByApproval) {
+            this._scheduleRender(() => this.renderTemplates(this.allTemplates));
+            return;
+        }
 
         const filtered = this.allTemplates.filter(template => {
-            const matchesSearch = !searchTerm || 
-                template.name.toLowerCase().includes(searchTerm) ||
-                template.category?.toLowerCase().includes(searchTerm);
+            // Early exit on first failed condition (most selective first)
+            if (filterByType && template.type !== typeFilter) return false;
+            if (filterByStructure && template.structure_type !== structureFilter) return false;
             
-            const matchesType = typeFilter === 'all' || template.type === typeFilter;
-            const matchesStructure = structureFilter === 'all' || template.structure_type === structureFilter;
-
-            return matchesSearch && matchesType && matchesStructure;
+            const templateStatus = template.approval_status || 'approved';
+            if (filterByApproval && templateStatus !== approvalFilter) return false;
+            
+            if (hasSearch) {
+                const name = template.name.toLowerCase();
+                const category = template.category?.toLowerCase() || '';
+                if (!name.includes(searchTerm) && !category.includes(searchTerm)) return false;
+            }
+            
+            return true;
         });
 
-        this.renderTemplates(filtered);
+        // Schedule render on next frame for smoother UI
+        this._scheduleRender(() => this.renderTemplates(filtered));
+    }
+
+    /**
+     * Approve a pending template
+     */
+    async approveTemplate(templateId, templateName) {
+        if (!this.adminManager.hasPermission('approve_template') && !this.adminManager.hasPermission('templates.approve')) {
+            window.notificationModal?.alert(
+                'You do not have permission to approve templates.',
+                'error',
+                'Permission Denied'
+            );
+            return;
+        }
+
+        const confirmed = await window.notificationModal?.confirm(
+            `Are you sure you want to approve "${templateName}"? This will make it available to all users.`,
+            'Approve Template'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const user = await this.authManager.getCurrentUser();
+            
+            // Get the template to find owner_id
+            const { data: template, error: fetchError } = await this.adminManager.supabase
+                .from('templates')
+                .select('owner_id')
+                .eq('id', templateId)
+                .single();
+            
+            if (fetchError) throw fetchError;
+            
+            // Update template status
+            const { error } = await this.adminManager.supabase
+                .from('templates')
+                .update({
+                    approval_status: 'approved',
+                    approved_by: user?.id,
+                    approved_at: new Date().toISOString(),
+                    rejection_reason: null
+                })
+                .eq('id', templateId);
+
+            if (error) throw error;
+            
+            // Send notification to template owner
+            await this.sendUserNotification(template.owner_id, {
+                type: 'template_approved',
+                title: 'Template Approved! 🎉',
+                message: `Your template "${templateName}" has been approved and is now available to all users.`,
+                data: { templateId, templateName }
+            });
+
+            window.notificationModal?.alert(
+                `Template "${templateName}" has been approved successfully!`,
+                'success',
+                'Template Approved'
+            );
+
+            // Log activity
+            await this.adminManager.logActivity('approve_template', { templateId, templateName });
+
+            // Refresh templates list
+            await this.loadTemplates();
+        } catch (error) {
+            console.error('Error approving template:', error);
+            window.notificationModal?.alert(
+                'Failed to approve template. Please try again.',
+                'error',
+                'Error'
+            );
+        }
+    }
+
+    /**
+     * Reject a pending template
+     */
+    async rejectTemplate(templateId, templateName) {
+        if (!this.adminManager.hasPermission('approve_template') && !this.adminManager.hasPermission('templates.reject')) {
+            window.notificationModal?.alert(
+                'You do not have permission to reject templates.',
+                'error',
+                'Permission Denied'
+            );
+            return;
+        }
+
+        // Prompt for rejection reason
+        const reason = await window.notificationModal?.prompt(
+            `Please provide a reason for rejecting "${templateName}":`,
+            'Reject Template',
+            'Enter rejection reason...'
+        );
+
+        if (reason === null) return; // User cancelled
+
+        try {
+            const user = await this.authManager.getCurrentUser();
+            
+            // Get the template to find owner_id
+            const { data: template, error: fetchError } = await this.adminManager.supabase
+                .from('templates')
+                .select('owner_id')
+                .eq('id', templateId)
+                .single();
+            
+            if (fetchError) throw fetchError;
+            
+            // Update template status
+            const { error } = await this.adminManager.supabase
+                .from('templates')
+                .update({
+                    approval_status: 'rejected',
+                    approved_by: user?.id,
+                    approved_at: new Date().toISOString(),
+                    rejection_reason: reason || 'No reason provided'
+                })
+                .eq('id', templateId);
+
+            if (error) throw error;
+            
+            // Send notification to template owner
+            await this.sendUserNotification(template.owner_id, {
+                type: 'template_rejected',
+                title: 'Template Needs Changes',
+                message: `Your template "${templateName}" was not approved. Reason: ${reason || 'No reason provided'}`,
+                data: { templateId, templateName, rejectionReason: reason }
+            });
+
+            window.notificationModal?.alert(
+                `Template "${templateName}" has been rejected.`,
+                'warning',
+                'Template Rejected'
+            );
+
+            // Log activity
+            await this.adminManager.logActivity('reject_template', { templateId, templateName, reason });
+
+            // Refresh templates list
+            await this.loadTemplates();
+        } catch (error) {
+            console.error('Error rejecting template:', error);
+            window.notificationModal?.alert(
+                'Failed to reject template. Please try again.',
+                'error',
+                'Error'
+            );
+        }
+    }
+    
+    /**
+     * Send a notification to a user
+     */
+    async sendUserNotification(userId, notification) {
+        if (!this.adminManager.supabase) return;
+        
+        try {
+            await this.adminManager.supabase
+                .from('user_notifications')
+                .insert({
+                    user_id: userId,
+                    type: notification.type,
+                    title: notification.title,
+                    message: notification.message,
+                    data: notification.data || {},
+                    read: false
+                });
+        } catch (error) {
+            console.error('Failed to send user notification:', error);
+            // Don't throw - notification failure shouldn't block the main action
+        }
     }
 
     /**
@@ -456,18 +1007,60 @@ class AdminPanel {
             return;
         }
 
-        // Close admin panel
-        this.close();
+        // Hide admin panel temporarily (don't fully close)
+        document.getElementById('adminPanelOverlay').style.display = 'none';
 
-        // Open template wizard in admin mode
+        // Open template wizard in admin mode with callback to re-open admin panel
         if (window.templateWizard) {
-            window.templateWizard.open(null, true); // true = admin mode (auto-checks is_official)
+            const reopenAdminPanel = () => {
+                document.getElementById('adminPanelOverlay').style.display = 'flex';
+                this.loadTemplates(); // Refresh templates list
+            };
+            window.templateWizard.open(null, true, reopenAdminPanel); // true = admin mode, reopenAdminPanel = onClose callback
         } else {
             console.error('❌ Template wizard not available');
+            // Re-open admin panel on error
+            document.getElementById('adminPanelOverlay').style.display = 'flex';
             window.notificationModal?.alert(
                 'The Template Wizard component is not available. Please refresh the page.',
                 'error',
                 'Component Not Available'
+            );
+        }
+    }
+
+    /**
+     * Preview template YAML without editing
+     */
+    async previewTemplate(templateId) {
+        try {
+            const template = await this.templateManager.getTemplateById(templateId);
+            if (!template) {
+                window.notificationModal?.alert(
+                    'The requested template could not be found.',
+                    'error',
+                    'Template Not Found'
+                );
+                return;
+            }
+
+            // Use the existing YAML preview modal
+            if (window.yamlPreviewModal) {
+                window.yamlPreviewModal.open(template);
+            } else {
+                // Fallback: Show basic alert with template info
+                window.notificationModal?.alert(
+                    `Template: ${template.name}\nType: ${template.type}\nSections: ${template.sections?.length || 0}`,
+                    'info',
+                    'Template Preview'
+                );
+            }
+        } catch (error) {
+            console.error('Error loading template for preview:', error);
+            window.notificationModal?.alert(
+                'Failed to load the template for preview. Please try again.',
+                'error',
+                'Preview Failed'
             );
         }
     }
@@ -496,7 +1089,20 @@ class AdminPanel {
                 return;
             }
 
-            this.close();
+            // Hide admin panel temporarily
+            document.getElementById('adminPanelOverlay').style.display = 'none';
+            
+            // Set up callback to re-open admin panel when editor closes
+            const reopenAdminPanel = () => {
+                document.getElementById('adminPanelOverlay').style.display = 'flex';
+                this.loadTemplates(); // Refresh templates list
+            };
+            
+            // Store callback on template editor
+            if (window.templateEditor) {
+                window.templateEditor.onCloseCallback = reopenAdminPanel;
+            }
+            
             window.templateEditor?.open(template, true); // true = admin mode
         } catch (error) {
             console.error('Error loading template:', error);
@@ -543,6 +1149,189 @@ class AdminPanel {
             console.error('Error deleting template:', error);
             this.showError('Failed to delete template');
         }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // BULK SELECTION METHODS
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Toggle template selection
+     */
+    toggleTemplateSelection(templateId, isSelected) {
+        if (isSelected) {
+            this._selectedTemplates.add(templateId);
+        } else {
+            this._selectedTemplates.delete(templateId);
+        }
+        
+        // Update card visual state
+        const card = document.querySelector(`.admin-template-card[data-template-id="${templateId}"]`);
+        if (card) {
+            card.classList.toggle('template-selected', isSelected);
+        }
+        
+        this._updateBulkActionBar();
+    }
+
+    /**
+     * Select all visible templates
+     */
+    selectAllVisibleTemplates() {
+        const container = document.getElementById('adminTemplatesList');
+        const checkboxes = container.querySelectorAll('.template-select-checkbox');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            const templateId = checkbox.dataset.templateId;
+            this._selectedTemplates.add(templateId);
+            
+            const card = checkbox.closest('.admin-template-card');
+            if (card) {
+                card.classList.add('template-selected');
+            }
+        });
+        
+        this._updateBulkActionBar();
+    }
+
+    /**
+     * Deselect all templates
+     */
+    deselectAllTemplates() {
+        const container = document.getElementById('adminTemplatesList');
+        const checkboxes = container.querySelectorAll('.template-select-checkbox');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            const card = checkbox.closest('.admin-template-card');
+            if (card) {
+                card.classList.remove('template-selected');
+            }
+        });
+        
+        this._selectedTemplates.clear();
+        this._updateBulkActionBar();
+    }
+
+    /**
+     * Update bulk action bar visibility and selected count
+     */
+    _updateBulkActionBar() {
+        const bulkBar = document.getElementById('adminBulkActionBar');
+        const selectedCount = document.getElementById('adminSelectedCount');
+        const selectAllCheckbox = document.getElementById('adminSelectAllTemplates');
+        
+        if (!bulkBar) return;
+        
+        const count = this._selectedTemplates.size;
+        
+        // Show/hide bulk action bar
+        bulkBar.style.display = count > 0 ? 'flex' : 'none';
+        
+        // Update selected count text
+        if (selectedCount) {
+            selectedCount.textContent = `${count} selected`;
+        }
+        
+        // Update select all checkbox state
+        if (selectAllCheckbox) {
+            const totalVisible = document.querySelectorAll('.template-select-checkbox').length;
+            selectAllCheckbox.checked = count > 0 && count === totalVisible;
+            selectAllCheckbox.indeterminate = count > 0 && count < totalVisible;
+        }
+    }
+
+    /**
+     * Delete all selected templates
+     */
+    async deleteSelectedTemplates() {
+        if (!this.adminManager.hasPermission('delete_official_template')) {
+            window.notificationModal?.alert(
+                'You do not have permission to delete official templates.',
+                'error',
+                'Permission Denied'
+            );
+            return;
+        }
+        
+        const count = this._selectedTemplates.size;
+        if (count === 0) {
+            window.notificationModal?.alert('No templates selected.', 'warning', 'No Selection');
+            return;
+        }
+        
+        // Get template names for confirmation
+        const templateNames = [];
+        this._selectedTemplates.forEach(id => {
+            const checkbox = document.querySelector(`.template-select-checkbox[data-template-id="${id}"]`);
+            if (checkbox) {
+                templateNames.push(checkbox.dataset.templateName || id);
+            }
+        });
+        
+        // Build confirmation message
+        let confirmMessage = `Are you sure you want to delete ${count} template${count > 1 ? 's' : ''}?\n\n`;
+        if (count <= 10) {
+            confirmMessage += 'Templates to delete:\n• ' + templateNames.join('\n• ');
+        } else {
+            confirmMessage += `First 10 templates:\n• ${templateNames.slice(0, 10).join('\n• ')}\n... and ${count - 10} more`;
+        }
+        confirmMessage += '\n\nThis action cannot be undone.';
+        
+        const confirmed = await window.notificationModal?.confirm(
+            confirmMessage,
+            `Delete ${count} Template${count > 1 ? 's' : ''}?`,
+            { confirmText: `Delete ${count} Templates`, confirmButtonClass: 'danger' }
+        );
+        
+        if (!confirmed) {
+            return;
+        }
+        
+        // Show progress
+        window.notificationModal?.alert(
+            `Deleting ${count} templates...`,
+            'info',
+            'Deleting'
+        );
+        
+        let successCount = 0;
+        let errorCount = 0;
+        const errors = [];
+        
+        // Delete templates one by one
+        for (const templateId of this._selectedTemplates) {
+            try {
+                await this.templateManager.deleteTemplate(templateId);
+                await this.adminManager.logActivity('delete_official_template', 'template', templateId, {
+                    bulk_delete: true,
+                    batch_size: count
+                });
+                successCount++;
+            } catch (error) {
+                console.error(`Error deleting template ${templateId}:`, error);
+                errorCount++;
+                errors.push(templateId);
+            }
+        }
+        
+        // Clear selection
+        this._selectedTemplates.clear();
+        
+        // Show result
+        if (errorCount === 0) {
+            this.showSuccess(`Successfully deleted ${successCount} template${successCount > 1 ? 's' : ''}`);
+        } else {
+            window.notificationModal?.alert(
+                `Deleted ${successCount} templates.\nFailed to delete ${errorCount} templates.`,
+                'warning',
+                'Partial Success'
+            );
+        }
+        
+        // Reload templates list
+        await this.loadTemplates();
     }
 
     /**
@@ -708,7 +1497,7 @@ class AdminPanel {
                 </div>
                 <div class="activity-content">
                     <div class="activity-header">
-                        <strong>${activity.admin_email}</strong>
+                        <strong>${activity.admin_display_name || 'Unknown User'}</strong>
                         <span class="activity-action">${this.formatAction(activity.action)}</span>
                     </div>
                     <div class="activity-meta">
@@ -964,29 +1753,63 @@ class AdminPanel {
     }
 
     /**
-     * Filter browser items
+     * Filter browser items - OPTIMIZED with cached results and faster filtering
      */
     filterBrowserItems(listType) {
         if (listType === 'custom') {
-            const searchValue = document.getElementById('customItemSearch')?.value.toLowerCase() || '';
-            const filtered = (this.allCustomItems || []).filter(item => 
-                item.name.toLowerCase().includes(searchValue) ||
-                item.description.toLowerCase().includes(searchValue) ||
-                (item.aliases || []).some(alias => alias.toLowerCase().includes(searchValue))
-            );
+            const searchInput = this._getElement('customItemSearch');
+            const searchValue = (searchInput?.value || '').toLowerCase();
+            
+            // Fast path: no search term
+            if (!searchValue) {
+                this.renderCustomItems(this.allCustomItems || []);
+                return;
+            }
+            
+            const filtered = (this.allCustomItems || []).filter(item => {
+                // Check name first (most likely to match)
+                if (item.name.toLowerCase().includes(searchValue)) return true;
+                // Then description
+                if (item.description.toLowerCase().includes(searchValue)) return true;
+                // Finally aliases (array iteration is slower)
+                const aliases = item.aliases || [];
+                for (let i = 0; i < aliases.length; i++) {
+                    if (aliases[i].toLowerCase().includes(searchValue)) return true;
+                }
+                return false;
+            });
             this.renderCustomItems(filtered);
         } else if (listType === 'builtin') {
-            const searchValue = document.getElementById('builtInSearch')?.value.toLowerCase() || '';
-            const showHiddenOnly = document.getElementById('showHiddenOnly')?.checked || false;
+            const searchInput = this._getElement('builtInSearch');
+            const hiddenCheckbox = this._getElement('showHiddenOnly');
+            const searchValue = (searchInput?.value || '').toLowerCase();
+            const showHiddenOnly = hiddenCheckbox?.checked || false;
             
-            const filtered = (this.allBuiltInItems || []).filter(item => {
-                const matchesSearch = item.name.toLowerCase().includes(searchValue) ||
-                    item.description.toLowerCase().includes(searchValue) ||
-                    (item.aliases || []).some(alias => alias.toLowerCase().includes(searchValue));
+            const allItems = this.allBuiltInItems || [];
+            
+            // Fast path: no filters active
+            if (!searchValue && !showHiddenOnly) {
+                this.renderBuiltInItems(allItems);
+                return;
+            }
+            
+            const filtered = allItems.filter(item => {
+                // Check hidden filter first (fastest check)
+                if (showHiddenOnly && !item.isHidden) return false;
                 
-                const matchesFilter = !showHiddenOnly || item.isHidden;
+                // No search term means all items pass search
+                if (!searchValue) return true;
                 
-                return matchesSearch && matchesFilter;
+                // Check name first (most likely to match)
+                if (item.name.toLowerCase().includes(searchValue)) return true;
+                // Then description
+                if (item.description.toLowerCase().includes(searchValue)) return true;
+                // Finally aliases (array iteration is slower)
+                const aliases = item.aliases || [];
+                for (let i = 0; i < aliases.length; i++) {
+                    if (aliases[i].toLowerCase().includes(searchValue)) return true;
+                }
+                return false;
             });
             this.renderBuiltInItems(filtered);
         }
@@ -1819,6 +2642,7 @@ class AdminPanel {
             'create_official_template': 'fa-plus',
             'edit_official_template': 'fa-edit',
             'delete_official_template': 'fa-trash',
+            'delete_user_template': 'fa-trash-alt',
             'approve_template': 'fa-check'
         };
         return icons[action] || 'fa-circle';

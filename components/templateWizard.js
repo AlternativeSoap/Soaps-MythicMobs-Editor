@@ -158,156 +158,181 @@ class TemplateWizard {
     createModal() {
         const modalHTML = `
             <div id="templateWizardOverlay" class="condition-modal" style="display: none; z-index: 9999;">
-                <div class="modal-content condition-browser" style="max-width: 700px; max-height: 90vh;">
+                <div class="modal-content template-wizard-modal">
                     <!-- Header -->
-                    <div class="modal-header">
-                        <h2 id="wizardTitle">
-                            <i class="fas fa-magic"></i>
-                            Create Template - Step <span id="wizardStepNumber">1</span>/2
-                        </h2>
+                    <div class="template-wizard-header">
+                        <div class="wizard-header-content">
+                            <div class="wizard-icon-wrapper">
+                                <i class="fas fa-wand-magic-sparkles"></i>
+                            </div>
+                            <div class="wizard-header-text">
+                                <h2 id="wizardTitle">Create Template</h2>
+                                <p class="wizard-subtitle">Step <span id="wizardStepNumber">1</span> of 2 — <span id="wizardStepName">Template Details</span></p>
+                            </div>
+                        </div>
                         <button class="btn-close" id="wizardClose" title="Close">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                     
-                    <!-- Step Indicator -->
-                    <div class="wizard-steps">
-                        <div class="wizard-step active" data-step="1">
-                            <div class="step-number">1</div>
-                            <div class="step-label">Template Details</div>
-                        </div>
-                        <div class="wizard-step-line"></div>
-                        <div class="wizard-step" data-step="2">
-                            <div class="step-number">2</div>
-                            <div class="step-label">Build Skills</div>
-                        </div>
+                    <!-- Progress Bar -->
+                    <div class="wizard-progress-bar">
+                        <div class="wizard-progress-fill" id="wizardProgressFill" style="width: 50%;"></div>
                     </div>
                     
                     <!-- Body -->
-                    <div class="condition-browser-body wizard-body" style="padding: 1.5rem; overflow-y: auto; max-height: calc(90vh - 250px);">
+                    <div class="template-wizard-body">
                         <!-- STEP 1: Template Details -->
                         <div id="wizardStep1" class="wizard-step-content active">
-                            <div class="form-group">
-                                <label for="wizardName">
-                                    Template Name <span class="required">*</span>
-                                    <span class="char-counter" id="wizardNameCounter">0/50</span>
-                                </label>
-                                <input 
-                                    type="text" 
-                                    id="wizardName" 
-                                    class="form-control"
-                                    placeholder="e.g., Epic Boss Combo"
-                                    maxlength="50"
-                                    required
-                                >
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="wizardDescription">
-                                    Description <span class="required">*</span>
-                                    <span class="char-counter" id="wizardDescCounter">0/500</span>
-                                </label>
-                                <textarea 
-                                    id="wizardDescription" 
-                                    class="form-control"
-                                    placeholder="Describe what this template does..."
-                                    rows="3"
-                                    maxlength="500"
-                                    required
-                                ></textarea>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>
-                                    Structure Type
-                                    <i class="fas fa-info-circle" title="Single: one line | Multi-line: multiple lines | Multi-section: multiple named sections" style="cursor: help; opacity: 0.6;"></i>
-                                </label>
-                                <div class="structure-type-selector">
-                                    <button type="button" class="btn btn-structure" data-structure="single">
-                                        🎯 Single Line
-                                    </button>
-                                    <button type="button" class="btn btn-structure active" data-structure="multi-line">
-                                        📋 Multi-Line
-                                    </button>
-                                    <button type="button" class="btn btn-structure" data-structure="multi-section">
-                                        📚 Multi-Section
-                                    </button>
+                            <!-- Essential Info Card -->
+                            <div class="wizard-card">
+                                <div class="wizard-card-header">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span>Essential Information</span>
+                                </div>
+                                <div class="wizard-card-body">
+                                    <div class="form-group">
+                                        <label for="wizardName">
+                                            Template Name <span class="required">*</span>
+                                        </label>
+                                        <div class="input-with-counter">
+                                            <input 
+                                                type="text" 
+                                                id="wizardName" 
+                                                class="form-control"
+                                                placeholder="e.g., Epic Boss Combo"
+                                                maxlength="50"
+                                                required
+                                            >
+                                            <span class="char-counter" id="wizardNameCounter">0/50</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="wizardDescription">
+                                            Description <span class="required">*</span>
+                                        </label>
+                                        <div class="input-with-counter">
+                                            <textarea 
+                                                id="wizardDescription" 
+                                                class="form-control"
+                                                placeholder="Describe what this template does and when to use it..."
+                                                rows="3"
+                                                maxlength="500"
+                                                required
+                                            ></textarea>
+                                            <span class="char-counter" id="wizardDescCounter">0/500</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="form-group">
-                                <label>
-                                    Context
-                                    <i class="fas fa-info-circle" title="Mob skills can use triggers (e.g., ~onTimer, ~onDamaged). Regular skills cannot." style="cursor: help; opacity: 0.6;"></i>
-                                </label>
-                                <div class="context-selector" style="display: flex; gap: 1rem;">
-                                    <label style="display: flex; align-items: center; cursor: pointer;">
-                                        <input type="radio" name="wizardContext" value="skill" checked style="margin-right: 0.5rem;">
-                                        <span>🎭 Regular Skill</span>
-                                    </label>
-                                    <label style="display: flex; align-items: center; cursor: pointer;">
-                                        <input type="radio" name="wizardContext" value="mob" style="margin-right: 0.5rem;">
-                                        <span>👾 Mob Skill (with triggers)</span>
-                                    </label>
+                            <!-- Context Selection Card -->
+                            <div class="wizard-card">
+                                <div class="wizard-card-header">
+                                    <i class="fas fa-code-branch"></i>
+                                    <span>Skill Context</span>
+                                </div>
+                                <div class="wizard-card-body">
+                                    <div class="context-cards">
+                                        <label class="context-card selected" data-context="skill">
+                                            <input type="radio" name="wizardContext" value="skill" checked>
+                                            <div class="context-card-icon">🎭</div>
+                                            <div class="context-card-content">
+                                                <span class="context-card-title">Regular Skill</span>
+                                                <span class="context-card-desc">Standard skill without triggers</span>
+                                            </div>
+                                            <div class="context-card-check"><i class="fas fa-check"></i></div>
+                                        </label>
+                                        <label class="context-card" data-context="mob">
+                                            <input type="radio" name="wizardContext" value="mob">
+                                            <div class="context-card-icon">👾</div>
+                                            <div class="context-card-content">
+                                                <span class="context-card-title">Mob Skill</span>
+                                                <span class="context-card-desc">Can use triggers like ~onTimer</span>
+                                            </div>
+                                            <div class="context-card-check"><i class="fas fa-check"></i></div>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                                <div class="form-group">
-                                    <label for="wizardCategory">Category</label>
-                                    <select id="wizardCategory" class="form-control">
-                                        <option value="combat">⚔️ Combat</option>
-                                        <option value="damage">💥 Damage</option>
-                                        <option value="healing">💚 Healing</option>
-                                        <option value="summons">👾 Summons</option>
-                                        <option value="projectiles">🎯 Projectiles</option>
-                                        <option value="effects">✨ Effects</option>
-                                        <option value="movement">🏃 Movement</option>
-                                        <option value="buffs">💪 Buffs</option>
-                                        <option value="debuffs">🐌 Debuffs</option>
-                                        <option value="auras">🌟 Auras</option>
-                                        <option value="utility">🔧 Utility</option>
-                                    </select>
+                            <!-- Appearance Card -->
+                            <div class="wizard-card">
+                                <div class="wizard-card-header">
+                                    <i class="fas fa-palette"></i>
+                                    <span>Appearance</span>
                                 </div>
-                                
-                                <div class="form-group">
-                                    <label for="wizardIcon">Icon</label>
-                                    <select id="wizardIcon" class="form-control">
-                                        <option value="⚔️">⚔️ Sword</option>
-                                        <option value="🔥">🔥 Fire</option>
-                                        <option value="❄️">❄️ Ice</option>
-                                        <option value="⚡">⚡ Lightning</option>
-                                        <option value="💚">💚 Heart</option>
-                                        <option value="💀">💀 Skull</option>
-                                        <option value="👾">👾 Monster</option>
-                                        <option value="🎯">🎯 Target</option>
-                                        <option value="✨">✨ Sparkles</option>
-                                        <option value="💥">💥 Explosion</option>
-                                    </select>
+                                <div class="wizard-card-body">
+                                    <div class="appearance-grid">
+                                        <div class="form-group">
+                                            <label for="wizardCategory">Category</label>
+                                            <select id="wizardCategory" class="form-control">
+                                                <option value="combat">⚔️ Combat</option>
+                                                <option value="damage">💥 Damage</option>
+                                                <option value="healing">💚 Healing</option>
+                                                <option value="summons">👾 Summons</option>
+                                                <option value="projectiles">🎯 Projectiles</option>
+                                                <option value="effects">✨ Effects</option>
+                                                <option value="movement">🏃 Movement</option>
+                                                <option value="buffs">💪 Buffs</option>
+                                                <option value="debuffs">🐌 Debuffs</option>
+                                                <option value="auras">🌟 Auras</option>
+                                                <option value="utility">🔧 Utility</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="form-group">
+                                            <label for="wizardIcon">Icon</label>
+                                            <select id="wizardIcon" class="form-control">
+                                                <option value="⚔️">⚔️ Sword</option>
+                                                <option value="🔥">🔥 Fire</option>
+                                                <option value="❄️">❄️ Ice</option>
+                                                <option value="⚡">⚡ Lightning</option>
+                                                <option value="💚">💚 Heart</option>
+                                                <option value="💀">💀 Skull</option>
+                                                <option value="👾">👾 Monster</option>
+                                                <option value="🎯">🎯 Target</option>
+                                                <option value="✨">✨ Sparkles</option>
+                                                <option value="💥">💥 Explosion</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="form-group" style="grid-column: span 2;">
+                                            <label for="wizardTags">Tags <span class="optional-label">(optional)</span></label>
+                                            <input 
+                                                type="text" 
+                                                id="wizardTags" 
+                                                class="form-control"
+                                                placeholder="fire, boss, aoe (comma-separated)"
+                                            >
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <div class="form-group">
-                                <label for="wizardTags">Tags (optional, comma-separated)</label>
-                                <input 
-                                    type="text" 
-                                    id="wizardTags" 
-                                    class="form-control"
-                                    placeholder="e.g., fire, boss, aoe"
-                                >
-                                <small class="form-text">Max 10 tags, each 2-20 characters</small>
-                            </div>
-                            
-                            <!-- Admin Options -->
-                            <div id="wizardAdminOptions" style="display: none;">
-                                <div class="form-group">
-                                    <label style="display: flex; align-items: center; cursor: pointer;">
-                                        <input type="checkbox" id="wizardIsOfficial" style="margin-right: 0.5rem;">
-                                        <span>Mark as Official Template</span>
-                                        <i class="fas fa-crown" style="margin-left: 0.5rem; color: #ffd700;"></i>
+                            <!-- Admin Options (hidden by default) -->
+                            <div id="wizardAdminOptions" class="wizard-card admin-card" style="display: none;">
+                                <div class="wizard-card-header">
+                                    <i class="fas fa-crown" style="color: #ffd700;"></i>
+                                    <span>Admin Options</span>
+                                </div>
+                                <div class="wizard-card-body">
+                                    <label class="wizard-toggle">
+                                        <input type="checkbox" id="wizardIsOfficial">
+                                        <span class="wizard-toggle-track"><span class="wizard-toggle-thumb"></span></span>
+                                        <div class="wizard-toggle-text">
+                                            <span>Mark as Official Template</span>
+                                            <small>Official templates appear at the top and are highlighted</small>
+                                        </div>
                                     </label>
-                                    <small class="form-text">Official templates appear at the top and are highlighted</small>
                                 </div>
+                            </div>
+                            
+                            <!-- Auto-detected info (subtle) -->
+                            <div class="wizard-info-banner" id="wizardStructureTypeDisplay">
+                                <i class="fas fa-magic"></i>
+                                <span>Structure type will be <strong>auto-detected</strong> based on your skill lines</span>
                             </div>
                         </div>
                         
@@ -318,17 +343,17 @@ class TemplateWizard {
                     </div>
                     
                     <!-- Footer -->
-                    <div class="modal-footer" style="display: flex; justify-content: space-between;">
-                        <button class="btn btn-secondary" id="wizardBack" style="display: none;">
+                    <div class="template-wizard-footer">
+                        <button class="btn btn-ghost" id="wizardBack" style="display: none;">
                             <i class="fas fa-arrow-left"></i> Back
                         </button>
-                        <div style="display: flex; gap: 0.5rem; margin-left: auto;">
-                            <button class="btn btn-secondary" id="wizardCancel">Cancel</button>
-                            <button class="btn btn-primary" id="wizardNext">
-                                Next: Build Skills <i class="fas fa-arrow-right"></i>
+                        <div class="wizard-footer-actions">
+                            <button class="btn btn-ghost" id="wizardCancel">Cancel</button>
+                            <button class="btn btn-primary btn-glow" id="wizardNext">
+                                Continue <i class="fas fa-arrow-right"></i>
                             </button>
-                            <button class="btn btn-primary" id="wizardSave" style="display: none;">
-                                <i class="fas fa-save"></i> Save Template
+                            <button class="btn btn-success btn-glow" id="wizardSave" style="display: none;">
+                                <i class="fas fa-check"></i> Create Template
                             </button>
                         </div>
                     </div>
@@ -371,21 +396,20 @@ class TemplateWizard {
         this.refs.back?.addEventListener('click', () => this.previousStep());
         this.refs.save?.addEventListener('click', () => this.save());
         
-        // Structure type buttons
-        document.querySelectorAll('.btn-structure').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.btn-structure').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                this.templateData.structureType = e.target.dataset.structure;
-            });
-        });
-        
-        // Context radio buttons
-        document.querySelectorAll('input[name="wizardContext"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                this.templateData.context = e.target.value;
-                // Auto-set type based on context
-                this.templateData.type = e.target.value; // 'mob' or 'skill'
+        // Context cards selection
+        document.querySelectorAll('.context-card').forEach(card => {
+            card.addEventListener('click', () => {
+                // Remove selected from all
+                document.querySelectorAll('.context-card').forEach(c => c.classList.remove('selected'));
+                // Add to clicked
+                card.classList.add('selected');
+                // Update radio
+                const radio = card.querySelector('input[type="radio"]');
+                if (radio) {
+                    radio.checked = true;
+                    this.templateData.context = radio.value;
+                    this.templateData.type = radio.value;
+                }
             });
         });
         
@@ -411,14 +435,15 @@ class TemplateWizard {
             updateDescCounter(e.target.value);
         });
     }
-
     /**
      * Open wizard
      */
-    async open(existingTemplate = null, isAdminMode = false, onSave = null, defaultContext = null) {
+    async open(existingTemplate = null, isAdminMode = false, onSaveOrClose = null, defaultContext = null) {
         this.currentStep = 1;
         this.isAdminMode = isAdminMode;
-        this.onSaveCallback = onSave;
+        // Support both onSave callback (legacy) and onClose callback (new)
+        this.onSaveCallback = typeof onSaveOrClose === 'function' ? onSaveOrClose : null;
+        this.onCloseCallback = typeof onSaveOrClose === 'function' ? onSaveOrClose : null;
         
         // Check admin status
         await this.checkAdminStatus();
@@ -538,9 +563,72 @@ class TemplateWizard {
         const tagsInput = document.getElementById('wizardTags').value;
         this.templateData.tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
     }
+    
+    /**
+     * Auto-detect structure type based on current data
+     */
+    autoDetectStructureType() {
+        // Check if we have multiple sections with lines
+        const sectionsWithLines = this.templateData.sections.filter(s => s.lines.length > 0);
+        if (sectionsWithLines.length > 1) {
+            return 'multi-section';
+        }
+        
+        // Check lines array (for multi-line mode)
+        const lines = this.templateData.lines.filter(l => l.trim());
+        if (lines.length === 0) {
+            // Also check sections
+            const allLines = this.templateData.sections.flatMap(s => s.lines).filter(l => l.trim());
+            if (allLines.length === 0) {
+                return 'multi-line'; // Default
+            }
+            if (allLines.length === 1) {
+                return 'single';
+            }
+            return sectionsWithLines.length > 1 ? 'multi-section' : 'multi-line';
+        }
+        
+        if (lines.length === 1) {
+            return 'single';
+        }
+        
+        return 'multi-line';
+    }
+    
+    /**
+     * Update structure type display indicator
+     */
+    updateStructureTypeDisplay() {
+        const type = this.autoDetectStructureType();
+        this.templateData.structureType = type;
+        
+        const display = document.getElementById('wizardStructureTypeDisplay');
+        if (display) {
+            let icon, label;
+            switch (type) {
+                case 'single':
+                    icon = 'fa-crosshairs';
+                    label = 'Single Line';
+                    break;
+                case 'multi-section':
+                    icon = 'fa-layer-group';
+                    label = 'Multi-Section';
+                    break;
+                default:
+                    icon = 'fa-list';
+                    label = 'Multi-Line';
+            }
+            display.innerHTML = `
+                <span class="structure-badge active" data-structure="${type}">
+                    <i class="fas ${icon}"></i> ${label}
+                </span>
+            `;
+        }
+    }
 
     /**
-     * Render step 2 based on structure type
+     * Render step 2 - Always use multi-section builder (most flexible)
+     * Structure type will be auto-detected when saving based on content
      */
     renderStep2() {
         const builder = document.getElementById('skillLinesBuilder');
@@ -549,14 +637,11 @@ class TemplateWizard {
             return;
         }
 
-        if (this.templateData.structureType === 'single') {
-            builder.innerHTML = this.renderSingleLineBuilder();
-        } else if (this.templateData.structureType === 'multi-line') {
-            builder.innerHTML = this.renderMultiLineBuilder();
-        } else if (this.templateData.structureType === 'multi-section') {
-            const html = this.renderMultiSectionBuilder();
-            builder.innerHTML = html;
-        }
+        // Always use multi-section mode - it's the most flexible
+        // Structure type will be auto-detected on save based on actual content
+        this.templateData.structureType = 'multi-section';
+        const html = this.renderMultiSectionBuilder();
+        builder.innerHTML = html;
 
         this.attachStep2EventListeners();
     }
@@ -627,61 +712,70 @@ class TemplateWizard {
         }
 
         return `
-            <div class="multi-section-container" style="width: 100%;">
-                <!-- Header with global actions -->
-                <div class="section-header-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h4 style="margin: 0;">Sections:</h4>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-sm btn-primary" id="wizardAddSectionBtn">
-                            <i class="fas fa-plus"></i> Add Section
-                        </button>
+            <div class="wizard-sections-container">
+                <!-- Modern Header Bar -->
+                <div class="wizard-sections-header">
+                    <div class="wizard-sections-title">
+                        <div class="wizard-sections-icon">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <div class="wizard-sections-info">
+                            <h4>Template Sections</h4>
+                            <p>Define skill groups that will be available when using this template</p>
+                        </div>
                     </div>
+                    <button class="btn-wizard-add" id="wizardAddSectionBtn">
+                        <i class="fas fa-plus"></i>
+                        <span>Add Section</span>
+                    </button>
                 </div>
                 
                 <!-- Sections list container -->
-                <div id="multiSectionsList" style="width: 100%; display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem;"></div>
+                <div id="multiSectionsList" class="wizard-sections-list"></div>
                 
-                <!-- Preview -->
-                <div class="preview-section" style="margin-top: 1rem;">
-                    <h4>Preview (<span id="multiSectionCount">0</span> sections, <span id="multiSectionLineCount">0</span> total lines):</h4>
-                    <pre id="multiSectionPreview" class="skill-preview"></pre>
+                <!-- Preview Panel -->
+                <div class="wizard-preview-panel">
+                    <div class="wizard-preview-header">
+                        <div class="wizard-preview-title">
+                            <i class="fas fa-eye"></i>
+                            <span>YAML Preview</span>
+                        </div>
+                        <div class="wizard-preview-stats">
+                            <span class="wizard-stat">
+                                <i class="fas fa-folder"></i>
+                                <span id="multiSectionCount">0</span> sections
+                            </span>
+                            <span class="wizard-stat">
+                                <i class="fas fa-code"></i>
+                                <span id="multiSectionLineCount">0</span> lines
+                            </span>
+                        </div>
+                    </div>
+                    <pre id="multiSectionPreview" class="wizard-preview-code"></pre>
                 </div>
             </div>
         `;
     }
 
     /**
-     * Attach step 2 event listeners
+     * Attach step 2 event listeners - Always uses multi-section mode
      */
     attachStep2EventListeners() {
-        const type = this.templateData.structureType;
-
-        if (type === 'single') {
-            document.getElementById('singleSkillLine')?.addEventListener('input', () => {
-                this.debounce('singlePreview', () => this.updateSinglePreview(), 200);
-            });
-            document.getElementById('openSingleBuilder')?.addEventListener('click', () => this.openSingleBuilder());
-        } else if (type === 'multi-line') {
-            document.getElementById('addLineBtn')?.addEventListener('click', () => this.addMultiLine());
-            document.getElementById('pasteMultiBtn')?.addEventListener('click', () => this.pasteMultiLines());
-            document.getElementById('openMultiBuilder')?.addEventListener('click', () => this.openMultiLineBuilder());
-            this.renderMultiLines(); // Initial render
-        } else if (type === 'multi-section') {
-            // Multi-section listeners
-            const addBtn = document.getElementById('wizardAddSectionBtn');
-            
-            if (addBtn) {
-                const listener = () => {
-                    this.addSection();
-                };
-                addBtn.addEventListener('click', listener);
-            } else {
-                console.error('wizardAddSectionBtn not found in DOM!');
-            }
-            
-            // Render sections (which calls attachMultiSectionListeners internally)
-            this.renderMultiSections();
+        // Always use multi-section mode (most flexible)
+        // Multi-section listeners
+        const addBtn = document.getElementById('wizardAddSectionBtn');
+        
+        if (addBtn) {
+            const listener = () => {
+                this.addSection();
+            };
+            addBtn.addEventListener('click', listener);
+        } else {
+            console.error('wizardAddSectionBtn not found in DOM!');
         }
+        
+        // Render sections (which calls attachMultiSectionListeners internally)
+        this.renderMultiSections();
     }
 
     /**
@@ -712,58 +806,74 @@ class TemplateWizard {
         // Generate HTML for all sections
         const html = this.templateData.sections.map((section, sectionIndex) => {
             const linesHTML = section.lines.length === 0 
-                ? `<div class="empty-state" style="text-align: center; padding: 1.5rem; opacity: 0.5; color: var(--text-secondary);">
-                       No lines yet<br><small>Click "+ Add Line" or "Open Builder" to start</small>
+                ? `<div class="wizard-section-empty">
+                       <div class="wizard-empty-icon">
+                           <i class="fas fa-wand-magic-sparkles"></i>
+                       </div>
+                       <p>No skill lines yet</p>
+                       <span>Click "Add Line" or "Open Builder" to start</span>
                    </div>`
                 : section.lines.map((line, lineIndex) => `
-                    <div class="skill-line-row" data-section="${sectionIndex}" data-line="${lineIndex}">
-                        <span class="line-number">${lineIndex + 1}.</span>
+                    <div class="wizard-line-item" data-section="${sectionIndex}" data-line="${lineIndex}">
+                        <div class="wizard-line-drag">
+                            <i class="fas fa-grip-vertical"></i>
+                        </div>
+                        <div class="wizard-line-number">#${lineIndex + 1}</div>
                         <input 
                             type="text" 
-                            class="skill-line-input" 
+                            class="wizard-line-input" 
                             value="${this.escapeHtml(line)}"
                             placeholder="e.g., damage{a=10} @target"
-                            style="font-family: 'Courier New', monospace;"
                         >
-                        <button class="btn btn-sm btn-danger btn-delete-line" title="Delete Line">
+                        <button class="wizard-line-delete btn-delete-line" title="Delete Line">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 `).join('');
 
             return `
-                <div class="section-card" data-section-index="${sectionIndex}" style="width: 100%;">
-                    <!-- Section header with name and delete -->
-                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: var(--bg-tertiary, #1a1a1a); border-bottom: 1px solid var(--border-color, #2a2a2a);">
-                        <input 
-                            type="text" 
-                            class="section-name-input" 
-                            value="${this.escapeHtml(section.name)}"
-                            placeholder="Section name (e.g., Skill1)"
-                            style="flex: 1; background: transparent; border: 1px solid transparent; color: var(--text-primary); font-size: 1rem; font-weight: 600; padding: 6px 10px; border-radius: 4px;"
-                        >
-                        <button class="btn btn-sm btn-danger btn-delete-section" title="Delete Section">
+                <div class="wizard-section-card" data-section-index="${sectionIndex}">
+                    <!-- Section Header -->
+                    <div class="wizard-section-header">
+                        <div class="wizard-section-name-wrapper">
+                            <i class="fas fa-pen wizard-edit-icon"></i>
+                            <input 
+                                type="text" 
+                                class="wizard-section-name section-name-input" 
+                                value="${this.escapeHtml(section.name)}"
+                                placeholder="Section name"
+                                title="Click to edit section name"
+                            >
+                        </div>
+                        <div class="wizard-section-badge">
+                            <i class="fas fa-code"></i>
+                            <span>${section.lines.length}</span>
+                        </div>
+                        <button class="wizard-section-delete btn-delete-section" title="Delete Section">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                     
-                    <!-- Section body with actions and lines -->
-                    <div class="section-body" style="padding: 15px;">
-                        <!-- Action buttons -->
-                        <div class="section-actions" style="display: flex; gap: 8px; margin-bottom: 12px;">
-                            <button class="btn btn-sm btn-primary btn-add-line">
-                                <i class="fas fa-plus"></i> Add Line
+                    <!-- Section Body -->
+                    <div class="wizard-section-body">
+                        <!-- Action Buttons -->
+                        <div class="wizard-section-actions">
+                            <button class="wizard-action-btn btn-add-line">
+                                <i class="fas fa-plus"></i>
+                                <span>Add Line</span>
                             </button>
-                            <button class="btn btn-sm btn-secondary btn-paste-lines">
-                                <i class="fas fa-paste"></i> Paste Bulk
+                            <button class="wizard-action-btn btn-paste-lines">
+                                <i class="fas fa-paste"></i>
+                                <span>Paste Bulk</span>
                             </button>
-                            <button class="btn btn-sm btn-primary btn-open-builder">
-                                <i class="fas fa-edit"></i> Open Builder
+                            <button class="wizard-action-btn primary btn-open-builder">
+                                <i class="fas fa-edit"></i>
+                                <span>Open Builder</span>
                             </button>
                         </div>
                         
-                        <!-- Lines container -->
-                        <div class="section-lines" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Lines Container -->
+                        <div class="wizard-section-lines">
                             ${linesHTML}
                         </div>
                     </div>
@@ -779,6 +889,7 @@ class TemplateWizard {
         
         // Update preview
         this.updateMultiSectionPreview();
+        this.updateStructureTypeDisplay(); // Auto-detect after render
     }
 
     /**
@@ -801,8 +912,8 @@ class TemplateWizard {
             const target = e.target.closest('button');
             if (!target) return;
 
-            // Get section index from closest section-card
-            const card = target.closest('.section-card');
+            // Get section index from closest wizard-section-card
+            const card = target.closest('.wizard-section-card');
             if (!card) return;
             const sectionIndex = parseInt(card.dataset.sectionIndex);
 
@@ -816,7 +927,7 @@ class TemplateWizard {
             } else if (target.classList.contains('btn-delete-section')) {
                 this.deleteSection(sectionIndex);
             } else if (target.classList.contains('btn-delete-line')) {
-                const row = target.closest('.skill-line-row');
+                const row = target.closest('.wizard-line-item');
                 if (row) {
                     const lineIndex = parseInt(row.dataset.line);
                     this.deleteLineFromSection(sectionIndex, lineIndex);
@@ -827,14 +938,14 @@ class TemplateWizard {
         // Create input handler
         this.multiSectionInputHandler = (e) => {
             if (e.target.classList.contains('section-name-input')) {
-                const card = e.target.closest('.section-card');
+                const card = e.target.closest('.wizard-section-card');
                 if (card) {
                     const sectionIndex = parseInt(card.dataset.sectionIndex);
                     this.templateData.sections[sectionIndex].name = e.target.value;
                     this.debounce('sectionPreview', () => this.updateMultiSectionPreview(), 200);
                 }
-            } else if (e.target.classList.contains('skill-line-input')) {
-                const row = e.target.closest('.skill-line-row');
+            } else if (e.target.classList.contains('wizard-line-input')) {
+                const row = e.target.closest('.wizard-line-item');
                 if (row) {
                     const sectionIndex = parseInt(row.dataset.section);
                     const lineIndex = parseInt(row.dataset.line);
@@ -1053,6 +1164,7 @@ class TemplateWizard {
         });
 
         this.updateMultiLinePreview();
+        this.updateStructureTypeDisplay(); // Auto-detect after render
     }
 
     /**
@@ -1341,24 +1453,23 @@ class TemplateWizard {
      * Update step UI
      */
     updateStepUI() {
-        // Update step indicators
-        document.querySelectorAll('.wizard-step').forEach(step => {
-            const stepNum = parseInt(step.dataset.step);
-            step.classList.toggle('active', stepNum === this.currentStep);
-            step.classList.toggle('completed', stepNum < this.currentStep);
-        });
-
         // Update step number in header
-        document.getElementById('wizardStepNumber').textContent = this.currentStep;
+        const stepNumber = document.getElementById('wizardStepNumber');
+        const stepName = document.getElementById('wizardStepName');
+        const progressFill = document.getElementById('wizardProgressFill');
+        
+        if (stepNumber) stepNumber.textContent = this.currentStep;
+        if (stepName) stepName.textContent = this.currentStep === 1 ? 'Template Details' : 'Build Skills';
+        if (progressFill) progressFill.style.width = this.currentStep === 1 ? '50%' : '100%';
 
         // Show/hide step content
         document.getElementById('wizardStep1').style.display = this.currentStep === 1 ? 'block' : 'none';
         document.getElementById('wizardStep2').style.display = this.currentStep === 2 ? 'block' : 'none';
 
         // Show/hide navigation buttons
-        document.getElementById('wizardBack').style.display = this.currentStep === 2 ? 'block' : 'none';
-        document.getElementById('wizardNext').style.display = this.currentStep === 1 ? 'block' : 'none';
-        document.getElementById('wizardSave').style.display = this.currentStep === 2 ? 'block' : 'none';
+        document.getElementById('wizardBack').style.display = this.currentStep === 2 ? 'flex' : 'none';
+        document.getElementById('wizardNext').style.display = this.currentStep === 1 ? 'flex' : 'none';
+        document.getElementById('wizardSave').style.display = this.currentStep === 2 ? 'flex' : 'none';
     }
 
     /**
@@ -1366,39 +1477,35 @@ class TemplateWizard {
      */
     async save() {
         try {
-            // Collect skill lines based on structure type
+            // Collect skill lines from sections (always multi-section mode in UI)
             let skillLines = [];
             const sections = [];
-
-            if (this.templateData.structureType === 'single') {
-                const line = document.getElementById('singleSkillLine').value.trim();
-                if (line) {
-                    skillLines = [line];
-                    sections.push({ name: 'Skill1', lines: [line] });
+            
+            // Collect from sections
+            this.templateData.sections.forEach(section => {
+                const sectionLines = section.lines.filter(l => l.trim());
+                if (sectionLines.length > 0) {
+                    sections.push({
+                        name: section.name,
+                        lines: sectionLines
+                    });
+                    skillLines.push(...sectionLines);
                 }
-            } else if (this.templateData.structureType === 'multi-line') {
-                // Collect multi-line content
-                skillLines = this.templateData.lines.filter(l => l.trim());
-                if (skillLines.length > 0) {
-                    sections.push({ name: 'Skills', lines: skillLines });
-                }
-            } else if (this.templateData.structureType === 'multi-section') {
-                // Collect from sections
-                this.templateData.sections.forEach(section => {
-                    const sectionLines = section.lines.filter(l => l.trim());
-                    if (sectionLines.length > 0) {
-                        sections.push({
-                            name: section.name,
-                            lines: sectionLines
-                        });
-                        skillLines.push(...sectionLines);
-                    }
-                });
-            }
+            });
 
             // Validate we have at least one skill line
             if (skillLines.length === 0) {
                 throw new Error('Template must have at least one skill line');
+            }
+            
+            // Auto-detect structure type based on actual content
+            let structureType;
+            if (sections.length > 1) {
+                structureType = 'multi-section';
+            } else if (skillLines.length === 1) {
+                structureType = 'single';
+            } else {
+                structureType = 'multi-line';
             }
 
             // Create template with context information
@@ -1412,7 +1519,7 @@ class TemplateWizard {
                 icon: this.templateData.icon,
                 skillLines: skillLines,
                 sections: sections,
-                structure_type: this.templateData.structureType,
+                structure_type: structureType, // Use auto-detected type
                 is_official: this.templateData.isOfficial
             });
             if (window.notificationModal) {
@@ -1451,7 +1558,7 @@ class TemplateWizard {
         this.templateData = {
             name: '',
             description: '',
-            structureType: 'multi-line',
+            structureType: 'multi-section', // Always use multi-section mode (most flexible)
             category: 'combat',
             icon: '⚔️',
             type: 'skill',
@@ -1487,6 +1594,12 @@ class TemplateWizard {
         this.currentStep = 1;
         this.resetForm();
         this.updateStepUI();
+        
+        // Call close callback if provided (e.g., to re-open admin panel)
+        if (this.onCloseCallback) {
+            this.onCloseCallback();
+            this.onCloseCallback = null; // Clear after calling
+        }
     }
 
     /**

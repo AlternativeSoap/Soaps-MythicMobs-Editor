@@ -723,10 +723,13 @@ const TARGETERS_DATA = {
             category: 'location_multi',
             description: 'Targets random locations near the caster',
             attributes: [
-                { name: 'radius', alias: 'r', type: 'number', default: 5, required: false, description: 'The radius' },
-                { name: 'amount', alias: 'a', type: 'number', default: 1, required: false, description: 'Number of locations' }
+                { name: 'amount', alias: 'a', type: 'number', default: 5, required: false, description: 'The amount of points' },
+                { name: 'radius', alias: 'r,maxradius,maxr', type: 'number', default: 5, required: false, description: 'The radius in which target points will be generated' },
+                { name: 'minradius', alias: 'minr', type: 'number', default: 0, required: false, description: 'The minimum radius in which target points will be generated' },
+                { name: 'spacing', alias: 's', type: 'number', default: 0, required: false, description: 'The minimum amount of space between selected targets' },
+                { name: 'onSurface', alias: 'onsurf,os', type: 'boolean', default: false, required: false, description: 'Only target locations above solid blocks' }
             ],
-            examples: ['@RandomLocationsNearCaster{r=10;a=5}'],
+            examples: ['@RandomLocationsNearCaster{a=5;r=2}'],
             requirements: []
         },
         {
@@ -736,10 +739,13 @@ const TARGETERS_DATA = {
             category: 'location_multi',
             description: 'Targets random locations near the origin of a skill',
             attributes: [
-                { name: 'radius', alias: 'r', type: 'number', default: 5, required: false, description: 'The radius' },
-                { name: 'amount', alias: 'a', type: 'number', default: 1, required: false, description: 'Number of locations' }
+                { name: 'amount', alias: 'a', type: 'number', default: 5, required: false, description: 'The amount of points' },
+                { name: 'radius', alias: 'r,maxradius,maxr', type: 'number', default: 5, required: false, description: 'The radius in which target points will be generated' },
+                { name: 'minradius', alias: 'minr', type: 'number', default: 0, required: false, description: 'The minimum radius in which target points will be generated' },
+                { name: 'spacing', alias: 's', type: 'number', default: 0, required: false, description: 'The minimum amount of space between selected targets' },
+                { name: 'onSurface', alias: 'onsurf,os', type: 'boolean', default: false, required: false, description: 'Only target locations above solid blocks' }
             ],
-            examples: ['@RandomLocationsNearOrigin{r=10;a=5}'],
+            examples: ['@RandomLocationsNearOrigin{a=5;r=2}'],
             requirements: []
         },
         {
@@ -749,11 +755,13 @@ const TARGETERS_DATA = {
             category: 'location_multi',
             description: 'Targets random locations near each inherited target entity',
             attributes: [
-                { name: 'radius', alias: 'r', type: 'number', default: 5, required: false, description: 'The radius' },
-                { name: 'amount', alias: 'a', type: 'number', default: 1, required: false, description: 'Number of locations per target' },
-                { name: 'minradius', alias: 'mr', type: 'number', default: 0, required: false, description: 'Minimum radius' }
+                { name: 'amount', alias: 'a', type: 'number', default: 5, required: false, description: 'The amount of points' },
+                { name: 'radius', alias: 'r,maxradius,maxr', type: 'number', default: 5, required: false, description: 'The radius in which target points will be generated' },
+                { name: 'minradius', alias: 'minr', type: 'number', default: 0, required: false, description: 'The minimum radius in which target points will be generated' },
+                { name: 'spacing', alias: 's', type: 'number', default: 0, required: false, description: 'The minimum amount of space between selected targets' },
+                { name: 'onSurface', alias: 'onsurf,os', type: 'boolean', default: false, required: false, description: 'Only target locations above solid blocks' }
             ],
-            examples: ['@RandomLocationsNearTarget{r=10;a=5}', '@RLNT{r=8;a=3;mr=2}'],
+            examples: ['@RandomLocationsNearTarget{a=5;r=2}', '@RLNT{r=8;a=3;minr=2}'],
             requirements: []
         },
         {

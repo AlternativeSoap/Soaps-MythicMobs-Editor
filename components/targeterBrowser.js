@@ -470,8 +470,8 @@ class TargeterBrowser {
         // Helper to render a single targeter card
         const renderCard = (t) => `<div class="mechanic-list-item" data-targeter="${t.id}" tabindex="0">
     <div class="mechanic-item-main">
-        <span class="mechanic-name">@${t.name}</span>
-        <span class="mechanic-desc">${t.description}</span>
+        <span class="mechanic-name" title="@${t.name}">@${t.name}</span>
+        <span class="mechanic-desc" title="${t.description}">${t.description}</span>
     </div>
     <div class="mechanic-item-actions">
         <span class="mechanic-category-tag mechanic-category-${t.category.toLowerCase().replace('_', '')}">${t.category.replace('_', ' ').toUpperCase()}</span>

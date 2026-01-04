@@ -1148,61 +1148,6 @@ Note: Folder names are case-insensitive (skills = Skills, mobs = Mobs)`;
     }
 
     /**
-     * DEPRECATED - This method is no longer used
-     * ImportExecutor now handles saving packs directly with the correct file-based structure.
-     * This method was broken because packResult.entries is an object {mobs:[], skills:[], ...}
-     * not an array, so iterating over it didn't work correctly.
-     * @deprecated
-     */
-    updatePackManager(importResults) {
-        for (const packResult of importResults.packs) {
-            // Create or get pack
-            let pack = window.packManager?.getPack(packResult.packName);
-            if (!pack) {
-                pack = window.packManager?.createPack(packResult.packName);
-            }
-
-            if (!pack) continue;
-
-            // Add entries to pack
-            for (const entry of packResult.entries) {
-                switch (entry.type) {
-                    case 'mob':
-                        pack.mobs = pack.mobs || [];
-                        pack.mobs.push(entry.data);
-                        break;
-                    case 'skill':
-                        pack.skills = pack.skills || [];
-                        pack.skills.push(entry.data);
-                        break;
-                    case 'item':
-                        pack.items = pack.items || [];
-                        pack.items.push(entry.data);
-                        break;
-                    case 'droptable':
-                        pack.droptables = pack.droptables || [];
-                        pack.droptables.push(entry.data);
-                        break;
-                    case 'randomspawn':
-                        pack.randomspawns = pack.randomspawns || [];
-                        pack.randomspawns.push(entry.data);
-                        break;
-                }
-            }
-
-            // Save pack if storage manager available
-            if (window.storageManager) {
-                window.storageManager.savePack(packResult.packName, pack);
-            }
-        }
-
-        // Refresh UI
-        if (window.packManager?.refresh) {
-            window.packManager.refresh();
-        }
-    }
-
-    /**
      * Handle export report button click
      */
     handleExportReport(format) {

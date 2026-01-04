@@ -147,6 +147,10 @@ CREATE POLICY "Users can delete own data"
 | `type` | VARCHAR(20) | NOT NULL | 'mob' or 'skill' |
 | `structure_type` | VARCHAR(50) | | 'inline', 'skill', 'multi-skill' |
 | `is_official` | BOOLEAN | DEFAULT FALSE | Official/approved template |
+| `approval_status` | VARCHAR(20) | DEFAULT 'approved' | 'pending', 'approved', 'rejected' |
+| `approved_by` | UUID | REFERENCES auth.users(id) | Admin who approved/rejected |
+| `approved_at` | TIMESTAMPTZ | | When template was approved/rejected |
+| `rejection_reason` | TEXT | | Reason for rejection (if rejected) |
 | `tags` | TEXT[] | DEFAULT '{}' | Searchable tags |
 | `data` | JSONB | NOT NULL | Template content (sections, skillLines, triggers, etc.) |
 | `deleted` | BOOLEAN | DEFAULT FALSE | Soft delete flag |
@@ -171,6 +175,11 @@ CREATE TABLE templates (
     type VARCHAR(20) NOT NULL CHECK (type IN ('mob', 'skill')),
     structure_type VARCHAR(50),
     is_official BOOLEAN DEFAULT FALSE,
+    -- Approval workflow columns
+    approval_status VARCHAR(20) DEFAULT 'approved' CHECK (approval_status IN ('pending', 'approved', 'rejected')),
+    approved_by UUID REFERENCES auth.users(id),
+    approved_at TIMESTAMPTZ,
+    rejection_reason TEXT,
     tags TEXT[] DEFAULT '{}',
     data JSONB NOT NULL,
     deleted BOOLEAN DEFAULT FALSE,
@@ -187,6 +196,7 @@ CREATE TABLE templates (
 CREATE INDEX idx_templates_owner ON templates(owner_id);
 CREATE INDEX idx_templates_type ON templates(type) WHERE deleted = false;
 CREATE INDEX idx_templates_official ON templates(is_official) WHERE deleted = false;
+CREATE INDEX idx_templates_approval_status ON templates(approval_status) WHERE deleted = false;
 -- Statistics indexes for sorting/filtering
 CREATE INDEX idx_templates_rating ON templates(average_rating DESC) WHERE deleted = false;
 CREATE INDEX idx_templates_views ON templates(view_count DESC) WHERE deleted = false;
@@ -507,17 +517,17 @@ CREATE POLICY "Admins can insert activity log"
 
 ## 8. `user_activity_logs`
 
-**Purpose:** Track user activity for analytics.
+**Purpose:** Track user activity for analytics and admin monitoring (includes template deletions).
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY DEFAULT gen_random_uuid() | |
 | `user_id` | UUID | REFERENCES auth.users(id) ON DELETE SET NULL | |
-| `activity_type` | VARCHAR(100) | NOT NULL | Activity type |
+| `activity_type` | VARCHAR(100) | NOT NULL | Activity type (e.g., delete_user_template) |
 | `details` | JSONB | | Activity details |
 | `timestamp` | TIMESTAMPTZ | DEFAULT NOW() | |
 
-**Used by:** `adminPanelEnhanced.js` (analytics)
+**Used by:** `adminPanelEnhanced.js` (analytics), `adminManager.js` (activity log), `templateSelector.js` (deletion tracking)
 
 ```sql
 -- =============================================
@@ -531,9 +541,10 @@ CREATE TABLE user_activity_logs (
     timestamp TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index
+-- Indexes
 CREATE INDEX idx_user_activity_timestamp ON user_activity_logs(timestamp DESC);
 CREATE INDEX idx_user_activity_user ON user_activity_logs(user_id);
+CREATE INDEX idx_user_activity_type ON user_activity_logs(activity_type);
 
 -- RLS Policies
 ALTER TABLE user_activity_logs ENABLE ROW LEVEL SECURITY;
@@ -1412,6 +1423,7 @@ CREATE TABLE user_activity_logs (
 
 CREATE INDEX idx_user_activity_timestamp ON user_activity_logs(timestamp DESC);
 CREATE INDEX idx_user_activity_user ON user_activity_logs(user_id);
+CREATE INDEX idx_user_activity_type ON user_activity_logs(activity_type);
 ALTER TABLE user_activity_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Admins can view all activity" ON user_activity_logs FOR SELECT
@@ -1598,4 +1610,156 @@ VALUES ('be6795f9-fad0-482f-9c49-b2466c9551aa', 'super_admin', 'Initial setup');
 To find your user ID:
 ```sql
 SELECT id, email FROM auth.users;
+```
+
+---
+
+## Migration Scripts
+
+### Add Template Approval Workflow (v1.1.0)
+
+If you already have the `templates` table and need to add the approval workflow columns:
+
+```sql
+-- =============================================
+-- MIGRATION: Add Template Approval Workflow
+-- Run this if you have an existing templates table
+-- =============================================
+
+-- Add new approval workflow columns
+ALTER TABLE templates 
+ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20) DEFAULT 'approved' 
+    CHECK (approval_status IN ('pending', 'approved', 'rejected'));
+
+ALTER TABLE templates 
+ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES auth.users(id);
+
+ALTER TABLE templates 
+ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+
+ALTER TABLE templates 
+ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+
+-- Create index for approval status filtering
+CREATE INDEX IF NOT EXISTS idx_templates_approval_status 
+ON templates(approval_status) WHERE deleted = false;
+
+-- Set all existing templates to 'approved' status (they were already live)
+UPDATE templates 
+SET approval_status = 'approved', 
+    approved_at = created_at 
+WHERE approval_status IS NULL;
+
+-- Verify the migration
+SELECT 
+    COUNT(*) as total_templates,
+    COUNT(*) FILTER (WHERE approval_status = 'approved') as approved,
+    COUNT(*) FILTER (WHERE approval_status = 'pending') as pending,
+    COUNT(*) FILTER (WHERE approval_status = 'rejected') as rejected
+FROM templates WHERE deleted = false;
+```
+
+---
+
+### Add System Settings Table (v1.2.0)
+
+Global system settings stored in database for admin-configurable values.
+
+```sql
+-- =============================================
+-- TABLE: system_settings
+-- Global system settings (admin configurable)
+-- =============================================
+CREATE TABLE system_settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value JSONB NOT NULL,
+    description TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_by UUID REFERENCES auth.users(id)
+);
+
+-- RLS Policies
+ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
+
+-- Anyone can read settings (needed for limit checks)
+CREATE POLICY "Anyone can view system settings"
+    ON system_settings FOR SELECT
+    USING (true);
+
+-- Only super admins can modify settings
+CREATE POLICY "Super admins can insert settings"
+    ON system_settings FOR INSERT
+    WITH CHECK (is_super_admin(auth.uid()));
+
+CREATE POLICY "Super admins can update settings"
+    ON system_settings FOR UPDATE
+    USING (is_super_admin(auth.uid()));
+
+CREATE POLICY "Super admins can delete settings"
+    ON system_settings FOR DELETE
+    USING (is_super_admin(auth.uid()));
+
+-- Insert default settings
+INSERT INTO system_settings (key, value, description) VALUES
+    ('maxTemplatesPerUser', '10', 'Maximum number of templates a user can create'),
+    ('maxPendingTemplatesPerUser', '3', 'Maximum pending templates per user'),
+    ('maxPacksPerUser', '100', 'Maximum packs per user'),
+    ('maxPackSize', '50', 'Maximum pack size in MB'),
+    ('featureTemplates', 'true', 'Enable template system'),
+    ('featureSocialSharing', 'true', 'Enable social sharing'),
+    ('featureAnalytics', 'true', 'Enable analytics'),
+    ('maintenanceMode', 'false', 'Maintenance mode enabled'),
+    ('maintenanceMessage', '"System maintenance in progress..."', 'Maintenance message')
+ON CONFLICT (key) DO NOTHING;
+```
+
+---
+
+### Add User Notifications Table (v1.2.0)
+
+Notifications for users (template approval/rejection, etc.)
+
+```sql
+-- =============================================
+-- TABLE: user_notifications
+-- User notifications for template status, etc.
+-- =============================================
+CREATE TABLE user_notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    data JSONB DEFAULT '{}',
+    read BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_user_notifications_user ON user_notifications(user_id);
+CREATE INDEX idx_user_notifications_unread ON user_notifications(user_id, read) WHERE read = false;
+CREATE INDEX idx_user_notifications_created ON user_notifications(created_at DESC);
+
+-- RLS Policies
+ALTER TABLE user_notifications ENABLE ROW LEVEL SECURITY;
+
+-- Users can only see their own notifications
+CREATE POLICY "Users can view own notifications"
+    ON user_notifications FOR SELECT
+    USING (auth.uid() = user_id);
+
+-- System/admins can create notifications for any user
+CREATE POLICY "Admins can create notifications"
+    ON user_notifications FOR INSERT
+    WITH CHECK (is_admin(auth.uid()));
+
+-- Users can mark their own notifications as read
+CREATE POLICY "Users can update own notifications"
+    ON user_notifications FOR UPDATE
+    USING (auth.uid() = user_id);
+
+-- Users can delete their own notifications
+CREATE POLICY "Users can delete own notifications"
+    ON user_notifications FOR DELETE
+    USING (auth.uid() = user_id);
 ```

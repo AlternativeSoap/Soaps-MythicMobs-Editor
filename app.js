@@ -67,10 +67,8 @@ class MythicMobsEditor {
             livePreview: true,
             livePreviewDebounce: 300,
             defaultMode: 'beginner',
-            includeDefaults: false,
             animations: true,
             compactMode: false,
-            autoFormat: true,
             keepHistory: true,
             maxHistory: 100,
             warnDuplicateFiles: true,
@@ -228,6 +226,7 @@ class MythicMobsEditor {
         document.getElementById('quick-new-item')?.addEventListener('click', () => this.createNewItem());
         document.getElementById('quick-new-droptable')?.addEventListener('click', () => this.createNewDropTable());
         document.getElementById('quick-new-randomspawn')?.addEventListener('click', () => this.createNewRandomSpawn());
+        document.getElementById('quick-template-browser')?.addEventListener('click', () => this.openTemplateBrowser());
         document.getElementById('quick-import')?.addEventListener('click', () => this.showImportDialog());
         
         // Pack actions
@@ -333,10 +332,6 @@ class MythicMobsEditor {
         document.getElementById('setting-max-history')?.addEventListener('input', (e) => {
             document.getElementById('max-history-value').textContent = e.target.value;
         });
-        document.getElementById('setting-internal-name-separator')?.addEventListener('change', (e) => {
-            const preview = document.getElementById('separator-preview');
-            if (preview) preview.textContent = e.target.value;
-        });
         
         // Delay display mode - update immediately when changed
         document.getElementById('setting-delay-display-mode')?.addEventListener('change', (e) => {
@@ -440,6 +435,12 @@ class MythicMobsEditor {
             if (e.ctrlKey && e.shiftKey && e.key === 'R') {
                 e.preventDefault();
                 this.createNewRandomSpawn();
+            }
+            
+            // Template Browser (Ctrl+Shift+P)
+            if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+                e.preventDefault();
+                this.openTemplateBrowser();
             }
             
             // Import YAML (Ctrl+Shift+O)
@@ -944,7 +945,7 @@ class MythicMobsEditor {
     }
     
     /**
-     * Create new skill
+     * Create new skill - shows dialog with template option
      */
     async createNewSkill() {
         if (!this.state.currentPack) {
@@ -952,16 +953,130 @@ class MythicMobsEditor {
             return;
         }
         
-        const fileName = await this.showPrompt('New Skill File', 'Enter YAML file name (without .yml):', 'skills');
-        if (!fileName) return;
+        // Show creation choice dialog
+        const result = await this.showSkillCreationDialog();
+        if (!result) return;
         
-        // Add .yml extension if not present
-        const fullFileName = fileName.endsWith('.yml') ? fileName : fileName + '.yml';
-        
-        // Create empty file (no entries yet)
-        this.fileManager.createEmptyFile('skill', fullFileName);
-        this.showToast('Skill file created. Add skills using the + button in the editor.', 'success');
-        this.markDirty();
+        if (result.useTemplate) {
+            // Open template browser for skill creation
+            this.openTemplateBrowser();
+        } else {
+            // Create empty skill file
+            const fullFileName = result.fileName.endsWith('.yml') ? result.fileName : result.fileName + '.yml';
+            this.fileManager.createEmptyFile('skill', fullFileName);
+            this.showToast('Skill file created. Add skills using the + button in the editor.', 'success');
+            this.markDirty();
+        }
+    }
+    
+    /**
+     * Show skill creation dialog - template or empty
+     */
+    showSkillCreationDialog() {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay skill-creation-overlay';
+            overlay.innerHTML = `
+                <div class="modal skill-creation-modal">
+                    <div class="skill-creation-header">
+                        <h3><i class="fas fa-magic"></i> Create New Skill</h3>
+                        <button class="modal-close" id="close-skill-dialog">&times;</button>
+                    </div>
+                    <div class="skill-creation-body">
+                        <p class="creation-subtitle">How would you like to create your skill?</p>
+                        
+                        <div class="creation-type-options">
+                            <button type="button" class="creation-choice-btn choice-template" data-choice="template">
+                                <div class="choice-icon template-icon">
+                                    <i class="fas fa-box-open"></i>
+                                </div>
+                                <strong>From Template</strong>
+                                <small>Pre-made skill lines or<br>multiple skill sections</small>
+                            </button>
+                            <button type="button" class="creation-choice-btn choice-empty" data-choice="empty">
+                                <div class="choice-icon empty-icon">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <strong>Empty File</strong>
+                                <small>Start from scratch</small>
+                            </button>
+                        </div>
+                        
+                        <div id="empty-file-section" class="empty-file-section">
+                            <div class="form-group">
+                                <label class="form-label">YAML File Name <span class="required">*</span></label>
+                                <input type="text" class="form-input" id="new-skill-filename" placeholder="skills">
+                                <small class="form-hint">Name of the YAML file (without .yml extension)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="skill-creation-footer" id="skill-dialog-footer">
+                        <button class="btn btn-secondary" id="cancel-skill-dialog">Cancel</button>
+                        <button class="btn btn-primary" id="confirm-skill-dialog">
+                            <i class="fas fa-plus"></i> Create File
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => overlay.classList.add('active'));
+            
+            const cleanup = () => {
+                overlay.classList.remove('active');
+                setTimeout(() => overlay.remove(), 150);
+            };
+            
+            // Choice button logic
+            overlay.querySelectorAll('.creation-choice-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const choice = btn.dataset.choice;
+                    if (choice === 'template') {
+                        cleanup();
+                        resolve({ useTemplate: true });
+                    } else {
+                        document.getElementById('empty-file-section').classList.add('visible');
+                        document.getElementById('skill-dialog-footer').classList.add('visible');
+                        document.getElementById('new-skill-filename')?.focus();
+                        overlay.querySelector('.creation-type-options').style.display = 'none';
+                        overlay.querySelector('.creation-subtitle').style.display = 'none';
+                    }
+                });
+            });
+            
+            document.getElementById('close-skill-dialog').addEventListener('click', () => {
+                cleanup();
+                resolve(null);
+            });
+            
+            document.getElementById('cancel-skill-dialog').addEventListener('click', () => {
+                cleanup();
+                resolve(null);
+            });
+            
+            document.getElementById('confirm-skill-dialog').addEventListener('click', () => {
+                const fileName = document.getElementById('new-skill-filename').value.trim();
+                if (!fileName) {
+                    this.showToast('Please enter a file name', 'warning');
+                    return;
+                }
+                cleanup();
+                resolve({ useTemplate: false, fileName });
+            });
+            
+            document.getElementById('new-skill-filename')?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('confirm-skill-dialog').click();
+                }
+            });
+            
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    cleanup();
+                    resolve(null);
+                }
+            });
+        });
     }
     
     /**
@@ -1025,6 +1140,139 @@ class MythicMobsEditor {
         this.fileManager.createEmptyFile('randomspawn', fullFileName);
         this.showToast('RandomSpawn file created. Add spawns using the + button in the editor.', 'success');
         this.markDirty();
+    }
+    
+    /**
+     * Open Template Browser for creating new skills from templates
+     * This is a first-class entry point for template-based creation
+     */
+    async openTemplateBrowser() {
+        if (!this.state.currentPack) {
+            this.showToast('Please select a pack first', 'warning');
+            return;
+        }
+        
+        // Initialize template selector if needed
+        if (!window.templateSelector) {
+            const templateManager = window.templateManager || new TemplateManager(window.authManager);
+            const templateEditor = window.templateEditor;
+            window.templateSelector = new TemplateSelector(templateManager, templateEditor);
+        }
+        
+        // Open template browser in "creation" mode
+        window.templateSelector.openForCreation({
+            context: 'skill', // Default to skill context for creation
+            onSelect: (template) => this.createFromTemplate(template),
+            onCancel: () => {
+                console.log('Template browser closed without selection');
+            }
+        });
+    }
+    
+    /**
+     * Create new skill file(s) from a template
+     * Handles single-line, multi-line, and multi-section templates
+     */
+    async createFromTemplate(template) {
+        if (!template) {
+            this.showToast('No template selected', 'warning');
+            return;
+        }
+        
+        console.log('Creating from template:', template.name, template);
+        
+        // Determine template structure
+        const sections = template.sections || [];
+        const skillLines = template.skillLines || [];
+        const isMultiSection = sections.length > 1;
+        const isSingleLine = !isMultiSection && (sections.length === 0 || (sections[0]?.lines?.length || 0) <= 1) && skillLines.length <= 1;
+        
+        // Get file name from user
+        const defaultName = template.name.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+        const fileName = await this.showPrompt(
+            `Create from "${template.name}"`,
+            'Enter skill file name (without .yml):',
+            defaultName
+        );
+        
+        if (!fileName) return;
+        
+        const fullFileName = fileName.endsWith('.yml') ? fileName : fileName + '.yml';
+        
+        // Build skill data based on template structure
+        let skillData = {};
+        
+        if (isMultiSection) {
+            // Multi-section template: create multiple skill entries
+            sections.forEach(section => {
+                const skillName = section.name || 'UnnamedSkill';
+                skillData[skillName] = {
+                    Skills: (section.lines || []).map(line => line.trim()).filter(l => l)
+                };
+            });
+            
+            this.showToast(`Created ${Object.keys(skillData).length} skills from "${template.name}"`, 'success');
+        } else if (sections.length === 1) {
+            // Single section with multiple lines
+            const section = sections[0];
+            const skillName = section.name || fileName.replace('.yml', '');
+            skillData[skillName] = {
+                Skills: (section.lines || []).map(line => line.trim()).filter(l => l)
+            };
+            
+            this.showToast(`Created skill "${skillName}" from template`, 'success');
+        } else if (skillLines.length > 0) {
+            // Legacy format: skillLines array
+            const skillName = fileName.replace('.yml', '');
+            skillData[skillName] = {
+                Skills: skillLines.map(line => line.trim()).filter(l => l)
+            };
+            
+            this.showToast(`Created skill "${skillName}" from template`, 'success');
+        } else {
+            // Empty or single-line template
+            const skillName = fileName.replace('.yml', '');
+            const singleLine = template.skillLine || (skillLines[0] || '');
+            skillData[skillName] = {
+                Skills: singleLine ? [singleLine.trim()] : []
+            };
+            
+            this.showToast(`Created skill "${skillName}" from template`, 'success');
+        }
+        
+        // Create the file with populated data
+        this.fileManager.createFileWithData('skill', fullFileName, skillData);
+        this.markDirty();
+        
+        // Open the newly created file
+        const newFile = this.fileManager.findFile(fullFileName, 'skill');
+        if (newFile) {
+            // For multi-section templates, open the first entry (skill) directly
+            // For single-section, also open the first entry
+            if (newFile.entries && newFile.entries.length > 0) {
+                // Use findEntryById to get a properly normalized entry
+                const firstEntry = this.packManager.findEntryById(
+                    newFile.entries[0].id, 
+                    'skill', 
+                    newFile.id
+                );
+                if (firstEntry) {
+                    this.openFile(firstEntry, 'skill');
+                }
+            } else {
+                // Fallback: create file container view
+                const fileContainer = {
+                    id: `container_${newFile.id}`,
+                    _isFileContainer: true,
+                    _fileId: newFile.id,
+                    _fileName: newFile.fileName,
+                    _file: newFile,
+                    name: newFile.fileName,
+                    fileName: newFile.fileName
+                };
+                this.openFile(fileContainer, 'skill');
+            }
+        }
     }
     
     /**
@@ -2107,18 +2355,12 @@ class MythicMobsEditor {
         document.getElementById('preview-delay-value').textContent = this.settings.livePreviewDebounce + 'ms';
         document.getElementById('setting-default-mode').value = this.settings.defaultMode;
         document.getElementById('setting-compact-mode').checked = this.settings.compactMode;
-        document.getElementById('setting-include-defaults').checked = this.settings.includeDefaults;
-        document.getElementById('setting-auto-format').checked = this.settings.autoFormat;
         document.getElementById('setting-keep-history').checked = this.settings.keepHistory;
         document.getElementById('setting-max-history').value = this.settings.maxHistory;
         document.getElementById('max-history-value').textContent = this.settings.maxHistory;
         document.getElementById('setting-warn-duplicate-files').checked = this.settings.warnDuplicateFiles !== false;
         document.getElementById('setting-internal-name-separator').value = this.settings.internalNameSeparator || '_';
         document.getElementById('setting-delay-display-mode').value = this.settings.delayDisplayMode || 'ticks';
-        
-        // Update separator preview
-        const separatorPreview = document.getElementById('separator-preview');
-        if (separatorPreview) separatorPreview.textContent = this.settings.internalNameSeparator || '_';
         
         modal.classList.remove('hidden');
     }
@@ -2169,8 +2411,6 @@ class MythicMobsEditor {
         this.settings.livePreviewDebounce = parseInt(document.getElementById('setting-preview-delay').value);
         this.settings.defaultMode = document.getElementById('setting-default-mode').value;
         this.settings.compactMode = document.getElementById('setting-compact-mode').checked;
-        this.settings.includeDefaults = document.getElementById('setting-include-defaults').checked;
-        this.settings.autoFormat = document.getElementById('setting-auto-format').checked;
         this.settings.keepHistory = document.getElementById('setting-keep-history').checked;
         this.settings.maxHistory = parseInt(document.getElementById('setting-max-history').value);
         this.settings.warnDuplicateFiles = document.getElementById('setting-warn-duplicate-files').checked;
@@ -2382,7 +2622,6 @@ class MythicMobsEditor {
             justify-content: center;
             z-index: 10000;
             background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(2px);
         `;
         
         // Create message container
@@ -2697,124 +2936,94 @@ class MythicMobsEditor {
      * Show all keyboard shortcuts modal
      */
     showAllShortcuts() {
-        this.createModal('All Keyboard Shortcuts', `
-            <div class="shortcuts-modal-content">
-                <div class="shortcuts-category">
-                    <h3><i class="fas fa-file"></i> File Operations</h3>
-                    <div class="shortcuts-list">
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>S</kbd></span>
-                            <span class="description">Save changes</span>
+        // Create shortcuts modal with new design
+        // NOTE: Shortcuts use Alt for panel toggles to avoid browser conflicts
+        const shortcutsData = [
+            {
+                category: 'File Operations',
+                icon: 'fa-file-alt',
+                color: '#3b82f6',
+                shortcuts: [
+                    { keys: ['Ctrl', 'S'], desc: 'Save changes' },
+                    { keys: ['Ctrl', 'E'], desc: 'Export to YAML' },
+                    { keys: ['Ctrl', 'Shift', 'O'], desc: 'Import YAML' }
+                ]
+            },
+            {
+                category: 'Create New',
+                icon: 'fa-plus-circle',
+                color: '#10b981',
+                shortcuts: [
+                    { keys: ['Ctrl', 'N'], desc: 'New Mob' },
+                    { keys: ['Ctrl', 'Shift', 'M'], desc: 'New Skill' },
+                    { keys: ['Ctrl', 'Shift', 'I'], desc: 'New Item' },
+                    { keys: ['Ctrl', 'Shift', 'T'], desc: 'New DropTable' },
+                    { keys: ['Ctrl', 'Shift', 'R'], desc: 'New RandomSpawn' },
+                    { keys: ['Ctrl', 'Shift', 'P'], desc: 'Browse Templates' }
+                ]
+            },
+            {
+                category: 'Quick Access',
+                icon: 'fa-bolt',
+                color: '#f59e0b',
+                shortcuts: [
+                    { keys: ['Ctrl', 'K'], desc: 'Command Palette' },
+                    { keys: ['F1'], desc: 'Show Help' },
+                    { keys: ['Esc'], desc: 'Close panels/modals' }
+                ]
+            },
+            {
+                category: 'Editing',
+                icon: 'fa-edit',
+                color: '#8b5cf6',
+                shortcuts: [
+                    { keys: ['Ctrl', 'Z'], desc: 'Undo' },
+                    { keys: ['Ctrl', 'Y'], desc: 'Redo' },
+                    { keys: ['Ctrl', 'Shift', 'F'], desc: 'Format selected line' }
+                ]
+            },
+            {
+                category: 'Toggle Panels',
+                icon: 'fa-columns',
+                color: '#ec4899',
+                shortcuts: [
+                    { keys: ['Alt', 'D'], desc: 'Toggle duplicates panel' },
+                    { keys: ['Alt', 'G'], desc: 'Toggle grouped view' },
+                    { keys: ['Alt', 'A'], desc: 'Toggle analysis panel' },
+                    { keys: ['Alt', 'V'], desc: 'Toggle validation panel' },
+                    { keys: ['Ctrl', 'Shift', 'D'], desc: 'Toggle dependencies panel' }
+                ]
+            }
+        ];
+        
+        const modalHTML = `
+            <div class="shortcuts-modal-new">
+                <div class="shortcuts-grid-new">
+                    ${shortcutsData.map(cat => `
+                        <div class="shortcut-category-card">
+                            <div class="shortcut-category-header" style="--cat-color: ${cat.color}">
+                                <i class="fas ${cat.icon}"></i>
+                                <span>${cat.category}</span>
+                            </div>
+                            <div class="shortcut-category-list">
+                                ${cat.shortcuts.map(s => `
+                                    <div class="shortcut-entry">
+                                        <span class="shortcut-keys-new">${s.keys.map(k => `<kbd>${k}</kbd>`).join('')}</span>
+                                        <span class="shortcut-desc-new">${s.desc}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>E</kbd></span>
-                            <span class="description">Export to YAML</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></span>
-                            <span class="description">Import YAML</span>
-                        </div>
-                    </div>
+                    `).join('')}
                 </div>
-                
-                <div class="shortcuts-category">
-                    <h3><i class="fas fa-plus-circle"></i> Create New</h3>
-                    <div class="shortcuts-list">
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>N</kbd></span>
-                            <span class="description">New Mob</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd></span>
-                            <span class="description">New Skill</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd></span>
-                            <span class="description">New Item</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></span>
-                            <span class="description">New DropTable</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd></span>
-                            <span class="description">New RandomSpawn</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="shortcuts-category">
-                    <h3><i class="fas fa-terminal"></i> Quick Access</h3>
-                    <div class="shortcuts-list">
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>K</kbd></span>
-                            <span class="description">Open Command Palette</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>F1</kbd></span>
-                            <span class="description">Show Help</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Esc</kbd></span>
-                            <span class="description">Close panels/modals</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="shortcuts-category">
-                    <h3><i class="fas fa-edit"></i> Editing (in Skill Builder)</h3>
-                    <div class="shortcuts-list">
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span>
-                            <span class="description">Undo</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span>
-                            <span class="description">Redo</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>F</kbd></span>
-                            <span class="description">Format all lines</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></span>
-                            <span class="description">Format selected line</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="shortcuts-category">
-                    <h3><i class="fas fa-columns"></i> Toggle Panels (in Skill Builder)</h3>
-                    <div class="shortcuts-list">
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>
-                            <span class="description">Toggle duplicates panel</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>
-                            <span class="description">Toggle validation panel</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>G</kbd></span>
-                            <span class="description">Toggle grouped view</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>A</kbd></span>
-                            <span class="description">Toggle analysis panel</span>
-                        </div>
-                        <div class="shortcut-row">
-                            <span class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd></span>
-                            <span class="description">Toggle dependencies panel</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="shortcuts-note">
+                <div class="shortcuts-footer-note">
                     <i class="fas fa-info-circle"></i>
-                    <p>Some shortcuts are context-specific and only work in certain editors (like Skill Builder).</p>
+                    <span>Some shortcuts are context-specific and only work in certain editors.</span>
                 </div>
             </div>
-        `, [], 'modal-large');
+        `;
+        
+        this.createModal('Keyboard Shortcuts', modalHTML, [], 'modal-large shortcuts-modal-container');
     }
     
     /**

@@ -1787,6 +1787,22 @@ class PackManager {
      * Returns { entry, pack } or null
      */
     findEntryInAllPacks(entryId, fileType, parentFileId) {
+        // Helper to normalize entry structure for editors
+        const normalizeEntry = (entry, parentFile) => {
+            return {
+                id: entry.id,
+                name: entry.name,
+                // Spread data properties to top level (Skills, Cooldown, Conditions, etc.)
+                ...(entry.data || {}),
+                // Keep original data reference for saving
+                data: entry.data,
+                // Parent file reference
+                _parentFile: { id: parentFile.id, fileName: parentFile.fileName },
+                // Reference to original entry for updates
+                _originalEntry: entry
+            };
+        };
+        
         for (const pack of this.packs) {
             const collection = pack[fileType + 's'];
             if (!collection || collection.length === 0) continue;
@@ -1796,9 +1812,7 @@ class PackManager {
                 if (parentFile && parentFile.entries) {
                     const entry = parentFile.entries.find(e => e.id === entryId);
                     if (entry) {
-                        // Attach parent file reference for context
-                        entry._parentFile = { id: parentFile.id, fileName: parentFile.fileName };
-                        return { entry, pack };
+                        return { entry: normalizeEntry(entry, parentFile), pack };
                     }
                 }
             }
@@ -1815,15 +1829,31 @@ class PackManager {
         const collection = this.activePack[fileType + 's'];
         if (!collection || collection.length === 0) return null;
         
+        // Helper to normalize entry structure for editors
+        const normalizeEntry = (entry, parentFile) => {
+            // Create normalized entry with data properties at top level for editor compatibility
+            const normalized = {
+                id: entry.id,
+                name: entry.name,
+                // Spread data properties to top level (Skills, Cooldown, Conditions, etc.)
+                ...(entry.data || {}),
+                // Keep original data reference for saving
+                data: entry.data,
+                // Parent file reference
+                _parentFile: { id: parentFile.id, fileName: parentFile.fileName },
+                // Reference to original entry for updates
+                _originalEntry: entry
+            };
+            return normalized;
+        };
+        
         // Find the parent file first if provided
         if (parentFileId) {
             const parentFile = collection.find(f => f.id === parentFileId);
             if (parentFile && parentFile.entries) {
                 const entry = parentFile.entries.find(e => e.id === entryId);
                 if (entry) {
-                    // Attach parent file reference for context
-                    entry._parentFile = { id: parentFile.id, fileName: parentFile.fileName };
-                    return entry;
+                    return normalizeEntry(entry, parentFile);
                 }
             }
         }
@@ -1833,8 +1863,7 @@ class PackManager {
             if (!file.entries) continue;
             const entry = file.entries.find(e => e.id === entryId);
             if (entry) {
-                entry._parentFile = { id: file.id, fileName: file.fileName };
-                return entry;
+                return normalizeEntry(entry, file);
             }
         }
         
@@ -1850,6 +1879,22 @@ class PackManager {
         const collection = this.activePack[fileType + 's'];
         if (!collection || collection.length === 0) return null;
         
+        // Helper to normalize entry structure for editors
+        const normalizeEntry = (entry, parentFile) => {
+            return {
+                id: entry.id,
+                name: entry.name,
+                // Spread data properties to top level (Skills, Cooldown, Conditions, etc.)
+                ...(entry.data || {}),
+                // Keep original data reference for saving
+                data: entry.data,
+                // Parent file reference
+                _parentFile: { id: parentFile.id, fileName: parentFile.fileName },
+                // Reference to original entry for updates
+                _originalEntry: entry
+            };
+        };
+        
         // Search all files for the entry
         for (const file of collection) {
             if (!file.entries) continue;
@@ -1857,8 +1902,7 @@ class PackManager {
                 e.name === name || e.internalName === name
             );
             if (entry) {
-                entry._parentFile = { id: file.id, fileName: file.fileName };
-                return entry;
+                return normalizeEntry(entry, file);
             }
         }
         
@@ -1996,6 +2040,78 @@ class PackManager {
         this.savePacks();
         this.renderPackTree();
         return true;
+    }
+    
+    /**
+     * Create a file with pre-populated data (from templates)
+     * @param {string} type - File type (skill, mob, etc.)
+     * @param {string} fileName - File name
+     * @param {Object} data - Pre-populated data object with entries
+     */
+    createFileWithData(type, fileName, data) {
+        if (!this.activePack) return null;
+        
+        const collection = this.activePack[type + 's'];
+        if (!collection) return null;
+        
+        // Ensure unique file name
+        const uniqueFileName = this.generateUniqueFileName(collection, fileName.replace('.yml', ''), type);
+        
+        // Convert data object to entries array
+        const entries = [];
+        for (const [entryName, entryData] of Object.entries(data)) {
+            entries.push({
+                id: `entry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                name: entryName,
+                data: entryData
+            });
+        }
+        
+        // Create file with entries
+        const newFile = {
+            id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            fileName: uniqueFileName,
+            relativePath: this.getRelativePath(type, uniqueFileName),
+            entries: entries,
+            _importMeta: {
+                createdAt: new Date().toISOString(),
+                source: 'template'
+            }
+        };
+        
+        collection.push(newFile);
+        
+        // Expand folder to show the new file
+        const folderName = type + 's';
+        this.saveFolderState(folderName, true);
+        this.saveFileState(newFile.id, true); // Auto-expand to show entries
+        
+        this.savePacks();
+        this.renderPackTree();
+        
+        return newFile;
+    }
+    
+    /**
+     * Find a file by name and type
+     * @param {string} fileName - File name to find
+     * @param {string} type - File type
+     * @returns {Object|null} File object or null
+     */
+    findFile(fileName, type) {
+        if (!this.activePack) return null;
+        
+        const collection = this.activePack[type + 's'];
+        if (!collection) return null;
+        
+        // Normalize file name
+        const normalizedName = fileName.replace('.yml', '');
+        
+        return collection.find(f => 
+            f.fileName === fileName || 
+            f.fileName === normalizedName ||
+            f.fileName === normalizedName + '.yml'
+        ) || null;
     }
     
     /**

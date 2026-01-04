@@ -20,7 +20,7 @@ class TemplateImportExport {
         lines.push(`# MythicMobs Editor Template Export`);
         lines.push(`# Template: ${template.name}`);
         lines.push(`# Description: ${template.description}`);
-        lines.push(`# Type: ${template.type}`);
+        lines.push(`# Type: ${template.entity_type || template.type || 'skill'}`);
         lines.push(`# Structure: ${template.structure_type || 'multi-line'} (${template.structureInfo?.sectionCount || 1} section(s), ${template.structureInfo?.lineCount || 0} line(s))`);
         if (template.isOfficial) {
             lines.push(`# Official Template`);
@@ -41,28 +41,42 @@ class TemplateImportExport {
         }
         lines.push(``);
         
-        // Skill sections
+        // Check if this is a mob template with mob configs
+        const isMobTemplate = template.entity_type === 'mob';
+        const mobConfigs = template.mobConfigs || template.data?.mobConfigs;
+        
+        if (isMobTemplate && mobConfigs && mobConfigs.length > 0) {
+            // Export full mob configurations
+            return lines.join('\n') + '\n' + this.exportMobConfigs(mobConfigs, template.sections);
+        }
+        
+        // Skill sections (original behavior)
         const sections = template.sections || [{
             name: 'DefaultSkill',
             lines: template.skillLines || []
         }];
         
         sections.forEach((section, index) => {
-            // Section header
-            if (sections.length > 1) {
-                lines.push(`# --- Section ${index + 1}: ${section.name} ---`);
+            // Check if section has mobConfig
+            if (section.mobConfig) {
+                lines.push(...this.exportMobSection(section));
+            } else {
+                // Section header
+                if (sections.length > 1) {
+                    lines.push(`# --- Section ${index + 1}: ${section.name} ---`);
+                }
+                
+                // Section name (YAML key)
+                lines.push(`${section.name}:`);
+                
+                // Skill lines with proper indentation
+                lines.push(`  Skills:`);
+                (section.lines || []).forEach(line => {
+                    // Ensure line starts with dash and indent properly
+                    const cleanLine = line.trim();
+                    lines.push(`    ${cleanLine.startsWith('-') ? cleanLine : '- ' + cleanLine}`);
+                });
             }
-            
-            // Section name (YAML key)
-            lines.push(`${section.name}:`);
-            
-            // Skill lines with proper indentation
-            lines.push(`  Skills:`);
-            (section.lines || []).forEach(line => {
-                // Ensure line starts with dash and indent properly
-                const cleanLine = line.trim();
-                lines.push(`    ${cleanLine.startsWith('-') ? cleanLine : '- ' + cleanLine}`);
-            });
             
             // Add spacing between sections
             if (index < sections.length - 1) {
@@ -71,6 +85,108 @@ class TemplateImportExport {
         });
         
         return lines.join('\n');
+    }
+    
+    /**
+     * Export mob configurations to YAML
+     */
+    exportMobConfigs(mobConfigs, sections) {
+        const lines = [];
+        
+        mobConfigs.forEach((mobConfig, index) => {
+            const mobName = mobConfig.internalName || (sections && sections[index]?.name) || `Mob${index + 1}`;
+            lines.push(...this.exportSingleMobConfig(mobName, mobConfig));
+            
+            if (index < mobConfigs.length - 1) {
+                lines.push('');
+            }
+        });
+        
+        return lines.join('\n');
+    }
+    
+    /**
+     * Export a single mob configuration
+     */
+    exportSingleMobConfig(mobName, config) {
+        const lines = [];
+        lines.push(`${mobName}:`);
+        
+        // Define the order of mob fields for clean output
+        const fieldOrder = [
+            'Type', 'MobType', 'Display', 'DisplayName', 'Health', 'Damage', 'Armor',
+            'Faction', 'Level', 'Mount', 'Options', 'Modules',
+            'AIGoalSelectors', 'AITargetSelectors', 'Equipment',
+            'Skills', 'Drops', 'DamageModifiers', 'KillMessages',
+            'LevelModifiers', 'Disguise', 'BossBar', 'Hearing',
+            'Components', 'Trades', 'Variables', 'Nameplate', 'Model', 'ModelEngine'
+        ];
+        
+        // Output fields in order
+        for (const field of fieldOrder) {
+            if (config[field] !== undefined && field !== 'internalName') {
+                lines.push(...this.formatYAMLField(field, config[field], 1));
+            }
+        }
+        
+        // Output any remaining fields not in the order list
+        for (const [key, value] of Object.entries(config)) {
+            if (!fieldOrder.includes(key) && key !== 'internalName' && value !== undefined) {
+                lines.push(...this.formatYAMLField(key, value, 1));
+            }
+        }
+        
+        return lines;
+    }
+    
+    /**
+     * Export a section with mob config
+     */
+    exportMobSection(section) {
+        const mobConfig = section.mobConfig;
+        return this.exportSingleMobConfig(section.name, mobConfig);
+    }
+    
+    /**
+     * Format a YAML field with proper indentation
+     */
+    formatYAMLField(key, value, indentLevel) {
+        const lines = [];
+        const indent = '  '.repeat(indentLevel);
+        
+        if (Array.isArray(value)) {
+            lines.push(`${indent}${key}:`);
+            for (const item of value) {
+                if (typeof item === 'object' && item !== null) {
+                    // Complex object in array - stringify inline
+                    lines.push(`${indent}  - ${JSON.stringify(item)}`);
+                } else {
+                    lines.push(`${indent}  - ${item}`);
+                }
+            }
+        } else if (typeof value === 'object' && value !== null) {
+            lines.push(`${indent}${key}:`);
+            for (const [subKey, subValue] of Object.entries(value)) {
+                if (typeof subValue === 'boolean') {
+                    lines.push(`${indent}  ${subKey}: ${subValue}`);
+                } else if (typeof subValue === 'number') {
+                    lines.push(`${indent}  ${subKey}: ${subValue}`);
+                } else if (typeof subValue === 'string') {
+                    lines.push(`${indent}  ${subKey}: ${subValue}`);
+                } else if (Array.isArray(subValue)) {
+                    lines.push(...this.formatYAMLField(subKey, subValue, indentLevel + 1));
+                } else if (typeof subValue === 'object') {
+                    lines.push(...this.formatYAMLField(subKey, subValue, indentLevel + 1));
+                }
+            }
+        } else if (typeof value === 'string' && (value.includes(':') || value.includes("'") || value.includes('"') || value.startsWith('&'))) {
+            // Quote strings that contain special characters
+            lines.push(`${indent}${key}: '${value.replace(/'/g, "''")}'`);
+        } else {
+            lines.push(`${indent}${key}: ${value}`);
+        }
+        
+        return lines;
     }
     
     /**

@@ -27,6 +27,7 @@ class KeyboardShortcutManager {
     
     /**
      * Register default shortcuts
+     * NOTE: Avoid overriding common browser shortcuts (Ctrl+F, Ctrl+V, Ctrl+A, Ctrl+D, Ctrl+G, etc.)
      */
     registerDefaultShortcuts() {
         // File operations
@@ -35,28 +36,24 @@ class KeyboardShortcutManager {
         });
         
         // Format operations
-        this.register('Ctrl+F', 'Format all lines', () => {
-            this.triggerEvent('format-all');
-        });
-        
         this.register('Ctrl+Shift+F', 'Format selected line', () => {
             this.triggerEvent('format-selected');
         });
         
-        // Panel toggles
-        this.register('Ctrl+D', 'Toggle duplicates panel', () => {
+        // Panel toggles - Use Alt combinations to avoid browser conflicts
+        this.register('Alt+D', 'Toggle duplicates panel', () => {
             this.triggerEvent('toggle-duplicates');
         });
         
-        this.register('Ctrl+V', 'Toggle validation panel', () => {
+        this.register('Alt+V', 'Toggle validation panel', () => {
             this.triggerEvent('toggle-validation');
         });
         
-        this.register('Ctrl+G', 'Toggle grouped view', () => {
+        this.register('Alt+G', 'Toggle grouped view', () => {
             this.triggerEvent('toggle-groups');
         });
         
-        this.register('Ctrl+A', 'Toggle analysis panel', () => {
+        this.register('Alt+A', 'Toggle analysis panel', () => {
             this.triggerEvent('toggle-analysis');
         });
         
@@ -90,8 +87,8 @@ class KeyboardShortcutManager {
             this.triggerEvent('redo');
         });
         
-        // Search/Find
-        this.register('Ctrl+Shift+F', 'Find in lines', () => {
+        // Search/Find - Use Alt+Shift+F to not conflict with browser
+        this.register('Alt+Shift+F', 'Find in lines', () => {
             this.triggerEvent('find');
         });
         

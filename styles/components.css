@@ -353,7 +353,7 @@
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
+    /* PERFORMANCE: Removed backdrop-filter: blur(4px) */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -541,33 +541,42 @@
 
 /* Settings Modal */
 .settings-modal {
-    max-width: 700px;
+    max-width: 560px;
     max-height: 85vh;
+}
+
+.settings-modal .modal-header {
+    padding: var(--spacing-lg) var(--spacing-xl);
+}
+
+.settings-modal .modal-body {
+    padding: var(--spacing-md) var(--spacing-xl) var(--spacing-xl);
 }
 
 .settings-tabs {
     display: flex;
-    gap: var(--spacing-xs);
-    border-bottom: 2px solid var(--border-primary);
-    margin-bottom: var(--spacing-lg);
+    gap: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: 0;
 }
 
 .settings-tab {
-    padding: var(--spacing-sm) var(--spacing-lg);
+    padding: var(--spacing-sm) 0;
+    padding-bottom: var(--spacing-md);
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
     color: var(--text-secondary);
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
     transition: all var(--transition-fast);
-    margin-bottom: -2px;
+    margin-bottom: -1px;
 }
 
 .settings-tab:hover {
     color: var(--text-primary);
-    background: var(--bg-tertiary);
 }
 
 .settings-tab.active {
@@ -576,7 +585,7 @@
 }
 
 .settings-content {
-    min-height: 300px;
+    min-height: 280px;
 }
 
 .settings-panel {
@@ -584,19 +593,18 @@
 }
 
 .settings-panel.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
 }
 
 .setting-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--spacing-md);
-    border-bottom: 1px solid var(--border-primary);
-}
-
-.setting-item:last-child {
-    border-bottom: none;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
 }
 
 .setting-info {
@@ -604,14 +612,13 @@
 }
 
 .setting-label {
-    display: block;
     font-weight: 500;
     color: var(--text-primary);
+    font-size: 0.9375rem;
     margin-bottom: 4px;
 }
 
 .setting-description {
-    display: block;
     font-size: 0.8125rem;
     color: var(--text-tertiary);
 }
@@ -619,24 +626,51 @@
 .setting-control {
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
-    min-width: 200px;
+    gap: var(--spacing-sm);
+    margin-left: var(--spacing-lg);
 }
 
 .setting-control input[type="range"] {
-    flex: 1;
+    width: 100px;
+    accent-color: var(--accent-primary);
 }
 
 .range-value {
-    min-width: 50px;
-    text-align: right;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-secondary);
+    min-width: 45px;
+    text-align: center;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
 }
 
-.setting-control select {
-    min-width: 150px;
+.setting-item select.form-select {
+    min-width: 130px;
+}
+
+/* Settings modal footer */
+.settings-modal .modal-footer {
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-top: 1px solid var(--border-primary);
+}
+
+.setting-item select.form-select {
+    min-width: 130px;
+    font-size: 0.8125rem;
+    padding: 6px 10px;
+}
+
+/* Settings modal footer */
+.settings-modal .modal-footer {
+    background: var(--bg-tertiary);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    gap: var(--spacing-sm);
+}
+
+.settings-modal .modal-footer .btn {
+    font-size: 0.8125rem;
+    padding: 8px 16px;
 }
 
 /* Toggle Switch */
@@ -775,7 +809,7 @@
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
+    /* PERFORMANCE: Removed backdrop-filter: blur(4px) */
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -967,7 +1001,7 @@
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
+    /* PERFORMANCE: Removed backdrop-filter: blur(4px) */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1217,6 +1251,9 @@ body[data-mode="advanced"] .advanced-only {
     cursor: pointer;
     user-select: none;
     transition: background var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .collapsible-header:hover {
@@ -1227,11 +1264,86 @@ body[data-mode="advanced"] .advanced-only {
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
-    width: 100%;
+    flex: 1;
+    min-width: 0;
 }
 
 .collapsible-card.collapsed .collapse-icon {
     transform: rotate(-90deg);
+}
+
+/* Section Header Actions (toggle buttons in collapsible headers) */
+.section-header-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+/* Mini Toggle for section headers */
+.mini-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 5px 10px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-primary);
+    transition: all var(--transition-fast);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    user-select: none;
+}
+
+.mini-toggle:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+}
+
+.mini-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.mini-toggle-slider {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    background: var(--bg-primary);
+    border-radius: 18px;
+    transition: var(--transition-fast);
+    flex-shrink: 0;
+    border: 1px solid var(--border-secondary);
+}
+
+.mini-toggle-slider:before {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    left: 2px;
+    top: 2px;
+    background: var(--text-tertiary);
+    border-radius: 50%;
+    transition: var(--transition-fast);
+}
+
+.mini-toggle input:checked + .mini-toggle-slider {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.mini-toggle input:checked + .mini-toggle-slider:before {
+    transform: translateX(14px);
+    background: white;
+}
+
+.mini-toggle-label {
+    white-space: nowrap;
+    font-weight: 500;
 }
 
 /* Subsection Titles */
