@@ -43,6 +43,7 @@
     <link rel="stylesheet" href="styles/browser-management.css">
     <link rel="stylesheet" href="styles/pack-tools.css">
     <link rel="stylesheet" href="styles/totemBuilder.css">
+    <link rel="stylesheet" href="styles/guidedMode.css">
 </head>
 <body>
     <!-- Main Container -->
@@ -56,6 +57,9 @@
                     Soaps MythicMobs Editor
                 </h1>
                 <div class="mode-switcher">
+                    <button class="mode-btn" data-mode="guided" title="Step-by-step wizards for absolute beginners">
+                        <i class="fas fa-wand-magic-sparkles"></i> Guided
+                    </button>
                     <button class="mode-btn active" data-mode="beginner" title="Shows essential MythicMobs features - perfect for getting started">
                         <i class="fas fa-user"></i> Beginner
                     </button>
@@ -471,6 +475,9 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Guided Mode Dashboard (placed first to appear at top when in guided mode) -->
+                    <div id="guided-mode-dashboard" class="view-container guided-only"></div>
 
                     <!-- Mob Editor View -->
                     <div id="mob-editor-view" class="view-container"></div>
@@ -1091,6 +1098,9 @@
     <script src="data/dropTypes.js"></script>
     <script src="data/fancyDrops.js"></script>
     
+    <!-- Guided Mode Data -->
+    <script src="data/guidedModePresets.js"></script>
+    
     <!-- Item Editor Data Files -->
     <script src="data/itemOptions.js"></script>
     <script src="data/enchantments.js"></script>
@@ -1329,6 +1339,9 @@
     <script src="components/displayNameBuilder.js"></script>
     <script src="components/commandPalette.js"></script>
     <script src="components/adminPanelEnhanced.js"></script>
+    
+    <!-- Guided Mode -->
+    <script src="components/guidedModeWizard.js"></script>
 
     <!-- Pack Importer System -->
     <script src="components/packImporter/PackFolderScanner.js"></script>

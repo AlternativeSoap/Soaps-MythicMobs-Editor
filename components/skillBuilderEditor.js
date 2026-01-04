@@ -278,6 +278,16 @@ class SkillBuilderEditor {
      */
     setContext(context) {
         this.context = context;
+        
+        console.log('[SkillBuilderEditor] setContext called:', {
+            context,
+            currentSkill: this.currentSkill,
+            skillsKeys: Object.keys(this.skills),
+            currentSkillData: this.skills[this.currentSkill],
+            currentSkillLines: this.skills[this.currentSkill]?.lines,
+            linesLength: this.skills[this.currentSkill]?.lines?.length
+        });
+        
         // Initialize default skill if switching to skill context
         if (context === 'skill' && Object.keys(this.skills).length === 0) {
             this.skills[this.currentSkill] = { lines: [] };
@@ -329,6 +339,15 @@ class SkillBuilderEditor {
         
         // Detect groups and analyze patterns before rendering (context-aware)
         const linesToAnalyze = this.context === 'mob' ? this.skillLines : this.getSkillLines();
+        
+        console.log('[SkillBuilderEditor] render():', {
+            context: this.context,
+            currentSkill: this.currentSkill,
+            linesToAnalyze,
+            linesToAnalyzeLength: linesToAnalyze?.length,
+            skillsObject: JSON.parse(JSON.stringify(this.skills))
+        });
+        
         this.groups = this.groupDetector.detectGroups(linesToAnalyze);
         
         const lineCount = linesToAnalyze.length;

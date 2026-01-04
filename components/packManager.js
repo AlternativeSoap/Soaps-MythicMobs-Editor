@@ -1788,11 +1788,16 @@ class PackManager {
      */
     findEntryInAllPacks(entryId, fileType, parentFileId) {
         // Helper to normalize entry structure for editors
+        // Support both formats:
+        // 1. entry.data = { skills: {...}, Skills: [...] } (legacy)
+        // 2. entry.skills = {...}, entry.Skills = [...] (new guidedWizard format)
         const normalizeEntry = (entry, parentFile) => {
             return {
                 id: entry.id,
                 name: entry.name,
-                // Spread data properties to top level (Skills, Cooldown, Conditions, etc.)
+                // First spread any top-level properties from entry itself (new format)
+                ...entry,
+                // Then spread entry.data properties (legacy format - will override if exists)
                 ...(entry.data || {}),
                 // Keep original data reference for saving
                 data: entry.data,
@@ -1832,10 +1837,15 @@ class PackManager {
         // Helper to normalize entry structure for editors
         const normalizeEntry = (entry, parentFile) => {
             // Create normalized entry with data properties at top level for editor compatibility
+            // Support both formats:
+            // 1. entry.data = { skills: {...}, Skills: [...] } (legacy)
+            // 2. entry.skills = {...}, entry.Skills = [...] (new guidedWizard format)
             const normalized = {
                 id: entry.id,
                 name: entry.name,
-                // Spread data properties to top level (Skills, Cooldown, Conditions, etc.)
+                // First spread any top-level properties from entry itself (new format)
+                ...entry,
+                // Then spread entry.data properties (legacy format - will override if exists)
                 ...(entry.data || {}),
                 // Keep original data reference for saving
                 data: entry.data,
@@ -1880,11 +1890,16 @@ class PackManager {
         if (!collection || collection.length === 0) return null;
         
         // Helper to normalize entry structure for editors
+        // Support both formats:
+        // 1. entry.data = { skills: {...}, Skills: [...] } (legacy)
+        // 2. entry.skills = {...}, entry.Skills = [...] (new guidedWizard format)
         const normalizeEntry = (entry, parentFile) => {
             return {
                 id: entry.id,
                 name: entry.name,
-                // Spread data properties to top level (Skills, Cooldown, Conditions, etc.)
+                // First spread any top-level properties from entry itself (new format)
+                ...entry,
+                // Then spread entry.data properties (legacy format - will override if exists)
                 ...(entry.data || {}),
                 // Keep original data reference for saving
                 data: entry.data,

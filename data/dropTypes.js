@@ -10,20 +10,7 @@ const DROP_TYPES = [
         description: 'Drop a Minecraft or MythicMobs item',
         icon: 'cube',
         hasInlineAttributes: true,
-        attributes: [
-            { name: 'level', label: 'Item Level', type: 'number', description: 'Level of the item (MythicMobs only)' },
-            { name: 'lootsplosion', label: 'Lootsplosion', type: 'boolean', description: 'Enable lootsplosion effect' },
-            { name: 'itemvfx', label: 'Item VFX', type: 'boolean', description: 'Enable item VFX' },
-            { name: 'itemvfxmaterial', label: 'VFX Material', type: 'text', description: 'Material for item VFX' },
-            { name: 'vfxdata', label: 'VFX Data', type: 'number', description: 'Custom model data for VFX' },
-            { name: 'vfxcolor', label: 'VFX Color', type: 'text', description: 'Color of the VFX (hex or name)' },
-            { name: 'hologramname', label: 'Hologram Name', type: 'boolean', description: 'Show hologram name' },
-            { name: 'clientsidedrops', label: 'Client Side', type: 'boolean', description: 'Client-side drops' },
-            { name: 'itemglowcolor', label: 'Glow Color', type: 'text', description: 'Item glow color' },
-            { name: 'itembeamcolor', label: 'Beam Color', type: 'text', description: 'Beam color' },
-            { name: 'billboarding', label: 'Billboard', type: 'text', description: 'Billboarding mode' },
-            { name: 'brightness', label: 'Brightness', type: 'number', description: 'Brightness level' }
-        ],
+        attributes: [],
         fields: [
             { name: 'item', label: 'Item', type: 'text', required: true, placeholder: 'diamond_sword or CustomItem' },
             { name: 'amount', label: 'Amount', type: 'text', default: '1', placeholder: '1 or 1-3' },
@@ -203,29 +190,52 @@ const FANCY_DROP_ATTRIBUTES = [
     {
         category: 'Visual Effects',
         attributes: [
-            { name: 'lootsplosion', label: 'Lootsplosion', type: 'boolean', description: 'Drop moves outward when generated' },
-            { name: 'hologramname', label: 'Hologram Name', type: 'boolean', description: 'Display hologram with item name' },
-            { name: 'itemglow', label: 'Item Glow', type: 'boolean', description: 'Make item glow' },
-            { name: 'itemglowcolor', label: 'Glow Color', type: 'text', placeholder: 'GOLD or #FFD700', description: 'Color of the glow' },
-            { name: 'itembeam', label: 'Item Beam', type: 'boolean', description: 'Generate particle beam above item' },
-            { name: 'itembeamcolor', label: 'Beam Color', type: 'text', placeholder: 'BLUE or #0055FF', description: 'Color of the beam' }
+            { name: 'lootsplosion', label: 'Lootsplosion', type: 'boolean', aliases: ['lootsplosionenabled', 'ls'], description: 'Drop moves outward when generated' },
+            { name: 'hologramname', label: 'Hologram Name', type: 'boolean', aliases: ['hologramnameenabled', 'hn'], description: 'Display hologram with item name' },
+            { name: 'itemglow', label: 'Item Glow', type: 'boolean', aliases: ['itemglowenabled', 'ig'], description: 'Make item glow' },
+            { name: 'itemglowcolor', label: 'Glow Color', type: 'text', aliases: ['glowcolor', 'gc'], placeholder: 'GOLD or #FFD700', description: 'Color of the glow' },
+            { name: 'itembeam', label: 'Item Beam', type: 'boolean', aliases: ['itembeamenabled', 'ib'], description: 'Generate particle beam above item' },
+            { name: 'itembeamcolor', label: 'Beam Color', type: 'text', aliases: ['beamcolor', 'bc'], placeholder: 'BLUE or #0055FF', description: 'Color of the beam' }
         ]
     },
     {
         category: 'Item VFX',
         attributes: [
-            { name: 'itemvfx', label: 'Enable Item VFX', type: 'boolean', description: 'Enable visual effects on drop' },
-            { name: 'vfxmaterial', label: 'VFX Material', type: 'text', placeholder: 'POTION', description: 'Material for VFX' },
-            { name: 'vfxdata', label: 'VFX Data', type: 'number', placeholder: '21', description: 'Custom model data' },
-            { name: 'vfxmodel', label: 'VFX Item Model', type: 'text', placeholder: 'custom:model', description: 'Item model (1.21.3+)' },
-            { name: 'vfxcolor', label: 'VFX Color', type: 'text', placeholder: '#55ff55', description: 'Color of the VFX' }
+            { name: 'itemvfx', label: 'Enable Item VFX', type: 'boolean', aliases: ['ivfx', 'vfx'], description: 'Enable visual effects on drop' },
+            { name: 'vfxmaterial', label: 'VFX Material', type: 'text', aliases: ['vfxmat', 'vfxm'], placeholder: 'POTION', description: 'Material for VFX' },
+            { name: 'vfxdata', label: 'VFX Data', type: 'number', aliases: ['vfxd'], placeholder: '21', default: 0, description: 'Custom model data' },
+            { name: 'vfxmodel', label: 'VFX Item Model', type: 'text', aliases: ['vfxitemmodel'], placeholder: 'mythic:effects/item_beam_3', description: 'Item model (1.21.3+)' },
+            { name: 'vfxcolor', label: 'VFX Color', type: 'text', aliases: ['vfxc', 'color'], placeholder: '#55ff55', description: 'Color of the VFX' },
+            { name: 'billboarding', label: 'Billboarding', type: 'text', aliases: ['billboard', 'bill'], placeholder: 'VERTICAL', default: 'VERTICAL', description: 'Billboarding mode for hologram' },
+            { name: 'brightness', label: 'Brightness', type: 'number', aliases: ['bright', 'b'], placeholder: '15', default: 0, description: 'Brightness of the hologram' }
+        ]
+    },
+    {
+        category: 'Pity System',
+        attributes: [
+            { name: 'pityModifier', label: 'Pity Modifier', type: 'number', aliases: ['pitymod', 'pmod'], placeholder: '0.1', default: 0.0, description: 'Modifier for pity system' },
+            { name: 'resetpity', label: 'Reset Pity', type: 'boolean', aliases: ['resetp', 'rp'], default: false, description: 'Whether pity should be reset on drop' },
+            { name: 'pcategory', label: 'Pity Category', type: 'text', aliases: ['pitycategory', 'category'], placeholder: 'DEFAULT', default: 'DEFAULT', description: 'Category for pity tracking' }
+        ]
+    },
+    {
+        category: 'Drop Requirements',
+        attributes: [
+            { name: 'damage', label: 'Min Damage', type: 'number', aliases: ['mindamage', 'min'], placeholder: '100', default: 0.0, description: 'Minimum damage dealt to mob for this drop' },
+            { name: 'top', label: 'Leaderboard Position', type: 'number', aliases: ['placement', 'required'], placeholder: '1', description: 'Required position in damage leaderboard' }
+        ]
+    },
+    {
+        category: 'Fortune',
+        attributes: [
+            { name: 'fortune', label: 'Fortune Enabled', type: 'boolean', default: false, description: 'Whether affected by fortune enchant' },
+            { name: 'fortuneMod', label: 'Fortune Modifier', type: 'number', aliases: ['fortunemod'], placeholder: '1.5', description: 'How much each fortune level impacts drop amount' }
         ]
     },
     {
         category: 'Other',
         attributes: [
-            { name: 'clientsidedrops', label: 'Client Side', type: 'boolean', description: 'Only visible to player' },
-            { name: 'fortune', label: 'Fortune Multiplier', type: 'number', placeholder: '1.5', description: 'Fortune enchant multiplier' }
+            { name: 'clientsidedrops', label: 'Client Side', type: 'boolean', aliases: ['clientsidedropsenabled', 'csd'], description: 'Only visible to player who killed mob' }
         ]
     }
 ];

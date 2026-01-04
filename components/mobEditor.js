@@ -24,7 +24,10 @@ class MobEditor {
             return;
         }
         
-        const isAdvanced = this.editor.state.currentMode === 'advanced';
+        const currentMode = this.editor.state.currentMode;
+        const isAdvanced = currentMode === 'advanced';
+        const modeLabel = currentMode === 'guided' ? 'Guided' : (isAdvanced ? 'Advanced' : 'Beginner');
+        const modeBadgeClass = currentMode === 'guided' ? 'guided' : (isAdvanced ? 'advanced' : 'beginner');
         
         container.innerHTML = `
             <div class="editor-header">
@@ -32,7 +35,7 @@ class MobEditor {
                     <i class="fas fa-skull"></i>
                     Mob Editor
                     <span class="mob-name">${mob.name}</span>
-                    <span class="mode-badge ${isAdvanced ? 'advanced' : 'beginner'}">${isAdvanced ? 'Advanced' : 'Beginner'} Mode</span>
+                    <span class="mode-badge ${modeBadgeClass}">${modeLabel} Mode</span>
                 </h2>
                 <div class="editor-actions">
                     <div class="action-group secondary-actions">

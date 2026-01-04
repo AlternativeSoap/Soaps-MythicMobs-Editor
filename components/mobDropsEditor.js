@@ -285,27 +285,27 @@ class MobDropsEditor {
         // Core fields row - always visible, compact
         html += this.renderCoreFieldsRow(drop, dropType);
         
-        // Type-specific options (if any attributes exist) - collapsible, start EXPANDED
+        // Type-specific options (if any attributes exist) - collapsible, start COLLAPSED
         if (dropType.attributes && dropType.attributes.length > 0) {
             html += this.renderOptionsAccordion(drop, dropType, 'type-options', 
                 `<i class="fas fa-sliders-h"></i> ${dropType.name} Options`, 
-                dropType.attributes, 'attributes', '', true);
+                dropType.attributes, 'attributes', '', false);
         }
         
-        // Item Styling section (only for items) - collapsible
+        // Item Styling section (only for items) - collapsible, start COLLAPSED
         if (supportsInline && window.INLINE_ITEM_ATTRIBUTES) {
             const allInlineAttrs = INLINE_ITEM_ATTRIBUTES.flatMap(c => c.attributes);
             html += this.renderOptionsAccordion(drop, dropType, 'styling', 
                 `<i class="fas fa-palette"></i> Item Styling`, 
-                allInlineAttrs, 'inlineAttributes', 'name, lore, enchants');
+                allInlineAttrs, 'inlineAttributes', 'name, lore, enchants', false);
         }
         
-        // Visual Effects section (only for item type)
+        // Visual Effects section (only for item type) - collapsible, start COLLAPSED
         if (supportsFancy && drop.type === 'item' && window.FANCY_DROP_ATTRIBUTES) {
             const allFancyAttrs = FANCY_DROP_ATTRIBUTES.flatMap(c => c.attributes);
             html += this.renderOptionsAccordion(drop, dropType, 'effects', 
                 `<i class="fas fa-sparkles"></i> Visual Effects`, 
-                allFancyAttrs, 'fancyAttributes', 'lootsplosion, glow');
+                allFancyAttrs, 'fancyAttributes', 'lootsplosion, glow', false);
         }
         
         html += '</div>';
@@ -399,15 +399,28 @@ class MobDropsEditor {
             return val !== undefined && val !== '' && val !== false;
         });
         
+        // Count configured options for hint
+        const configuredCount = attributes.filter(attr => {
+            const val = namespace === 'attributes' ? drop.attributes?.[attr.name] :
+                       namespace === 'inlineAttributes' ? drop.inlineAttributes?.[attr.name] :
+                       drop.fancyAttributes?.[attr.name];
+            return val !== undefined && val !== '' && val !== false;
+        }).length;
+        
         // Start expanded if has values OR if explicitly requested
         const isExpanded = hasValues || startExpanded;
+        
+        // Build hint text
+        const hintText = configuredCount > 0 
+            ? `${configuredCount} configured` 
+            : (subtitle ? subtitle : `${attributes.length} options`);
         
         let html = `
             <div class="accordion ${hasValues ? 'has-values' : ''} ${isExpanded ? 'expanded' : ''}" data-section="${sectionId}">
                 <div class="accordion-header">
                     <div class="accordion-title">
                         ${title}
-                        ${subtitle ? `<small>${subtitle}</small>` : ''}
+                        <span class="accordion-hint">${hintText}</span>
                         ${hasValues ? '<span class="has-data-badge">●</span>' : ''}
                     </div>
                     <i class="fas fa-chevron-down accordion-arrow"></i>
@@ -938,6 +951,10 @@ class MobDropsEditor {
                 const accordion = header.closest('.accordion');
                 if (accordion) {
                     accordion.classList.toggle('expanded');
+                    // Re-attach listeners when accordion expands to ensure inputs are wired up
+                    if (accordion.classList.contains('expanded')) {
+                        setTimeout(() => this.attachLivePreviewListeners(modal), 10);
+                    }
                 }
             });
         });
@@ -988,11 +1005,11 @@ class MobDropsEditor {
     attachLivePreviewListeners(modal) {
         let debounceTimer;
         
-        // Get all form inputs
-        const inputs = modal.querySelectorAll('#drop-config-container input, #drop-config-container select, #drop-config-container textarea');
+        // Get all form inputs - including those inside accordions
+        const inputs = modal.querySelectorAll('.drop-modal-body input, .drop-modal-body select, .drop-modal-body textarea');
         
-        inputs.forEach(input => {
-            const updatePreview = () => {
+        const updatePreviewHandler = (input) => {
+            return () => {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
                     // Sync core fields to _currentEditingDrop
@@ -1009,29 +1026,38 @@ class MobDropsEditor {
                             this._currentEditingDrop.item = itemCustom.value.trim();
                         }
                         
-                        // Sync attributes
-                        modal.querySelectorAll('[data-namespace="attributes"]').forEach(group => {
-                            const fieldName = group.dataset.field;
-                            const inp = group.querySelector('input, select, textarea');
-                            if (inp) {
-                                const value = inp.type === 'checkbox' ? inp.checked : inp.value;
-                                if (value !== '' && value !== false) {
-                                    this._currentEditingDrop.attributes[fieldName] = value;
-                                } else {
-                                    delete this._currentEditingDrop.attributes[fieldName];
+                        // Sync all namespaced attributes (attributes, inlineAttributes, fancyAttributes)
+                        ['attributes', 'inlineAttributes', 'fancyAttributes'].forEach(namespace => {
+                            modal.querySelectorAll(`[data-namespace="${namespace}"]`).forEach(group => {
+                                const fieldName = group.dataset.field;
+                                const inp = group.querySelector('input, select, textarea');
+                                if (inp && fieldName) {
+                                    const value = inp.type === 'checkbox' ? inp.checked : inp.value;
+                                    if (value !== '' && value !== false) {
+                                        this._currentEditingDrop[namespace][fieldName] = value;
+                                    } else {
+                                        delete this._currentEditingDrop[namespace][fieldName];
+                                    }
                                 }
-                            }
+                            });
                         });
                     }
                     
                     this.updatePersistentPreview(modal);
-                }, 150);
+                }, 100);
             };
+        };
+        
+        inputs.forEach(input => {
+            // Remove existing listeners to prevent duplicates
+            const handler = updatePreviewHandler(input);
+            input.removeEventListener('change', handler);
+            input.removeEventListener('input', handler);
             
             if (input.type === 'checkbox') {
-                input.addEventListener('change', updatePreview);
+                input.addEventListener('change', handler);
             } else {
-                input.addEventListener('input', updatePreview);
+                input.addEventListener('input', handler);
             }
         });
         

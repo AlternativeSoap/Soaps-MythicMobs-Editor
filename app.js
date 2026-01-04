@@ -45,7 +45,7 @@ class MythicMobsEditor {
         
         // Application state
         this.state = {
-            currentMode: 'beginner',          // 'beginner' or 'advanced'
+            currentMode: 'beginner',          // 'beginner', 'advanced', or 'guided'
             currentPack: null,                // Active pack object
             currentFile: null,                // Currently open file
             currentFileType: null,            // 'mob', 'skill', or 'item'
@@ -142,6 +142,11 @@ class MythicMobsEditor {
             this.droptableEditor = new DropTableEditor(this);
             this.randomspawnEditor = new RandomSpawnEditor(this);
             this.commandPalette = new CommandPalette(this);
+            
+            // Initialize guided mode wizard
+            if (window.GuidedModeWizard) {
+                this.guidedModeWizard = new GuidedModeWizard(this);
+            }
             
             // Initialize pack tools
             this.dependencyGraph = new DependencyGraph(this);
@@ -533,10 +538,14 @@ class MythicMobsEditor {
             view.classList.remove('active');
         });
         
-        // Show dashboard
-        const dashboardView = document.getElementById('dashboard-view');
-        if (dashboardView) {
-            dashboardView.classList.add('active');
+        // Show appropriate dashboard based on mode
+        if (this.state.currentMode === 'guided') {
+            this.showGuidedDashboard();
+        } else {
+            const dashboardView = document.getElementById('dashboard-view');
+            if (dashboardView) {
+                dashboardView.classList.add('active');
+            }
         }
         
         // Update state
@@ -552,6 +561,200 @@ class MythicMobsEditor {
         if (homeBtn) {
             homeBtn.style.display = 'none';
         }
+    }
+    
+    /**
+     * Show guided mode dashboard
+     */
+    showGuidedDashboard() {
+        // Hide all views first
+        document.querySelectorAll('.view-container').forEach(view => {
+            view.classList.remove('active');
+        });
+        
+        // Show guided dashboard
+        const guidedDashboard = document.getElementById('guided-mode-dashboard');
+        if (guidedDashboard) {
+            guidedDashboard.classList.add('active');
+            this.renderGuidedDashboard();
+        }
+    }
+    
+    /**
+     * Render the guided dashboard content
+     */
+    renderGuidedDashboard() {
+        const container = document.getElementById('guided-mode-dashboard');
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div class="guided-dashboard">
+                <div class="guided-dashboard-header">
+                    <h1><i class="fas fa-wand-magic-sparkles"></i> Guided Mode</h1>
+                    <p>Create amazing custom mobs with step-by-step wizards</p>
+                </div>
+                
+                <div class="guided-create-grid">
+                    <div class="guided-create-card card-mob" id="guided-create-mob">
+                        <div class="guided-create-card-icon">
+                            <i class="fas fa-skull"></i>
+                        </div>
+                        <h3>Create a Mob</h3>
+                        <p>Use our step-by-step wizard to create a custom mob with skills, stats, and abilities</p>
+                    </div>
+                    
+                    <div class="guided-create-card card-skill" id="guided-create-skill">
+                        <div class="guided-create-card-icon">
+                            <i class="fas fa-magic"></i>
+                        </div>
+                        <h3>Create a Skill</h3>
+                        <p>Design powerful skill mechanics with visual builders and preset templates</p>
+                    </div>
+                    
+                    <div class="guided-create-card card-item" id="guided-create-item">
+                        <div class="guided-create-card-icon">
+                            <i class="fas fa-gem"></i>
+                        </div>
+                        <h3>Create an Item</h3>
+                        <p>Build custom items with enchantments, lore, and special abilities</p>
+                    </div>
+                    
+                    <div class="guided-create-card card-droptable" id="guided-create-droptable">
+                        <div class="guided-create-card-icon">
+                            <i class="fas fa-dice"></i>
+                        </div>
+                        <h3>Create a Drop Table</h3>
+                        <p>Configure loot drops with chances, conditions, and rewards</p>
+                    </div>
+                </div>
+                
+                <div class="guided-tips-section" style="margin-top: 2rem; padding: 1.5rem; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--border-primary);">
+                    <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; color: var(--accent-primary);">
+                        <i class="fas fa-lightbulb"></i> Getting Started
+                    </h3>
+                    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; color: var(--text-secondary);">
+                            <i class="fas fa-check-circle" style="color: var(--success); margin-top: 0.2rem;"></i>
+                            <span>Click <strong>"Create a Mob"</strong> to start the step-by-step wizard</span>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; color: var(--text-secondary);">
+                            <i class="fas fa-check-circle" style="color: var(--success); margin-top: 0.2rem;"></i>
+                            <span>Choose from pre-built templates or customize every option</span>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; color: var(--text-secondary);">
+                            <i class="fas fa-check-circle" style="color: var(--success); margin-top: 0.2rem;"></i>
+                            <span>Add powerful skills with just a few clicks</span>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; color: var(--text-secondary);">
+                            <i class="fas fa-check-circle" style="color: var(--success); margin-top: 0.2rem;"></i>
+                            <span>Switch to Beginner or Advanced mode anytime for more control</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        `;
+        
+        // Attach event listeners
+        this.attachGuidedDashboardListeners();
+    }
+    
+    /**
+     * Attach guided dashboard event listeners
+     */
+    attachGuidedDashboardListeners() {
+        document.getElementById('guided-create-mob')?.addEventListener('click', () => {
+            this.openGuidedMobWizard();
+        });
+        
+        document.getElementById('guided-create-skill')?.addEventListener('click', () => {
+            this.createNewSkill();
+        });
+        
+        document.getElementById('guided-create-item')?.addEventListener('click', () => {
+            this.createNewItem();
+        });
+        
+        document.getElementById('guided-create-droptable')?.addEventListener('click', () => {
+            this.createNewDropTable();
+        });
+    }
+    
+    /**
+     * Open the guided mode mob wizard
+     */
+    openGuidedMobWizard() {
+        // Check if we have a pack
+        if (!this.state.currentPack) {
+            // Try to create or select a pack first
+            this.showSelectOrCreatePackDialog().then(pack => {
+                if (pack) {
+                    this.state.currentPack = pack;
+                    this.packManager.setActivePack(pack);
+                    this.guidedModeWizard?.open(pack.id);
+                }
+            });
+        } else {
+            this.guidedModeWizard?.open(this.state.currentPack.id);
+        }
+    }
+    
+    /**
+     * Show dialog to select or create a pack
+     */
+    async showSelectOrCreatePackDialog() {
+        return new Promise((resolve) => {
+            const packs = this.packManager?.packs || [];
+            
+            if (packs.length === 0) {
+                // No packs exist, create one
+                this.showPrompt('Create Pack', 'Enter a name for your new pack:', 'My Pack').then(async name => {
+                    if (name) {
+                        const pack = await this.packManager.createPack(name);
+                        if (pack) {
+                            this.packManager.renderPackTree();
+                            resolve(pack);
+                        } else {
+                            resolve(null);
+                        }
+                    } else {
+                        resolve(null);
+                    }
+                });
+            } else if (packs.length === 1) {
+                // Only one pack, use it
+                resolve(packs[0]);
+            } else {
+                // Multiple packs, show selection
+                const packOptions = packs.map(p => ({ text: p.name, value: p.id }));
+                packOptions.push({ text: '+ Create New Pack', value: 'new' });
+                
+                this.showConfirmDialog(
+                    'Which pack would you like to add your mob to?',
+                    'Select Pack',
+                    packOptions
+                ).then(async result => {
+                    if (result === 'new') {
+                        const name = await this.showPrompt('Create Pack', 'Enter a name for your new pack:', 'My Pack');
+                        if (name) {
+                            const pack = await this.packManager.createPack(name);
+                            if (pack) {
+                                this.packManager.renderPackTree();
+                                resolve(pack);
+                            } else {
+                                resolve(null);
+                            }
+                        } else {
+                            resolve(null);
+                        }
+                    } else if (result) {
+                        const pack = packs.find(p => p.id === result);
+                        resolve(pack || null);
+                    } else {
+                        resolve(null);
+                    }
+                });
+            }
+        });
     }
     
     /**
@@ -597,6 +800,7 @@ class MythicMobsEditor {
         }
         
         const wasBeginnerMode = this.state.currentMode === 'beginner';
+        const wasGuidedMode = this.state.currentMode === 'guided';
         this.state.currentMode = mode;
         
         // Set data-mode attribute on body for CSS mode-specific styling
@@ -624,12 +828,37 @@ class MythicMobsEditor {
             btn.classList.toggle('active', btn.dataset.mode === mode);
         });
         
+        // Handle guided mode dashboard visibility
+        const guidedDashboard = document.getElementById('guided-mode-dashboard');
+        const normalDashboard = document.getElementById('dashboard-view');
+        
+        if (mode === 'guided') {
+            // Show guided dashboard, hide normal dashboard
+            if (guidedDashboard) guidedDashboard.classList.add('active');
+            if (normalDashboard && !this.state.currentFile) normalDashboard.classList.remove('active');
+            
+            // Go to guided dashboard if no file is open
+            if (!this.state.currentFile) {
+                this.showGuidedDashboard();
+            }
+        } else {
+            // Hide guided dashboard
+            if (guidedDashboard) guidedDashboard.classList.remove('active');
+            
+            // Show normal dashboard if coming from guided mode and no file open
+            if (wasGuidedMode && !this.state.currentFile) {
+                if (normalDashboard) normalDashboard.classList.add('active');
+            }
+        }
+        
         // Re-render current editor
         if (this.state.currentFile) {
             this.openFile(this.state.currentFile, this.state.currentFileType);
         }
         
-        this.showToast(`Switched to ${mode} mode`, 'info');
+        // Format mode name nicely
+        const modeNames = { beginner: 'Beginner', advanced: 'Advanced', guided: 'Guided' };
+        this.showToast(`Switched to ${modeNames[mode] || mode} mode`, 'info');
     }
     
     /**

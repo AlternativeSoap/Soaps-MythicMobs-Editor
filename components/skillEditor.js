@@ -17,6 +17,17 @@ class SkillEditor {
     
     render(skill) {
         this.currentSkill = skill;
+        
+        // Debug log the skill being rendered
+        console.log('[SkillEditor] Rendering skill:', {
+            name: skill.name,
+            hasSkills: !!skill.skills,
+            skillsKeys: skill.skills ? Object.keys(skill.skills) : [],
+            hasSkillsArray: !!skill.Skills,
+            SkillsCount: skill.Skills?.length || 0,
+            fullSkill: JSON.parse(JSON.stringify(skill))
+        });
+        
         const container = document.getElementById('skill-editor-view');
         if (!container) return;
         
@@ -1052,6 +1063,15 @@ class SkillEditor {
         // Initialize Skill Builder Editor
         const skillLinesContainer = document.getElementById('skill-lines-editor');
         if (skillLinesContainer) {
+            console.log('[SkillEditor] initializeSkillBuilder - before processing:', {
+                hasSkillsObj: !!this.currentSkill.skills,
+                skillsKeys: this.currentSkill.skills ? Object.keys(this.currentSkill.skills) : [],
+                hasSkillsArray: !!this.currentSkill.Skills,
+                SkillsArrayLength: this.currentSkill.Skills?.length || 0,
+                firstSkillLines: this.currentSkill.skills ? 
+                    this.currentSkill.skills[Object.keys(this.currentSkill.skills)[0]]?.lines?.length : 0
+            });
+            
             // Initialize skills object if it doesn't exist
             if (!this.currentSkill.skills) {
                 this.currentSkill.skills = {};
@@ -1060,6 +1080,7 @@ class SkillEditor {
                     this.currentSkill.skills[this.currentSkill.name || 'DefaultSkill'] = {
                         lines: this.currentSkill.Skills
                     };
+                    console.log('[SkillEditor] Migrated Skills array to skills object');
                 }
             }
             
