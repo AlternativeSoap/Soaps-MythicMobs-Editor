@@ -1,6 +1,6 @@
 /**
  * Mode Comparison Modal Styles
- * Styles for the Beginner vs Advanced mode comparison UI
+ * Styles for the Guided vs Beginner vs Advanced mode comparison UI
  */
 
 /* Mode Switcher */
@@ -81,12 +81,26 @@
 .mode-comparison-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 3rem;
+    gap: 2rem;
     margin-bottom: 2rem;
+}
+
+.mode-comparison-grid.three-columns {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.5rem;
+}
+
+@media (max-width: 1200px) {
+    .mode-comparison-grid.three-columns {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
 @media (max-width: 768px) {
     .mode-comparison-grid {
+        grid-template-columns: 1fr;
+    }
+    .mode-comparison-grid.three-columns {
         grid-template-columns: 1fr;
     }
 }
@@ -113,6 +127,10 @@
     border-color: var(--accent-primary);
 }
 
+.guided-column {
+    border-color: #f59e0b;
+}
+
 /* Mode Column Header */
 .mode-column-header {
     padding: 1.25rem;
@@ -129,6 +147,10 @@
     background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, var(--bg-secondary) 100%);
 }
 
+.guided-column .mode-column-header {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, var(--bg-secondary) 100%);
+}
+
 .mode-column-header i {
     font-size: 2rem;
     margin-bottom: 0.5rem;
@@ -141,6 +163,10 @@
 
 .advanced-column .mode-column-header i {
     color: var(--accent-primary);
+}
+
+.guided-column .mode-column-header i {
+    color: #f59e0b;
 }
 
 .mode-column-header h3 {
@@ -166,6 +192,11 @@
 
 .mode-badge.advanced {
     background: var(--accent-primary);
+    color: white;
+}
+
+.mode-badge.guided {
+    background: #f59e0b;
     color: white;
 }
 
@@ -201,6 +232,10 @@
 
 .advanced-column .feature-category h4 i {
     color: var(--accent-primary);
+}
+
+.guided-column .feature-category h4 i {
+    color: #f59e0b;
 }
 
 /* Feature List */
@@ -240,8 +275,20 @@
     color: var(--accent-primary);
 }
 
+.guided-column .feature-list li i {
+    color: #f59e0b;
+}
+
 .feature-list li strong {
     color: var(--accent-primary);
+}
+
+/* Best For Section */
+.best-for-text {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    font-style: italic;
 }
 
 /* Mode Comparison Footer */
