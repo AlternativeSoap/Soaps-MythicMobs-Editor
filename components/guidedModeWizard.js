@@ -220,22 +220,79 @@ class GuidedModeWizard {
                     <div class="color-codes-help">
                         <div class="help-title"><i class="fas fa-palette"></i> Quick Color Codes</div>
                         <div class="color-grid">
-                            <button class="color-btn" data-code="&c" style="background:#FF5555" title="Red">&c</button>
-                            <button class="color-btn" data-code="&4" style="background:#AA0000" title="Dark Red">&4</button>
-                            <button class="color-btn" data-code="&6" style="background:#FFAA00" title="Gold">&6</button>
-                            <button class="color-btn" data-code="&e" style="background:#FFFF55" title="Yellow">&e</button>
-                            <button class="color-btn" data-code="&a" style="background:#55FF55" title="Green">&a</button>
+                            <button class="color-btn" data-code="&0" style="background:#000000" title="Black">&0</button>
+                            <button class="color-btn" data-code="&1" style="background:#0000AA" title="Dark Blue">&1</button>
                             <button class="color-btn" data-code="&2" style="background:#00AA00" title="Dark Green">&2</button>
-                            <button class="color-btn" data-code="&b" style="background:#55FFFF" title="Aqua">&b</button>
                             <button class="color-btn" data-code="&3" style="background:#00AAAA" title="Dark Aqua">&3</button>
-                            <button class="color-btn" data-code="&9" style="background:#5555FF" title="Blue">&9</button>
-                            <button class="color-btn" data-code="&d" style="background:#FF55FF" title="Pink">&d</button>
-                            <button class="color-btn" data-code="&5" style="background:#AA00AA" title="Purple">&5</button>
-                            <button class="color-btn" data-code="&f" style="background:#FFFFFF;color:#000" title="White">&f</button>
+                            <button class="color-btn" data-code="&4" style="background:#AA0000" title="Dark Red">&4</button>
+                            <button class="color-btn" data-code="&5" style="background:#AA00AA" title="Dark Purple">&5</button>
+                            <button class="color-btn" data-code="&6" style="background:#FFAA00" title="Gold">&6</button>
                             <button class="color-btn" data-code="&7" style="background:#AAAAAA" title="Gray">&7</button>
                             <button class="color-btn" data-code="&8" style="background:#555555" title="Dark Gray">&8</button>
-                            <button class="color-btn" data-code="&0" style="background:#000000" title="Black">&0</button>
-                            <button class="color-btn format-btn" data-code="&l" title="Bold">&l Bold</button>
+                            <button class="color-btn" data-code="&9" style="background:#5555FF" title="Blue">&9</button>
+                            <button class="color-btn" data-code="&a" style="background:#55FF55" title="Green">&a</button>
+                            <button class="color-btn" data-code="&b" style="background:#55FFFF" title="Aqua">&b</button>
+                            <button class="color-btn" data-code="&c" style="background:#FF5555" title="Red">&c</button>
+                            <button class="color-btn" data-code="&d" style="background:#FF55FF" title="Light Purple">&d</button>
+                            <button class="color-btn" data-code="&e" style="background:#FFFF55;color:#000" title="Yellow">&e</button>
+                            <button class="color-btn" data-code="&f" style="background:#FFFFFF;color:#000" title="White">&f</button>
+                        </div>
+                        <div class="help-title" style="margin-top:12px;"><i class="fas fa-text-width"></i> Formatting Codes</div>
+                        <div class="color-grid format-grid">
+                            <button class="color-btn format-btn" data-code="&l" title="Bold">&l <b>Bold</b></button>
+                            <button class="color-btn format-btn" data-code="&o" title="Italic">&o <i>Italic</i></button>
+                            <button class="color-btn format-btn" data-code="&n" title="Underline">&n <u>Underline</u></button>
+                            <button class="color-btn format-btn" data-code="&m" title="Strikethrough">&m <s>Strike</s></button>
+                            <button class="color-btn format-btn" data-code="&k" title="Magic/Obfuscated">&k Magic</button>
+                            <button class="color-btn format-btn reset-btn" data-code="&r" title="Reset all formatting">&r Reset</button>
+                        </div>
+                        
+                        <div class="help-title" style="margin-top:16px;"><i class="fas fa-palette"></i> Custom Color</div>
+                        
+                        <!-- Simplified Color Picker -->
+                        <div class="smart-color-picker">
+                            <div class="color-picker-main">
+                                <input type="color" id="wizard-color-picker" class="big-color-picker" value="#FF5555" title="Click to pick any color">
+                                <div class="color-info">
+                                    <div class="color-code-display" id="wizard-color-code">&lt;#FF5555&gt;</div>
+                                    <div class="color-hint">Click the square to pick a color</div>
+                                </div>
+                            </div>
+                            <button class="smart-insert-btn" id="wizard-insert-color" title="Add this color to your name">
+                                <i class="fas fa-plus-circle"></i> Add Color
+                            </button>
+                        </div>
+                        
+                        <!-- Gradient Mode Toggle -->
+                        <div class="gradient-toggle-section">
+                            <label class="gradient-toggle-label">
+                                <input type="checkbox" id="wizard-gradient-mode" class="gradient-toggle-checkbox">
+                                <span class="gradient-toggle-slider"></span>
+                                <span class="gradient-toggle-text"><i class="fas fa-rainbow"></i> Gradient Mode</span>
+                            </label>
+                        </div>
+                        
+                        <!-- Gradient Builder (hidden by default) -->
+                        <div class="gradient-builder" id="wizard-gradient-builder" style="display: none;">
+                            <div class="gradient-colors">
+                                <div class="gradient-color-box">
+                                    <span class="gradient-color-label">From</span>
+                                    <input type="color" id="wizard-gradient-start" class="gradient-color-input" value="#FF5555">
+                                </div>
+                                <div class="gradient-arrow-icon"><i class="fas fa-long-arrow-alt-right"></i></div>
+                                <div class="gradient-color-box">
+                                    <span class="gradient-color-label">To</span>
+                                    <input type="color" id="wizard-gradient-end" class="gradient-color-input" value="#5555FF">
+                                </div>
+                            </div>
+                            <div class="gradient-live-preview" id="wizard-gradient-preview"></div>
+                            <div class="gradient-text-input">
+                                <label>Text to gradient:</label>
+                                <input type="text" id="wizard-gradient-text" class="form-input" placeholder="Type text here..." maxlength="50">
+                            </div>
+                            <button class="smart-insert-btn gradient-add-btn" id="wizard-insert-gradient" title="Add gradient text to your name">
+                                <i class="fas fa-magic"></i> Add Gradient Text
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -775,6 +832,8 @@ class GuidedModeWizard {
 
     /**
      * Parse Minecraft color codes for preview
+     * Supports: &0-&f colors, &l bold, &o italic, &n underline, &m strikethrough, &k obfuscated, &r reset
+     * Also supports hex colors: <#RRGGBB> and gradients: <gradient:#color1:#color2>text</gradient>
      */
     parseColorCodes(text, showPlaceholder = true) {
         if (!text) return showPlaceholder ? '<span style="color:#888">Your Mob Name</span>' : '';
@@ -787,13 +846,16 @@ class GuidedModeWizard {
         };
         
         // Check if text is ONLY color codes (no actual visible text)
-        const textWithoutCodes = text.replace(/&[0-9a-fk-or]/gi, '');
+        const textWithoutCodes = text
+            .replace(/&[0-9a-fk-or]/gi, '')
+            .replace(/<#[0-9A-Fa-f]{6}>/g, '')
+            .replace(/<gradient:[^>]+>/g, '')
+            .replace(/<\/gradient>/g, '');
         const hasVisibleText = textWithoutCodes.trim().length > 0;
         
         // If no visible text, show a placeholder with the formatting applied
         let displayText = text;
         if (!hasVisibleText && showPlaceholder) {
-            // Append placeholder text so user can see the colors
             displayText = text + 'Your Mob Name';
         }
         
@@ -801,10 +863,39 @@ class GuidedModeWizard {
         let html = '';
         let currentColor = '#FFFFFF';
         let isBold = false;
+        let isItalic = false;
+        let isUnderline = false;
+        let isStrikethrough = false;
+        let isObfuscated = false;
         let i = 0;
         
         while (i < displayText.length) {
-            // Check for color code
+            // Check for hex color code <#RRGGBB>
+            if (displayText[i] === '<' && displayText[i + 1] === '#') {
+                const hexMatch = displayText.substring(i).match(/^<#([0-9A-Fa-f]{6})>/);
+                if (hexMatch) {
+                    currentColor = '#' + hexMatch[1].toUpperCase();
+                    i += hexMatch[0].length;
+                    continue;
+                }
+            }
+            
+            // Check for gradient (simplified - just show the text in first color)
+            if (displayText[i] === '<' && displayText.substring(i, i + 10) === '<gradient:') {
+                const gradientMatch = displayText.substring(i).match(/^<gradient:#([0-9A-Fa-f]{6}):#([0-9A-Fa-f]{6})>([^<]*)<\/gradient>/);
+                if (gradientMatch) {
+                    // Render gradient text with a CSS gradient effect
+                    const color1 = '#' + gradientMatch[1];
+                    const color2 = '#' + gradientMatch[2];
+                    const gradientText = gradientMatch[3];
+                    const style = `background: linear-gradient(90deg, ${color1}, ${color2}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;${isBold ? 'font-weight:bold;' : ''}${isItalic ? 'font-style:italic;' : ''}`;
+                    html += `<span style="${style}">${this.escapeHtml(gradientText)}</span>`;
+                    i += gradientMatch[0].length;
+                    continue;
+                }
+            }
+            
+            // Check for & color/format code
             if (displayText[i] === '&' && i + 1 < displayText.length) {
                 const code = displayText[i + 1].toLowerCase();
                 
@@ -816,13 +907,29 @@ class GuidedModeWizard {
                     isBold = true;
                     i += 2;
                     continue;
+                } else if (code === 'o') {
+                    isItalic = true;
+                    i += 2;
+                    continue;
+                } else if (code === 'n') {
+                    isUnderline = true;
+                    i += 2;
+                    continue;
+                } else if (code === 'm') {
+                    isStrikethrough = true;
+                    i += 2;
+                    continue;
+                } else if (code === 'k') {
+                    isObfuscated = true;
+                    i += 2;
+                    continue;
                 } else if (code === 'r') {
                     currentColor = '#FFFFFF';
                     isBold = false;
-                    i += 2;
-                    continue;
-                } else if (code === 'k' || code === 'm' || code === 'n' || code === 'o') {
-                    // Skip other formatting codes for now
+                    isItalic = false;
+                    isUnderline = false;
+                    isStrikethrough = false;
+                    isObfuscated = false;
                     i += 2;
                     continue;
                 }
@@ -830,8 +937,24 @@ class GuidedModeWizard {
             
             // Regular character - add it with current formatting
             const char = displayText[i];
-            const style = `color:${currentColor}${isBold ? ';font-weight:bold' : ''}`;
-            html += `<span style="${style}">${this.escapeHtml(char)}</span>`;
+            let style = `color:${currentColor}`;
+            if (isBold) style += ';font-weight:bold';
+            if (isItalic) style += ';font-style:italic';
+            if (isUnderline) style += ';text-decoration:underline';
+            if (isStrikethrough) style += ';text-decoration:line-through';
+            if (isUnderline && isStrikethrough) style = style.replace(/text-decoration:[^;]+/g, '') + ';text-decoration:underline line-through';
+            
+            // For obfuscated, show a placeholder effect
+            // Convert spaces to &nbsp; to preserve them in HTML
+            let displayChar;
+            if (isObfuscated) {
+                displayChar = '▓';
+            } else if (char === ' ') {
+                displayChar = '&nbsp;';
+            } else {
+                displayChar = this.escapeHtml(char);
+            }
+            html += `<span style="${style}">${displayChar}</span>`;
             i++;
         }
         
@@ -854,12 +977,9 @@ class GuidedModeWizard {
         // Close button
         document.getElementById('wizard-close')?.addEventListener('click', () => this.close());
 
-        // Overlay click to close
-        document.getElementById('guided-wizard-overlay')?.addEventListener('click', (e) => {
-            if (e.target.id === 'guided-wizard-overlay') {
-                this.close();
-            }
-        });
+        // NOTE: Overlay click to close is intentionally DISABLED for guided mode
+        // Users must use the X button or complete the wizard
+        // This prevents accidental closure while learning
 
         // Navigation buttons
         document.getElementById('wizard-back')?.addEventListener('click', () => this.prevStep());
@@ -902,10 +1022,23 @@ class GuidedModeWizard {
         const preview = document.getElementById('display-name-preview');
 
         nameInput?.addEventListener('input', (e) => {
-            // Sanitize name - remove spaces and special chars
-            let value = e.target.value.replace(/[^a-zA-Z0-9_]/g, '');
+            // Sanitize name - convert spaces to underscores, remove other special chars
+            let value = e.target.value.replace(/ /g, '_').replace(/[^a-zA-Z0-9_]/g, '');
             e.target.value = value;
             this.wizardData.mobName = value;
+        });
+        
+        // Also handle keydown to convert space to underscore in real-time
+        nameInput?.addEventListener('keydown', (e) => {
+            if (e.key === ' ') {
+                e.preventDefault();
+                const pos = e.target.selectionStart;
+                const before = e.target.value.substring(0, pos);
+                const after = e.target.value.substring(pos);
+                e.target.value = before + '_' + after;
+                e.target.setSelectionRange(pos + 1, pos + 1);
+                this.wizardData.mobName = e.target.value;
+            }
         });
 
         displayInput?.addEventListener('input', (e) => {
@@ -913,11 +1046,11 @@ class GuidedModeWizard {
             this.updateDisplayNamePreview();
         });
 
-        // Color code buttons
-        document.querySelectorAll('.color-btn').forEach(btn => {
+        // Color code buttons (excluding smart buttons)
+        document.querySelectorAll('.color-btn:not(.smart-insert-btn)').forEach(btn => {
             btn.addEventListener('click', () => {
                 const code = btn.dataset.code;
-                if (displayInput) {
+                if (displayInput && code) {
                     const pos = displayInput.selectionStart;
                     const before = displayInput.value.substring(0, pos);
                     const after = displayInput.value.substring(pos);
@@ -928,6 +1061,109 @@ class GuidedModeWizard {
                     this.updateDisplayNamePreview();
                 }
             });
+        });
+        
+        // Smart Color Picker
+        const colorPicker = document.getElementById('wizard-color-picker');
+        const colorCode = document.getElementById('wizard-color-code');
+        const insertColorBtn = document.getElementById('wizard-insert-color');
+        
+        // Update color code display when picker changes
+        colorPicker?.addEventListener('input', (e) => {
+            const hex = e.target.value.toUpperCase().substring(1);
+            if (colorCode) {
+                colorCode.textContent = `<#${hex}>`;
+                colorCode.style.color = e.target.value;
+            }
+        });
+        
+        // Insert color button
+        insertColorBtn?.addEventListener('click', () => {
+            if (displayInput && colorPicker) {
+                const hex = colorPicker.value.toUpperCase().substring(1);
+                const code = `<#${hex}>`;
+                const pos = displayInput.selectionStart;
+                const before = displayInput.value.substring(0, pos);
+                const after = displayInput.value.substring(pos);
+                displayInput.value = before + code + after;
+                displayInput.focus();
+                displayInput.setSelectionRange(pos + code.length, pos + code.length);
+                this.wizardData.displayName = displayInput.value;
+                this.updateDisplayNamePreview();
+            }
+        });
+        
+        // Gradient Mode Toggle
+        const gradientToggle = document.getElementById('wizard-gradient-mode');
+        const gradientBuilder = document.getElementById('wizard-gradient-builder');
+        
+        gradientToggle?.addEventListener('change', (e) => {
+            if (gradientBuilder) {
+                gradientBuilder.style.display = e.target.checked ? 'block' : 'none';
+            }
+        });
+        
+        // Gradient Builder
+        const gradientStart = document.getElementById('wizard-gradient-start');
+        const gradientEnd = document.getElementById('wizard-gradient-end');
+        const gradientPreview = document.getElementById('wizard-gradient-preview');
+        const gradientText = document.getElementById('wizard-gradient-text');
+        const insertGradientBtn = document.getElementById('wizard-insert-gradient');
+        
+        const updateGradientPreview = () => {
+            if (gradientPreview && gradientStart && gradientEnd) {
+                const text = gradientText?.value || 'Sample Text';
+                gradientPreview.style.background = `linear-gradient(90deg, ${gradientStart.value}, ${gradientEnd.value})`;
+                gradientPreview.style.webkitBackgroundClip = 'text';
+                gradientPreview.style.webkitTextFillColor = 'transparent';
+                gradientPreview.style.backgroundClip = 'text';
+                gradientPreview.textContent = text;
+            }
+        };
+        
+        gradientStart?.addEventListener('input', updateGradientPreview);
+        gradientEnd?.addEventListener('input', updateGradientPreview);
+        gradientText?.addEventListener('input', updateGradientPreview);
+        
+        // Initialize gradient preview
+        updateGradientPreview();
+        
+        // Insert gradient button
+        insertGradientBtn?.addEventListener('click', () => {
+            if (displayInput && gradientStart && gradientEnd) {
+                const startHex = gradientStart.value.toUpperCase().substring(1);
+                const endHex = gradientEnd.value.toUpperCase().substring(1);
+                const text = gradientText?.value || '';
+                
+                if (!text.trim()) {
+                    // Show a hint if no text entered
+                    if (gradientText) {
+                        gradientText.style.borderColor = '#ff6b6b';
+                        gradientText.placeholder = 'Enter text first!';
+                        setTimeout(() => {
+                            gradientText.style.borderColor = '';
+                            gradientText.placeholder = 'Type text here...';
+                        }, 2000);
+                    }
+                    return;
+                }
+                
+                const code = `<gradient:#${startHex}:#${endHex}>${text}</gradient>`;
+                const pos = displayInput.selectionStart;
+                const before = displayInput.value.substring(0, pos);
+                const after = displayInput.value.substring(pos);
+                displayInput.value = before + code + after;
+                displayInput.focus();
+                displayInput.setSelectionRange(pos + code.length, pos + code.length);
+                this.wizardData.displayName = displayInput.value;
+                this.updateDisplayNamePreview();
+                
+                // Clear the gradient text input after inserting
+                if (gradientText) {
+                    gradientText.value = '';
+                    updateGradientPreview();
+                }
+            }
         });
         
         // Initial preview update

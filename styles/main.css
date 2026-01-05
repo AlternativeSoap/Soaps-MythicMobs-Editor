@@ -2467,11 +2467,13 @@ input.inline-edit:focus {
     opacity: 0;
     transform: scale(0.95);
     transition: opacity var(--transition-fast), transform var(--transition-fast);
+    pointer-events: none;
 }
 
 .context-menu.visible {
     opacity: 1;
     transform: scale(1);
+    pointer-events: auto;
 }
 
 .context-menu-item {

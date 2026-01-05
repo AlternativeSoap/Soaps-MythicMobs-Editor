@@ -228,6 +228,10 @@ class PackManager {
         
         this.packs.push(pack);
         this.savePacks();
+        
+        // Clear folder states so all folders start collapsed for the new pack
+        localStorage.removeItem('folderStates');
+        
         return pack;
     }
     
