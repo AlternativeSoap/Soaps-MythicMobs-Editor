@@ -120,6 +120,101 @@ class TemplateSelector {
         
         // Activity tracking
         window.activityTracker?.trackTemplateView(templateId);
+        
+        // Update card stats in UI
+        this.updateTemplateCardStats(templateId, { views: this.viewCounts[templateId] });
+    }
+    
+    /**
+     * Update template card stats in the UI without re-rendering the entire list
+     * @param {string} templateId - The template ID
+     * @param {Object} stats - Object containing stats to update { views, uses, comments, rating, ratingCount }
+     */
+    updateTemplateCardStats(templateId, stats = {}) {
+        // Find the card in the DOM
+        const card = document.querySelector(`.template-grid-card[data-template-id="${templateId}"], .template-list-card[data-template-id="${templateId}"]`);
+        if (!card) return;
+        
+        const formatCount = (num) => {
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+            return num.toString();
+        };
+        
+        // Update views
+        if (stats.views !== undefined) {
+            const viewStat = card.querySelector('.stat[title*="views"] .stat-value');
+            if (viewStat) {
+                viewStat.textContent = formatCount(stats.views);
+                viewStat.closest('.stat')?.setAttribute('title', `${stats.views} views`);
+                // Add a subtle flash animation
+                viewStat.style.transition = 'color 0.3s';
+                viewStat.style.color = 'var(--primary-color)';
+                setTimeout(() => { viewStat.style.color = ''; }, 500);
+            }
+        }
+        
+        // Update uses/downloads
+        if (stats.uses !== undefined) {
+            const useStat = card.querySelector('.stat[title*="downloads"] .stat-value');
+            if (useStat) {
+                useStat.textContent = formatCount(stats.uses);
+                useStat.closest('.stat')?.setAttribute('title', `${stats.uses} downloads`);
+                useStat.style.transition = 'color 0.3s';
+                useStat.style.color = 'var(--success-color, #22c55e)';
+                setTimeout(() => { useStat.style.color = ''; }, 500);
+            }
+        }
+        
+        // Update comments
+        if (stats.comments !== undefined) {
+            const commentStat = card.querySelector('.stat[title*="comments"] .stat-value');
+            if (commentStat) {
+                commentStat.textContent = formatCount(stats.comments);
+                commentStat.closest('.stat')?.setAttribute('title', `${stats.comments} comments`);
+                commentStat.style.transition = 'color 0.3s';
+                commentStat.style.color = 'var(--primary-color)';
+                setTimeout(() => { commentStat.style.color = ''; }, 500);
+            }
+        }
+        
+        // Update rating
+        if (stats.rating !== undefined) {
+            const ratingStat = card.querySelector('.stat[title*="ratings"]');
+            if (ratingStat) {
+                const ratingValue = ratingStat.querySelector('.stat-value');
+                const starsContainer = ratingStat.querySelector('.star-rating');
+                if (ratingValue) {
+                    ratingValue.textContent = stats.rating > 0 ? stats.rating.toFixed(1) : '—';
+                }
+                if (starsContainer && stats.rating > 0) {
+                    const fullStars = Math.floor(stats.rating);
+                    let stars = '';
+                    for (let i = 0; i < fullStars; i++) {
+                        stars += '<i class="fas fa-star"></i>';
+                    }
+                    if (stats.rating % 1 >= 0.5) {
+                        stars += '<i class="fas fa-star-half-alt"></i>';
+                    }
+                    starsContainer.innerHTML = stars;
+                }
+                if (stats.ratingCount !== undefined) {
+                    ratingStat.setAttribute('title', `${stats.ratingCount} ratings`);
+                }
+                ratingValue.style.transition = 'color 0.3s';
+                ratingValue.style.color = 'var(--warning-color, #f59e0b)';
+                setTimeout(() => { ratingValue.style.color = ''; }, 500);
+            }
+        }
+        
+        // Also update the template in our local allTemplates array
+        const template = this.allTemplates.find(t => t.id === templateId);
+        if (template) {
+            if (stats.views !== undefined) template.view_count = stats.views;
+            if (stats.uses !== undefined) template.use_count = stats.uses;
+            if (stats.comments !== undefined) template.comment_count = stats.comments;
+            if (stats.rating !== undefined) template.average_rating = stats.rating;
+            if (stats.ratingCount !== undefined) template.rating_count = stats.ratingCount;
+        }
     }
     
     /**
@@ -274,15 +369,15 @@ class TemplateSelector {
                     
                     <!-- Entity Type Tabs (Skills | Mobs) -->
                     <div class="entity-type-tabs" id="entityTypeTabs" style="display: flex; gap: 0.5rem; padding: 0 1rem; margin-bottom: 0.75rem;">
-                        <button class="entity-type-tab active" data-entity="skill" style="flex: 1; padding: 0.75rem 1.5rem; border: 2px solid var(--primary-color); background: var(--primary-color); color: white; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                        <button class="entity-type-tab active" data-entity="skill" style="flex: 1; padding: 0.75rem 1.5rem; border: 3px solid var(--primary-color); background: linear-gradient(135deg, var(--primary-color), #6366f1); color: white; border-radius: 8px; cursor: pointer; font-weight: 700; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);">
                             <i class="fas fa-magic"></i>
                             <span>Skill Templates</span>
-                            <span class="entity-count" id="skillTemplateCount" style="background: rgba(255,255,255,0.2); padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.8rem;">0</span>
+                            <span class="entity-count" id="skillTemplateCount" style="background: rgba(255,255,255,0.3); padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem; font-weight: 700;">0</span>
                         </button>
-                        <button class="entity-type-tab" data-entity="mob" style="flex: 1; padding: 0.75rem 1.5rem; border: 2px solid var(--border-color); background: var(--bg-secondary); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                        <button class="entity-type-tab" data-entity="mob" style="flex: 1; padding: 0.75rem 1.5rem; border: 3px solid var(--border-color); background: var(--bg-secondary); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; opacity: 0.7;">
                             <i class="fas fa-skull"></i>
                             <span>Mob Templates</span>
-                            <span class="entity-count" id="mobTemplateCount" style="background: var(--bg-tertiary); padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.8rem;">0</span>
+                            <span class="entity-count" id="mobTemplateCount" style="background: var(--bg-tertiary); padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem;">0</span>
                         </button>
                     </div>
                     
@@ -2225,19 +2320,47 @@ class TemplateSelector {
     setEntityType(entityType) {
         this.entityType = entityType;
         
-        // Update tab styles
+        // Update modal title based on entity type
+        const titleElement = document.querySelector('#templateSelectorOverlay .modal-header h2');
+        if (titleElement) {
+            const icon = entityType === 'skill' ? 'fa-magic' : 'fa-skull';
+            const label = entityType === 'skill' ? 'Skill Templates' : 'Mob Templates';
+            titleElement.innerHTML = `<i class="fas ${icon}"></i> ${label}`;
+        }
+        
+        // Update tab styles with stronger visual cues
         document.querySelectorAll('.entity-type-tab').forEach(tab => {
             const isActive = tab.dataset.entity === entityType;
             if (isActive) {
                 tab.classList.add('active');
-                tab.style.background = 'var(--primary-color)';
+                tab.style.background = 'linear-gradient(135deg, var(--primary-color), #6366f1)';
                 tab.style.borderColor = 'var(--primary-color)';
+                tab.style.borderWidth = '3px';
                 tab.style.color = 'white';
+                tab.style.fontWeight = '700';
+                tab.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.4)';
+                tab.style.opacity = '1';
+                // Update count badge style
+                const countBadge = tab.querySelector('.entity-count');
+                if (countBadge) {
+                    countBadge.style.background = 'rgba(255,255,255,0.3)';
+                    countBadge.style.fontWeight = '700';
+                }
             } else {
                 tab.classList.remove('active');
                 tab.style.background = 'var(--bg-secondary)';
                 tab.style.borderColor = 'var(--border-color)';
+                tab.style.borderWidth = '3px';
                 tab.style.color = 'var(--text-secondary)';
+                tab.style.fontWeight = '600';
+                tab.style.boxShadow = 'none';
+                tab.style.opacity = '0.7';
+                // Update count badge style
+                const countBadge = tab.querySelector('.entity-count');
+                if (countBadge) {
+                    countBadge.style.background = 'var(--bg-tertiary)';
+                    countBadge.style.fontWeight = '500';
+                }
             }
         });
         
@@ -3100,6 +3223,7 @@ class TemplateSelector {
 
     /**
      * Show full preview of template with comments section
+     * Redesigned with better layout - two-column on desktop, stacked on mobile
      */
     async showFullPreview(templateId) {
         const template = this.allTemplates.find(t => t.id === templateId);
@@ -3133,84 +3257,507 @@ class TemplateSelector {
         const sections = template.sections || template.data?.sections;
         const isMultiSection = sections && Array.isArray(sections) && sections.length > 0;
         
+        // Remove any existing preview modals first
+        document.querySelectorAll('.template-full-preview-modal').forEach(m => m.remove());
+        
         const modal = document.createElement('div');
-        modal.className = 'condition-modal-overlay active';
-        modal.style.cssText = 'display: flex !important; z-index: 10000 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.8) !important; align-items: center !important; justify-content: center !important;';
+        modal.className = 'condition-modal-overlay active template-full-preview-modal';
+        modal.style.cssText = 'display: flex !important; z-index: 10500 !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important; background: rgba(0,0,0,0.85) !important; align-items: center !important; justify-content: center !important; margin: 0 !important; padding: 1rem !important; box-sizing: border-box !important;';
         modal.innerHTML = `
-            <div class="condition-modal" style="max-width: 950px; max-height: 90vh; width: 95%; background: var(--bg-primary); border-radius: 8px; display: flex; flex-direction: column; position: relative;">
-                <div class="condition-header" style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                    <h2 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-                        ${template.icon || this.getCategoryIcon(template.category)} ${template.name}
-                        ${isMultiSection ? `<span class="badge" style="background: var(--primary-color); color: white; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px;"><i class="fas fa-layer-group"></i> ${sections.length} sections</span>` : ''}
-                        <span class="view-count-badge" style="font-size: 0.8rem;"><i class="fas fa-eye"></i> ${viewCount}</span>
+            <style>
+                .template-preview-modal-inner {
+                    max-width: 1400px;
+                    max-height: calc(100vh - 2rem);
+                    width: 100%;
+                    background: #12121a;
+                    border-radius: 16px;
+                    display: flex;
+                    flex-direction: column;
+                    position: relative;
+                    overflow: hidden;
+                    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1);
+                }
+                .template-preview-header {
+                    padding: 1.25rem 1.5rem;
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: linear-gradient(135deg, #1e1e2e 0%, #252536 100%);
+                    flex-shrink: 0;
+                }
+                .template-preview-header h2 {
+                    margin: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    font-size: 1.25rem;
+                    flex-wrap: wrap;
+                }
+                .template-preview-body {
+                    display: flex;
+                    flex: 1;
+                    overflow: hidden;
+                    min-height: 0;
+                }
+                /* Two-column layout for larger screens */
+                @media (min-width: 900px) {
+                    .template-preview-body {
+                        flex-direction: row;
+                    }
+                    .template-preview-left {
+                        flex: 1;
+                        min-width: 0;
+                        border-right: 1px solid rgba(255,255,255,0.1);
+                        display: flex;
+                        flex-direction: column;
+                        overflow: hidden;
+                    }
+                    .template-preview-right {
+                        width: 380px;
+                        flex-shrink: 0;
+                        display: flex;
+                        flex-direction: column;
+                        overflow: hidden;
+                    }
+                }
+                /* Stacked layout for smaller screens */
+                @media (max-width: 899px) {
+                    .template-preview-body {
+                        flex-direction: column;
+                    }
+                    .template-preview-left,
+                    .template-preview-right {
+                        width: 100%;
+                    }
+                    .template-preview-left {
+                        flex: 1;
+                        min-height: 300px;
+                        border-bottom: 1px solid rgba(255,255,255,0.1);
+                    }
+                    .template-preview-right {
+                        flex: 1;
+                        min-height: 250px;
+                    }
+                }
+                .template-preview-left-content {
+                    padding: 1.5rem;
+                    overflow-y: auto;
+                    flex: 1;
+                }
+                .template-description {
+                    margin-bottom: 1.25rem;
+                    color: var(--text-secondary, #a0a0a0);
+                    font-size: 0.95rem;
+                    line-height: 1.6;
+                    padding: 1rem;
+                    background: rgba(99, 102, 241, 0.08);
+                    border-radius: 10px;
+                    border-left: 3px solid var(--primary-color, #6366f1);
+                }
+                .template-code-section {
+                    position: relative;
+                }
+                .template-code-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 0.75rem;
+                }
+                .template-code-header span {
+                    font-weight: 600;
+                    color: var(--text-primary, #fff);
+                    font-size: 0.95rem;
+                }
+                .template-code-block {
+                    background: #1e1e2e;
+                    border-radius: 10px;
+                    border: 1px solid rgba(255,255,255,0.1);
+                    overflow: hidden;
+                }
+                .template-code-block pre {
+                    margin: 0;
+                    padding: 1.25rem;
+                    overflow: auto;
+                    max-height: 400px;
+                    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+                    font-size: 0.875rem;
+                    line-height: 1.6;
+                    color: #e0e0e0;
+                    white-space: pre;
+                    tab-size: 2;
+                }
+                .template-code-block code {
+                    font-family: inherit;
+                }
+                /* Comments section styling */
+                .template-comments-panel {
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                    background: #161622;
+                }
+                .comments-header {
+                    padding: 1rem 1.25rem;
+                    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                    flex-shrink: 0;
+                }
+                .comments-header h3 {
+                    margin: 0;
+                    font-size: 1rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-weight: 600;
+                    color: var(--text-primary, #fff);
+                }
+                .comment-count-badge {
+                    background: var(--primary-color, #6366f1);
+                    color: white;
+                    padding: 0.2rem 0.6rem;
+                    border-radius: 12px;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                }
+                .comments-form-container {
+                    padding: 1rem 1.25rem;
+                    border-bottom: 1px solid rgba(255,255,255,0.08);
+                    background: #1a1a28;
+                    flex-shrink: 0;
+                }
+                .add-comment-form {
+                    display: flex;
+                    gap: 0.75rem;
+                    align-items: flex-start;
+                }
+                .comment-avatar-wrapper {
+                    width: 36px;
+                    height: 36px;
+                    flex-shrink: 0;
+                    border-radius: 50%;
+                    overflow: hidden;
+                    border: 2px solid var(--primary-color, #6366f1);
+                }
+                .comment-input-wrapper {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+                .comment-textarea {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    border: 2px solid rgba(255,255,255,0.1);
+                    border-radius: 10px;
+                    background: #12121a;
+                    color: var(--text-primary, #fff);
+                    resize: vertical;
+                    font-family: inherit;
+                    font-size: 0.9rem;
+                    transition: border-color 0.2s;
+                    min-height: 80px;
+                }
+                .comment-textarea:focus {
+                    outline: none;
+                    border-color: var(--primary-color, #6366f1);
+                }
+                .comment-actions {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .char-count {
+                    font-size: 0.75rem;
+                    color: var(--text-tertiary, #666);
+                }
+                .login-prompt {
+                    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.08));
+                    padding: 1.25rem;
+                    border-radius: 10px;
+                    text-align: center;
+                }
+                .login-prompt i {
+                    font-size: 1.5rem;
+                    color: var(--text-secondary, #888);
+                    margin-bottom: 0.5rem;
+                    display: block;
+                }
+                .login-prompt span {
+                    color: var(--text-secondary, #888);
+                    font-size: 0.9rem;
+                }
+                .login-prompt a {
+                    color: var(--primary-color, #6366f1);
+                    font-weight: 600;
+                    text-decoration: none;
+                }
+                .login-prompt a:hover {
+                    text-decoration: underline;
+                }
+                .comments-list-container {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 0.75rem 1.25rem;
+                    min-height: 150px;
+                }
+                .comments-list-container::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .comments-list-container::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .comments-list-container::-webkit-scrollbar-thumb {
+                    background: rgba(255,255,255,0.15);
+                    border-radius: 3px;
+                }
+                .comment-item {
+                    display: flex;
+                    gap: 0.75rem;
+                    padding: 1rem 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.05);
+                }
+                .comment-item:last-child {
+                    border-bottom: none;
+                }
+                /* Vote Controls */
+                .comment-vote-controls {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 0.15rem;
+                    flex-shrink: 0;
+                    min-width: 28px;
+                }
+                .vote-btn {
+                    background: none;
+                    border: none;
+                    color: var(--text-tertiary, #666);
+                    cursor: pointer;
+                    padding: 0.2rem;
+                    border-radius: 4px;
+                    transition: all 0.15s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 0.85rem;
+                }
+                .vote-btn:hover {
+                    background: rgba(255,255,255,0.1);
+                }
+                .vote-btn.vote-up:hover,
+                .vote-btn.vote-up.voted {
+                    color: #10b981;
+                }
+                .vote-btn.vote-down:hover,
+                .vote-btn.vote-down.voted {
+                    color: #ef4444;
+                }
+                .vote-btn.voted {
+                    background: rgba(255,255,255,0.08);
+                }
+                .vote-score {
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    color: var(--text-secondary, #888);
+                    min-width: 20px;
+                    text-align: center;
+                }
+                .vote-score.vote-positive {
+                    color: #10b981;
+                }
+                .vote-score.vote-negative {
+                    color: #ef4444;
+                }
+                .comment-user-avatar {
+                    width: 36px;
+                    height: 36px;
+                    flex-shrink: 0;
+                    border-radius: 50%;
+                    overflow: hidden;
+                    cursor: pointer;
+                }
+                .comment-content-wrapper {
+                    flex: 1;
+                    min-width: 0;
+                }
+                .comment-user-info {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin-bottom: 0.35rem;
+                    flex-wrap: wrap;
+                }
+                .comment-user-name {
+                    font-weight: 600;
+                    color: var(--text-primary, #fff);
+                    font-size: 0.875rem;
+                    cursor: pointer;
+                    text-decoration: none;
+                }
+                .comment-user-name:hover {
+                    color: var(--primary-color, #6366f1);
+                }
+                .comment-time {
+                    font-size: 0.7rem;
+                    color: var(--text-tertiary, #666);
+                    background: rgba(255,255,255,0.05);
+                    padding: 0.1rem 0.4rem;
+                    border-radius: 4px;
+                }
+                .comment-edited {
+                    font-size: 0.65rem;
+                    color: var(--text-tertiary, #666);
+                    font-style: italic;
+                }
+                .comment-text {
+                    margin: 0;
+                    color: var(--text-secondary, #a0a0a0);
+                    font-size: 0.875rem;
+                    line-height: 1.5;
+                    word-wrap: break-word;
+                }
+                .no-comments {
+                    text-align: center;
+                    padding: 2rem 1rem;
+                }
+                .no-comments-icon {
+                    width: 50px;
+                    height: 50px;
+                    margin: 0 auto 0.75rem;
+                    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.1));
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .no-comments-icon i {
+                    font-size: 1.25rem;
+                    color: var(--text-secondary, #888);
+                }
+                .no-comments h4 {
+                    margin: 0 0 0.25rem 0;
+                    font-weight: 600;
+                    color: var(--text-primary, #fff);
+                    font-size: 0.95rem;
+                }
+                .no-comments p {
+                    margin: 0;
+                    font-size: 0.85rem;
+                    color: var(--text-tertiary, #666);
+                }
+                /* Footer */
+                .template-preview-footer {
+                    padding: 1rem 1.5rem;
+                    border-top: 1px solid rgba(255,255,255,0.1);
+                    display: flex;
+                    gap: 0.75rem;
+                    justify-content: flex-end;
+                    background: linear-gradient(135deg, #1e1e2e 0%, #252536 100%);
+                    flex-shrink: 0;
+                }
+                /* Badges */
+                .section-badge {
+                    background: var(--primary-color, #6366f1);
+                    color: white;
+                    font-size: 0.7rem;
+                    padding: 0.25rem 0.6rem;
+                    border-radius: 6px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.3rem;
+                }
+                .view-badge {
+                    font-size: 0.8rem;
+                    color: var(--text-secondary, #888);
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.3rem;
+                }
+            </style>
+            <div class="template-preview-modal-inner">
+                <div class="template-preview-header">
+                    <h2>
+                        <span style="font-size: 1.5rem;">${template.icon || this.getCategoryIcon(template.category)}</span>
+                        <span>${this.escapeHtml(template.name)}</span>
+                        ${isMultiSection ? `<span class="section-badge"><i class="fas fa-layer-group"></i> ${sections.length} sections</span>` : ''}
+                        <span class="view-badge"><i class="fas fa-eye"></i> ${viewCount}</span>
                     </h2>
-                    <button class="close-modal preview-close" style="background: none; border: none; color: var(--text-primary); font-size: 1.5rem; cursor: pointer; padding: 0.5rem;">
+                    <button class="close-modal preview-close" style="background: none; border: none; color: var(--text-primary); font-size: 1.5rem; cursor: pointer; padding: 0.5rem; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div class="condition-content" style="padding: 1.5rem; overflow-y: auto; flex: 1;">
-                    <p style="margin-bottom: 1rem; color: var(--text-secondary);">${template.description}</p>
-                    <div class="template-preview" style="margin: 0; position: relative;">
-                        <div class="preview-label" style="font-weight: 600; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
-                            <span>Full Template (${lineCount} lines):</span>
-                            <button class="btn btn-secondary btn-sm preview-copy-btn" title="Copy to clipboard">
-                                <i class="fas fa-copy"></i> Copy
-                            </button>
+                <div class="template-preview-body">
+                    <!-- Left: Template Preview -->
+                    <div class="template-preview-left">
+                        <div class="template-preview-left-content">
+                            <div class="template-description">
+                                ${this.escapeHtml(template.description || 'No description provided.')}
+                            </div>
+                            <div class="template-code-section">
+                                <div class="template-code-header">
+                                    <span><i class="fas fa-code"></i> Full Template (${lineCount} lines)</span>
+                                    <button class="btn btn-secondary btn-sm preview-copy-btn" title="Copy to clipboard" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                </div>
+                                <div class="template-code-block">
+                                    <pre><code>${this.escapeHtml(fullYAML)}</code></pre>
+                                </div>
+                            </div>
                         </div>
-                        <pre style="max-height: 300px; overflow-y: auto; background: var(--bg-secondary); padding: 1rem; border-radius: 4px; border: 1px solid var(--border-color);"><code>${this.escapeHtml(fullYAML)}</code></pre>
                     </div>
-                    
-                    <!-- Comments Section -->
-                    <div class="template-comments-section" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                            <h3 style="margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                                <i class="fas fa-comments"></i> Comments
-                                <span class="comment-count-badge" style="background: var(--bg-tertiary); padding: 0.2rem 0.5rem; border-radius: 10px; font-size: 0.75rem; color: var(--text-secondary);">${commentCount}</span>
-                            </h3>
-                        </div>
-                        
-                        <!-- Add Comment Form -->
-                        ${isAuthenticated ? `
-                            <div class="add-comment-form" style="margin-bottom: 1rem; display: flex; gap: 0.75rem; align-items: flex-start;">
-                                <div class="comment-avatar" style="width: 36px; height: 36px; flex-shrink: 0;" data-user-avatar>
-                                    ${this.renderCurrentUserAvatar(36)}
-                                </div>
-                                <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
-                                    <textarea 
-                                        id="newCommentInput" 
-                                        placeholder="Write a comment..." 
-                                        rows="2"
-                                        maxlength="2000"
-                                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); resize: vertical; font-family: inherit; font-size: 0.875rem;"
-                                    ></textarea>
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <span class="char-count" style="font-size: 0.75rem; color: var(--text-tertiary);">0/2000</span>
-                                        <button class="btn btn-primary btn-sm submit-comment-btn" disabled>
-                                            <i class="fas fa-paper-plane"></i> Post Comment
-                                        </button>
+                    <!-- Right: Comments -->
+                    <div class="template-preview-right">
+                        <div class="template-comments-panel">
+                            <div class="comments-header">
+                                <h3>
+                                    <i class="fas fa-comments" style="color: var(--primary-color, #6366f1);"></i>
+                                    Comments
+                                    <span class="comment-count-badge">${commentCount}</span>
+                                </h3>
+                            </div>
+                            <div class="comments-form-container">
+                                ${isAuthenticated ? `
+                                    <div class="add-comment-form">
+                                        <div class="comment-avatar-wrapper" data-user-avatar>
+                                            ${this.renderCurrentUserAvatar(36)}
+                                        </div>
+                                        <div class="comment-input-wrapper">
+                                            <textarea 
+                                                id="newCommentInput" 
+                                                class="comment-textarea"
+                                                placeholder="Share your thoughts on this template..." 
+                                                rows="3"
+                                                maxlength="2000"
+                                            ></textarea>
+                                            <div class="comment-actions">
+                                                <span class="char-count">0/2000</span>
+                                                <button class="btn btn-primary btn-sm submit-comment-btn" disabled style="padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600;">
+                                                    <i class="fas fa-paper-plane"></i> Post
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
+                                ` : `
+                                    <div class="login-prompt">
+                                        <i class="fas fa-comment-dots"></i>
+                                        <span>Want to share your thoughts?<br><a href="#" class="login-to-comment">Sign in</a> to post comments</span>
+                                    </div>
+                                `}
+                            </div>
+                            <div class="comments-list-container" id="templateCommentsList">
+                                <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading comments...
                                 </div>
-                            </div>
-                        ` : `
-                            <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 6px; text-align: center; margin-bottom: 1rem;">
-                                <i class="fas fa-lock" style="color: var(--text-secondary); margin-right: 0.5rem;"></i>
-                                <span style="color: var(--text-secondary);">Please <a href="#" class="login-to-comment" style="color: var(--accent-primary);">sign in</a> to post comments</span>
-                            </div>
-                        `}
-                        
-                        <!-- Comments List -->
-                        <div class="comments-list" id="templateCommentsList" style="max-height: 250px; overflow-y: auto;">
-                            <div class="comments-loading" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                                <i class="fas fa-spinner fa-spin"></i> Loading comments...
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="condition-footer" style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <div class="template-preview-footer">
                     <button class="btn btn-secondary preview-cancel">Close</button>
-                    <button class="btn btn-primary preview-use" data-template-id="${templateId}">
-                        <i class="fas fa-plus"></i>
-                        Use Template
+                    <button class="btn btn-primary preview-use" data-template-id="${templateId}" style="padding: 0.6rem 1.5rem; font-weight: 600;">
+                        <i class="fas fa-plus"></i> Use Template
                     </button>
                 </div>
             </div>
@@ -3282,17 +3829,22 @@ class TemplateSelector {
                     // Reload comments
                     await this.loadAndRenderComments(templateId, modal);
                     
-                    // Update comment count badge
+                    // Update comment count badge in preview modal
                     const countBadge = modal.querySelector('.comment-count-badge');
+                    let newCommentCount = 1;
                     if (countBadge) {
                         const currentCount = parseInt(countBadge.textContent) || 0;
-                        countBadge.textContent = currentCount + 1;
+                        newCommentCount = currentCount + 1;
+                        countBadge.textContent = newCommentCount;
                     }
+                    
+                    // Update the card in the template list
+                    this.updateTemplateCardStats(templateId, { comments: newCommentCount });
                 } catch (error) {
                     this.showNotification(error.message || 'Failed to post comment', 'error');
                 } finally {
                     submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Post Comment';
+                    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Post';
                 }
             });
         }
@@ -3314,15 +3866,18 @@ class TemplateSelector {
             
             if (comments.length === 0) {
                 commentsList.innerHTML = `
-                    <div class="no-comments" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                        <i class="fas fa-comment-slash" style="font-size: 2rem; opacity: 0.5; margin-bottom: 0.5rem; display: block;"></i>
-                        <p style="margin: 0;">No comments yet. Be the first to share your thoughts!</p>
+                    <div class="no-comments">
+                        <div class="no-comments-icon">
+                            <i class="fas fa-comment-slash"></i>
+                        </div>
+                        <h4>No comments yet</h4>
+                        <p>Be the first to share your thoughts!</p>
                     </div>
                 `;
                 return;
             }
             
-            commentsList.innerHTML = comments.map(comment => this.renderComment(comment)).join('');
+            commentsList.innerHTML = comments.map(comment => this.renderCommentNew(comment)).join('');
             
             // Attach click handlers for user profile popups
             commentsList.querySelectorAll('.comment-user-link').forEach(link => {
@@ -3335,46 +3890,164 @@ class TemplateSelector {
                 });
             });
             
+            // Attach click handlers for voting
+            commentsList.querySelectorAll('.vote-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const commentId = btn.dataset.commentId;
+                    const voteType = parseInt(btn.dataset.vote, 10);
+                    
+                    if (!commentId || isNaN(voteType)) return;
+                    
+                    await this.handleCommentVote(commentId, voteType, commentsList);
+                });
+            });
+            
         } catch (error) {
             console.error('Failed to load comments:', error);
             commentsList.innerHTML = `
                 <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                    <i class="fas fa-exclamation-triangle" style="color: var(--warning-color);"></i>
-                    Failed to load comments
+                    <i class="fas fa-exclamation-triangle" style="color: var(--warning-color, #f59e0b);"></i>
+                    <p style="margin: 0.5rem 0 0 0;">Failed to load comments</p>
                 </div>
             `;
         }
     }
     
     /**
-     * Render a single comment
+     * Handle comment vote action
      */
-    renderComment(comment) {
+    async handleCommentVote(commentId, voteType, container) {
+        // Check if user is logged in
+        if (!window.authManager?.isAuthenticated()) {
+            this.showNotification('Please log in to vote on comments', 'warning');
+            return;
+        }
+        
+        const commentItem = container.querySelector(`.comment-item[data-comment-id="${commentId}"]`);
+        if (!commentItem) return;
+        
+        const upBtn = commentItem.querySelector('.vote-btn.vote-up');
+        const downBtn = commentItem.querySelector('.vote-btn.vote-down');
+        const scoreEl = commentItem.querySelector('.vote-score');
+        
+        // Disable buttons during request
+        if (upBtn) upBtn.disabled = true;
+        if (downBtn) downBtn.disabled = true;
+        
+        try {
+            const result = await this.templateManager?.voteOnComment(commentId, voteType);
+            
+            if (!result) {
+                throw new Error('Vote failed');
+            }
+            
+            // Get current score
+            let currentScore = parseInt(scoreEl.textContent.replace('+', ''), 10) || 0;
+            
+            // Update UI based on result
+            if (result.action === 'added') {
+                // New vote added
+                if (voteType === 1) {
+                    upBtn?.classList.add('voted');
+                    currentScore += 1;
+                } else {
+                    downBtn?.classList.add('voted');
+                    currentScore -= 1;
+                }
+            } else if (result.action === 'removed') {
+                // Vote removed (toggled off)
+                upBtn?.classList.remove('voted');
+                downBtn?.classList.remove('voted');
+                // Reverse the previous vote
+                if (voteType === 1) {
+                    currentScore -= 1;
+                } else {
+                    currentScore += 1;
+                }
+            } else if (result.action === 'changed') {
+                // Vote changed
+                if (voteType === 1) {
+                    upBtn?.classList.add('voted');
+                    downBtn?.classList.remove('voted');
+                    currentScore += 2; // Went from -1 to +1
+                } else {
+                    upBtn?.classList.remove('voted');
+                    downBtn?.classList.add('voted');
+                    currentScore -= 2; // Went from +1 to -1
+                }
+            }
+            
+            // Update score display
+            if (scoreEl) {
+                const displayScore = currentScore > 0 ? `+${currentScore}` : currentScore;
+                scoreEl.textContent = displayScore;
+                scoreEl.classList.remove('vote-positive', 'vote-negative');
+                if (currentScore > 0) {
+                    scoreEl.classList.add('vote-positive');
+                } else if (currentScore < 0) {
+                    scoreEl.classList.add('vote-negative');
+                }
+            }
+            
+        } catch (error) {
+            console.error('Failed to vote:', error);
+            this.showNotification('Failed to submit vote', 'error');
+        } finally {
+            // Re-enable buttons
+            if (upBtn) upBtn.disabled = false;
+            if (downBtn) downBtn.disabled = false;
+        }
+    }
+    
+    /**
+     * Render a single comment (new style with voting)
+     */
+    renderCommentNew(comment) {
         const user = comment.user || {};
         const displayName = user.display_name || 'Anonymous';
         const avatarUrl = user.avatar_url;
         const timeAgo = this.formatTimeAgo(comment.created_at);
         const isEdited = comment.is_edited;
         
+        // Vote data
+        const upvotes = comment.upvotes || 0;
+        const downvotes = comment.downvotes || 0;
+        const voteScore = comment.vote_score || 0;
+        const userVote = comment.userVote; // 1, -1, or null
+        
         // Avatar HTML
         const avatarHtml = avatarUrl 
             ? `<img src="${avatarUrl}" alt="${this.escapeHtml(displayName)}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`
-            : `<div style="width: 100%; height: 100%; border-radius: 50%; background: var(--accent-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">${displayName.charAt(0).toUpperCase()}</div>`;
+            : `<div style="width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg, var(--primary-color, #6366f1), #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">${displayName.charAt(0).toUpperCase()}</div>`;
+        
+        // Vote score display
+        const scoreClass = voteScore > 0 ? 'vote-positive' : (voteScore < 0 ? 'vote-negative' : '');
+        const scoreDisplay = voteScore > 0 ? `+${voteScore}` : voteScore;
         
         return `
-            <div class="comment-item" data-comment-id="${comment.id}" style="display: flex; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
-                <a href="#" class="comment-user-link comment-avatar" data-user-id="${comment.user_id}" style="width: 36px; height: 36px; flex-shrink: 0; cursor: pointer; text-decoration: none;">
+            <div class="comment-item" data-comment-id="${comment.id}">
+                <div class="comment-vote-controls">
+                    <button class="vote-btn vote-up ${userVote === 1 ? 'voted' : ''}" data-comment-id="${comment.id}" data-vote="1" title="Upvote">
+                        <i class="fas fa-chevron-up"></i>
+                    </button>
+                    <span class="vote-score ${scoreClass}" data-comment-id="${comment.id}">${scoreDisplay}</span>
+                    <button class="vote-btn vote-down ${userVote === -1 ? 'voted' : ''}" data-comment-id="${comment.id}" data-vote="-1" title="Downvote">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <a href="#" class="comment-user-link comment-user-avatar" data-user-id="${comment.user_id}">
                     ${avatarHtml}
                 </a>
-                <div style="flex: 1; min-width: 0;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-                        <a href="#" class="comment-user-link" data-user-id="${comment.user_id}" style="font-weight: 600; color: var(--text-primary); text-decoration: none; cursor: pointer;">
+                <div class="comment-content-wrapper">
+                    <div class="comment-user-info">
+                        <a href="#" class="comment-user-link comment-user-name" data-user-id="${comment.user_id}">
                             ${this.escapeHtml(displayName)}
                         </a>
-                        <span style="font-size: 0.75rem; color: var(--text-tertiary);">${timeAgo}</span>
-                        ${isEdited ? '<span style="font-size: 0.7rem; color: var(--text-tertiary); font-style: italic;">(edited)</span>' : ''}
+                        <span class="comment-time">${timeAgo}</span>
+                        ${isEdited ? '<span class="comment-edited">(edited)</span>' : ''}
                     </div>
-                    <p style="margin: 0; color: var(--text-secondary); font-size: 0.875rem; line-height: 1.4; word-wrap: break-word;">${this.escapeHtml(comment.content)}</p>
+                    <p class="comment-text">${this.escapeHtml(comment.content)}</p>
                 </div>
             </div>
         `;
@@ -3515,9 +4188,13 @@ class TemplateSelector {
         // Add to recent
         this.addToRecent(templateId);
         
-        // Track template use in cloud (non-blocking)
+        // Track template use in cloud (non-blocking) and update card
         if (this.templateManager) {
-            this.templateManager.trackTemplateUse(templateId).catch(err => {
+            this.templateManager.trackTemplateUse(templateId).then(() => {
+                // Update the use count on the card
+                const currentUses = (template.use_count || 0) + 1;
+                this.updateTemplateCardStats(templateId, { uses: currentUses });
+            }).catch(err => {
                 console.warn('Failed to track use in cloud:', err);
             });
         }
@@ -3838,28 +4515,38 @@ class TemplateSelector {
         }
         
         // Get user's current rating
-        const userRating = await this.templateManager.getUserRating(templateId);
+        const userRatingData = await this.templateManager.getUserRating(templateId);
+        const userRating = userRatingData?.rating || 0;
+        const userComment = userRatingData?.review_comment || '';
         
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
         modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;';
         
         modal.innerHTML = `
-            <div class="modal-content" style="background: var(--bg-primary); border-radius: 8px; padding: 1.5rem; max-width: 400px; width: 90%;">
+            <div class="modal-content" style="background: var(--bg-primary); border-radius: 8px; padding: 1.5rem; max-width: 450px; width: 90%;">
                 <h3 style="margin: 0 0 1rem 0; display: flex; align-items: center; gap: 0.5rem;">
                     <i class="fas fa-star" style="color: #ffc107;"></i>
-                    Rate Template
+                    Rate & Review
                 </h3>
                 <p style="color: var(--text-secondary); margin-bottom: 1rem;">
                     How would you rate "<strong>${this.escapeHtml(template.name)}</strong>"?
                 </p>
-                <div style="text-align: center; margin-bottom: 1.5rem;">
-                    ${this.renderInteractiveStars(userRating || 0, templateId)}
+                <div style="text-align: center; margin-bottom: 1rem;">
+                    ${this.renderInteractiveStars(userRating, templateId)}
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.85rem;">
+                        <i class="fas fa-comment"></i> Review (optional)
+                    </label>
+                    <textarea id="ratingComment" placeholder="Share your thoughts about this template..." 
+                        style="width: 100%; min-height: 80px; padding: 0.75rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; resize: vertical;"
+                    >${this.escapeHtml(userComment)}</textarea>
                 </div>
                 <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                     ${userRating ? `
                         <button class="btn btn-secondary" id="removeRatingBtn">
-                            <i class="fas fa-times"></i> Remove Rating
+                            <i class="fas fa-times"></i> Remove
                         </button>
                     ` : ''}
                     <button class="btn btn-secondary" id="cancelRatingBtn">Cancel</button>
@@ -3886,8 +4573,10 @@ class TemplateSelector {
             
             btn.addEventListener('click', async () => {
                 const rating = parseInt(btn.dataset.rating);
+                const comment = modal.querySelector('#ratingComment')?.value?.trim() || null;
+                
                 try {
-                    await this.templateManager.rateTemplate(templateId, rating);
+                    await this.templateManager.rateTemplate(templateId, rating, comment);
                     
                     // Track activity
                     window.activityTracker?.trackTemplateRate(templateId, rating);
@@ -3899,13 +4588,18 @@ class TemplateSelector {
                         if (updated) {
                             template.average_rating = updated.average_rating;
                             template.rating_count = updated.rating_count;
+                            
+                            // Update the card without full re-render
+                            this.updateTemplateCardStats(templateId, {
+                                rating: updated.average_rating,
+                                ratingCount: updated.rating_count
+                            });
                         }
                     }
                     
                     document.body.removeChild(modal);
-                    this.renderTemplates(); // Refresh display
                     
-                    window.notificationModal?.toast('Rating saved!', 'success');
+                    window.notificationModal?.toast('Review saved!', 'success');
                 } catch (error) {
                     console.error('Failed to rate:', error);
                     window.notificationModal?.toast('Failed to save rating', 'error');
@@ -3922,8 +4616,17 @@ class TemplateSelector {
         modal.querySelector('#removeRatingBtn')?.addEventListener('click', async () => {
             try {
                 await this.templateManager.removeRating(templateId);
+                
+                // Re-fetch to get updated average
+                const updated = await this.templateManager.getTemplateById(templateId);
+                if (updated) {
+                    this.updateTemplateCardStats(templateId, {
+                        rating: updated.average_rating || 0,
+                        ratingCount: updated.rating_count || 0
+                    });
+                }
+                
                 document.body.removeChild(modal);
-                this.renderTemplates();
                 window.notificationModal?.toast('Rating removed', 'info');
             } catch (error) {
                 console.error('Failed to remove rating:', error);

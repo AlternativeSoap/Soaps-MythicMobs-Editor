@@ -334,7 +334,7 @@ $$;
 
 ### 1. `template_ratings` (NEW)
 
-**Purpose:** Allow users to rate templates (1-5 stars)
+**Purpose:** Allow users to rate templates (1-5 stars) with optional review comments
 
 ```sql
 CREATE TABLE template_ratings (
@@ -342,6 +342,7 @@ CREATE TABLE template_ratings (
     template_id UUID NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    review_comment TEXT, -- Optional review text
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
@@ -459,6 +460,95 @@ CREATE POLICY "Authenticated users can comment"
 
 CREATE POLICY "Users can edit own comments"
     ON template_comments FOR UPDATE
+    USING (auth.uid() = user_id);
+```
+
+---
+
+### 2b. `comment_votes` (NEW)
+
+**Purpose:** Allow users to upvote/downvote comments
+
+```sql
+CREATE TABLE comment_votes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    comment_id UUID NOT NULL REFERENCES template_comments(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    vote_type INTEGER NOT NULL CHECK (vote_type IN (-1, 1)), -- -1 = downvote, 1 = upvote
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(comment_id, user_id) -- One vote per user per comment
+);
+
+-- Add vote counts to template_comments
+ALTER TABLE template_comments ADD COLUMN IF NOT EXISTS upvotes INTEGER DEFAULT 0;
+ALTER TABLE template_comments ADD COLUMN IF NOT EXISTS downvotes INTEGER DEFAULT 0;
+ALTER TABLE template_comments ADD COLUMN IF NOT EXISTS vote_score INTEGER DEFAULT 0;
+
+-- Function to update vote counts
+CREATE OR REPLACE FUNCTION update_comment_vote_counts()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.vote_type = 1 THEN
+            UPDATE template_comments
+            SET upvotes = upvotes + 1, vote_score = vote_score + 1
+            WHERE id = NEW.comment_id;
+        ELSE
+            UPDATE template_comments
+            SET downvotes = downvotes + 1, vote_score = vote_score - 1
+            WHERE id = NEW.comment_id;
+        END IF;
+    ELSIF TG_OP = 'DELETE' THEN
+        IF OLD.vote_type = 1 THEN
+            UPDATE template_comments
+            SET upvotes = GREATEST(0, upvotes - 1), vote_score = vote_score - 1
+            WHERE id = OLD.comment_id;
+        ELSE
+            UPDATE template_comments
+            SET downvotes = GREATEST(0, downvotes - 1), vote_score = vote_score + 1
+            WHERE id = OLD.comment_id;
+        END IF;
+    ELSIF TG_OP = 'UPDATE' AND OLD.vote_type != NEW.vote_type THEN
+        -- Vote changed from up to down or vice versa
+        IF NEW.vote_type = 1 THEN
+            UPDATE template_comments
+            SET upvotes = upvotes + 1, downvotes = GREATEST(0, downvotes - 1), vote_score = vote_score + 2
+            WHERE id = NEW.comment_id;
+        ELSE
+            UPDATE template_comments
+            SET upvotes = GREATEST(0, upvotes - 1), downvotes = downvotes + 1, vote_score = vote_score - 2
+            WHERE id = NEW.comment_id;
+        END IF;
+    END IF;
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_comment_votes
+AFTER INSERT OR UPDATE OR DELETE ON comment_votes
+FOR EACH ROW EXECUTE FUNCTION update_comment_vote_counts();
+
+-- Indexes
+CREATE INDEX idx_comment_votes_comment ON comment_votes(comment_id);
+CREATE INDEX idx_comment_votes_user ON comment_votes(user_id);
+
+-- RLS
+ALTER TABLE comment_votes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view votes"
+    ON comment_votes FOR SELECT
+    USING (true);
+
+CREATE POLICY "Authenticated users can vote"
+    ON comment_votes FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can change own votes"
+    ON comment_votes FOR UPDATE
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can remove own votes"
+    ON comment_votes FOR DELETE
     USING (auth.uid() = user_id);
 ```
 

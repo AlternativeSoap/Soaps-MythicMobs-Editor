@@ -1120,7 +1120,110 @@ CREATE POLICY "Users can delete own comments"
 
 ---
 
-## Summary Table Count: 15 Tables
+## 16. `comment_votes`
+
+**Purpose:** Track upvotes/downvotes on comments (like Reddit-style voting)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique vote ID |
+| `comment_id` | UUID | NOT NULL, REFERENCES template_comments(id) ON DELETE CASCADE | Comment being voted on |
+| `user_id` | UUID | NOT NULL, REFERENCES auth.users(id) ON DELETE CASCADE | User who voted |
+| `vote_type` | INTEGER | NOT NULL, CHECK (vote_type IN (-1, 1)) | -1 = downvote, 1 = upvote |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Vote timestamp |
+
+**Unique Constraint:** One vote per user per comment (comment_id, user_id)
+
+### SQL
+
+```sql
+-- TABLE: comment_votes
+-- Allow users to upvote/downvote comments
+
+CREATE TABLE comment_votes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    comment_id UUID NOT NULL REFERENCES template_comments(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    vote_type INTEGER NOT NULL CHECK (vote_type IN (-1, 1)),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(comment_id, user_id)
+);
+
+-- Add vote count columns to template_comments
+ALTER TABLE template_comments ADD COLUMN IF NOT EXISTS upvotes INTEGER DEFAULT 0;
+ALTER TABLE template_comments ADD COLUMN IF NOT EXISTS downvotes INTEGER DEFAULT 0;
+ALTER TABLE template_comments ADD COLUMN IF NOT EXISTS vote_score INTEGER DEFAULT 0;
+
+-- Indexes for performance
+CREATE INDEX idx_comment_votes_comment ON comment_votes(comment_id);
+CREATE INDEX idx_comment_votes_user ON comment_votes(user_id);
+
+-- Trigger function to update vote counts
+CREATE OR REPLACE FUNCTION update_comment_vote_counts()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.vote_type = 1 THEN
+            UPDATE template_comments
+            SET upvotes = upvotes + 1, vote_score = vote_score + 1
+            WHERE id = NEW.comment_id;
+        ELSE
+            UPDATE template_comments
+            SET downvotes = downvotes + 1, vote_score = vote_score - 1
+            WHERE id = NEW.comment_id;
+        END IF;
+    ELSIF TG_OP = 'DELETE' THEN
+        IF OLD.vote_type = 1 THEN
+            UPDATE template_comments
+            SET upvotes = GREATEST(0, upvotes - 1), vote_score = vote_score - 1
+            WHERE id = OLD.comment_id;
+        ELSE
+            UPDATE template_comments
+            SET downvotes = GREATEST(0, downvotes - 1), vote_score = vote_score + 1
+            WHERE id = OLD.comment_id;
+        END IF;
+    ELSIF TG_OP = 'UPDATE' AND OLD.vote_type != NEW.vote_type THEN
+        IF NEW.vote_type = 1 THEN
+            UPDATE template_comments
+            SET upvotes = upvotes + 1, downvotes = GREATEST(0, downvotes - 1), vote_score = vote_score + 2
+            WHERE id = NEW.comment_id;
+        ELSE
+            UPDATE template_comments
+            SET upvotes = GREATEST(0, upvotes - 1), downvotes = downvotes + 1, vote_score = vote_score - 2
+            WHERE id = NEW.comment_id;
+        END IF;
+    END IF;
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_comment_votes
+    AFTER INSERT OR UPDATE OR DELETE ON comment_votes
+    FOR EACH ROW EXECUTE FUNCTION update_comment_vote_counts();
+
+-- RLS Policies
+ALTER TABLE comment_votes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view votes"
+    ON comment_votes FOR SELECT
+    USING (true);
+
+CREATE POLICY "Authenticated users can vote"
+    ON comment_votes FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can change own votes"
+    ON comment_votes FOR UPDATE
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can remove own votes"
+    ON comment_votes FOR DELETE
+    USING (auth.uid() = user_id);
+```
+
+---
+
+## Summary Table Count: 16 Tables
 
 | # | Table Name | Required For |
 |---|------------|--------------|
@@ -1139,12 +1242,14 @@ CREATE POLICY "Users can delete own comments"
 | 13 | `custom_targeters` | Custom targeters browser |
 | 14 | `hidden_built_ins` | Hide built-in browser items |
 | 15 | `template_comments` | 💬 Comment system on templates |
+| 16 | `comment_votes` | 👍 Upvote/downvote on comments |
 
 ### New Features Enabled:
 - ⭐ **Ratings:** Users can rate templates 1-5 stars
 - 📊 **Statistics:** view_count, use_count, average_rating on templates
 - ❤️ **Cloud Favorites:** Favorites sync across devices (not just localStorage)
 - 💬 **Comments:** Users can comment on templates with user profile popups
+- 👍 **Comment Voting:** Upvote/downvote comments (Reddit-style)
 - 📈 **Popularity Sorting:** Sort by views, uses, or rating
 
 ---

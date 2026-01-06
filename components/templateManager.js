@@ -814,7 +814,7 @@ class TemplateManager {
      * @param {number} rating - Rating value (1-5)
      * @returns {Promise<Object>} Rating result
      */
-    async rateTemplate(templateId, rating) {
+    async rateTemplate(templateId, rating, reviewComment = null) {
         if (!this.supabase) {
             throw new Error('Supabase client not initialized');
         }
@@ -837,6 +837,7 @@ class TemplateManager {
                     template_id: templateId,
                     user_id: currentUser.id,
                     rating: rating,
+                    review_comment: reviewComment,
                     updated_at: new Date().toISOString()
                 }, {
                     onConflict: 'template_id,user_id'
@@ -859,7 +860,7 @@ class TemplateManager {
     /**
      * Get current user's rating for a template
      * @param {string} templateId - Template ID
-     * @returns {Promise<number|null>} User's rating or null
+     * @returns {Promise<Object|null>} User's rating object or null
      */
     async getUserRating(templateId) {
         if (!this.supabase || !this.auth?.isAuthenticated()) {
@@ -871,7 +872,7 @@ class TemplateManager {
         try {
             const { data, error } = await this.supabase
                 .from('template_ratings')
-                .select('rating')
+                .select('rating, review_comment')
                 .eq('template_id', templateId)
                 .eq('user_id', currentUser.id)
                 .single();
@@ -1121,7 +1122,8 @@ class TemplateManager {
         }
         
         try {
-            const { data, error } = await this.supabase
+            // First, get comments without the FK join (including vote counts)
+            const { data: comments, error: commentsError } = await this.supabase
                 .from('template_comments')
                 .select(`
                     id,
@@ -1131,47 +1133,75 @@ class TemplateManager {
                     created_at,
                     updated_at,
                     user_id,
-                    user_profiles!template_comments_user_id_fkey (
-                        display_name,
-                        avatar_url,
-                        bio,
-                        website_url,
-                        discord_username,
-                        is_public
-                    )
+                    upvotes,
+                    downvotes,
+                    vote_score
                 `)
                 .eq('template_id', templateId)
                 .eq('is_deleted', false)
                 .order('created_at', { ascending: false })
                 .range(offset, offset + limit - 1);
             
-            if (error) throw error;
+            if (commentsError) throw commentsError;
+            if (!comments || comments.length === 0) return [];
             
-            // Process comments to flatten user profile data
-            return (data || []).map(comment => ({
-                id: comment.id,
-                content: comment.content,
-                parent_id: comment.parent_id,
-                is_edited: comment.is_edited,
-                created_at: comment.created_at,
-                updated_at: comment.updated_at,
-                user_id: comment.user_id,
-                user: comment.user_profiles ? {
-                    display_name: comment.user_profiles.display_name || 'Anonymous',
-                    avatar_url: comment.user_profiles.avatar_url,
-                    bio: comment.user_profiles.bio,
-                    website_url: comment.user_profiles.website_url,
-                    discord_username: comment.user_profiles.discord_username,
-                    is_public: comment.user_profiles.is_public
-                } : {
-                    display_name: 'Anonymous',
-                    avatar_url: null,
-                    bio: null,
-                    website_url: null,
-                    discord_username: null,
-                    is_public: false
+            // Get unique user IDs
+            const userIds = [...new Set(comments.map(c => c.user_id).filter(Boolean))];
+            
+            // Fetch user profiles separately
+            let userProfiles = {};
+            if (userIds.length > 0) {
+                const { data: profiles, error: profilesError } = await this.supabase
+                    .from('user_profiles')
+                    .select('user_id, display_name, avatar_url, bio, website_url, discord_username, is_public')
+                    .in('user_id', userIds);
+                
+                if (!profilesError && profiles) {
+                    userProfiles = profiles.reduce((acc, p) => {
+                        acc[p.user_id] = p;
+                        return acc;
+                    }, {});
+                } else if (profilesError) {
+                    console.warn('Failed to fetch user profiles:', profilesError);
                 }
-            }));
+            }
+            
+            // Get current user's votes on these comments
+            const commentIds = comments.map(c => c.id);
+            const userVotes = await this.getUserCommentVotes(commentIds);
+            
+            // Merge comments with user profiles and votes
+            return comments.map(comment => {
+                const profile = userProfiles[comment.user_id];
+                return {
+                    id: comment.id,
+                    content: comment.content,
+                    parent_id: comment.parent_id,
+                    is_edited: comment.is_edited,
+                    created_at: comment.created_at,
+                    updated_at: comment.updated_at,
+                    user_id: comment.user_id,
+                    upvotes: comment.upvotes || 0,
+                    downvotes: comment.downvotes || 0,
+                    vote_score: comment.vote_score || 0,
+                    userVote: userVotes[comment.id] || null,
+                    user: profile ? {
+                        display_name: profile.display_name || 'Anonymous',
+                        avatar_url: profile.avatar_url,
+                        bio: profile.bio,
+                        website_url: profile.website_url,
+                        discord_username: profile.discord_username,
+                        is_public: profile.is_public
+                    } : {
+                        display_name: 'Anonymous',
+                        avatar_url: null,
+                        bio: null,
+                        website_url: null,
+                        discord_username: null,
+                        is_public: false
+                    }
+                };
+            });
         } catch (error) {
             console.error('Failed to load comments:', error);
             return [];
@@ -1206,7 +1236,8 @@ class TemplateManager {
         const currentUser = this.auth.getCurrentUser();
         
         try {
-            const { data, error } = await this.supabase
+            // Insert comment without FK join
+            const { data: comment, error: insertError } = await this.supabase
                 .from('template_comments')
                 .insert({
                     template_id: templateId,
@@ -1221,36 +1252,39 @@ class TemplateManager {
                     is_edited,
                     created_at,
                     updated_at,
-                    user_id,
-                    user_profiles!template_comments_user_id_fkey (
-                        display_name,
-                        avatar_url,
-                        bio,
-                        website_url,
-                        discord_username,
-                        is_public
-                    )
+                    user_id
                 `)
                 .single();
             
-            if (error) throw error;
+            if (insertError) throw insertError;
             
-            // Process to flatten user profile
+            // Fetch user profile separately
+            let userProfile = null;
+            if (comment.user_id) {
+                const { data: profile } = await this.supabase
+                    .from('user_profiles')
+                    .select('display_name, avatar_url, bio, website_url, discord_username, is_public')
+                    .eq('user_id', comment.user_id)
+                    .single();
+                userProfile = profile;
+            }
+            
+            // Return comment with user profile
             return {
-                id: data.id,
-                content: data.content,
-                parent_id: data.parent_id,
-                is_edited: data.is_edited,
-                created_at: data.created_at,
-                updated_at: data.updated_at,
-                user_id: data.user_id,
-                user: data.user_profiles ? {
-                    display_name: data.user_profiles.display_name || 'Anonymous',
-                    avatar_url: data.user_profiles.avatar_url,
-                    bio: data.user_profiles.bio,
-                    website_url: data.user_profiles.website_url,
-                    discord_username: data.user_profiles.discord_username,
-                    is_public: data.user_profiles.is_public
+                id: comment.id,
+                content: comment.content,
+                parent_id: comment.parent_id,
+                is_edited: comment.is_edited,
+                created_at: comment.created_at,
+                updated_at: comment.updated_at,
+                user_id: comment.user_id,
+                user: userProfile ? {
+                    display_name: userProfile.display_name || 'Anonymous',
+                    avatar_url: userProfile.avatar_url,
+                    bio: userProfile.bio,
+                    website_url: userProfile.website_url,
+                    discord_username: userProfile.discord_username,
+                    is_public: userProfile.is_public
                 } : {
                     display_name: 'Anonymous',
                     avatar_url: null
@@ -1332,6 +1366,148 @@ class TemplateManager {
         } catch (error) {
             console.error('Failed to delete comment:', error);
             throw new Error(this.formatError(error));
+        }
+    }
+    
+    // ========================================
+    // COMMENT VOTING
+    // ========================================
+    
+    /**
+     * Vote on a comment (upvote or downvote)
+     * @param {string} commentId - Comment ID
+     * @param {number} voteType - 1 for upvote, -1 for downvote
+     * @returns {Promise<Object>} Vote result with updated counts
+     */
+    async voteOnComment(commentId, voteType) {
+        if (!this.supabase) {
+            throw new Error('Supabase client not initialized');
+        }
+        
+        if (!this.auth?.isAuthenticated()) {
+            throw new Error('You must be logged in to vote');
+        }
+        
+        if (voteType !== 1 && voteType !== -1) {
+            throw new Error('Invalid vote type');
+        }
+        
+        const currentUser = this.auth.getCurrentUser();
+        
+        try {
+            // Check if user already voted
+            const { data: existingVote, error: checkError } = await this.supabase
+                .from('comment_votes')
+                .select('id, vote_type')
+                .eq('comment_id', commentId)
+                .eq('user_id', currentUser.id)
+                .single();
+            
+            if (checkError && checkError.code !== 'PGRST116') {
+                throw checkError;
+            }
+            
+            if (existingVote) {
+                if (existingVote.vote_type === voteType) {
+                    // Same vote - remove it (toggle off)
+                    const { error: deleteError } = await this.supabase
+                        .from('comment_votes')
+                        .delete()
+                        .eq('id', existingVote.id);
+                    
+                    if (deleteError) throw deleteError;
+                    
+                    return { action: 'removed', voteType: null };
+                } else {
+                    // Different vote - update it
+                    const { error: updateError } = await this.supabase
+                        .from('comment_votes')
+                        .update({ vote_type: voteType })
+                        .eq('id', existingVote.id);
+                    
+                    if (updateError) throw updateError;
+                    
+                    return { action: 'changed', voteType };
+                }
+            } else {
+                // No existing vote - insert new
+                const { error: insertError } = await this.supabase
+                    .from('comment_votes')
+                    .insert({
+                        comment_id: commentId,
+                        user_id: currentUser.id,
+                        vote_type: voteType
+                    });
+                
+                if (insertError) throw insertError;
+                
+                return { action: 'added', voteType };
+            }
+        } catch (error) {
+            console.error('Failed to vote on comment:', error);
+            throw new Error(this.formatError(error));
+        }
+    }
+    
+    /**
+     * Get user's vote on a comment
+     * @param {string} commentId - Comment ID
+     * @returns {Promise<number|null>} Vote type (1, -1) or null if not voted
+     */
+    async getUserCommentVote(commentId) {
+        if (!this.supabase || !this.auth?.isAuthenticated()) {
+            return null;
+        }
+        
+        const currentUser = this.auth.getCurrentUser();
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('comment_votes')
+                .select('vote_type')
+                .eq('comment_id', commentId)
+                .eq('user_id', currentUser.id)
+                .single();
+            
+            if (error && error.code !== 'PGRST116') {
+                throw error;
+            }
+            
+            return data?.vote_type || null;
+        } catch (error) {
+            console.error('Failed to get user vote:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Get user's votes on multiple comments
+     * @param {string[]} commentIds - Array of comment IDs
+     * @returns {Promise<Object>} Map of commentId -> voteType
+     */
+    async getUserCommentVotes(commentIds) {
+        if (!this.supabase || !this.auth?.isAuthenticated() || !commentIds.length) {
+            return {};
+        }
+        
+        const currentUser = this.auth.getCurrentUser();
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('comment_votes')
+                .select('comment_id, vote_type')
+                .eq('user_id', currentUser.id)
+                .in('comment_id', commentIds);
+            
+            if (error) throw error;
+            
+            return (data || []).reduce((acc, vote) => {
+                acc[vote.comment_id] = vote.vote_type;
+                return acc;
+            }, {});
+        } catch (error) {
+            console.error('Failed to get user votes:', error);
+            return {};
         }
     }
     
