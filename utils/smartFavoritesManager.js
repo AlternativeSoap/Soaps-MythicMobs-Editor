@@ -40,7 +40,7 @@ class SmartFavoritesManager {
                 return parsed;
             }
         } catch (error) {
-            console.warn('Failed to load smart favorites:', error);
+            if (window.DEBUG_MODE) console.warn('Failed to load smart favorites:', error);
         }
         
         return {
@@ -64,7 +64,7 @@ class SmartFavoritesManager {
             };
             localStorage.setItem(this.storageKey, JSON.stringify(toSave));
         } catch (error) {
-            console.warn('Failed to save smart favorites:', error);
+            if (window.DEBUG_MODE) console.warn('Failed to save smart favorites:', error);
         }
     }
     
@@ -102,7 +102,7 @@ class SmartFavoritesManager {
         if (this.data.usage[itemId]) {
             this.data.usage[itemId].autoFavorited = true;
         }
-        console.log(`⭐ Auto-favorited: ${itemId} (used ${this.data.usage[itemId]?.count || 0} times)`);
+        if (window.DEBUG_MODE) console.log(`⭐ Auto-favorited: ${itemId} (used ${this.data.usage[itemId]?.count || 0} times)`);
         this.save();
     }
     
@@ -272,7 +272,7 @@ class SmartFavoritesManager {
         if (removed > 0) {
             this.data.metadata.lastCleanup = Date.now();
             this.save();
-            console.log(`🧹 Cleaned up ${removed} unused favorites`);
+            if (window.DEBUG_MODE) console.log(`🧹 Cleaned up ${removed} unused favorites`);
         }
         
         return removed;

@@ -2039,7 +2039,9 @@ class MechanicBrowser {
             if (window.editor?.state?.currentFile?.name) {
                 return window.editor.state.currentFile.name;
             }
-        } catch (e) {}
+        } catch (e) {
+            if (window.DEBUG_MODE) console.warn('Failed to get parent skill name:', e.message);
+        }
         return null;
     }
     
@@ -2135,7 +2137,9 @@ class MechanicBrowser {
                     }
                 }
             }
-        } catch (e) {}
+        } catch (e) {
+            if (window.DEBUG_MODE) console.warn('Failed to get skill content:', e.message);
+        }
         return null;
     }
     

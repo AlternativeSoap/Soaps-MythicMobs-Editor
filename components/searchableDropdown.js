@@ -58,7 +58,9 @@ class SearchableDropdown {
     saveFavorites() {
         try {
             localStorage.setItem(`${this.storageKey}-favorites`, JSON.stringify(this.favorites));
-        } catch (e) {}
+        } catch (e) {
+            if (window.DEBUG_MODE) console.warn('Failed to save favorites:', e.message);
+        }
     }
     
     loadRecentItems() {
@@ -73,7 +75,9 @@ class SearchableDropdown {
     saveRecentItems() {
         try {
             localStorage.setItem(`${this.storageKey}-recent`, JSON.stringify(this.recentItems));
-        } catch (e) {}
+        } catch (e) {
+            if (window.DEBUG_MODE) console.warn('Failed to save recent items:', e.message);
+        }
     }
     
     loadCollapsedCategories() {
@@ -88,7 +92,9 @@ class SearchableDropdown {
     saveCollapsedCategories() {
         try {
             localStorage.setItem(`${this.storageKey}-collapsed`, JSON.stringify(this.collapsedCategories));
-        } catch (e) {}
+        } catch (e) {
+            if (window.DEBUG_MODE) console.warn('Failed to save collapsed categories:', e.message);
+        }
     }
     
     toggleFavorite(item) {

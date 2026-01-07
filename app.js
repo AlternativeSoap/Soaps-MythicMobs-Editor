@@ -3259,7 +3259,166 @@ class MythicMobsEditor {
      * Show help dialog
      */
     showHelp() {
-        this.showToast('Help documentation coming soon!', 'info');
+        const modalHTML = `
+            <div class="help-modal-content">
+                <div class="help-tabs">
+                    <button class="help-tab active" data-tab="getting-started">
+                        <i class="fas fa-rocket"></i> Getting Started
+                    </button>
+                    <button class="help-tab" data-tab="shortcuts">
+                        <i class="fas fa-keyboard"></i> Shortcuts
+                    </button>
+                    <button class="help-tab" data-tab="faq">
+                        <i class="fas fa-question-circle"></i> FAQ
+                    </button>
+                    <button class="help-tab" data-tab="resources">
+                        <i class="fas fa-book"></i> Resources
+                    </button>
+                </div>
+                
+                <div class="help-panel active" data-panel="getting-started">
+                    <h3><i class="fas fa-play-circle"></i> Quick Start Guide</h3>
+                    <div class="help-steps">
+                        <div class="help-step">
+                            <span class="step-number">1</span>
+                            <div class="step-content">
+                                <strong>Create a Pack</strong>
+                                <p>Click <kbd>+ New Pack</kbd> in the left sidebar to create your first pack.</p>
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <span class="step-number">2</span>
+                            <div class="step-content">
+                                <strong>Add Content</strong>
+                                <p>Use the buttons to add Mobs, Skills, Items, or Drop Tables to your pack.</p>
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <span class="step-number">3</span>
+                            <div class="step-content">
+                                <strong>Configure</strong>
+                                <p>Fill in the forms to customize your content. The YAML preview updates in real-time.</p>
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <span class="step-number">4</span>
+                            <div class="step-content">
+                                <strong>Export</strong>
+                                <p>Right-click your pack and select "Export as ZIP" to download all your files.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="help-tip">
+                        <i class="fas fa-lightbulb"></i>
+                        <div>
+                            <strong>Pro Tip:</strong> Press <kbd>Ctrl+K</kbd> to open the command palette for quick actions!
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="help-panel" data-panel="shortcuts">
+                    <h3><i class="fas fa-keyboard"></i> Keyboard Shortcuts</h3>
+                    <div class="shortcuts-grid">
+                        <div class="shortcut-group">
+                            <h4>General</h4>
+                            <div class="shortcut-item"><kbd>Ctrl+K</kbd> <span>Command Palette</span></div>
+                            <div class="shortcut-item"><kbd>Ctrl+S</kbd> <span>Save Current File</span></div>
+                            <div class="shortcut-item"><kbd>Ctrl+Shift+S</kbd> <span>Save All</span></div>
+                            <div class="shortcut-item"><kbd>Esc</kbd> <span>Close Modal/Cancel</span></div>
+                        </div>
+                        <div class="shortcut-group">
+                            <h4>Navigation</h4>
+                            <div class="shortcut-item"><kbd>Ctrl+1</kbd> <span>Focus Packs Panel</span></div>
+                            <div class="shortcut-item"><kbd>Ctrl+2</kbd> <span>Focus Editor</span></div>
+                            <div class="shortcut-item"><kbd>Ctrl+3</kbd> <span>Focus YAML Preview</span></div>
+                        </div>
+                        <div class="shortcut-group">
+                            <h4>Creation</h4>
+                            <div class="shortcut-item"><kbd>Ctrl+N</kbd> <span>New Pack</span></div>
+                            <div class="shortcut-item"><kbd>Ctrl+Shift+M</kbd> <span>New Mob</span></div>
+                            <div class="shortcut-item"><kbd>Ctrl+Shift+K</kbd> <span>New Skill</span></div>
+                            <div class="shortcut-item"><kbd>Ctrl+Shift+I</kbd> <span>New Item</span></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="help-panel" data-panel="faq">
+                    <h3><i class="fas fa-question-circle"></i> Frequently Asked Questions</h3>
+                    <div class="faq-list">
+                        <details class="faq-item">
+                            <summary>Where is my data saved?</summary>
+                            <p>Your packs are saved locally in your browser's localStorage. If you create an account, you can sync them to the cloud.</p>
+                        </details>
+                        <details class="faq-item">
+                            <summary>Will I lose my data if I clear my browser?</summary>
+                            <p>Yes! Always export your packs regularly as a backup. Cloud sync helps prevent data loss.</p>
+                        </details>
+                        <details class="faq-item">
+                            <summary>What's the difference between Beginner and Advanced mode?</summary>
+                            <p>Beginner mode shows essential options. Advanced mode unlocks all MythicMobs features like BossBar, AI, Modules, and more.</p>
+                        </details>
+                        <details class="faq-item">
+                            <summary>How do I import existing MythicMobs configs?</summary>
+                            <p>Use File > Import, then select "Import Pack Folder" to import an entire MythicMobs pack with full analysis.</p>
+                        </details>
+                        <details class="faq-item">
+                            <summary>Is this tool affiliated with MythicMobs?</summary>
+                            <p>No. This is an independent community project by AlternativeSoap. Please do not contact MythicMobs authors for support.</p>
+                        </details>
+                    </div>
+                </div>
+                
+                <div class="help-panel" data-panel="resources">
+                    <h3><i class="fas fa-book"></i> Helpful Resources</h3>
+                    <div class="resources-grid">
+                        <a href="https://git.mythiccraft.io/mythiccraft/MythicMobs/-/wikis/home" target="_blank" rel="noopener" class="resource-card">
+                            <i class="fas fa-book-open"></i>
+                            <div>
+                                <strong>MythicMobs Wiki</strong>
+                                <p>Official documentation for all mechanics, conditions, and targeters</p>
+                            </div>
+                        </a>
+                        <a href="https://github.com/AlternativeSoap/Soaps-MythicMobs-Editor/issues" target="_blank" rel="noopener" class="resource-card">
+                            <i class="fab fa-github"></i>
+                            <div>
+                                <strong>Report Issues</strong>
+                                <p>Found a bug? Report it on GitHub</p>
+                            </div>
+                        </a>
+                        <a href="https://discord.gg/mythiccraft" target="_blank" rel="noopener" class="resource-card">
+                            <i class="fab fa-discord"></i>
+                            <div>
+                                <strong>MythicCraft Discord</strong>
+                                <p>Community support for MythicMobs (not this editor)</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        this.createModal('Help & Documentation', modalHTML, [
+            { label: 'Close', class: 'btn-primary', action: () => {} }
+        ], 'modal-large help-modal-container');
+        
+        // Setup tab switching
+        setTimeout(() => {
+            const tabs = document.querySelectorAll('.help-tab');
+            const panels = document.querySelectorAll('.help-panel');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const targetPanel = tab.dataset.tab;
+                    
+                    tabs.forEach(t => t.classList.remove('active'));
+                    panels.forEach(p => p.classList.remove('active'));
+                    
+                    tab.classList.add('active');
+                    document.querySelector(`[data-panel="${targetPanel}"]`)?.classList.add('active');
+                });
+            });
+        }, 100);
     }
     
     /**

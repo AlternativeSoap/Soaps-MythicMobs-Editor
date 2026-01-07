@@ -91,7 +91,7 @@ class IntelligentCacheManager {
         
         // If still over limit after eviction, don't cache
         if (this.currentMemoryBytes + estimatedSize > this.maxMemoryBytes) {
-            console.warn('Cache full, cannot store new entry');
+            if (window.DEBUG_MODE) console.warn('Cache full, cannot store new entry');
             return false;
         }
         
@@ -356,7 +356,7 @@ class IntelligentCacheManager {
     startAutoCleanup(intervalMs = 60000) {
         this.cleanupInterval = setInterval(() => {
             const cleaned = this.cleanup();
-            if (cleaned > 0) {
+            if (cleaned > 0 && window.DEBUG_MODE) {
                 console.log(`[Cache] Auto-cleaned ${cleaned} expired entries`);
             }
         }, intervalMs);

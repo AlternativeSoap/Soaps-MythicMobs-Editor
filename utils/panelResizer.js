@@ -44,7 +44,7 @@ class PanelResizer {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log(`🖱️ Starting resize: ${side}`);
+        if (window.DEBUG_MODE) console.log(`🖱️ Starting resize: ${side}`);
         
         this.isResizing = true;
         this.currentHandle = side;
@@ -53,11 +53,11 @@ class PanelResizer {
         if (side === 'left') {
             const sidebar = document.getElementById('sidebar-left');
             this.startWidth = sidebar.offsetWidth;
-            console.log(`📏 Left sidebar start width: ${this.startWidth}px`);
+            if (window.DEBUG_MODE) console.log(`📏 Left sidebar start width: ${this.startWidth}px`);
         } else if (side === 'right') {
             const sidebar = document.getElementById('sidebar-right');
             this.startWidth = sidebar.offsetWidth;
-            console.log(`📏 Right sidebar start width: ${this.startWidth}px`);
+            if (window.DEBUG_MODE) console.log(`📏 Right sidebar start width: ${this.startWidth}px`);
         }
         
         // Add visual feedback
@@ -132,7 +132,7 @@ class PanelResizer {
                 rightSidebar.style.minWidth = `${sizes.right}px`;
             }
         } catch (e) {
-            console.error('Failed to load panel sizes:', e);
+            if (window.DEBUG_MODE) console.error('Failed to load panel sizes:', e);
         }
     }
 }

@@ -40,10 +40,10 @@ class BrowserSingletonManager {
                     
                     // Load everything at once
                     promises.push(
-                        merger.getMergedMechanics().catch(e => { console.warn('Mechanics preload failed:', e); return null; }),
-                        merger.getMergedTargeters().catch(e => { console.warn('Targeters preload failed:', e); return null; }),
-                        merger.getMergedConditions().catch(e => { console.warn('Conditions preload failed:', e); return null; }),
-                        merger.getMergedTriggers().catch(e => { console.warn('Triggers preload failed:', e); return null; })
+                        merger.getMergedMechanics().catch(e => { if (window.DEBUG_MODE) console.warn('Mechanics preload failed:', e); return null; }),
+                        merger.getMergedTargeters().catch(e => { if (window.DEBUG_MODE) console.warn('Targeters preload failed:', e); return null; }),
+                        merger.getMergedConditions().catch(e => { if (window.DEBUG_MODE) console.warn('Conditions preload failed:', e); return null; }),
+                        merger.getMergedTriggers().catch(e => { if (window.DEBUG_MODE) console.warn('Triggers preload failed:', e); return null; })
                     );
                     
                     const [mechanics, targeters, conditions, triggers] = await Promise.all(promises);
@@ -65,7 +65,7 @@ class BrowserSingletonManager {
                 const duration = performance.now() - start;
                 if (window.DEBUG_MODE) console.log(`✅ All browser data preloaded in ${duration.toFixed(2)}ms`);
             } catch (error) {
-                console.error('❌ Data preload failed:', error);
+                if (window.DEBUG_MODE) console.error('❌ Data preload failed:', error);
                 // Fallback to built-in data
                 window.__CACHED_MECHANICS_DATA__ = window.MECHANICS_DATA;
                 window.__CACHED_TARGETERS_DATA__ = window.TARGETERS_DATA;
@@ -97,7 +97,7 @@ class BrowserSingletonManager {
                     window.performanceMonitor.registerModal('mechanicBrowser', this.instances.get('mechanic'));
                 }
             } else {
-                console.error('❌ MechanicBrowser class not available');
+                if (window.DEBUG_MODE) console.error('❌ MechanicBrowser class not available');
                 return null;
             }
         }
@@ -119,7 +119,7 @@ class BrowserSingletonManager {
                     window.performanceMonitor.registerModal('targeterBrowser', this.instances.get('targeter'));
                 }
             } else {
-                console.error('❌ TargeterBrowser class not available');
+                if (window.DEBUG_MODE) console.error('❌ TargeterBrowser class not available');
                 return null;
             }
         }
@@ -144,7 +144,7 @@ class BrowserSingletonManager {
                     window.performanceMonitor.registerModal('conditionBrowser', this.instances.get('condition'));
                 }
             } else {
-                console.error('❌ ConditionBrowser class not available');
+                if (window.DEBUG_MODE) console.error('❌ ConditionBrowser class not available');
                 return null;
             }
         }
@@ -166,7 +166,7 @@ class BrowserSingletonManager {
                     window.performanceMonitor.registerModal('triggerBrowser', this.instances.get('trigger'));
                 }
             } else {
-                console.warn('⚠️ TriggerBrowser class not available (OK for skill context)');
+                if (window.DEBUG_MODE) console.warn('⚠️ TriggerBrowser class not available (OK for skill context)');
                 return null;
             }
         }
@@ -188,7 +188,7 @@ class BrowserSingletonManager {
                     window.performanceMonitor.registerModal('skillBrowser', this.instances.get('skill'));
                 }
             } else {
-                console.error('❌ SkillBrowser class not available');
+                if (window.DEBUG_MODE) console.error('❌ SkillBrowser class not available');
                 return null;
             }
         }

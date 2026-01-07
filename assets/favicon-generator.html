@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<!--
+    FAVICON & APPLE TOUCH ICON GENERATOR
+    
+    Instructions:
+    1. Open this file in Chrome/Edge
+    2. Press F12 → Ctrl+Shift+M (responsive mode)
+    3. For favicon-32.png: Set dimensions to 32 x 32
+    4. For apple-touch-icon.png: Set dimensions to 180 x 180
+    5. Ctrl+Shift+P → "Capture screenshot"
+    6. Save to assets folder
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Favicon Generator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: system-ui, sans-serif;
+            gap: 40px;
+            padding: 40px;
+        }
+        
+        /* When showing standalone icon, hide everything else */
+        body.show-180,
+        body.show-32 {
+            padding: 0;
+            gap: 0;
+        }
+        
+        h2 {
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        
+        p {
+            color: #9ca3af;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        
+        .preview-section {
+            text-align: center;
+        }
+        
+        /* The actual icon - this is what gets captured */
+        .icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0a1e 100%);
+            border-radius: 20%;
+        }
+        
+        .icon i {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* 180x180 Apple Touch Icon */
+        .icon-180 {
+            width: 180px;
+            height: 180px;
+        }
+        
+        .icon-180 i {
+            font-size: 100px;
+        }
+        
+        /* 32x32 Favicon */
+        .icon-32 {
+            width: 32px;
+            height: 32px;
+        }
+        
+        .icon-32 i {
+            font-size: 18px;
+        }
+        
+        /* Standalone versions for screenshot - FILL THE VIEWPORT */
+        .standalone {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            border-radius: 0;
+            display: none;
+        }
+        
+        .standalone i {
+            font-size: 55vmin;
+        }
+        
+        /* Show standalone when URL has ?size=180 or ?size=32 */
+        body.show-180 .standalone-180 {
+            display: flex;
+        }
+        
+        body.show-32 .standalone-32 {
+            display: flex;
+        }
+        
+        body.show-180 .preview-section,
+        body.show-32 .preview-section {
+            display: none;
+        }
+        
+        .instructions {
+            background: #2a2a4a;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 500px;
+            color: #d1d5db;
+        }
+        
+        .instructions h3 {
+            color: #8b5cf6;
+            margin-bottom: 12px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        
+        .instructions code {
+            background: #1a1a2e;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .btn-purple {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            color: white;
+        }
+        
+        .btn-blue {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Standalone icons for screenshot capture -->
+    <div class="icon standalone standalone-180 icon-180">
+        <i class="fas fa-dragon"></i>
+    </div>
+    
+    <div class="icon standalone standalone-32 icon-32">
+        <i class="fas fa-dragon"></i>
+    </div>
+    
+    <!-- Preview section -->
+    <div class="preview-section">
+        <h2>Apple Touch Icon (180×180)</h2>
+        <p>For iOS home screen</p>
+        <div class="icon icon-180">
+            <i class="fas fa-dragon"></i>
+        </div>
+    </div>
+    
+    <div class="preview-section">
+        <h2>Favicon (32×32)</h2>
+        <p>For browser tab</p>
+        <div class="icon icon-32">
+            <i class="fas fa-dragon"></i>
+        </div>
+    </div>
+    
+    <div class="instructions">
+        <h3><i class="fas fa-camera"></i> How to Capture</h3>
+        <ol>
+            <li>Click a button below to show just that icon</li>
+            <li>Press <code>F12</code> to open DevTools</li>
+            <li>Press <code>Ctrl+Shift+M</code> for device mode</li>
+            <li>Set exact dimensions (180×180 or 32×32)</li>
+            <li>Press <code>Ctrl+Shift+P</code> → type "screenshot"</li>
+            <li>Select "Capture screenshot"</li>
+            <li>Save to <code>assets/</code> folder</li>
+        </ol>
+        
+        <div class="buttons">
+            <button class="btn btn-purple" onclick="showIcon(180)">
+                <i class="fas fa-apple-alt"></i> Show 180×180
+            </button>
+            <button class="btn btn-blue" onclick="showIcon(32)">
+                <i class="fas fa-image"></i> Show 32×32
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        // Check URL params on load
+        const params = new URLSearchParams(window.location.search);
+        const size = params.get('size');
+        if (size === '180') document.body.classList.add('show-180');
+        if (size === '32') document.body.classList.add('show-32');
+        
+        function showIcon(size) {
+            window.location.search = `?size=${size}`;
+        }
+    </script>
+</body>
+</html>

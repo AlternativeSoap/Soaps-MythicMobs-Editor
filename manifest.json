@@ -1,0 +1,70 @@
+{
+  "name": "Soaps MythicMobs Editor",
+  "short_name": "MythicMobs Editor",
+  "description": "Free browser-based editor for creating custom MythicMobs configurations. Design mobs, skills, items, and drop tables visually.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0a1e",
+  "theme_color": "#8b5cf6",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["developer", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "assets/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Soaps MythicMobs Editor - Main Interface"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Mob",
+      "short_name": "New Mob",
+      "description": "Create a new MythicMobs mob",
+      "url": "/?action=new-mob",
+      "icons": [{ "src": "assets/favicon.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "New Skill",
+      "short_name": "New Skill", 
+      "description": "Create a new MythicMobs skill",
+      "url": "/?action=new-skill",
+      "icons": [{ "src": "assets/favicon.svg", "sizes": "96x96" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
