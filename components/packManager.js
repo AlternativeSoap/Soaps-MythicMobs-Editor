@@ -567,9 +567,6 @@ class PackManager {
                                 </button>
                             </div>
                         </div>
-                        
-                        <!-- Stats.yml Root File (Advanced Mode Only) - at MythicMobs root level -->
-                        ${this.renderStatsRootFile()}
                         ` : ''}
                     </div>
                 </div>
@@ -748,29 +745,122 @@ class PackManager {
                     </button>
                 </div>
             </div>
+            
+            <!-- Stats.yml - Inside Pack (MythicMobs supports stats in Pack folders) -->
+            ${this.renderStatsFile(pack)}
         `;
     }
     
     /**
-     * Render stats.yml at MythicMobs root level (not inside packs)
-     * Stats are global, not pack-specific
+     * Render stats.yml inside pack folder with expandable entries
+     * Stats can be configured per-pack according to MythicMobs documentation
+     * Only visible in Advanced Mode
      */
-    renderStatsRootFile() {
-        // Get stats from active pack (they're stored per-pack but displayed globally)
-        const stats = this.activePack?.stats;
+    renderStatsFile(pack) {
+        if (!pack) return '';
+        
+        // Only show in advanced mode
+        const isAdvancedMode = this.editor?.state?.currentMode === 'advanced';
+        if (!isAdvancedMode) return '';
+        
+        const stats = pack.stats;
         const entryCount = stats?.entries?.length || 0;
         const isModified = stats?.modified || false;
-        const isActive = this.editor?.state?.currentView === 'stats';
+        const fileStates = this.getFileStates();
+        const isExpanded = fileStates['stats_file'] || false;
+        const isFileActive = this.editor?.state?.currentView === 'stats' && !this.editor?.state?.currentFile;
+        
+        // Status badge for file
+        let statusBadge = '';
+        if (stats?.isNew) {
+            statusBadge = `<span class="file-status-badge new" title="New file - not saved yet"><i class="fas fa-plus-circle"></i></span>`;
+        } else if (isModified) {
+            statusBadge = `<span class="file-status-badge modified" title="Unsaved changes"><i class="fas fa-circle"></i></span>`;
+        }
         
         return `
-            <div class="file-item root-file stats-file advanced-only ${isModified ? 'modified' : ''} ${isActive ? 'active' : ''}" 
-                data-file-id="${stats?.id || 'stats_file'}" 
-                data-file-type="stat">
-                <i class="fas fa-chart-line file-icon stats-icon"></i>
-                <span class="file-name">stats.yml</span>
-                <span class="badge">${entryCount}</span>
+            <div class="yaml-file-container stats-container advanced-only" data-file-id="stats_file" data-file-type="stat" data-pack-id="${pack.id}">
+                <div class="yaml-file-header stats-file-header ${isModified ? 'has-changes' : ''} ${isFileActive ? 'active' : ''}" 
+                     data-file-id="stats_file" 
+                     data-file-type="stat"
+                     data-pack-id="${pack.id}">
+                    <i class="fas ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} file-chevron"></i>
+                    <i class="fas fa-chart-line yaml-file-icon stats-icon"></i>
+                    <span class="yaml-file-name">stats.yml</span>
+                    <span class="badge entry-count">${entryCount}</span>
+                    ${statusBadge}
+                </div>
+                <div class="yaml-file-entries stats-entries ${isExpanded ? 'expanded' : 'collapsed'}">
+                    ${(stats?.entries || []).map(stat => this.renderStatEntry(stat, pack.id)).join('')}
+                    ${entryCount === 0 ? `
+                        <div class="empty-entries-hint">
+                            <i class="fas fa-info-circle"></i>
+                            <span>No custom stats yet</span>
+                        </div>
+                    ` : ''}
+                </div>
             </div>
         `;
+    }
+    
+    /**
+     * Render a single stat entry in the file tree
+     */
+    renderStatEntry(stat, packId) {
+        if (!stat) return '';
+        
+        const isActive = this.editor?.state?.currentFile?.id === stat.id;
+        const displayName = stat.Display || stat.name || 'Unnamed Stat';
+        const internalName = stat.name || stat.id || '';
+        const statType = stat.Type || 'STATIC';
+        const isFavorited = this.isFavorited(stat.id);
+        
+        // Type icons and colors
+        const typeInfo = {
+            STATIC: { icon: '📊', color: '#6366f1' },
+            DAMAGE_MODIFIER: { icon: '🛡️', color: '#10b981' },
+            DAMAGE_BONUS: { icon: '⚔️', color: '#f59e0b' },
+            PROC: { icon: '⚡', color: '#ec4899' }
+        };
+        const type = typeInfo[statType] || typeInfo.STATIC;
+        
+        // Status dot
+        let statusDot = '';
+        if (stat.isNew) {
+            statusDot = `<span class="entry-status-dot new" title="New - not saved yet">●</span>`;
+        } else if (stat.modified) {
+            statusDot = `<span class="entry-status-dot modified" title="Unsaved changes">●</span>`;
+        }
+        
+        return `
+            <div class="entry-item stat-entry ${isActive ? 'active' : ''} ${stat.modified ? 'has-changes' : ''} ${stat.isNew ? 'is-new' : ''}" 
+                 data-entry-id="${stat.id}" 
+                 data-stat-id="${stat.id}"
+                 data-file-type="stat"
+                 data-file-name="${this.esc(displayName)}"
+                 data-internal-name="${this.esc(internalName)}"
+                 data-pack-id="${packId}">
+                <span class="stat-type-icon" style="color: ${type.color}" title="${statType}">${type.icon}</span>
+                <span class="stat-display-name">${this.esc(displayName)}</span>
+                <span class="stat-internal-name">${this.esc(internalName)}</span>
+                ${statusDot}
+                <button class="favorite-star-btn ${isFavorited ? 'favorited' : ''}" 
+                        data-entry-id="${stat.id}"
+                        data-file-name="${this.esc(displayName)}"
+                        data-file-type="stat"
+                        title="${isFavorited ? 'Remove from favorites' : 'Add to favorites'}">
+                    <i class="fas fa-star"></i>
+                </button>
+            </div>
+        `;
+    }
+    
+    /**
+     * @deprecated Use renderStatsFile instead - stats are now per-pack
+     */
+    renderStatsRootFile() {
+        // Redirect to new method for backwards compatibility
+        return this.renderStatsFile(this.activePack);
     }
 
     /**
@@ -2338,6 +2428,11 @@ class PackManager {
     findEntryById(entryId, fileType, parentFileId) {
         if (!this.activePack) return null;
         
+        // Special handling for stats - they're stored in pack.stats.entries
+        if (fileType === 'stat') {
+            return this.findStatById(entryId);
+        }
+        
         const collection = this.activePack[fileType + 's'];
         if (!collection || collection.length === 0) return null;
         
@@ -2382,6 +2477,27 @@ class PackManager {
             if (entry) {
                 return normalizeEntry(entry, file);
             }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Find a stat by its ID in pack.stats.entries
+     */
+    findStatById(statId) {
+        if (!this.activePack || !this.activePack.stats || !this.activePack.stats.entries) {
+            return null;
+        }
+        
+        const stat = this.activePack.stats.entries.find(s => s.id === statId);
+        if (stat) {
+            // Return normalized stat with parent reference
+            return {
+                ...stat,
+                _parentFile: { id: 'stats_file', fileName: 'stats.yml' },
+                _originalEntry: stat
+            };
         }
         
         return null;
@@ -2819,6 +2935,11 @@ class PackManager {
     removeEntryFromFile(entryId, type, parentFileId) {
         if (!this.activePack) return false;
         
+        // Special handling for stats - they're stored differently (pack.stats.entries)
+        if (type === 'stat') {
+            return this.removeStatEntry(entryId);
+        }
+        
         const collection = this.activePack[type + 's'];
         if (!collection) return false;
         
@@ -2858,6 +2979,171 @@ class PackManager {
         }
         
         return false;
+    }
+    
+    /**
+     * Remove a stat entry from pack.stats.entries
+     */
+    removeStatEntry(statId) {
+        if (!this.activePack || !this.activePack.stats || !this.activePack.stats.entries) {
+            return false;
+        }
+        
+        const stats = this.activePack.stats;
+        const statIndex = stats.entries.findIndex(s => s.id === statId);
+        
+        if (statIndex >= 0) {
+            stats.entries.splice(statIndex, 1);
+            
+            // Mark stats file as modified
+            stats.modified = true;
+            
+            // If the deleted stat is currently open, go to dashboard or stats view
+            if (this.editor.state.currentFile && this.editor.state.currentFile.id === statId) {
+                this.editor.goToDashboard();
+            }
+            
+            // Only auto-save if setting is enabled, otherwise just mark dirty
+            if (this.editor?.settings?.autoSave) {
+                this.savePacks();
+            } else {
+                if (this.editor && typeof this.editor.markDirty === 'function') {
+                    this.editor.markDirty();
+                }
+            }
+            
+            // Direct DOM update for immediate feedback
+            this.updateStatsEntriesDOM();
+            this.editor.showToast('Stat deleted', 'success');
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Duplicate a stat entry
+     */
+    duplicateStatEntry(statId) {
+        if (!this.activePack || !this.activePack.stats || !this.activePack.stats.entries) {
+            return null;
+        }
+        
+        const stats = this.activePack.stats;
+        const stat = stats.entries.find(s => s.id === statId);
+        
+        if (!stat) return null;
+        
+        // Create deep copy
+        const duplicated = JSON.parse(JSON.stringify(stat));
+        duplicated.id = 'stat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        // Generate new name
+        const baseName = duplicated.name || duplicated.Display || 'UNNAMED_STAT';
+        let newName = baseName + '_COPY';
+        let counter = 1;
+        
+        // Check for existing copies
+        while (stats.entries.some(s => s.name === newName)) {
+            newName = baseName + '_COPY_' + counter;
+            counter++;
+        }
+        
+        duplicated.name = newName;
+        if (duplicated.Display) {
+            duplicated.Display = duplicated.Display + ' (Copy)';
+        }
+        
+        // Add to stats
+        stats.entries.push(duplicated);
+        stats.modified = true;
+        
+        // Only auto-save if setting is enabled
+        if (this.editor?.settings?.autoSave) {
+            this.savePacks();
+        } else {
+            if (this.editor && typeof this.editor.markDirty === 'function') {
+                this.editor.markDirty();
+            }
+        }
+        
+        // Ensure the stats file is expanded so new entry is visible
+        const fileStates = this.getFileStates();
+        fileStates['stats_file'] = true;
+        localStorage.setItem('yamlFileStates', JSON.stringify(fileStates));
+        
+        // Force synchronous DOM update - directly update the stats entries container
+        this.updateStatsEntriesDOM();
+        
+        this.editor.showToast(`Duplicated as "${newName}"`, 'success');
+        
+        return duplicated;
+    }
+    
+    /**
+     * Directly update the stats entries in the DOM without full tree re-render
+     */
+    updateStatsEntriesDOM() {
+        if (!this.activePack) return;
+        
+        const statsContainer = document.querySelector(`.stats-container[data-pack-id="${this.activePack.id}"]`);
+        if (statsContainer) {
+            // Update the entire stats container HTML
+            statsContainer.outerHTML = this.renderStatsFile(this.activePack);
+            
+            // Re-setup any event listeners for the new elements
+            this.setupDelegatedEventListeners();
+        } else {
+            // Fallback to full tree re-render
+            this.renderPackTree();
+        }
+    }
+    
+    /**
+     * Export a single stat as stats.yml
+     */
+    exportStatEntry(statId) {
+        if (!this.activePack || !this.activePack.stats || !this.activePack.stats.entries) {
+            this.editor.showToast('No stats found', 'error');
+            return;
+        }
+        
+        const stat = this.activePack.stats.entries.find(s => s.id === statId);
+        if (!stat) {
+            this.editor.showToast('Stat not found', 'error');
+            return;
+        }
+        
+        // Generate YAML using the exporter
+        const yamlContent = this.editor.yamlExporter ? 
+            this.editor.yamlExporter.exportWithoutFooter(stat, 'stat') + '\n#\n# Exported from Soaps MythicMobs Editor\n# Discord: https://discord.gg/eUFRvyzJua' :
+            this.generateSimpleStatYAML(stat);
+        
+        // Download as stats.yml
+        const blob = new Blob([yamlContent], { type: 'text/yaml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'stats.yml';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        this.editor.showToast(`Exported "${stat.name || stat.Display}" as stats.yml`, 'success');
+    }
+    
+    /**
+     * Simple YAML generator for stats (fallback)
+     */
+    generateSimpleStatYAML(stat) {
+        const name = stat.name || 'UNNAMED_STAT';
+        let yaml = `${name}:\n`;
+        yaml += `  Type: ${stat.Type || 'STATIC'}\n`;
+        if (stat.Display) yaml += `  Display: '${stat.Display}'\n`;
+        if (stat.BaseValue !== undefined) yaml += `  BaseValue: ${stat.BaseValue}\n`;
+        if (stat.Enabled === false) yaml += `  Enabled: false\n`;
+        return yaml;
     }
     
     // Pack collapse management - optimized to update DOM directly without full re-render
@@ -3028,7 +3314,7 @@ class PackManager {
             exportCollection(pack.droptables, 'DropTables', 'droptable');
             exportCollection(pack.randomspawns, 'RandomSpawns', 'randomspawn');
             
-            // Export stats.yml in MythicMobs root folder (not in pack subfolder)
+            // Export stats.yml inside pack folder (MythicMobs supports stats in Pack folders)
             if (pack.stats && pack.stats.entries && pack.stats.entries.length > 0) {
                 let statsYaml = '';
                 pack.stats.entries.forEach((stat, index) => {
@@ -3039,8 +3325,8 @@ class PackManager {
                     }
                 });
                 statsYaml += '\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n# Made by AlternativeSoap\'s MythicMob Editor\n# Discord: https://discord.gg/eUFRvyzJua';
-                // Place stats.yml in MythicMobs root, not in pack subfolder
-                zip.folder('MythicMobs').file('stats.yml', statsYaml);
+                // Place stats.yml inside pack folder (per MythicMobs documentation)
+                packRoot.file('stats.yml', statsYaml);
             }
             
             // Export packinfo.yml
@@ -4687,8 +4973,19 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
      */
     findFileInAllPacks(fileId, fileType) {
         for (const pack of this.packs) {
+            // Special handling for stats - they use pack.stats.entries structure
+            if (fileType === 'stat') {
+                if (pack.stats && pack.stats.entries) {
+                    const entry = pack.stats.entries.find(s => s.id === fileId);
+                    if (entry) {
+                        return { pack, file: pack.stats, entry };
+                    }
+                }
+                continue;
+            }
+            
             const collection = pack[fileType + 's'];
-            if (!collection) continue;
+            if (!collection || !Array.isArray(collection)) continue;
             
             // Search in file-based structure
             for (const file of collection) {
@@ -4713,6 +5010,17 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
      * Open a file (searches all packs)
      */
     openFile(fileId, fileType) {
+        // Special handling for stats
+        if (fileType === 'stat') {
+            const stat = this.findStatById(fileId);
+            if (stat) {
+                this.editor.openFile(stat, 'stat');
+            } else {
+                this.showMissingFileWarning(fileId, fileType);
+            }
+            return;
+        }
+        
         // Find the file across all packs
         const result = this.findFileInAllPacks(fileId, fileType);
         
@@ -4830,8 +5138,13 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
     async duplicateEntry(entryId, fileType, parentFileId) {
         if (!this.activePack) return null;
         
+        // Special handling for stats
+        if (fileType === 'stat') {
+            return this.duplicateStatEntry(entryId);
+        }
+        
         const collection = this.activePack[fileType + 's'];
-        if (!collection) return null;
+        if (!collection || !Array.isArray(collection)) return null;
         
         // Find the parent file
         const parentFile = collection.find(f => f.id === parentFileId);
@@ -4885,6 +5198,12 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
      */
     exportEntry(entryId, fileType) {
         if (!this.activePack) return;
+        
+        // Handle stats specially - they use pack.stats.entries structure
+        if (fileType === 'stat') {
+            this.exportStatEntry(entryId);
+            return;
+        }
         
         const collection = this.activePack[fileType + 's'];
         if (!collection) return;

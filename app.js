@@ -3620,6 +3620,14 @@ class MythicMobsEditor {
                 } else {
                     yaml = '# No stats configured yet\n# Click "New Stat" to add your first stat';
                 }
+            } else if (this.state.currentFileType === 'stat') {
+                // Handle single stat editing - export just this stat
+                const stat = this.state.currentFile;
+                if (stat && (stat.name || stat.Display)) {
+                    yaml = this.yamlExporter.exportStat(stat);
+                } else {
+                    yaml = '# New stat - enter details above';
+                }
             } else {
                 // Set pack context for template-aware mob exports
                 if (this.state.currentPack && this.state.currentFileType === 'mob') {

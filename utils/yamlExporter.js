@@ -1940,6 +1940,7 @@ class YAMLExporter {
 
     /**
      * Export stat data to YAML format
+     * Supports all MythicMobs stat options including ParentStats, TriggerStats, Formula, ShowInLore
      * @param {Object} data - Stat configuration object
      * @returns {String} YAML string
      */
@@ -1953,9 +1954,14 @@ class YAMLExporter {
             yaml += `  Enabled: false\n`;
         }
         
+        // Always Active
+        if (data.AlwaysActive === true) {
+            yaml += `  AlwaysActive: true\n`;
+        }
+        
         // Display name
         if (data.Display) {
-            yaml += `  Display: "${data.Display}"\n`;
+            yaml += `  Display: '${data.Display}'\n`;
         }
         
         // Type
@@ -1963,37 +1969,27 @@ class YAMLExporter {
             yaml += `  Type: ${data.Type}\n`;
         }
         
+        // Priority
+        if (data.Priority !== undefined && data.Priority !== null && data.Priority !== '' && data.Priority !== 0) {
+            yaml += `  Priority: ${data.Priority}\n`;
+        }
+        
         // Triggers (array)
         if (data.Triggers && data.Triggers.length > 0) {
             yaml += `  Triggers:\n`;
             data.Triggers.forEach(t => {
-                yaml += `  - ${t}\n`;
+                yaml += `    - ${t}\n`;
             });
         }
         
         // Execution Point
-        if (data.ExecutionPoint && data.ExecutionPoint !== 'PRE') {
+        if (data.ExecutionPoint) {
             yaml += `  ExecutionPoint: ${data.ExecutionPoint}\n`;
         }
         
         // Base Value
         if (data.BaseValue !== undefined && data.BaseValue !== null && data.BaseValue !== 0) {
             yaml += `  BaseValue: ${data.BaseValue}\n`;
-        }
-        
-        // Damage Formula
-        if (data.DamageFormula) {
-            yaml += `  DamageFormula: "${data.DamageFormula}"\n`;
-        }
-        
-        // Damage Type
-        if (data.DamageType) {
-            yaml += `  DamageType: ${data.DamageType}\n`;
-        }
-        
-        // Formula Key (for STATIC type)
-        if (data.FormulaKey) {
-            yaml += `  FormulaKey: ${data.FormulaKey}\n`;
         }
         
         // Min Value
@@ -2006,21 +2002,47 @@ class YAMLExporter {
             yaml += `  MaxValue: ${data.MaxValue}\n`;
         }
         
-        // Priority
-        if (data.Priority !== undefined && data.Priority !== null && data.Priority !== '' && data.Priority !== 0) {
-            yaml += `  Priority: ${data.Priority}\n`;
+        // Formula Key (for STATIC type or parent stats)
+        if (data.FormulaKey) {
+            yaml += `  FormulaKey: '${data.FormulaKey}'\n`;
         }
         
-        // Always Active
-        if (data.AlwaysActive === true) {
-            yaml += `  AlwaysActive: true\n`;
+        // Parent Stats (list of stats this stat relies on)
+        if (data.ParentStats && data.ParentStats.length > 0) {
+            yaml += `  ParentStats:\n`;
+            data.ParentStats.forEach(p => {
+                yaml += `    - ${p}\n`;
+            });
+        }
+        
+        // Formula (for base value calculation with parent stats)
+        if (data.Formula) {
+            yaml += `  Formula: '${data.Formula}'\n`;
+        }
+        
+        // Trigger Stats (stats from trigger entity with FormulaKey)
+        if (data.TriggerStats && data.TriggerStats.length > 0) {
+            yaml += `  TriggerStats:\n`;
+            data.TriggerStats.forEach(ts => {
+                yaml += `    - ${ts}\n`;
+            });
+        }
+        
+        // Damage Type (for DAMAGE_MODIFIER and DAMAGE_BONUS)
+        if (data.DamageType) {
+            yaml += `  DamageType: ${data.DamageType}\n`;
+        }
+        
+        // Damage Formula (for DAMAGE_MODIFIER)
+        if (data.DamageFormula) {
+            yaml += `  DamageFormula: '${data.DamageFormula}'\n`;
         }
         
         // Conditions (array of strings)
         if (data.Conditions && data.Conditions.length > 0) {
             yaml += `  Conditions:\n`;
             data.Conditions.forEach(c => {
-                yaml += `  - ${c}\n`;
+                yaml += `    - ${c}\n`;
             });
         }
         
@@ -2028,11 +2050,11 @@ class YAMLExporter {
         if (data.Skills && data.Skills.length > 0) {
             yaml += `  Skills:\n`;
             data.Skills.forEach(s => {
-                yaml += `  ${s}\n`;
+                yaml += `    - ${s}\n`;
             });
         }
         
-        // Formatting
+        // Formatting (complete with all options)
         if (data.Formatting && Object.keys(data.Formatting).length > 0) {
             yaml += `  Formatting:\n`;
             if (data.Formatting.Additive) {
@@ -2043,6 +2065,35 @@ class YAMLExporter {
             }
             if (data.Formatting.Compound) {
                 yaml += `    Compound: '${data.Formatting.Compound}'\n`;
+            }
+            if (data.Formatting.Setter) {
+                yaml += `    Setter: '${data.Formatting.Setter}'\n`;
+            }
+            if (data.Formatting.Static) {
+                yaml += `    Static: '${data.Formatting.Static}'\n`;
+            }
+            if (data.Formatting.Rounding !== undefined && data.Formatting.Rounding !== null) {
+                yaml += `    Rounding: ${data.Formatting.Rounding}\n`;
+            }
+            if (data.Formatting.ShowInItemLore === false) {
+                yaml += `    ShowInItemLore: false\n`;
+            }
+        }
+        
+        // ShowInLore (per-modifier visibility)
+        if (data.ShowInLore && Object.keys(data.ShowInLore).length > 0) {
+            yaml += `  ShowInLore:\n`;
+            if (data.ShowInLore.Additive === false) {
+                yaml += `    Additive: false\n`;
+            }
+            if (data.ShowInLore.Multiply === false) {
+                yaml += `    Multiply: false\n`;
+            }
+            if (data.ShowInLore.Compound === false) {
+                yaml += `    Compound: false\n`;
+            }
+            if (data.ShowInLore.Setter === false) {
+                yaml += `    Setter: false\n`;
             }
         }
         

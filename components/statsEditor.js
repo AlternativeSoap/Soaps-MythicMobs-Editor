@@ -36,28 +36,77 @@ class StatsEditor {
             InternalID: 'Unique identifier used in configs. Use UPPER_SNAKE_CASE. Example: FIRE_RESISTANCE',
             BaseValue: 'Starting value for this stat. Most stats default to 0.',
             Enabled: 'When disabled, the stat won\'t have any effect in-game.',
-            Type: 'STATIC = Just a value for formulas. DEFENSE = Reduces incoming damage. OFFENSE = Adds bonus damage. PROC = Triggers skills on events.',
-            Trigger: 'When the stat activates: ATTACK (when hitting), DAMAGED (when hit), KILL (on kill), DEATH (when dying).',
+            Type: 'STATIC = Just a value for formulas. DAMAGE_MODIFIER = Modifies damage using formula. DAMAGE_BONUS = Adds flat bonus damage. PROC = Triggers skills on events.',
+            Trigger: 'When the stat activates. Uses MythicMobs triggers without "on" prefix.',
             Execution: 'PRE = Applies before damage calculation. POST = Applies after damage is calculated.',
-            DamageType: 'Optional damage type filter. Only activates for this damage type (e.g., BLUNT, SHARP, FIRE).',
+            DamageType: 'Optional damage type filter. Only activates for this damage type (e.g., BLUNT, SHARP, FIRE). Use ALL for final total damage.',
             DamageFormula: 'Math formula to modify damage. Use "d" for damage amount and "v" for stat value. Example: d * (1 - v) reduces damage by stat percentage.',
             Conditions: 'Extra conditions that must be true. Example: (damageCause FIRE) only triggers on fire damage.',
             FormulaKey: 'Short alias to reference this stat\'s value in other formulas. Example: SPD for Speed stat.',
             Skills: 'MythicMobs skills to execute when the stat triggers. Format: - skillname{options} @target',
             MinValue: 'Minimum allowed value for this stat (optional).',
             MaxValue: 'Maximum allowed value for this stat (optional, often 1 for percentages).',
-            Priority: 'Order of execution when multiple stats trigger. Higher = runs first.',
-            AlwaysActive: 'When enabled, the stat is always active regardless of triggers.',
-            Formatting: 'How the stat displays on items. Use <value> as placeholder. Additive (+), Multiply (%), Compound (×).'
+            Priority: 'Order of execution when multiple stats trigger. Lower values trigger first.',
+            AlwaysActive: 'When enabled, the stat is forcefully applied to every entity.',
+            Formatting: 'How the stat displays on items. Use <value> as placeholder. Additive (+), Multiply (%), Compound (×).',
+            ParentStats: 'List of other stats this stat relies on for calculations.',
+            TriggerStats: 'Stats from triggering entity with their FormulaKey. Format: STAT_NAME KEY',
+            Formula: 'Formula for base value calculation when using parent stats.',
+            ShowInLore: 'Control which modifier types show in item lore.',
+            Rounding: 'Number of decimal places for the stat value in tooltips.'
         };
 
-        // Stat types - simplified
+        // Stat types - all from documentation
         this.TYPES = {
-            STATIC: { icon: '📊', color: '#6366f1', label: 'Static', desc: 'Value for formulas' },
-            DAMAGE_MODIFIER: { icon: '🛡️', color: '#10b981', label: 'Defense', desc: 'Reduces damage' },
-            DAMAGE_BONUS: { icon: '⚔️', color: '#f59e0b', label: 'Offense', desc: 'Bonus damage' },
-            PROC: { icon: '⚡', color: '#ec4899', label: 'Proc', desc: 'Trigger skills' }
+            STATIC: { icon: '📊', color: '#6366f1', label: 'Static', desc: 'Value for formulas, does nothing on its own' },
+            DAMAGE_MODIFIER: { icon: '🛡️', color: '#10b981', label: 'Damage Modifier', desc: 'Modifies damage using a formula' },
+            DAMAGE_BONUS: { icon: '⚔️', color: '#f59e0b', label: 'Damage Bonus', desc: 'Adds flat bonus damage' },
+            PROC: { icon: '⚡', color: '#ec4899', label: 'Proc', desc: 'Chance to execute skills' }
         };
+
+        // All available triggers from MythicMobs (without "on" prefix for stats)
+        // These match the triggers in data/triggers.js but formatted for stat usage
+        this.TRIGGERS = [
+            // Combat triggers
+            { v: 'COMBAT', l: '⚔️ Combat', desc: 'Default - on damage, attack, spawn, or death', cat: 'combat' },
+            { v: 'ATTACK', l: '⚔️ Attack', desc: 'When the mob attacks an entity', cat: 'combat' },
+            { v: 'DAMAGED', l: '🛡️ Damaged', desc: 'When the mob takes damage', cat: 'combat' },
+            { v: 'ENTERCOMBAT', l: '🗡️ Enter Combat', desc: 'When entering combat (requires ThreatTable)', cat: 'combat' },
+            { v: 'DROPCOMBAT', l: '🕊️ Drop Combat', desc: 'When leaving combat (requires ThreatTable)', cat: 'combat' },
+            { v: 'CHANGETARGET', l: '🎯 Change Target', desc: 'When mob changes target', cat: 'combat' },
+            { v: 'PLAYERKILL', l: '💀 Player Kill', desc: 'When the mob kills a player', cat: 'combat' },
+            { v: 'SKILLDAMAGE', l: '✨ Skill Damage', desc: 'When dealing damage via a mechanic', cat: 'combat' },
+            // Lifecycle triggers
+            { v: 'SPAWN', l: '🌱 Spawn', desc: 'When the mob spawns', cat: 'lifecycle' },
+            { v: 'DESPAWN', l: '💨 Despawn', desc: 'When the mob despawns', cat: 'lifecycle' },
+            { v: 'READY', l: '✅ Ready', desc: 'When ready to spawn from spawner', cat: 'lifecycle' },
+            { v: 'LOAD', l: '📂 Load', desc: 'When loaded after server restart', cat: 'lifecycle' },
+            { v: 'SPAWNORLOAD', l: '🔄 Spawn/Load', desc: 'When spawn or load triggers', cat: 'lifecycle' },
+            { v: 'DEATH', l: '☠️ Death', desc: 'When the mob dies', cat: 'lifecycle' },
+            { v: 'CHANGEWORLD', l: '🌍 Change World', desc: 'When changing world', cat: 'lifecycle' },
+            // Player interaction triggers
+            { v: 'INTERACT', l: '👆 Interact', desc: 'When a player right-clicks the mob', cat: 'player' },
+            { v: 'TAME', l: '❤️ Tame', desc: 'When the player tames the mob', cat: 'player' },
+            { v: 'BREED', l: '💕 Breed', desc: 'When the mob breeds', cat: 'player' },
+            { v: 'TRADE', l: '💰 Trade', desc: 'When villager trades with player', cat: 'player' },
+            { v: 'BUCKET', l: '🪣 Bucket', desc: 'When milked or bucketed', cat: 'player' },
+            // Timed triggers
+            { v: 'TIMER', l: '⏱️ Timer', desc: 'Every nth ticks (20 = 1 second)', cat: 'timed' },
+            // Projectile triggers
+            { v: 'SHOOT', l: '🏹 Shoot', desc: 'When shooting a projectile', cat: 'projectile' },
+            { v: 'BOWHIT', l: '🎯 Bow Hit', desc: 'When projectile hits an entity', cat: 'projectile' },
+            { v: 'PROJECTILEHIT', l: '🎯 Projectile Hit', desc: 'When special projectile hits entity', cat: 'projectile' },
+            { v: 'PROJECTILELAND', l: '📍 Projectile Land', desc: 'When projectile lands on ground', cat: 'projectile' },
+            // Special triggers
+            { v: 'DISMOUNTED', l: '🐎 Dismounted', desc: 'When dismounted from', cat: 'special' },
+            { v: 'EXPLODE', l: '💥 Explode', desc: 'When the mob explodes', cat: 'special' },
+            { v: 'PRIME', l: '💣 Prime', desc: 'When creeper is primed', cat: 'special' },
+            { v: 'CREEPERCHARGE', l: '⚡ Creeper Charge', desc: 'When creeper is charged by lightning', cat: 'special' },
+            { v: 'TELEPORT', l: '🌀 Teleport', desc: 'When the mob teleports', cat: 'special' },
+            { v: 'HEAR', l: '👂 Hear', desc: 'When mob hears a sound', cat: 'special' },
+            // Communication triggers
+            { v: 'SIGNAL', l: '📡 Signal', desc: 'When receiving a signal', cat: 'communication' }
+        ];
 
         // Quick presets - the most common stat patterns
         this.PRESETS = [
@@ -70,14 +119,19 @@ class StatsEditor {
             { id: 'dmg_sharp', name: 'Sharp Damage', icon: '🗡️', type: 'DAMAGE_BONUS', dmgType: 'SHARP', trig: 'ATTACK' },
             { id: 'dmg_bonus', name: 'Bonus Damage', icon: '💥', type: 'DAMAGE_BONUS', trig: 'ATTACK' },
             { id: 'static', name: 'Static Value', icon: '📊', type: 'STATIC' },
-            { id: 'proc', name: 'Proc Effect', icon: '⚡', type: 'PROC', trig: 'ATTACK' }
+            { id: 'proc', name: 'Proc Effect', icon: '⚡', type: 'PROC', trig: 'ATTACK' },
+            { id: 'crit_chance', name: 'Crit Chance', icon: '🎯', type: 'STATIC', formulaKey: 'CRIT' },
+            { id: 'lifesteal', name: 'Lifesteal', icon: '❤️', type: 'PROC', trig: 'ATTACK' }
         ];
 
         // Common formulas with practical examples
         this.FORMULAS = [
             { label: '-Flat', formula: 'd - v', desc: 'Flat reduction: Subtract stat value from damage. v=10 → 100 dmg becomes 90 dmg', example: '100 dmg - 10 stat = 90 dmg' },
             { label: '-%', formula: 'd * (1 - v)', desc: 'Percent reduction: v=0.25 means 25% reduction', example: '100 dmg × 0.75 = 75 dmg (25% reduced)' },
-            { label: 'Armor', formula: 'd * (100 / (100 + v))', desc: 'Diminishing returns like WoW armor. v=100 = 50% reduction', example: 'v=100 → 50%, v=200 → 66%, v=400 → 80%' }
+            { label: 'Armor', formula: 'd * (100 / (100 + v))', desc: 'Diminishing returns like WoW armor. v=100 = 50% reduction', example: 'v=100 → 50%, v=200 → 66%, v=400 → 80%' },
+            { label: '+Flat', formula: 'd + v', desc: 'Add flat damage bonus', example: '100 dmg + 10 stat = 110 dmg' },
+            { label: '+%', formula: 'd * (1 + v)', desc: 'Percent increase: v=0.25 means +25% damage', example: '100 dmg × 1.25 = 125 dmg (+25%)' },
+            { label: 'Complex', formula: '1 + d * (v / 100)', desc: 'Complex formula with division', example: 'Custom calculation' }
         ];
 
         // Damage causes for conditions
@@ -87,7 +141,51 @@ class StatsEditor {
             { v: 'POISON', l: '☠️ Poison' }, { v: 'WITHER', l: '💀 Wither' },
             { v: 'FREEZE', l: '❄️ Freeze' }, { v: 'LIGHTNING', l: '⚡ Lightning' },
             { v: 'FALL', l: '⬇️ Fall' }, { v: 'DROWNING', l: '💧 Drowning' },
-            { v: 'PROJECTILE', l: '🏹 Projectile' }, { v: 'ENTITY_ATTACK', l: '👊 Melee' }
+            { v: 'PROJECTILE', l: '🏹 Projectile' }, { v: 'ENTITY_ATTACK', l: '👊 Melee' },
+            { v: 'THORNS', l: '🌵 Thorns' }, { v: 'EXPLOSION', l: '💥 Explosion' },
+            { v: 'CONTACT', l: '🌵 Contact' }, { v: 'CRAMMING', l: '📦 Cramming' }
+        ];
+
+        // Built-in stats reference
+        this.BUILTIN_STATS = [
+            { name: 'ATTACK_DAMAGE', desc: 'Base Damage Output', icon: '⚔️' },
+            { name: 'ATTACK_SPEED', desc: 'Attack cooldown frequency', icon: '⏱️' },
+            { name: 'BONUS_DAMAGE', desc: 'Additional damage modifier', icon: '💥' },
+            { name: 'CRITICAL_STRIKE_CHANCE', desc: 'Chance to crit', icon: '🎯' },
+            { name: 'CRITICAL_STRIKE_DAMAGE', desc: 'Crit damage multiplier', icon: '💢' },
+            { name: 'CRITICAL_STRIKE_RESILIENCE', desc: 'Resistance to crits', icon: '🛡️' },
+            { name: 'DAMAGE_REDUCTION', desc: 'Generic damage reduction', icon: '🛡️' },
+            { name: 'DEFENSE', desc: 'Defense stat', icon: '🛡️' },
+            { name: 'DODGE_CHANCE', desc: 'Chance to dodge attacks', icon: '💨' },
+            { name: 'DODGE_NEGATION', desc: 'Reduces opponent dodge', icon: '🎯' },
+            { name: 'HEALTH', desc: 'Health values', icon: '❤️' },
+            { name: 'HEALTH_REGENERATION', desc: 'Health regen rate', icon: '💚' },
+            { name: 'LIFESTEAL_CHANCE', desc: 'Chance to lifesteal', icon: '🩸' },
+            { name: 'LIFESTEAL_POWER', desc: 'Lifesteal amount', icon: '❤️‍🔥' },
+            { name: 'MOVEMENT_SPEED', desc: 'Movement speed', icon: '🏃' },
+            { name: 'PARRY_CHANCE', desc: 'Chance to parry', icon: '🛡️' },
+            { name: 'PARRY_POWER', desc: 'Parry damage reduction', icon: '⚔️' },
+            { name: 'PARRY_COUNTERATTACK', desc: 'Counter damage on parry', icon: '↩️' },
+            { name: 'PARRY_NEGATION', desc: 'Reduces opponent parry', icon: '🎯' },
+            { name: 'SCALE', desc: 'Entity scale', icon: '📏' },
+            { name: 'STEP_HEIGHT', desc: 'Step height attribute', icon: '🪜' },
+            { name: 'ARMOR', desc: 'Armor attribute', icon: '🛡️' },
+            { name: 'ARMOR_TOUGHNESS', desc: 'Armor toughness', icon: '💪' },
+            { name: 'KNOCKBACK_RESISTANCE', desc: 'KB resistance', icon: '🧱' },
+            { name: 'JUMP_STRENGTH', desc: 'Jump strength', icon: '⬆️' },
+            { name: 'GRAVITY', desc: 'Gravity modifier', icon: '⬇️' },
+            { name: 'SAFE_FALL_DISTANCE', desc: 'Safe fall distance', icon: '🪂' },
+            { name: 'FALL_DAMAGE_MULTIPLIER', desc: 'Fall damage multiplier', icon: '💀' },
+            { name: 'FOLLOW_RANGE', desc: 'Follow range', icon: '👁️' },
+            { name: 'FLYING_SPEED', desc: 'Flying speed', icon: '🦅' }
+        ];
+
+        // Stat modifiers reference - detailed from MythicMobs documentation
+        this.MODIFIERS = [
+            { name: 'ADDITIVE', desc: 'Adds directly to the base stat value. Multiple additives are summed together.', example: '+10 stat → base 8 + 10 = 18', formula: 'base + additive' },
+            { name: 'ADDITIVE_MULTIPLIER', desc: 'Multiplies the base stat. Multiple multipliers pool together (add, not multiply). Applied after additives.', example: '5 + 3 = 8x multiplier (not 15x)', formula: '(base + additives) × (sum of multipliers)' },
+            { name: 'COMPOUND_MULTIPLIER', desc: 'Multiplies the result after additives and multipliers. Multiple compounds multiply together. Great for debuffs.', example: '2 × 0.4 = 0.8x compound', formula: '... × (product of compounds)' },
+            { name: 'SETTER', desc: 'Overrides ALL other modifiers and base values. Forces the stat to the exact specified value.', example: 'Force to 100 (ignores all else)', formula: 'setter value (ignores others)' }
         ];
     }
 
@@ -261,19 +359,19 @@ class StatsEditor {
                 <!-- ROW 3: Type-specific options -->
                 ${showTriggers ? `
                 <div class="se-row">
-                    <div class="se-field">
-                        <label>Trigger ${this.help('Trigger')}</label>
-                        <div class="se-chips">
-                            ${['ATTACK', 'DAMAGED', 'KILL', 'DEATH'].map(t => `
-                                <label class="se-chip ${(stat.Triggers || []).includes(t) ? 'active' : ''}" title="${t === 'ATTACK' ? 'When this entity hits something' : t === 'DAMAGED' ? 'When this entity takes damage' : t === 'KILL' ? 'When this entity kills something' : 'When this entity dies'}">
-                                    <input type="checkbox" value="${t}" ${(stat.Triggers || []).includes(t) ? 'checked' : ''} class="trigger-cb">
-                                    ${t === 'ATTACK' ? '⚔️' : t === 'DAMAGED' ? '🛡️' : t === 'KILL' ? '💀' : '☠️'} ${t}
+                    <div class="se-field se-field-grow">
+                        <label>Triggers <small class="se-label-hint">When the stat activates (MythicMobs triggers without "on")</small></label>
+                        <div class="se-chips se-chips-wrap">
+                            ${this.TRIGGERS.map(t => `
+                                <label class="se-chip ${(stat.Triggers || []).includes(t.v) ? 'active' : ''}" title="${t.desc}">
+                                    <input type="checkbox" value="${t.v}" ${(stat.Triggers || []).includes(t.v) ? 'checked' : ''} class="trigger-cb">
+                                    ${t.l}
                                 </label>
                             `).join('')}
                         </div>
                     </div>
                     <div class="se-field">
-                        <label>Execution ${this.help('Execution')}</label>
+                        <label>Execution Point</label>
                         <div class="se-btn-group">
                             <button class="se-btn-choice ${(stat.ExecutionPoint || 'PRE') === 'PRE' ? 'active' : ''}" data-exec="PRE" title="Applies before final damage is calculated">
                                 PRE <small>before damage</small>
@@ -289,14 +387,25 @@ class StatsEditor {
                 ${showDamageOptions ? `
                 <div class="se-row">
                     <div class="se-field">
-                        <label>Damage Type ${this.help('DamageType')}</label>
-                        <input type="text" id="f-dmgtype" class="se-input" 
-                            value="${this.esc(stat.DamageType || '')}" 
-                            placeholder="BLUNT, SHARP, etc.">
+                        <label>Damage Type <small class="se-label-hint">Use ALL for final total damage</small></label>
+                        <div class="se-dmgtype-row">
+                            <input type="text" id="f-dmgtype" class="se-input" 
+                                value="${this.esc(stat.DamageType || '')}" 
+                                placeholder="BLUNT, SHARP, FIRE, ALL...">
+                            <select id="dmgtype-preset" class="se-select se-select-sm">
+                                <option value="">Quick...</option>
+                                <option value="ALL">ALL</option>
+                                <option value="BLUNT">BLUNT</option>
+                                <option value="SHARP">SHARP</option>
+                                <option value="FIRE">FIRE</option>
+                                <option value="MAGIC">MAGIC</option>
+                                <option value="PHYSICAL">PHYSICAL</option>
+                            </select>
+                        </div>
                     </div>
                     ${showFormula ? `
                     <div class="se-field se-field-grow">
-                        <label>Damage Formula</label>
+                        <label>Damage Formula <small class="se-label-hint">d = damage, v = stat value</small></label>
                         <div class="se-formula-row">
                             <input type="text" id="f-formula" class="se-input se-input-mono" 
                                 value="${this.esc(stat.DamageFormula || '')}" 
@@ -318,7 +427,7 @@ class StatsEditor {
                 ${showFormula ? `
                 <div class="se-row">
                     <div class="se-field se-field-full">
-                        <label>Conditions ${this.help('Conditions')}</label>
+                        <label>Conditions <small class="se-label-hint">Extra requirements for the stat to activate</small></label>
                         <div class="se-conditions">
                             <div class="se-condition-list" id="condition-list">
                                 ${(stat.Conditions || []).map((c, i) => `
@@ -368,7 +477,7 @@ class StatsEditor {
                 ` : ''}
 
                 <!-- ROW: Advanced (collapsed by default) -->
-                <details class="se-advanced">
+                <details class="se-advanced" ${stat.ParentStats?.length || stat.TriggerStats?.length || stat.Formula ? 'open' : ''}>
                     <summary><i class="fas fa-cog"></i> Advanced Options</summary>
                     <div class="se-advanced-content">
                         <div class="se-row">
@@ -382,7 +491,7 @@ class StatsEditor {
                             </div>
                             <div class="se-field">
                                 <label>Priority ${this.help('Priority')}</label>
-                                <input type="number" id="f-priority" class="se-input" value="${stat.Priority ?? ''}" placeholder="0">
+                                <input type="number" id="f-priority" class="se-input" value="${stat.Priority ?? ''}" placeholder="0 (lower = first)">
                             </div>
                             <div class="se-field se-field-toggle">
                                 <label class="se-toggle" title="${this.esc(this.HELP.AlwaysActive)}">
@@ -392,31 +501,181 @@ class StatsEditor {
                                 </label>
                             </div>
                         </div>
+                        
+                        <!-- Formula Key for all types -->
+                        <div class="se-row">
+                            <div class="se-field">
+                                <label>Formula Key <small class="se-label-hint">Used in other stat formulas</small></label>
+                                <input type="text" id="f-formulakey" class="se-input se-input-mono" 
+                                    value="${this.esc(stat.FormulaKey || '')}" 
+                                    placeholder="e.g. SPD, DEF, ATK">
+                            </div>
+                        </div>
+                        
+                        <!-- Parent Stats Section -->
                         <div class="se-row">
                             <div class="se-field se-field-full">
-                                <label>Formatting ${this.help('Formatting')}</label>
-                                <div class="se-formatting-grid">
+                                <label>Parent Stats <small class="se-label-hint">Stats this stat relies on for calculations</small></label>
+                                <div class="se-list-editor" id="parent-stats-list">
+                                    ${(stat.ParentStats || []).map((ps, i) => `
+                                        <div class="se-list-item" data-idx="${i}">
+                                            <input type="text" class="se-input parent-stat-input" value="${this.esc(ps)}" placeholder="STAT_NAME">
+                                            <button class="se-btn-x" data-remove-parent="${i}">×</button>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div class="se-add-row">
+                                    <select id="parent-stat-select" class="se-select">
+                                        <option value="">Add parent stat...</option>
+                                        ${this.BUILTIN_STATS.map(s => `<option value="${s.name}">${s.icon} ${s.name}</option>`).join('')}
+                                    </select>
+                                    <button class="se-btn se-btn-sm" id="btn-add-parent-stat"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Formula (for parent stats) -->
+                        <div class="se-row">
+                            <div class="se-field se-field-full">
+                                <label>Base Value Formula <small class="se-label-hint">Formula when using parent stats</small></label>
+                                <input type="text" id="f-formula-base" class="se-input se-input-mono" 
+                                    value="${this.esc(stat.Formula || '')}" 
+                                    placeholder="e.g. PARENT_KEY * 2 + 10">
+                            </div>
+                        </div>
+                        
+                        <!-- Trigger Stats Section -->
+                        <div class="se-row">
+                            <div class="se-field se-field-full">
+                                <label>Trigger Stats <small class="se-label-hint">Stats from triggering entity (format: STAT_NAME KEY)</small></label>
+                                <div class="se-list-editor" id="trigger-stats-list">
+                                    ${(stat.TriggerStats || []).map((ts, i) => `
+                                        <div class="se-list-item" data-idx="${i}">
+                                            <input type="text" class="se-input trigger-stat-input" value="${this.esc(ts)}" placeholder="STAT_NAME KEY">
+                                            <button class="se-btn-x" data-remove-trigger="${i}">×</button>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <button class="se-btn se-btn-sm" id="btn-add-trigger-stat"><i class="fas fa-plus"></i> Add Trigger Stat</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Formatting Section (expanded) -->
+                        <div class="se-row">
+                            <div class="se-field se-field-full">
+                                <label>Formatting <small class="se-label-hint">How the stat displays on items (use &lt;value&gt; placeholder)</small></label>
+                                <div class="se-formatting-grid se-formatting-expanded">
                                     <div class="se-format-item">
-                                        <span class="se-format-label" title="Additive: Flat bonus values">+</span>
+                                        <span class="se-format-label" title="Additive: Flat bonus values (+10)">+ Add</span>
                                         <input type="text" id="f-fmt-add" class="se-input" 
                                             value="${this.esc(stat.Formatting?.Additive || '')}" 
                                             placeholder="+<value> ${stat.Display || 'Stat'}">
                                     </div>
                                     <div class="se-format-item">
-                                        <span class="se-format-label" title="Multiply: Percentage bonuses">%</span>
+                                        <span class="se-format-label" title="Multiply: Percentage bonuses (+50%)">% Mult</span>
                                         <input type="text" id="f-fmt-mul" class="se-input" 
                                             value="${this.esc(stat.Formatting?.Multiply || '')}" 
                                             placeholder="+<value>% ${stat.Display || 'Stat'}">
                                     </div>
                                     <div class="se-format-item">
-                                        <span class="se-format-label" title="Compound: Multiplier bonuses">×</span>
+                                        <span class="se-format-label" title="Compound: Multiplier bonuses (x1.5)">× Comp</span>
                                         <input type="text" id="f-fmt-comp" class="se-input" 
                                             value="${this.esc(stat.Formatting?.Compound || '')}" 
                                             placeholder="x<value> ${stat.Display || 'Stat'}">
                                     </div>
+                                    <div class="se-format-item">
+                                        <span class="se-format-label" title="Setter: Forces exact value">= Set</span>
+                                        <input type="text" id="f-fmt-setter" class="se-input" 
+                                            value="${this.esc(stat.Formatting?.Setter || '')}" 
+                                            placeholder="Force <value> ${stat.Display || 'Stat'}">
+                                    </div>
+                                    <div class="se-format-item">
+                                        <span class="se-format-label" title="Static: For STATIC type stats">Static</span>
+                                        <input type="text" id="f-fmt-static" class="se-input" 
+                                            value="${this.esc(stat.Formatting?.Static || '')}" 
+                                            placeholder="<value> ${stat.Display || 'Stat'}">
+                                    </div>
+                                    <div class="se-format-item">
+                                        <span class="se-format-label" title="Decimal places">Rounding</span>
+                                        <input type="number" id="f-fmt-rounding" class="se-input" 
+                                            value="${stat.Formatting?.Rounding ?? ''}" 
+                                            placeholder="2" min="0" max="10">
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- ShowInItemLore (global toggle in Formatting) -->
+                        <div class="se-row">
+                            <div class="se-field se-field-full">
+                                <label class="se-toggle" title="Whether tooltips should be shown in item lore when {stats-each} is used. Defaults to true.">
+                                    <input type="checkbox" id="f-fmt-showinitemlore" ${stat.Formatting?.ShowInItemLore !== false ? 'checked' : ''}>
+                                    <span class="se-toggle-slider"></span>
+                                    <span class="se-toggle-label">Show In Item Lore <small class="se-label-hint">(global toggle for {stats-each})</small></span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- ShowInLore Section (per-modifier override) -->
+                        <div class="se-row">
+                            <div class="se-field se-field-full">
+                                <label>Show In Lore <small class="se-label-hint">Override visibility per modifier type (unchecked = hidden)</small></label>
+                                <div class="se-lore-options">
+                                    <label class="se-toggle-inline" title="Show additive modifier (+value) in item lore">
+                                        <input type="checkbox" id="f-lore-add" ${stat.ShowInLore?.Additive !== false ? 'checked' : ''}>
+                                        <span>+ Additive</span>
+                                    </label>
+                                    <label class="se-toggle-inline" title="Show multiply modifier (+value%) in item lore">
+                                        <input type="checkbox" id="f-lore-mul" ${stat.ShowInLore?.Multiply !== false ? 'checked' : ''}>
+                                        <span>% Multiply</span>
+                                    </label>
+                                    <label class="se-toggle-inline" title="Show compound modifier (x value) in item lore">
+                                        <input type="checkbox" id="f-lore-comp" ${stat.ShowInLore?.Compound !== false ? 'checked' : ''}>
+                                        <span>× Compound</span>
+                                    </label>
+                                    <label class="se-toggle-inline" title="Show setter modifier (= value) in item lore">
+                                        <input type="checkbox" id="f-lore-setter" ${stat.ShowInLore?.Setter !== false ? 'checked' : ''}>
+                                        <span>= Setter</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Built-in Stats Reference -->
+                        <details class="se-reference">
+                            <summary><i class="fas fa-book"></i> Built-in Stats Reference</summary>
+                            <div class="se-reference-grid">
+                                ${this.BUILTIN_STATS.map(s => `
+                                    <div class="se-ref-item" title="${s.desc}">
+                                        <span class="se-ref-icon">${s.icon}</span>
+                                        <span class="se-ref-name">${s.name}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </details>
+                        
+                        <!-- Modifiers Reference -->
+                        <details class="se-reference">
+                            <summary><i class="fas fa-info-circle"></i> Stat Modifiers Reference</summary>
+                            <div class="se-modifier-info">
+                                ${this.MODIFIERS.map(m => `
+                                    <div class="se-mod-item">
+                                        <div class="se-mod-header"><strong>${m.name}</strong></div>
+                                        <div class="se-mod-desc">${m.desc}</div>
+                                        <div class="se-mod-example"><code>${m.example}</code></div>
+                                    </div>
+                                `).join('')}
+                                <div class="se-mod-formula">
+                                    <strong>Full Calculation Example:</strong>
+                                    <div class="se-mod-calc">
+                                        <span>8 base + 10 add + 2 add = 20</span>
+                                        <span>× (5 mult + 3 mult) = × 8 = 160</span>
+                                        <span>× (2 comp × 0.4 comp) = × 0.8 = <strong>128</strong></span>
+                                    </div>
+                                    <code>(base + additives) × (sum of multipliers) × (product of compounds)</code>
+                                </div>
+                            </div>
+                        </details>
                     </div>
                 </details>
             </div>
@@ -496,7 +755,14 @@ class StatsEditor {
                 </div>
                 <div class="se-card-footer">
                     <span>Base: ${stat.BaseValue ?? 0}</span>
-                    <button class="se-btn-icon" title="Edit"><i class="fas fa-edit"></i></button>
+                    <div class="se-card-actions">
+                        <button class="se-btn-icon se-btn-edit" data-stat="${this.esc(stat.id)}" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="se-btn-icon se-btn-delete" data-stat="${this.esc(stat.id)}" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -549,6 +815,102 @@ class StatsEditor {
         $('f-fmt-add')?.addEventListener('input', (e) => this.syncFormatting('Additive', e.target.value));
         $('f-fmt-mul')?.addEventListener('input', (e) => this.syncFormatting('Multiply', e.target.value));
         $('f-fmt-comp')?.addEventListener('input', (e) => this.syncFormatting('Compound', e.target.value));
+        $('f-fmt-setter')?.addEventListener('input', (e) => this.syncFormatting('Setter', e.target.value));
+        $('f-fmt-static')?.addEventListener('input', (e) => this.syncFormatting('Static', e.target.value));
+        $('f-fmt-rounding')?.addEventListener('input', (e) => {
+            const val = e.target.value ? parseInt(e.target.value) : undefined;
+            this.syncFormatting('Rounding', val);
+        });
+
+        // Formula for base value (with parent stats)
+        $('f-formula-base')?.addEventListener('input', (e) => this.syncField('Formula', e.target.value));
+        $('f-formulakey')?.addEventListener('input', (e) => this.syncField('FormulaKey', e.target.value));
+
+        // ShowInLore checkboxes
+        $('f-lore-add')?.addEventListener('change', (e) => this.syncShowInLore('Additive', e.target.checked));
+        $('f-lore-mul')?.addEventListener('change', (e) => this.syncShowInLore('Multiply', e.target.checked));
+        $('f-lore-comp')?.addEventListener('change', (e) => this.syncShowInLore('Compound', e.target.checked));
+        $('f-lore-setter')?.addEventListener('change', (e) => this.syncShowInLore('Setter', e.target.checked));
+
+        // ShowInItemLore global toggle
+        $('f-fmt-showinitemlore')?.addEventListener('change', (e) => this.syncFormatting('ShowInItemLore', e.target.checked));
+
+        // Damage type preset
+        $('dmgtype-preset')?.addEventListener('change', (e) => {
+            if (e.target.value) {
+                $('f-dmgtype').value = e.target.value;
+                this.syncField('DamageType', e.target.value);
+                e.target.value = '';
+            }
+        });
+
+        // Parent stats
+        $('parent-stat-select')?.addEventListener('change', (e) => {
+            if (e.target.value) {
+                this.pushUndo();
+                if (!this.currentStat.ParentStats) this.currentStat.ParentStats = [];
+                this.currentStat.ParentStats.push(e.target.value);
+                e.target.value = '';
+                this.renderStat(this.currentStat);
+            }
+        });
+
+        $('btn-add-parent-stat')?.addEventListener('click', () => {
+            const select = $('parent-stat-select');
+            if (select && select.value) {
+                this.pushUndo();
+                if (!this.currentStat.ParentStats) this.currentStat.ParentStats = [];
+                this.currentStat.ParentStats.push(select.value);
+                select.value = '';
+                this.renderStat(this.currentStat);
+            }
+        });
+
+        document.querySelectorAll('.parent-stat-input').forEach((inp, i) => {
+            inp.addEventListener('input', (e) => {
+                if (this.currentStat.ParentStats) {
+                    this.currentStat.ParentStats[i] = e.target.value;
+                    this.updatePreview();
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-remove-parent]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.pushUndo();
+                const idx = parseInt(btn.dataset.removeParent);
+                this.currentStat.ParentStats.splice(idx, 1);
+                if (!this.currentStat.ParentStats.length) delete this.currentStat.ParentStats;
+                this.renderStat(this.currentStat);
+            });
+        });
+
+        // Trigger stats
+        $('btn-add-trigger-stat')?.addEventListener('click', () => {
+            this.pushUndo();
+            if (!this.currentStat.TriggerStats) this.currentStat.TriggerStats = [];
+            this.currentStat.TriggerStats.push('');
+            this.renderStat(this.currentStat);
+        });
+
+        document.querySelectorAll('.trigger-stat-input').forEach((inp, i) => {
+            inp.addEventListener('input', (e) => {
+                if (this.currentStat.TriggerStats) {
+                    this.currentStat.TriggerStats[i] = e.target.value;
+                    this.updatePreview();
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-remove-trigger]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.pushUndo();
+                const idx = parseInt(btn.dataset.removeTrigger);
+                this.currentStat.TriggerStats.splice(idx, 1);
+                if (!this.currentStat.TriggerStats.length) delete this.currentStat.TriggerStats;
+                this.renderStat(this.currentStat);
+            });
+        });
 
         // Type buttons
         document.querySelectorAll('.se-type-btn').forEach(btn => {
@@ -676,13 +1038,51 @@ class StatsEditor {
             });
         });
 
-        // Stat cards
+        // Stat cards - click to edit (but not on action buttons)
         document.querySelectorAll('.se-stat-card').forEach(card => {
-            card.addEventListener('click', () => {
+            card.addEventListener('click', (e) => {
+                // Don't trigger if clicking on action buttons
+                if (e.target.closest('.se-btn-edit') || e.target.closest('.se-btn-delete')) return;
+                
                 const statId = card.dataset.stat;
                 const stats = this.editor.state?.currentPack?.Stats || [];
                 const stat = stats.find(s => s.id === statId);
                 if (stat) this.renderStat(stat);
+            });
+        });
+        
+        // Edit buttons
+        document.querySelectorAll('.se-btn-edit').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const statId = btn.dataset.stat;
+                const stats = this.editor.state?.currentPack?.Stats || [];
+                const stat = stats.find(s => s.id === statId);
+                if (stat) this.renderStat(stat);
+            });
+        });
+        
+        // Delete buttons
+        document.querySelectorAll('.se-btn-delete').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const statId = btn.dataset.stat;
+                const stats = this.editor.state?.currentPack?.Stats || [];
+                const stat = stats.find(s => s.id === statId);
+                
+                if (stat) {
+                    const displayName = stat.Display || stat.name || 'this stat';
+                    const confirmed = await this.editor.showConfirmDialog(
+                        `Delete "${displayName}"?`,
+                        'Are you sure you want to delete this stat? This action cannot be undone.',
+                        'Delete',
+                        'Cancel'
+                    );
+                    
+                    if (confirmed) {
+                        this.deleteStat(statId);
+                    }
+                }
             });
         });
 
@@ -712,6 +1112,34 @@ class StatsEditor {
             });
         });
     }
+    
+    /**
+     * Delete a stat from the current pack
+     */
+    deleteStat(statId) {
+        const pack = this.editor.packManager?.activePack;
+        if (!pack || !pack.stats || !pack.stats.entries) return;
+        
+        const index = pack.stats.entries.findIndex(s => s.id === statId);
+        if (index >= 0) {
+            pack.stats.entries.splice(index, 1);
+            pack.stats.modified = true;
+            
+            // Auto-save if enabled
+            if (this.editor?.settings?.autoSave) {
+                this.editor.packManager.savePacks();
+            } else {
+                if (this.editor && typeof this.editor.markDirty === 'function') {
+                    this.editor.markDirty();
+                }
+            }
+            
+            // Refresh the file view
+            this.editor.packManager.renderPackTree();
+            this.renderFileView(pack.stats.entries);
+            this.editor.showToast('Stat deleted', 'success');
+        }
+    }
 
     // ========== HELPERS ==========
     syncField(field, value) {
@@ -729,11 +1157,28 @@ class StatsEditor {
 
     syncFormatting(key, value) {
         if (!this.currentStat.Formatting) this.currentStat.Formatting = {};
-        if (value) {
+        if (value !== undefined && value !== null && value !== '') {
             this.currentStat.Formatting[key] = value;
         } else {
             delete this.currentStat.Formatting[key];
             if (!Object.keys(this.currentStat.Formatting).length) delete this.currentStat.Formatting;
+        }
+        this.updatePreview();
+    }
+
+    syncShowInLore(key, value) {
+        // Only track if explicitly set to false (hide)
+        if (value === false) {
+            if (!this.currentStat.ShowInLore) this.currentStat.ShowInLore = {};
+            this.currentStat.ShowInLore[key] = false;
+        } else {
+            // If true (show), remove from ShowInLore (default is to show)
+            if (this.currentStat.ShowInLore) {
+                delete this.currentStat.ShowInLore[key];
+                if (!Object.keys(this.currentStat.ShowInLore).length) {
+                    delete this.currentStat.ShowInLore;
+                }
+            }
         }
         this.updatePreview();
     }

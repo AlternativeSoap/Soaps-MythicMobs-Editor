@@ -8,6 +8,10 @@ class ContextMenu {
         this.currentTarget = null;
         this.currentData = null;
         this.actions = new Map();
+        this._boundHide = this.hide.bind(this);
+        this._boundOnScroll = this._onScroll.bind(this);
+        this._boundOnContextMenu = this._onContextMenu.bind(this);
+        this._boundOnResize = this.hide.bind(this);
         
         this.init();
     }
@@ -24,7 +28,10 @@ class ContextMenu {
             if (!this.menu.contains(e.target)) {
                 this.hide();
             }
-        });
+        }, true);
+        
+        // Close menu on any right-click (to show new menu or native menu)
+        document.addEventListener('contextmenu', this._boundOnContextMenu, true);
         
         // Close menu on escape
         document.addEventListener('keydown', (e) => {
@@ -33,10 +40,32 @@ class ContextMenu {
             }
         });
         
-        // Prevent menu from closing when clicking inside
-        this.menu.addEventListener('click', (e) => {
+        // Close menu on scroll
+        document.addEventListener('scroll', this._boundOnScroll, true);
+        
+        // Close menu on window resize
+        window.addEventListener('resize', this._boundOnResize);
+        
+        // Prevent default context menu on our menu
+        this.menu.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
             e.stopPropagation();
         });
+    }
+    
+    _onScroll(e) {
+        // Hide menu when scrolling anywhere except inside the menu itself
+        if (!this.menu.contains(e.target)) {
+            this.hide();
+        }
+    }
+    
+    _onContextMenu(e) {
+        // When a new context menu is triggered, hide the current one first
+        // This allows the new menu to show (either ours or native)
+        if (!this.menu.contains(e.target)) {
+            this.hide();
+        }
     }
     
     /**
@@ -47,6 +76,9 @@ class ContextMenu {
      * @param {*} data - Data to pass to action handlers
      */
     show(x, y, items, data = null) {
+        // Hide any existing menu first
+        this.hide();
+        
         this.currentData = data;
         
         // Build menu HTML
@@ -64,9 +96,12 @@ class ContextMenu {
             `;
         }).join('');
         
-        // Attach click handlers
+        // Attach click handlers (fresh for each show)
         this.menu.querySelectorAll('.context-menu-item').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
                 const action = btn.dataset.action;
                 const handler = this.actions.get(action);
                 
@@ -78,25 +113,38 @@ class ContextMenu {
             });
         });
         
-        // Position menu
-        this.menu.style.left = x + 'px';
-        this.menu.style.top = y + 'px';
-        
-        // Show menu
+        // Position menu initially off-screen to measure
+        this.menu.style.left = '-9999px';
+        this.menu.style.top = '-9999px';
         this.menu.classList.add('visible');
         
-        // Adjust position if menu goes off screen
-        setTimeout(() => {
+        // Get dimensions after rendering
+        requestAnimationFrame(() => {
             const rect = this.menu.getBoundingClientRect();
+            const menuWidth = rect.width;
+            const menuHeight = rect.height;
             
-            if (rect.right > window.innerWidth) {
-                this.menu.style.left = (x - rect.width) + 'px';
+            // Calculate position with boundary checks
+            let finalX = x;
+            let finalY = y;
+            
+            // Check right boundary
+            if (x + menuWidth > window.innerWidth - 10) {
+                finalX = x - menuWidth;
             }
             
-            if (rect.bottom > window.innerHeight) {
-                this.menu.style.top = (y - rect.height) + 'px';
+            // Check bottom boundary
+            if (y + menuHeight > window.innerHeight - 10) {
+                finalY = y - menuHeight;
             }
-        }, 0);
+            
+            // Ensure not off left or top edge
+            finalX = Math.max(10, finalX);
+            finalY = Math.max(10, finalY);
+            
+            this.menu.style.left = finalX + 'px';
+            this.menu.style.top = finalY + 'px';
+        });
     }
     
     /**
