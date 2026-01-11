@@ -21,6 +21,20 @@ class DropTableEditor {
             return;
         }
         
+        // Ensure _parentFile is set for entries loaded from files
+        // This is critical for Save All to work correctly
+        if (!droptable._parentFile && this.editor?.state?.currentPack) {
+            const pack = this.editor.state.currentPack;
+            if (pack.droptables) {
+                for (const parentFile of pack.droptables) {
+                    if (parentFile.entries && parentFile.entries.some(e => e.id === droptable.id)) {
+                        droptable._parentFile = { id: parentFile.id, fileName: parentFile.fileName };
+                        break;
+                    }
+                }
+            }
+        }
+        
         // Check mode
         const isAdvanced = this.editor.state.currentMode === 'advanced';
         
@@ -51,7 +65,7 @@ class DropTableEditor {
                             <i class="fas fa-plus"></i> New Section
                         </button>
                     </div>
-                    <button class="btn btn-primary" id="save-droptable">
+                    <button class="btn btn-primary" id="save-droptable" title="Save current file (Ctrl+S)">
                         <i class="fas fa-save"></i> Save
                     </button>
                 </div>
@@ -536,6 +550,18 @@ class DropTableEditor {
         
         const oldName = droptable.name;
         droptable.name = newName.trim();
+        
+        // Mark the entry as modified
+        droptable.modified = true;
+        droptable.lastModified = new Date().toISOString();
+        
+        // CRITICAL: Mark the parent file container as modified for Save All to work
+        const parentFile = this.findParentFile();
+        if (parentFile) {
+            parentFile.modified = true;
+            parentFile.lastModified = new Date().toISOString();
+            console.log(`✅ Marked parent file ${parentFile.fileName || parentFile.id} as modified after rename`);
+        }
         
         // Update the UI
         this.render(droptable);

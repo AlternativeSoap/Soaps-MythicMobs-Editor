@@ -34,6 +34,20 @@ class ItemEditor {
             return;
         }
         
+        // Ensure _parentFile is set for entries loaded from files
+        // This is critical for Save All to work correctly
+        if (!item._parentFile && this.editor?.state?.currentPack) {
+            const pack = this.editor.state.currentPack;
+            if (pack.items) {
+                for (const parentFile of pack.items) {
+                    if (parentFile.entries && parentFile.entries.some(e => e.id === item.id)) {
+                        item._parentFile = { id: parentFile.id, fileName: parentFile.fileName };
+                        break;
+                    }
+                }
+            }
+        }
+        
         // Normalize enchantments if they haven't been normalized yet
         if (item.Enchantments && Array.isArray(item.Enchantments) && window.EnchantmentData?.normalizeName) {
             let normalized = false;
@@ -92,7 +106,7 @@ class ItemEditor {
                             <i class="fas fa-plus"></i> New Section
                         </button>
                     </div>
-                    <button class="btn btn-primary" id="save-item">
+                    <button class="btn btn-primary" id="save-item" title="Save current file (Ctrl+S)">
                         <i class="fas fa-save"></i> Save
                     </button>
                 </div>
@@ -2230,6 +2244,18 @@ class ItemEditor {
         
         const oldName = this.currentItem.internalName;
         this.currentItem.internalName = newName.trim();
+        
+        // Mark the entry as modified
+        this.currentItem.modified = true;
+        this.currentItem.lastModified = new Date().toISOString();
+        
+        // CRITICAL: Mark the parent file container as modified for Save All to work
+        const parentFile = this.findParentFile();
+        if (parentFile) {
+            parentFile.modified = true;
+            parentFile.lastModified = new Date().toISOString();
+            console.log(`✅ Marked parent file ${parentFile.fileName || parentFile.id} as modified after rename`);
+        }
         
         // Update the UI
         this.render(this.currentItem);

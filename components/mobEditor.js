@@ -24,6 +24,20 @@ class MobEditor {
             return;
         }
         
+        // Ensure _parentFile is set for entries loaded from files
+        // This is critical for Save All to work correctly
+        if (!mob._parentFile && this.editor?.state?.currentPack) {
+            const pack = this.editor.state.currentPack;
+            if (pack.mobs) {
+                for (const parentFile of pack.mobs) {
+                    if (parentFile.entries && parentFile.entries.some(e => e.id === mob.id)) {
+                        mob._parentFile = { id: parentFile.id, fileName: parentFile.fileName };
+                        break;
+                    }
+                }
+            }
+        }
+        
         const currentMode = this.editor.state.currentMode;
         const isAdvanced = currentMode === 'advanced';
         const modeLabel = currentMode === 'guided' ? 'Guided' : (isAdvanced ? 'Advanced' : 'Beginner');
@@ -52,7 +66,7 @@ class MobEditor {
                             <i class="fas fa-plus"></i> New Section
                         </button>
                     </div>
-                    <button class="btn btn-primary" id="save-mob">
+                    <button class="btn btn-primary" id="save-mob" title="Save current file (Ctrl+S)">
                         <i class="fas fa-save"></i> Save
                     </button>
                 </div>
@@ -83,6 +97,7 @@ class MobEditor {
                 ${this.renderSkillsSection(mob)}
                 ${this.renderDropsSection(mob)}
                 ${isAdvanced ? this.renderDropOptionsSection(mob) : ''}
+                ${isAdvanced ? this.renderRandomSpawnSection(mob) : ''}
             </div>
         </div>
         `;
@@ -530,6 +545,18 @@ class MobEditor {
         
         const oldName = this.currentMob.name;
         this.currentMob.name = newName.trim();
+        
+        // Mark the entry as modified
+        this.currentMob.modified = true;
+        this.currentMob.lastModified = new Date().toISOString();
+        
+        // CRITICAL: Mark the parent file container as modified for Save All to work
+        const parentFile = this.findParentFile();
+        if (parentFile) {
+            parentFile.modified = true;
+            parentFile.lastModified = new Date().toISOString();
+            console.log(`✅ Marked parent file ${parentFile.fileName || parentFile.id} as modified after rename`);
+        }
         
         // Update the UI
         this.render(this.currentMob);
@@ -3989,6 +4016,162 @@ class MobEditor {
         div.textContent = text;
         return div.innerHTML;
     }
+
+    /**
+     * Render RandomSpawn Generator Section (Advanced Mode Only)
+     * Allows generating a randomspawn entry for this mob
+     */
+    renderRandomSpawnSection(mob) {
+        // Get mob's internal name (try both properties)
+        const mobInternalName = mob.internalName || mob.name || '';
+        
+        // Check if mob already has a randomspawn
+        const existingSpawn = this.findExistingRandomSpawn(mobInternalName);
+        
+        // Get available randomspawn files
+        const randomspawnFiles = this.editor.state.currentPack?.randomspawns || [];
+        
+        return `
+            <div class="card collapsible-card collapsed">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-map-marked-alt"></i> Random Spawn Generator
+                        ${existingSpawn ? '<span class="badge badge-success">Has Spawn</span>' : '<span class="badge badge-secondary">Not Configured</span>'}
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <p class="help-text">Generate a random spawn configuration for this mob. Choose an existing file or create a new one.</p>
+                    
+                    ${existingSpawn ? `
+                        <div class="alert alert-info" style="margin-bottom: 1rem;">
+                            <i class="fas fa-info-circle"></i> 
+                            This mob already has a random spawn configuration.
+                            <button class="btn btn-sm btn-outline" id="edit-randomspawn-btn" style="margin-left: 0.5rem;">
+                                <i class="fas fa-edit"></i> Edit Spawn
+                            </button>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="randomspawn-generator">
+                        <!-- Spawn Name & File Selection -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                            <div class="form-group">
+                                <label class="form-label">Spawn Name <span class="required">*</span></label>
+                                <input type="text" id="rs-name" class="form-control" value="${mobInternalName}_spawn" placeholder="e.g., zombie_forest_spawn">
+                                <small class="form-hint">Internal name for this randomspawn entry</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">MobType <span class="required">*</span></label>
+                                <input type="text" id="rs-mobtype" class="form-control" value="${mobInternalName}" readonly style="background: var(--bg-tertiary);">
+                                <small class="form-hint">The mob's internal name (auto-filled)</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Target File</label>
+                                <select id="rs-target-file" class="form-select">
+                                    <option value="__new__">+ Create new file...</option>
+                                    ${randomspawnFiles.map(f => `<option value="${f.id}">${f.fileName}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- New File Name (shown when creating new file) -->
+                        <div class="form-group" id="rs-new-file-group" style="margin-bottom: 1rem;">
+                            <label class="form-label">New File Name</label>
+                            <input type="text" id="rs-new-filename" class="form-control" value="randomspawns.yml" placeholder="randomspawns.yml">
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div class="form-group">
+                                <label class="form-label">Spawn Action</label>
+                                <select id="rs-action" class="form-select">
+                                    <option value="ADD">ADD - Spawn alongside vanilla</option>
+                                    <option value="REPLACE">REPLACE - Replace vanilla spawns</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Spawn Chance</label>
+                                <input type="number" id="rs-chance" class="form-control" value="0.1" min="0" max="1" step="0.01">
+                                <small class="form-hint">0.1 = 10% chance per spawn attempt</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Priority</label>
+                                <input type="number" id="rs-priority" class="form-control" value="1" min="1" max="100">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label class="form-label">Quick Presets</label>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <button class="btn btn-sm btn-outline rs-preset" data-preset="common">
+                                    <i class="fas fa-globe"></i> Common Spawn
+                                </button>
+                                <button class="btn btn-sm btn-outline rs-preset" data-preset="rare">
+                                    <i class="fas fa-gem"></i> Rare Spawn
+                                </button>
+                                <button class="btn btn-sm btn-outline rs-preset" data-preset="dungeon">
+                                    <i class="fas fa-dungeon"></i> Dungeon Only
+                                </button>
+                                <button class="btn btn-sm btn-outline rs-preset" data-preset="nether">
+                                    <i class="fas fa-fire"></i> Nether
+                                </button>
+                                <button class="btn btn-sm btn-outline rs-preset" data-preset="end">
+                                    <i class="fas fa-dragon"></i> The End
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label class="form-label">Biomes (optional)</label>
+                            <input type="text" id="rs-biomes" class="form-control" placeholder="e.g., plains, forest, dark_forest">
+                            <small class="form-hint">Leave empty for all biomes. Separate multiple with commas.</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Worlds (optional)</label>
+                            <input type="text" id="rs-worlds" class="form-control" placeholder="e.g., world, world_nether">
+                            <small class="form-hint">Leave empty for all worlds. Separate multiple with commas.</small>
+                        </div>
+                        
+                        <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem;">
+                            <button class="btn btn-primary" id="generate-randomspawn-btn">
+                                <i class="fas fa-magic"></i> ${existingSpawn ? 'Update RandomSpawn' : 'Generate RandomSpawn'}
+                            </button>
+                            <button class="btn btn-outline" id="preview-randomspawn-btn">
+                                <i class="fas fa-eye"></i> Preview YAML
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Find existing randomspawn for this mob
+     */
+    findExistingRandomSpawn(mobName) {
+        // Try both internalName and name
+        const namesToCheck = [mobName, this.currentMob?.internalName, this.currentMob?.name].filter(n => n);
+        if (namesToCheck.length === 0 || !this.editor.state.currentPack?.randomspawns) return null;
+        
+        for (const file of this.editor.state.currentPack.randomspawns) {
+            if (file.entries) {
+                for (const spawn of file.entries) {
+                    for (const name of namesToCheck) {
+                        if (spawn.MobType === name || (spawn.Types && spawn.Types.some(t => t.MobType === name))) {
+                            return spawn;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
     
     /**
      * Render entity options for Mount selector - includes MythicMobs from pack + vanilla entities
@@ -4575,9 +4758,285 @@ class MobEditor {
             this.attachStringlistItemListeners(item, fieldName);
         });
         
+        // RandomSpawn Generator events
+        this.attachRandomSpawnListeners();
+        
         // Note: Skills and Drops add buttons are handled by their respective editor components
         // SkillBuilderEditor handles #add-skill-line-btn internally
         // MobDropsEditor handles #add-mobdrop-btn internally
+    }
+    
+    attachRandomSpawnListeners() {
+        // Toggle new file name field visibility
+        const targetFileSelect = document.getElementById('rs-target-file');
+        const newFileGroup = document.getElementById('rs-new-file-group');
+        
+        if (targetFileSelect && newFileGroup) {
+            // Set initial visibility
+            newFileGroup.style.display = targetFileSelect.value === '__new__' ? '' : 'none';
+            
+            targetFileSelect.addEventListener('change', () => {
+                newFileGroup.style.display = targetFileSelect.value === '__new__' ? '' : 'none';
+            });
+        }
+        
+        // Edit existing randomspawn
+        document.getElementById('edit-randomspawn-btn')?.addEventListener('click', () => {
+            const mobName = this.currentMob?.internalName || this.currentMob?.name;
+            const spawn = this.findExistingRandomSpawn(mobName);
+            if (spawn) {
+                this.editor.openEntry(spawn, 'randomspawn');
+            }
+        });
+        
+        // Preset buttons
+        document.querySelectorAll('.rs-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const preset = btn.dataset.preset;
+                this.applyRandomSpawnPreset(preset);
+            });
+        });
+        
+        // Generate button
+        document.getElementById('generate-randomspawn-btn')?.addEventListener('click', () => {
+            this.generateRandomSpawn();
+        });
+        
+        // Preview button
+        document.getElementById('preview-randomspawn-btn')?.addEventListener('click', () => {
+            this.previewRandomSpawnYAML();
+        });
+    }
+    
+    applyRandomSpawnPreset(preset) {
+        const actionEl = document.getElementById('rs-action');
+        const chanceEl = document.getElementById('rs-chance');
+        const priorityEl = document.getElementById('rs-priority');
+        const biomesEl = document.getElementById('rs-biomes');
+        const worldsEl = document.getElementById('rs-worlds');
+        
+        const presets = {
+            common: { action: 'ADD', chance: 0.1, priority: 1, biomes: '', worlds: '' },
+            rare: { action: 'ADD', chance: 0.01, priority: 5, biomes: '', worlds: '' },
+            dungeon: { action: 'ADD', chance: 0.05, priority: 3, biomes: '', worlds: '', structure: 'ancient_city, stronghold, mineshaft' },
+            nether: { action: 'ADD', chance: 0.1, priority: 1, biomes: 'nether_wastes, crimson_forest, warped_forest, soul_sand_valley, basalt_deltas', worlds: 'world_nether' },
+            end: { action: 'ADD', chance: 0.1, priority: 1, biomes: 'the_end, small_end_islands, end_midlands, end_highlands, end_barrens', worlds: 'world_the_end' }
+        };
+        
+        const p = presets[preset];
+        if (!p) return;
+        
+        if (actionEl) actionEl.value = p.action;
+        if (chanceEl) chanceEl.value = p.chance;
+        if (priorityEl) priorityEl.value = p.priority;
+        if (biomesEl) biomesEl.value = p.biomes;
+        if (worldsEl) worldsEl.value = p.worlds;
+        
+        this.editor.showToast(`Applied ${preset} preset`, 'success');
+    }
+    
+    generateRandomSpawn() {
+        // Get the spawn name and mob type from inputs
+        const spawnNameEl = document.getElementById('rs-name');
+        const mobTypeEl = document.getElementById('rs-mobtype');
+        const targetFileEl = document.getElementById('rs-target-file');
+        const newFileNameEl = document.getElementById('rs-new-filename');
+        
+        const spawnName = spawnNameEl?.value?.trim();
+        const mobType = mobTypeEl?.value?.trim() || this.currentMob?.internalName || this.currentMob?.name;
+        
+        if (!spawnName) {
+            this.editor.showToast('Please enter a spawn name', 'error');
+            spawnNameEl?.focus();
+            return;
+        }
+        
+        if (!mobType) {
+            this.editor.showToast('Please set an internal name for the mob first', 'error');
+            return;
+        }
+        
+        const spawnData = this.buildRandomSpawnData();
+        
+        // Find or create file in the pack
+        let pack = this.editor.state.currentPack;
+        if (!pack) {
+            this.editor.showToast('No active pack', 'error');
+            return;
+        }
+        
+        if (!pack.randomspawns) {
+            pack.randomspawns = [];
+        }
+        
+        let targetFile;
+        const targetFileId = targetFileEl?.value;
+        
+        if (targetFileId === '__new__') {
+            // Create new file
+            const newFileName = newFileNameEl?.value?.trim() || 'randomspawns.yml';
+            const fileName = newFileName.endsWith('.yml') ? newFileName : newFileName + '.yml';
+            
+            // Check if file already exists
+            targetFile = pack.randomspawns.find(f => f.fileName.toLowerCase() === fileName.toLowerCase());
+            if (!targetFile) {
+                targetFile = {
+                    id: `file_randomspawns_${Date.now()}`,
+                    fileName: fileName,
+                    relativePath: `RandomSpawns/${fileName}`,
+                    entries: [],
+                    modified: true,
+                    lastModified: new Date().toISOString()
+                };
+                pack.randomspawns.push(targetFile);
+            }
+        } else {
+            // Use existing file
+            targetFile = pack.randomspawns.find(f => f.id === targetFileId);
+            if (!targetFile) {
+                this.editor.showToast('Selected file not found', 'error');
+                return;
+            }
+        }
+        
+        // Update parent file reference
+        spawnData._parentFile = { id: targetFile.id, fileName: targetFile.fileName };
+        
+        // Check if spawn already exists by name
+        const existingIdx = targetFile.entries.findIndex(e => e.name === spawnName);
+        
+        if (existingIdx >= 0) {
+            // Update existing
+            targetFile.entries[existingIdx] = { ...targetFile.entries[existingIdx], ...spawnData };
+            targetFile.modified = true;
+            targetFile.lastModified = new Date().toISOString();
+            this.editor.showToast(`Updated spawn "${spawnName}" in ${targetFile.fileName}`, 'success');
+        } else {
+            // Add new entry
+            targetFile.entries.push(spawnData);
+            targetFile.modified = true;
+            targetFile.lastModified = new Date().toISOString();
+            this.editor.showToast(`Created spawn "${spawnName}" in ${targetFile.fileName}`, 'success');
+        }
+        
+        // Mark dirty and save
+        this.editor.markDirty();
+        this.editor.packManager?.savePacks();
+        
+        // Refresh pack tree to show new file if created
+        this.editor.packManager?.renderPackTree();
+        
+        // Re-render to show badge
+        this.render(this.currentMob);
+    }
+    
+    buildRandomSpawnData() {
+        const spawnNameEl = document.getElementById('rs-name');
+        const mobTypeEl = document.getElementById('rs-mobtype');
+        const actionEl = document.getElementById('rs-action');
+        const chanceEl = document.getElementById('rs-chance');
+        const priorityEl = document.getElementById('rs-priority');
+        const biomesEl = document.getElementById('rs-biomes');
+        const worldsEl = document.getElementById('rs-worlds');
+        
+        const spawnName = spawnNameEl?.value?.trim() || `${this.currentMob?.internalName || this.currentMob?.name}_spawn`;
+        const mobType = mobTypeEl?.value?.trim() || this.currentMob?.internalName || this.currentMob?.name;
+        
+        const spawn = {
+            id: `randomspawn_${spawnName}_${Date.now()}`,
+            name: spawnName,
+            MobType: mobType,
+            Action: actionEl?.value || 'ADD',
+            Chance: parseFloat(chanceEl?.value) || 0.1,
+            Priority: parseInt(priorityEl?.value) || 1
+        };
+        
+        // Add biomes if specified
+        const biomes = biomesEl?.value?.trim();
+        if (biomes) {
+            spawn.Biomes = biomes.split(',').map(b => b.trim()).filter(b => b);
+        }
+        
+        // Add worlds if specified
+        const worlds = worldsEl?.value?.trim();
+        if (worlds) {
+            spawn.Worlds = worlds.split(',').map(w => w.trim()).filter(w => w);
+        }
+        
+        return spawn;
+    }
+    
+    previewRandomSpawnYAML() {
+        const spawnNameEl = document.getElementById('rs-name');
+        const mobTypeEl = document.getElementById('rs-mobtype');
+        
+        const spawnName = spawnNameEl?.value?.trim();
+        const mobType = mobTypeEl?.value?.trim() || this.currentMob?.internalName || this.currentMob?.name;
+        
+        if (!spawnName) {
+            this.editor.showToast('Please enter a spawn name', 'error');
+            spawnNameEl?.focus();
+            return;
+        }
+        
+        if (!mobType) {
+            this.editor.showToast('Please set an internal name for the mob first', 'error');
+            return;
+        }
+        
+        const spawnData = this.buildRandomSpawnData();
+        
+        // Build YAML preview
+        let yaml = `${spawnData.name}:\n`;
+        yaml += `  MobType: ${spawnData.MobType}\n`;
+        yaml += `  Action: ${spawnData.Action}\n`;
+        yaml += `  Chance: ${spawnData.Chance}\n`;
+        yaml += `  Priority: ${spawnData.Priority}\n`;
+        
+        if (spawnData.Biomes && spawnData.Biomes.length > 0) {
+            yaml += `  Biomes:\n`;
+            spawnData.Biomes.forEach(b => {
+                yaml += `  - ${b}\n`;
+            });
+        }
+        
+        if (spawnData.Worlds && spawnData.Worlds.length > 0) {
+            yaml += `  Worlds:\n`;
+            spawnData.Worlds.forEach(w => {
+                yaml += `  - ${w}\n`;
+            });
+        }
+        
+        // Show in a modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-file-code"></i> RandomSpawn YAML Preview</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <pre style="background: var(--bg-tertiary); padding: 1rem; border-radius: 6px; overflow-x: auto; font-family: monospace; font-size: 0.9rem;">${yaml}</pre>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary modal-close-btn">Close</button>
+                    <button class="btn btn-primary" id="copy-yaml-btn"><i class="fas fa-copy"></i> Copy</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Close events
+        modal.querySelector('.modal-close')?.addEventListener('click', () => modal.remove());
+        modal.querySelector('.modal-close-btn')?.addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+        
+        // Copy button
+        modal.querySelector('#copy-yaml-btn')?.addEventListener('click', () => {
+            navigator.clipboard.writeText(yaml);
+            this.editor.showToast('YAML copied to clipboard', 'success');
+        });
     }
     
     attachStringlistItemListeners(item, fieldName) {

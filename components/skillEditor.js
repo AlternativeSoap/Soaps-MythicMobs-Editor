@@ -37,6 +37,20 @@ class SkillEditor {
             return;
         }
         
+        // Ensure _parentFile is set for entries loaded from files
+        // This is critical for Save All to work correctly
+        if (!skill._parentFile && this.editor?.state?.currentPack) {
+            const pack = this.editor.state.currentPack;
+            if (pack.skills) {
+                for (const parentFile of pack.skills) {
+                    if (parentFile.entries && parentFile.entries.some(e => e.id === skill.id)) {
+                        skill._parentFile = { id: parentFile.id, fileName: parentFile.fileName };
+                        break;
+                    }
+                }
+            }
+        }
+        
         const isAdvanced = this.editor.state.currentMode === 'advanced';
 
         container.innerHTML = `
@@ -62,7 +76,7 @@ class SkillEditor {
                             <i class="fas fa-plus"></i> New Section
                         </button>
                     </div>
-                    <button class="btn btn-primary" id="save-skill">
+                    <button class="btn btn-primary" id="save-skill" title="Save current file (Ctrl+S)">
                         <i class="fas fa-save"></i> Save
                     </button>
                 </div>
@@ -991,6 +1005,18 @@ class SkillEditor {
         
         const oldName = this.currentSkill.name;
         this.currentSkill.name = newName.trim();
+        
+        // Mark the entry as modified
+        this.currentSkill.modified = true;
+        this.currentSkill.lastModified = new Date().toISOString();
+        
+        // CRITICAL: Mark the parent file container as modified for Save All to work
+        const parentFile = this.findParentFile();
+        if (parentFile) {
+            parentFile.modified = true;
+            parentFile.lastModified = new Date().toISOString();
+            console.log(`✅ Marked parent file ${parentFile.fileName || parentFile.id} as modified after rename`);
+        }
         
         // Update the UI
         this.render(this.currentSkill);

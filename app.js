@@ -12,7 +12,7 @@
  */
 
 // PERFORMANCE: Global debug mode flag (set to false for production)
-window.DEBUG_MODE = false;
+window.DEBUG_MODE = true;
 
 class MythicMobsEditor {
     constructor() {
@@ -51,10 +51,15 @@ class MythicMobsEditor {
             currentFileType: null,            // 'mob', 'skill', or 'item'
             currentView: 'dashboard',         // Current view name
             isDirty: false,                   // Unsaved changes flag
+            hasContentEdits: false,           // True only when user actually edits content (not just creates file)
             autoSave: false,                  // Auto-save disabled by default
             livePreview: true,                // Live YAML preview enabled
             sidebarLeftCollapsed: false,
-            sidebarRightCollapsed: false
+            sidebarRightCollapsed: false,
+            lastSavedTimestamp: null,         // Last successful save timestamp
+            cloudDataHash: null,              // Hash of cloud data for conflict detection
+            saveProgress: { current: 0, total: 0, currentFile: '' },  // Save progress tracking
+            unsavedChangesPopupCount: 0       // Track how many times unsaved changes popup shown
         };
         
         // Change history tracking
@@ -141,6 +146,7 @@ class MythicMobsEditor {
             this.itemEditor = new ItemEditor(this);
             this.droptableEditor = new DropTableEditor(this);
             this.randomspawnEditor = new RandomSpawnEditor(this);
+            this.statsEditor = new StatsEditor(this);
             this.commandPalette = new CommandPalette(this);
             
             // Initialize guided mode wizard
@@ -231,7 +237,10 @@ class MythicMobsEditor {
         document.getElementById('quick-new-item')?.addEventListener('click', () => this.createNewItem());
         document.getElementById('quick-new-droptable')?.addEventListener('click', () => this.createNewDropTable());
         document.getElementById('quick-new-randomspawn')?.addEventListener('click', () => this.createNewRandomSpawn());
+        document.getElementById('quick-new-spawner')?.addEventListener('click', () => this.createNewSpawner());
+        document.getElementById('quick-placeholder-browser')?.addEventListener('click', () => this.openPlaceholderBrowser());
         document.getElementById('quick-template-browser')?.addEventListener('click', () => this.openTemplateBrowser());
+        document.getElementById('quick-stats-editor')?.addEventListener('click', () => this.showStatsEditor(false));
         document.getElementById('quick-import')?.addEventListener('click', () => this.showImportDialog());
         
         // Pack actions
@@ -249,7 +258,16 @@ class MythicMobsEditor {
                 console.error('Save all failed:', error);
             }
         });
-        document.getElementById('save-status')?.addEventListener('click', (e) => this.toggleRecentChanges(e));
+        document.getElementById('dropdown-save-all-btn')?.addEventListener('click', async () => {
+            try {
+                await this.saveAll();
+                // Close dropdown after save
+                document.getElementById('recent-changes-dropdown')?.classList.add('hidden');
+            } catch (error) {
+                console.error('Save all failed:', error);
+            }
+        });
+        document.getElementById('save-status')?.addEventListener('click', (e) => { e._saveStatusHandled = true; this.toggleRecentChanges(e); });
         document.getElementById('view-all-changes-btn')?.addEventListener('click', () => this.showChangeHistory());
         document.getElementById('close-history-modal')?.addEventListener('click', () => this.closeChangeHistory());
         document.getElementById('clear-history-btn')?.addEventListener('click', () => this.clearChangeHistory());
@@ -258,9 +276,9 @@ class MythicMobsEditor {
         // Click outside to close recent changes dropdown
         document.addEventListener('click', (e) => {
             const dropdown = document.getElementById('recent-changes-dropdown');
-            const saveStatus = document.getElementById('save-status');
+            const saveStatusContainer = document.querySelector('.save-status-container');
             if (dropdown && !dropdown.classList.contains('hidden') && 
-                !dropdown.contains(e.target) && !saveStatus.contains(e.target)) {
+                !dropdown.contains(e.target) && (!saveStatusContainer || !saveStatusContainer.contains(e.target))) {
                 dropdown.classList.add('hidden');
             }
         });
@@ -442,6 +460,26 @@ class MythicMobsEditor {
                 this.createNewRandomSpawn();
             }
             
+            // New Spawner (Ctrl+Shift+S) - but not if it's save
+            if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+                e.preventDefault();
+                this.createNewSpawner();
+            }
+            
+            // Placeholder Browser (Ctrl+Shift+H)
+            if (e.ctrlKey && e.shiftKey && e.key === 'H') {
+                e.preventDefault();
+                this.openPlaceholderBrowser();
+            }
+            
+            // Stats Editor (Ctrl+Shift+A) - Advanced mode only
+            if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+                e.preventDefault();
+                if (this.state.currentMode === 'advanced') {
+                    this.showStatsEditor(true);
+                }
+            }
+            
             // Template Browser (Ctrl+Shift+P)
             if (e.ctrlKey && e.shiftKey && e.key === 'P') {
                 e.preventDefault();
@@ -533,10 +571,16 @@ class MythicMobsEditor {
      * Return to dashboard view
      */
     goToDashboard() {
-        // Hide all editor views
+        // Hide all editor views - reset both class and inline styles
         document.querySelectorAll('.view-container').forEach(view => {
             view.classList.remove('active');
+            view.style.display = ''; // Reset any inline display styles
         });
+        
+        // Clear spawner state if we were viewing spawner
+        if (this.state.currentView === 'spawner') {
+            this.state.currentSpawnerFile = null;
+        }
         
         // Show appropriate dashboard based on mode
         if (this.state.currentMode === 'guided') {
@@ -560,6 +604,11 @@ class MythicMobsEditor {
         const homeBtn = document.getElementById('breadcrumb-home');
         if (homeBtn) {
             homeBtn.style.display = 'none';
+        }
+        
+        // Update pack tree to clear active states
+        if (this.packManager) {
+            this.packManager.renderPackTree();
         }
     }
     
@@ -775,30 +824,6 @@ class MythicMobsEditor {
      * Switch editor mode
      */
     async switchMode(mode) {
-        // Check for manual edits in the preview panel
-        if (this._previewHasManualEdits && this._previewElement) {
-            const currentContent = this._previewElement.textContent;
-            
-            if (currentContent !== this._originalPreviewContent) {
-                const result = await this.showConfirmDialog(
-                    'You have unsaved manual edits in the YAML preview panel. What would you like to do?',
-                    'Unsaved YAML Preview Edits',
-                    [
-                        { text: 'Apply & Switch', value: 'apply', primary: true },
-                        { text: 'Discard & Switch', value: 'discard' },
-                        { text: 'Cancel', value: 'cancel' }
-                    ]
-                );
-                
-                if (result === 'cancel') {
-                    return; // Don't switch modes
-                } else if (result === 'apply') {
-                    await this.applyManualYAMLEdits(currentContent);
-                }
-                this._previewHasManualEdits = false;
-            }
-        }
-        
         const wasBeginnerMode = this.state.currentMode === 'beginner';
         const wasGuidedMode = this.state.currentMode === 'guided';
         this.state.currentMode = mode;
@@ -854,6 +879,11 @@ class MythicMobsEditor {
         // Re-render current editor
         if (this.state.currentFile) {
             this.openFile(this.state.currentFile, this.state.currentFileType);
+        }
+        
+        // Re-render pack tree to show/hide advanced-only items (like stats.yml)
+        if (this.packManager) {
+            this.packManager.renderPackTree();
         }
         
         // Format mode name nicely
@@ -939,7 +969,7 @@ class MythicMobsEditor {
         
         const mob = this.fileManager.createMob(name, { template, isTemplate, fileName });
         this.openFile(mob, 'mob');
-        this.markDirty();
+        // Note: Don't call markDirty() - file creation already sets isNew:true/modified:true
         
         if (template) {
             this.showToast(`Created "${name}" using template "${template}"`, 'success');
@@ -1194,7 +1224,7 @@ class MythicMobsEditor {
             const fullFileName = result.fileName.endsWith('.yml') ? result.fileName : result.fileName + '.yml';
             this.fileManager.createEmptyFile('skill', fullFileName);
             this.showToast('Skill file created. Add skills using the + button in the editor.', 'success');
-            this.markDirty();
+            // Note: Don't call markDirty() - file creation already sets isNew:true/modified:true
         }
     }
     
@@ -1326,7 +1356,7 @@ class MythicMobsEditor {
         // Create empty file (no entries yet)
         this.fileManager.createEmptyFile('item', fullFileName);
         this.showToast('Item file created. Add items using the + button in the editor.', 'success');
-        this.markDirty();
+        // Note: Don't call markDirty() - file creation already sets isNew:true/modified:true
     }
     
     /**
@@ -1347,7 +1377,7 @@ class MythicMobsEditor {
         // Create empty file (no entries yet)
         this.fileManager.createEmptyFile('droptable', fullFileName);
         this.showToast('DropTable file created. Add droptables using the + button in the editor.', 'success');
-        this.markDirty();
+        // Note: Don't call markDirty() - file creation already sets isNew:true/modified:true
     }
     
     /**
@@ -1368,7 +1398,211 @@ class MythicMobsEditor {
         // Create empty file (no entries yet)
         this.fileManager.createEmptyFile('randomspawn', fullFileName);
         this.showToast('RandomSpawn file created. Add spawns using the + button in the editor.', 'success');
-        this.markDirty();
+        // Note: Don't call markDirty() - file creation already sets isNew:true/modified:true
+    }
+    
+    /**
+     * Create new spawner file
+     */
+    async createNewSpawner() {
+        if (!this.state.currentPack) {
+            this.showToast('Please select a pack first', 'warning');
+            return;
+        }
+        
+        const fileName = await this.showPrompt('New Spawner File', 'Enter YAML file name (without .yml):', 'spawners');
+        if (!fileName) return;
+        
+        // Add .yml extension if not present
+        const fullFileName = fileName.endsWith('.yml') ? fileName : fileName + '.yml';
+        
+        // Create empty file and switch to spawner view
+        if (!this.state.currentPack.spawners) {
+            this.state.currentPack.spawners = {};
+        }
+        
+        // Create a spawner file entry
+        if (!this.state.currentPack.spawnerFiles) {
+            this.state.currentPack.spawnerFiles = {};
+        }
+        this.state.currentPack.spawnerFiles[fullFileName] = {
+            modified: true,
+            isNew: true
+        };
+        
+        // Also store in global spawner files for consistency
+        if (!window.globalSpawnerFiles) {
+            window.globalSpawnerFiles = {};
+        }
+        window.globalSpawnerFiles[fullFileName] = this.state.currentPack.spawnerFiles[fullFileName];
+        
+        // Refresh file tree to show new spawner file
+        if (this.packManager) {
+            this.packManager.renderPackTree();
+        }
+        
+        // Switch to spawner editor view
+        this.showSpawnerEditor(fullFileName);
+        this.showToast('Spawner file created. Configure your spawner settings.', 'success');
+    }
+    
+    /**
+     * Show spawner editor view
+     */
+    showSpawnerEditor(fileName) {
+        // Update state
+        this.state.currentView = 'spawner';
+        this.state.currentSpawnerFile = fileName;
+        
+        // Hide all views - use consistent approach with class toggle AND style reset
+        document.querySelectorAll('.view-container').forEach(v => {
+            v.classList.remove('active');
+            v.style.display = ''; // Reset any inline display styles
+        });
+        
+        // Show spawner view using the class system
+        const spawnerView = document.getElementById('spawner-editor-view');
+        if (spawnerView) {
+            spawnerView.classList.add('active');
+            
+            // Initialize spawner editor if not already
+            if (!this.spawnerEditor) {
+                this.spawnerEditor = new SpawnerEditor(this);
+            }
+            
+            // Load spawner data if editing existing
+            let spawnerData = null;
+            if (fileName) {
+                spawnerData = window.globalSpawnerFiles?.[fileName] || 
+                             this.state.currentPack?.spawnerFiles?.[fileName] || 
+                             null;
+            }
+            
+            // Render the editor
+            spawnerView.innerHTML = '';
+            const editorContainer = this.spawnerEditor.render(spawnerData);
+            spawnerView.appendChild(editorContainer);
+            this.spawnerEditor.attachEventListeners(editorContainer);
+        }
+        
+        // Update breadcrumb
+        this.updateBreadcrumb('Spawner', fileName);
+        
+        // Update pack tree to show active spawner
+        if (this.packManager) {
+            this.packManager.renderPackTree();
+        }
+    }
+    
+    /**
+     * Create new stat or open stats file
+     */
+    createNewStat() {
+        if (!this.state.currentPack) {
+            this.showToast('Please select a pack first', 'warning');
+            return;
+        }
+        
+        // Initialize stats file if it doesn't exist
+        if (!this.state.currentPack.stats) {
+            this.state.currentPack.stats = {
+                id: 'stats_' + Date.now(),
+                fileName: 'stats.yml',
+                entries: [],
+                modified: true,
+                isNew: true
+            };
+        }
+        
+        // Show stats editor with create dialog
+        this.showStatsEditor(true);
+    }
+    
+    /**
+     * Show stats editor view
+     */
+    showStatsEditor(showCreateDialog = false) {
+        const pack = this.state.currentPack;
+        if (!pack) return;
+        
+        // Ensure stats object exists (create empty one if needed)
+        if (!pack.stats) {
+            pack.stats = {
+                id: 'stats_' + Date.now(),
+                fileName: 'stats.yml',
+                entries: [],
+                modified: false,
+                isNew: true
+            };
+        }
+        
+        // Update state
+        this.state.currentView = 'stats';
+        this.state.currentFile = pack.stats;
+        this.state.currentFileType = 'stats';
+        
+        // Hide all views
+        document.querySelectorAll('.view-container').forEach(v => {
+            v.classList.remove('active');
+            v.style.display = '';
+        });
+        
+        // Show stats view
+        const statsView = document.getElementById('stats-editor-view');
+        
+        if (statsView) {
+            statsView.classList.add('active');
+            
+            // Create file container object for the stats file
+            const fileContainer = {
+                id: 'stats_container',
+                _isFileContainer: true,
+                _fileId: pack.stats.id,
+                _fileName: 'stats.yml',
+                _file: pack.stats,
+                name: 'stats.yml',
+                fileName: 'stats.yml',
+                entries: pack.stats.entries || []
+            };
+            
+            // Render the stats editor
+            if (this.statsEditor) {
+                this.statsEditor.render(fileContainer);
+            }
+            
+            // Show create dialog if requested
+            if (showCreateDialog) {
+                setTimeout(() => {
+                    this.statsEditor.showCreateStatDialog();
+                }, 100);
+            }
+        }
+        
+        // Update breadcrumb
+        this.updateBreadcrumb('Stats', 'stats.yml');
+        
+        // Update pack tree to show stats.yml as active
+        if (this.packManager) {
+            this.packManager.renderPackTree();
+        }
+        
+        // Update YAML preview with stats content
+        this.updateYAMLPreview();
+    }
+    
+    /**
+     * Open Placeholder Browser
+     */
+    openPlaceholderBrowser(callback) {
+        if (window.placeholderBrowser) {
+            window.placeholderBrowser.show(callback);
+        } else {
+            // Initialize if not ready
+            window.placeholderBrowser = new PlaceholderBrowser();
+            setTimeout(() => {
+                window.placeholderBrowser.show(callback);
+            }, 100);
+        }
     }
     
     /**
@@ -1471,7 +1705,8 @@ class MythicMobsEditor {
         
         // Create the file with populated data
         this.fileManager.createFileWithData('skill', fullFileName, skillData);
-        this.markDirty();
+        // Note: Don't call markDirty() here - the file is created with isNew:true/modified:true
+        // which is tracked separately. markDirty() should only be called when user makes actual edits.
         
         // Open the newly created file
         const newFile = this.fileManager.findFile(fullFileName, 'skill');
@@ -1508,42 +1743,117 @@ class MythicMobsEditor {
      * Open a file in the editor
      */
     async openFile(file, type) {
-        // Check for unsaved manual edits in preview panel before opening new file
-        if (this._previewHasManualEdits && this._previewElement) {
-            const currentContent = this._previewElement.textContent;
-            if (currentContent !== this._originalPreviewContent) {
-                const result = await this.showConfirmDialog(
-                    'You have unsaved manual edits in the YAML preview panel. What would you like to do?',
-                    'Unsaved YAML Preview Edits',
-                    [
-                        { text: 'Apply & Open', value: 'apply', primary: true },
-                        { text: 'Discard & Open', value: 'discard' },
+        // Only show unsaved changes dialog if user has made actual content edits
+        // (not just created a new file without editing it)
+        if (this.state.hasContentEdits && !this.settings.autoSave && this.state.currentFile) {
+            // Increment popup counter for EVERY popup shown
+            this.state.unsavedChangesPopupCount++;
+            
+            // After 3 popups, show enhanced auto-save suggestion
+            if (this.state.unsavedChangesPopupCount >= 3) {
+                const enableAutoSave = await this.showAutoSaveSuggestionModal();
+                if (enableAutoSave) {
+                    // Enable auto-save and save current changes
+                    this.settings.autoSave = true;
+                    this.saveSettings();
+                    this.applySettings();
+                    
+                    // Update the settings UI checkbox if it exists
+                    const autoSaveCheckbox = document.getElementById('setting-autosave');
+                    if (autoSaveCheckbox) autoSaveCheckbox.checked = true;
+                    
+                    this.showToast('✅ Auto-save enabled! Your work will be saved automatically.', 'success');
+                    
+                    // Save current changes immediately using saveAll to clear all modified flags
+                    try {
+                        await this.saveAll();
+                    } catch (error) {
+                        console.error('Failed to save after enabling auto-save:', error);
+                    }
+                    
+                    // Reset counter only when auto-save is enabled
+                    this.state.unsavedChangesPopupCount = 0;
+                    
+                    // Continue with navigation (auto-save is now on)
+                    // Fall through to the rest of openFile
+                } else {
+                    // User declined auto-save - show normal dialog
+                    // DON'T reset counter - it will trigger again on next popup
+                    
+                    // Show normal unsaved changes dialog
+                    const choice = await this.showConfirmDialog('Unsaved changes', 'You have unsaved changes. What would you like to do?', [
+                        { text: 'Save & Continue', value: 'save', primary: true },
+                        { text: 'Discard & Continue', value: 'discard' },
                         { text: 'Cancel', value: 'cancel' }
-                    ]
-                );
-                
-                if (result === 'cancel') {
-                    return; // Don't open new file
-                } else if (result === 'apply') {
-                    await this.applyManualYAMLEdits(currentContent);
+                    ]);
+                    
+                    if (choice === 'cancel' || choice === false || choice === null) {
+                        return; // Abort navigation
+                    }
+                    
+                    if (choice === 'save') {
+                        try {
+                            // Use saveAll() to properly clear all modified flags
+                            await this.saveAll();
+                        } catch (error) {
+                            console.error('Save failed while attempting to navigate:', error);
+                            this.showToast('Save failed. Navigation cancelled.', 'error');
+                            return;
+                        }
+                    } else if (choice === 'discard') {
+                        // Clear all modified flags when discarding
+                        this.clearAllModifiedFlags();
+                        this.state.isDirty = false;
+                        this.state.hasContentEdits = false;
+                        this.updateSaveStatusIndicator();
+                    }
                 }
-                this._previewHasManualEdits = false;
+            } else {
+                // Show normal unsaved changes dialog (popup count < 3)
+                const choice = await this.showConfirmDialog('Unsaved changes', 'You have unsaved changes. What would you like to do?', [
+                    { text: 'Save & Continue', value: 'save', primary: true },
+                    { text: 'Discard & Continue', value: 'discard' },
+                    { text: 'Cancel', value: 'cancel' }
+                ]);
+
+                if (choice === 'cancel' || choice === false || choice === null) {
+                    return; // Abort navigation
+                }
+
+                if (choice === 'save') {
+                    // Use saveAll() to properly save and clear all modified flags
+                    try {
+                        await this.saveAll();
+                    } catch (error) {
+                        console.error('Save failed while attempting to navigate:', error);
+                        this.showToast('Save failed. Navigation cancelled.', 'error');
+                        return;
+                    }
+                } else if (choice === 'discard') {
+                    // Clear all modified flags when discarding
+                    this.clearAllModifiedFlags();
+                    this.state.isDirty = false;
+                    this.state.hasContentEdits = false;
+                    this.updateSaveStatusIndicator();
+                }
             }
         }
-        
+
         // Save current file if dirty and auto-save is enabled
-        if (this.state.isDirty && this.settings.autoSave && this.state.currentFile) {
+        if (this.state.hasContentEdits && this.settings.autoSave && this.state.currentFile) {
             try {
                 await this.save();
             } catch (error) {
                 console.error('Failed to auto-save before switching files:', error);
             }
         }
-        
-        // Update state
+
+        // Update state - clear content edits flag since we're opening a new file
         this.state.currentFile = file;
         this.state.currentFileType = type;
         this.state.currentView = `${type}-editor`;
+        this.state.hasContentEdits = false; // Reset for new file - no edits made yet
+        this.state.isDirty = false; // Reset dirty flag for new file
         
         // Add to recent files
         if (file && file.id && type !== 'packinfo' && type !== 'tooltips') {
@@ -1552,9 +1862,15 @@ class MythicMobsEditor {
             this.packManager.addToRecentFiles(file.id, fileName, type, packName);
         }
         
-        // Hide all views
+        // Clear spawner state if we were viewing spawner
+        if (this.state.currentSpawnerFile) {
+            this.state.currentSpawnerFile = null;
+        }
+        
+        // Hide all views - reset both class and inline styles
         document.querySelectorAll('.view-container').forEach(view => {
             view.classList.remove('active');
+            view.style.display = ''; // Reset any inline display styles
         });
         
         // Show appropriate editor
@@ -1581,6 +1897,10 @@ class MythicMobsEditor {
             case 'randomspawn':
                 editor = this.randomspawnEditor;
                 viewId = 'randomspawn-editor-view';
+                break;
+            case 'stat':
+                editor = this.statsEditor;
+                viewId = 'stats-editor-view';
                 break;
             case 'packinfo':
                 // PackInfo uses packManager directly
@@ -1664,9 +1984,10 @@ class MythicMobsEditor {
             this.state.currentFile.isNew = false;
             this.state.currentFile.lastSaved = new Date().toISOString();
             
-            // Only clear isDirty if no other files are modified
+            // Only clear isDirty and hasContentEdits if no other files are modified
             const hasOtherModifiedFiles = this.hasModifiedFiles();
             this.state.isDirty = hasOtherModifiedFiles;
+            this.state.hasContentEdits = hasOtherModifiedFiles;
             
             this.updateSaveStatusIndicator();
             this.packManager.refresh(); // Refresh tree to remove asterisk
@@ -1697,8 +2018,29 @@ class MythicMobsEditor {
         
         for (const type of fileTypes) {
             const files = this.state.currentPack[type] || [];
-            if (files.some(file => file.modified || file.isNew)) {
+            if (Array.isArray(files) && files.some(file => this.fileHasUnsavedChanges(file))) {
                 return true;
+            }
+        }
+        
+        // Also check stats container
+        const statsFile = this.state.currentPack.stats;
+        if (this.fileHasUnsavedChanges(statsFile)) return true;
+        
+        // Also check spawner files
+        const spawnerFiles = this.state.currentPack.spawnerFiles || {};
+        for (const fileName of Object.keys(spawnerFiles)) {
+            if (this.fileHasUnsavedChanges(spawnerFiles[fileName])) {
+                return true;
+            }
+        }
+        
+        // Check global spawner files
+        if (window.globalSpawnerFiles) {
+            for (const fileName of Object.keys(window.globalSpawnerFiles)) {
+                if (this.fileHasUnsavedChanges(window.globalSpawnerFiles[fileName])) {
+                    return true;
+                }
             }
         }
         
@@ -1709,17 +2051,230 @@ class MythicMobsEditor {
      * Get count of modified files
      */
     getModifiedFileCount() {
-        if (!this.state.currentPack) return 0;
-        
-        const fileTypes = ['mobs', 'skills', 'items', 'droptables', 'randomspawns'];
         let count = 0;
+        
+        // Count pack files if pack is loaded
+        if (this.state.currentPack) {
+            const fileTypes = ['mobs', 'skills', 'items', 'droptables', 'randomspawns'];
+            
+            fileTypes.forEach(type => {
+                const files = this.state.currentPack[type] || [];
+                if (Array.isArray(files)) {
+                    count += files.filter(file => this.fileHasUnsavedChanges(file)).length;
+                }
+            });
+            
+            // Also count stats container
+            const statsFile = this.state.currentPack.stats;
+            if (this.fileHasUnsavedChanges(statsFile)) count++;
+            
+            // Also count spawner files in pack
+            const spawnerFiles = this.state.currentPack.spawnerFiles || {};
+            for (const fileName of Object.keys(spawnerFiles)) {
+                if (this.fileHasUnsavedChanges(spawnerFiles[fileName])) {
+                    count++;
+                }
+            }
+        }
+        
+        // Count global spawner files
+        if (window.globalSpawnerFiles) {
+            for (const fileName of Object.keys(window.globalSpawnerFiles)) {
+                if (this.fileHasUnsavedChanges(window.globalSpawnerFiles[fileName])) {
+                    count++;
+                }
+            }
+        }
+        
+        return count;
+    }
+
+    /**
+     * Determine if a file has unsaved changes (modified entries or new file)
+     * Returns true when file should be considered by Save All
+     */
+    fileHasUnsavedChanges(file) {
+        if (!file) return false;
+        if (file.isNew) return true;
+        if (file.modified) return true;
+        if (Array.isArray(file.entries)) {
+            return file.entries.some(e => e && (e.modified || e.isNew));
+        }
+        return false;
+    }
+    
+    /**
+     * Clear modified flags on all files in the current pack
+     * Used when discarding changes
+     */
+    clearAllModifiedFlags() {
+        if (!this.state.currentPack) return;
+        
+        const fileTypes = ['mobs', 'skills', 'items', 'droptables', 'randomspawns', 'spawners'];
         
         fileTypes.forEach(type => {
             const files = this.state.currentPack[type] || [];
-            count += files.filter(file => file.modified || file.isNew).length;
+            if (Array.isArray(files)) {
+                files.forEach(file => {
+                    if (file) {
+                        file.modified = false;
+                        file.isNew = false;
+                        file.lastModified = undefined;
+                        // Also clear entry-level flags
+                        if (Array.isArray(file.entries)) {
+                            file.entries.forEach(entry => {
+                                if (entry) {
+                                    entry.modified = false;
+                                    entry.isNew = false;
+                                    entry.lastModified = undefined;
+                                }
+                            });
+                        }
+                    }
+                });
+            }
         });
         
-        return count;
+        // Clear stats
+        if (this.state.currentPack.stats) {
+            this.state.currentPack.stats.modified = false;
+            this.state.currentPack.stats.isNew = false;
+        }
+        
+        // Clear spawner files object
+        const spawnerFiles = this.state.currentPack.spawnerFiles || {};
+        for (const fileName of Object.keys(spawnerFiles)) {
+            if (spawnerFiles[fileName]) {
+                spawnerFiles[fileName].modified = false;
+                spawnerFiles[fileName].isNew = false;
+            }
+        }
+        
+        // Clear global spawner files
+        if (window.globalSpawnerFiles) {
+            for (const fileName of Object.keys(window.globalSpawnerFiles)) {
+                if (window.globalSpawnerFiles[fileName]) {
+                    window.globalSpawnerFiles[fileName].modified = false;
+                    window.globalSpawnerFiles[fileName].isNew = false;
+                }
+            }
+        }
+        
+        // Refresh tree to reflect cleared state
+        if (this.packManager && typeof this.packManager.renderPackTree === 'function') {
+            this.packManager.renderPackTree();
+        }
+    }
+    
+    /**
+     * Get list of all modified files (for the dropdown)
+     */
+    getModifiedFilesList() {
+        const modifiedFiles = [];
+        
+        // Get pack files if pack is loaded
+        if (this.state.currentPack) {
+            const fileTypes = ['mobs', 'skills', 'items', 'droptables', 'randomspawns'];
+            
+            fileTypes.forEach(type => {
+                const files = this.state.currentPack[type] || [];
+                files.filter(file => this.fileHasUnsavedChanges(file)).forEach(file => {
+                    modifiedFiles.push({
+                        type: type.slice(0, -1), // Remove 's' from type
+                        name: file.fileName || file.internalName || file.name || 'Unnamed',
+                        file: file,
+                        icon: this.getFileTypeIcon(type.slice(0, -1)),
+                        isNew: file.isNew,
+                        entryCount: file.entries?.length || 0,
+                        lastModified: file.lastModified
+                    });
+                });
+            });
+            
+            // Also include stats file if modified
+            const statsFile = this.state.currentPack.stats;
+            if (this.fileHasUnsavedChanges(statsFile)) {
+                modifiedFiles.push({
+                    type: 'stat',
+                    name: statsFile.fileName || 'stats.yml',
+                    file: statsFile,
+                    icon: 'fas fa-chart-line',
+                    isNew: statsFile.isNew,
+                    entryCount: statsFile.entries?.length || 0,
+                    lastModified: statsFile.lastModified
+                });
+            }
+
+            // Also get spawner files in pack
+            const spawnerFiles = this.state.currentPack.spawnerFiles || {};
+            for (const fileName of Object.keys(spawnerFiles)) {
+                if (this.fileHasUnsavedChanges(spawnerFiles[fileName])) {
+                    modifiedFiles.push({
+                        type: 'spawner',
+                        name: fileName,
+                        file: spawnerFiles[fileName],
+                        icon: 'fas fa-map-marker-alt',
+                        isNew: spawnerFiles[fileName].isNew,
+                        lastModified: spawnerFiles[fileName].lastModified
+                    });
+                }
+            }
+            
+            // Also check spawners array (may be object or array depending on data)
+            const spawnersData = this.state.currentPack.spawners;
+            const spawnersArray = Array.isArray(spawnersData) ? spawnersData : [];
+            spawnersArray.filter(s => this.fileHasUnsavedChanges(s)).forEach(spawner => {
+                // Avoid duplicates if already in spawnerFiles
+                const alreadyAdded = modifiedFiles.some(m => m.type === 'spawner' && m.name === spawner.fileName);
+                if (!alreadyAdded) {
+                    modifiedFiles.push({
+                        type: 'spawner',
+                        name: spawner.fileName || 'Unnamed Spawner',
+                        file: spawner,
+                        icon: 'fas fa-map-marker-alt',
+                        isNew: spawner.isNew,
+                        lastModified: spawner.lastModified
+                    });
+                }
+            });
+        }
+        
+        // Get global spawner files
+        if (window.globalSpawnerFiles) {
+            for (const fileName of Object.keys(window.globalSpawnerFiles)) {
+                if (this.fileHasUnsavedChanges(window.globalSpawnerFiles[fileName])) {
+                    // Avoid duplicates
+                    const alreadyAdded = modifiedFiles.some(m => m.type === 'spawner' && m.name === fileName);
+                    if (!alreadyAdded) {
+                        modifiedFiles.push({
+                            type: 'spawner',
+                            name: fileName,
+                            file: window.globalSpawnerFiles[fileName],
+                            icon: 'fas fa-map-marker-alt',
+                            isNew: window.globalSpawnerFiles[fileName].isNew,
+                            lastModified: window.globalSpawnerFiles[fileName].lastModified
+                        });
+                    }
+                }
+            }
+        }
+        
+        return modifiedFiles;
+    }
+    
+    /**
+     * Get icon class for file type
+     */
+    getFileTypeIcon(type) {
+        const icons = {
+            'mob': 'fas fa-skull',
+            'skill': 'fas fa-magic',
+            'item': 'fas fa-gem',
+            'droptable': 'fas fa-box-open',
+            'randomspawn': 'fas fa-dice',
+            'spawner': 'fas fa-map-marker-alt'
+        };
+        return icons[type] || 'fas fa-file';
     }
     
     /**
@@ -1727,17 +2282,40 @@ class MythicMobsEditor {
      */
     markDirty() {
         this.state.isDirty = true;
+        this.state.hasContentEdits = true; // User made actual content changes
         
-        // Mark current file as modified for Save All
+        // Mark current file/entry as modified for Save All
         if (this.state.currentFile) {
             this.state.currentFile.modified = true;
             this.state.currentFile.lastModified = new Date().toISOString();
+            
+            // IMPORTANT: If this is an entry within a file, also mark the parent file as modified
+            // This ensures Save All works correctly for items, droptables, etc.
+            if (this.state.currentFile._parentFile && this.state.currentPack) {
+                const parentFileId = this.state.currentFile._parentFile.id;
+                const fileType = this.state.currentFileType + 's'; // e.g., 'item' -> 'items'
+                const collection = this.state.currentPack[fileType];
+                
+                if (collection) {
+                    const parentFile = collection.find(f => f.id === parentFileId);
+                    if (parentFile) {
+                        parentFile.modified = true;
+                        parentFile.lastModified = new Date().toISOString();
+                    }
+                }
+            }
+            
+            // Also mark _originalEntry if it exists (for file-based structure entries)
+            if (this.state.currentFile._originalEntry) {
+                this.state.currentFile._originalEntry.modified = true;
+                this.state.currentFile._originalEntry.lastModified = new Date().toISOString();
+            }
         }
         
         // Add to change history if enabled
         if (this.settings.keepHistory && this.state.currentFile) {
             this.addToChangeHistory({
-                fileName: this.state.currentFile.name,
+                fileName: this.state.currentFile.name || this.state.currentFile.internalName,
                 fileType: this.state.currentFileType,
                 changeType: this.state.currentFile.isNew ? 'created' : 'modified'
             });
@@ -1746,12 +2324,13 @@ class MythicMobsEditor {
         this.updateSaveStatusIndicator();
         
         // Schedule auto-save ONLY if enabled in settings
+        // Auto-save saves ALL modified files, not just the current one
         if (this.settings.autoSave && this.state.currentFile) {
             clearTimeout(this.autoSaveTimer);
             this.autoSaveTimer = setTimeout(async () => {
                 if (this.settings.autoSave) { // Double-check setting hasn't changed
                     try {
-                        await this.save();
+                        await this.saveAll(true); // true = silent mode (no notifications)
                     } catch (error) {
                         console.error('Auto-save failed:', error);
                     }
@@ -1770,39 +2349,249 @@ class MythicMobsEditor {
     
     /**
      * Update save status indicator based on dirty state
+     * Also updates the sync indicator and dropdown
      */
     updateSaveStatusIndicator() {
         const status = document.querySelector('.save-status');
         const saveAllBtn = document.getElementById('save-all-btn');
+        const dropdownSaveAllBtn = document.getElementById('dropdown-save-all-btn');
+        const syncIndicator = document.getElementById('sync-indicator');
+        const syncBadge = document.getElementById('sync-badge');
         
         if (!status) return;
         
         const icon = status.querySelector('i');
         const text = status.querySelector('span');
+        const modifiedCount = this.getModifiedFileCount();
         
-        // Update status indicator
-        if (this.state.isDirty) {
-            status.classList.remove('saved', 'saving');
-            status.classList.add('unsaved');
-            icon.className = 'fas fa-exclamation-circle';
-            text.textContent = 'Unsaved changes';
-        } else {
-            status.classList.remove('unsaved', 'saving');
-            status.classList.add('saved');
-            icon.className = 'fas fa-check-circle';
-            text.textContent = 'All changes saved';
+        // Determine cloud sync status
+        const isCloudEnabled = this.storage?.db?.useCloud && this.storage?.db?.userId;
+        const syncStatus = isCloudEnabled ? 'synced' : 'offline';
+        
+        // Update sync indicator (small cloud icon)
+        if (syncIndicator) {
+            syncIndicator.classList.remove('synced', 'syncing', 'error', 'offline');
+            syncIndicator.classList.add(syncStatus);
+            syncIndicator.title = isCloudEnabled ? 'Cloud sync enabled' : 'Local storage only';
         }
         
-        // Update Save All button state
-        if (saveAllBtn) {
-            const modifiedCount = this.getModifiedFileCount();
-            saveAllBtn.disabled = modifiedCount === 0;
-            if (modifiedCount > 0) {
-                saveAllBtn.title = `Save all ${modifiedCount} modified file${modifiedCount > 1 ? 's' : ''} (Ctrl+Shift+S)`;
-            } else {
-                saveAllBtn.title = 'No modified files to save';
+        // Update sync badge in dropdown
+        if (syncBadge) {
+            syncBadge.classList.remove('synced', 'syncing', 'error', 'offline');
+            syncBadge.classList.add(syncStatus);
+            const badgeText = syncBadge.querySelector('span');
+            if (badgeText) {
+                badgeText.textContent = isCloudEnabled ? 'Cloud Sync' : 'Local Only';
             }
         }
+        
+        // Update main status indicator
+        if (modifiedCount > 0 || this.state.isDirty) {
+            status.classList.remove('saved', 'saving');
+            status.classList.add('unsaved', 'clickable');
+            icon.className = 'fas fa-exclamation-circle';
+            text.textContent = `${modifiedCount} Unsaved`;
+            status.title = 'Click to view unsaved files';
+            status.style.cursor = 'pointer';
+        } else {
+            status.classList.remove('unsaved', 'saving', 'clickable');
+            status.classList.add('saved');
+            icon.className = 'fas fa-check-circle';
+            text.textContent = 'All Saved';
+            status.title = 'All changes saved';
+            status.style.cursor = 'pointer';
+        }
+        
+        // Update Save All button state (both header and dropdown)
+        const hasUnsaved = modifiedCount > 0;
+        if (saveAllBtn) {
+            saveAllBtn.disabled = !hasUnsaved;
+            if (hasUnsaved) {
+                saveAllBtn.title = `Save all ${modifiedCount} modified file${modifiedCount > 1 ? 's' : ''} (Ctrl+Shift+S)`;
+                saveAllBtn.classList.add('has-changes');
+            } else {
+                saveAllBtn.title = 'All files saved (Ctrl+Shift+S)';
+                saveAllBtn.classList.remove('has-changes');
+            }
+        }
+        
+        if (dropdownSaveAllBtn) {
+            dropdownSaveAllBtn.disabled = !hasUnsaved;
+            dropdownSaveAllBtn.innerHTML = hasUnsaved 
+                ? `<i class="fas fa-save"></i> Save All (${modifiedCount})`
+                : `<i class="fas fa-check"></i> All Saved`;
+        }
+        
+        // Update the unsaved files dropdown content
+        this.updateUnsavedFilesDropdown();
+    }
+    
+    /**
+     * Toggle unsaved files dropdown
+     */
+    toggleUnsavedFilesDropdown() {
+        const dropdown = document.getElementById('recent-changes-dropdown');
+        if (!dropdown) return;
+        
+        if (dropdown.classList.contains('hidden')) {
+            this.showUnsavedFilesDropdown();
+        } else {
+            dropdown.classList.add('hidden');
+        }
+    }
+    
+    /**
+     * Show unsaved files dropdown
+     */
+    showUnsavedFilesDropdown() {
+        const dropdown = document.getElementById('recent-changes-dropdown');
+        if (!dropdown) return;
+        
+        this.updateUnsavedFilesDropdown();
+        dropdown.classList.remove('hidden');
+        
+        // Close on click outside
+        const closeHandler = (e) => {
+            const container = document.querySelector('.save-status-container');
+            if (!dropdown.contains(e.target) && (!container || !container.contains(e.target))) {
+                dropdown.classList.add('hidden');
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        
+        setTimeout(() => {
+            document.addEventListener('click', closeHandler);
+        }, 0);
+    }
+    
+    /**
+     * Update unsaved files dropdown content
+     */
+    updateUnsavedFilesDropdown() {
+        const dropdown = document.getElementById('recent-changes-dropdown');
+        const contentEl = document.getElementById('recent-changes-list');
+        const headerEl = dropdown?.querySelector('.dropdown-header h4');
+        const footerEl = dropdown?.querySelector('.dropdown-footer');
+        
+        if (!dropdown || !contentEl) return;
+        
+        const modifiedFiles = this.getModifiedFilesList();
+        const lastSavedTime = this.getLastSavedRelativeTime();
+        
+        // Update header with last saved info
+        if (headerEl) {
+            if (modifiedFiles.length > 0) {
+                headerEl.textContent = `Unsaved Files (${modifiedFiles.length})`;
+            } else if (lastSavedTime) {
+                headerEl.innerHTML = `<span>All Saved</span><span class="last-saved-time">Last saved: ${lastSavedTime}</span>`;
+            } else {
+                headerEl.textContent = 'Save Status';
+            }
+        }
+        
+        if (modifiedFiles.length === 0) {
+            contentEl.innerHTML = `
+                <div class="no-changes">
+                    <i class="fas fa-check-circle"></i>
+                    <span>All changes saved</span>
+                    ${lastSavedTime ? `<span class="last-saved-subtitle">Last saved: ${lastSavedTime}</span>` : ''}
+                </div>
+            `;
+            // Hide footer when no changes
+            if (footerEl) footerEl.style.display = 'none';
+            return;
+        }
+        
+        // Show footer when there are changes
+        if (footerEl) footerEl.style.display = '';
+        
+        // Build list of modified files with timestamps
+        contentEl.innerHTML = `
+            <div id="save-progress-indicator" class="save-progress-indicator" style="display: none;"></div>
+            ${modifiedFiles.map(item => `
+                <div class="change-entry" data-type="${item.type}" data-name="${this.escapeHtml(item.name)}">
+                    <div class="change-entry-icon">
+                        <i class="${item.icon}"></i>
+                    </div>
+                    <div class="change-entry-info">
+                        <div class="change-entry-title">
+                            <span class="file-name">${this.escapeHtml(item.name)}</span>
+                            ${item.isNew ? '<span class="change-badge new">NEW</span>' : '<span class="change-badge modified">MODIFIED</span>'}
+                        </div>
+                        <div class="change-entry-meta">
+                            <span class="file-type">${this.capitalizeFirst(item.type)}</span>
+                            ${item.lastModified ? `<span class="file-timestamp">${this.formatTimestamp(item.lastModified)}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        `;
+        
+        // Add click handlers
+        contentEl.querySelectorAll('.change-entry').forEach(el => {
+            el.addEventListener('click', () => {
+                const type = el.dataset.type;
+                const name = el.dataset.name;
+                this.navigateToModifiedFile(type, name);
+                dropdown.classList.add('hidden');
+            });
+        });
+    }
+    
+    /**
+     * Capitalize first letter
+     */
+    capitalizeFirst(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+    
+    /**
+     * Navigate to a modified file
+     */
+    navigateToModifiedFile(type, name) {
+        if (type === 'spawner') {
+            this.showSpawnerEditor(name);
+            return;
+        }
+
+        if (type === 'stat') {
+            // Open stats file view (file view listing entries)
+            this.showStatsEditor(false);
+            // If stats editor is initialized, switch to file view
+            if (this.statsEditor && typeof this.statsEditor.show === 'function') {
+                // Show file view
+                this.statsEditor.show(null, true);
+            }
+            return;
+        }
+        
+        // Find the file in the pack
+        if (this.state.currentPack) {
+            const typeMap = {
+                'mob': 'mobs',
+                'skill': 'skills',
+                'item': 'items',
+                'droptable': 'droptables',
+                'randomspawn': 'randomspawns'
+            };
+            
+            const collection = this.state.currentPack[typeMap[type]] || [];
+            const file = collection.find(f => (f.internalName || f.name) === name);
+            
+            if (file) {
+                this.openFile(file, type);
+            }
+        }
+    }
+    
+    /**
+     * Escape HTML entities
+     */
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
     /**
@@ -1823,91 +2612,210 @@ class MythicMobsEditor {
     
     /**
      * Save all modified files
+     * This collects all files with unsaved changes, clears their modified flags,
+     * and saves the entire pack to storage in one operation.
      */
-    async saveAll() {
+    async saveAll(silent = false) {
         if (!this.state.currentPack) {
-            this.showToast('No pack is currently open', 'warning');
+            if (!silent) this.showToast('No pack is currently open', 'warning');
             return;
         }
         
-        // Collect all modified files across all types
+        // Collect all files that actually have unsaved changes
         const modifiedFiles = [];
-        const fileTypes = ['mobs', 'skills', 'items', 'droptables', 'randomspawns'];
+        const fileTypes = ['mobs', 'skills', 'items', 'droptables', 'randomspawns', 'spawners', 'stats'];
         
         fileTypes.forEach(type => {
+            // Stats is a single file container
+            if (type === 'stats') {
+                const statsFile = this.state.currentPack.stats;
+                if (statsFile && this.fileHasUnsavedChanges(statsFile)) {
+                    modifiedFiles.push({ file: statsFile, type: 'stat' });
+                }
+                return;
+            }
+
+            // Spawners are stored as per-pack spawnerFiles (object) and/or as an array depending on workflows
+            if (type === 'spawners') {
+                // Per-pack spawnerFiles object
+                const spawnerFilesObj = this.state.currentPack.spawnerFiles || {};
+                for (const [fileName, fileObj] of Object.entries(spawnerFilesObj)) {
+                    if (this.fileHasUnsavedChanges(fileObj)) {
+                        // Attach a displayName for UI if missing
+                        fileObj.fileName = fileObj.fileName || fileName;
+                        modifiedFiles.push({ file: fileObj, type: 'spawner' });
+                    }
+                }
+
+                // Legacy spawners array (sometimes used)
+                const spawnerArray = this.state.currentPack.spawners || [];
+                if (Array.isArray(spawnerArray)) {
+                    spawnerArray.forEach(s => {
+                        if (this.fileHasUnsavedChanges(s)) {
+                            modifiedFiles.push({ file: s, type: 'spawner' });
+                        }
+                    });
+                }
+
+                // Also include global spawners
+                if (window.globalSpawnerFiles) {
+                    for (const [fileName, fileObj] of Object.entries(window.globalSpawnerFiles)) {
+                        if (this.fileHasUnsavedChanges(fileObj)) {
+                            fileObj.fileName = fileObj.fileName || fileName;
+                            modifiedFiles.push({ file: fileObj, type: 'spawner' });
+                        }
+                    }
+                }
+
+                return;
+            }
+
+            // Regular file collections (arrays)
             const files = this.state.currentPack[type] || [];
+            if (!Array.isArray(files)) {
+                console.warn(`Skipping saveAll for non-array pack collection: ${type}`, files);
+                return; // continue to next type
+            }
             files.forEach(file => {
-                if (file.modified || file.isNew) {
+                if (this.fileHasUnsavedChanges(file)) {
                     modifiedFiles.push({ file, type: type.slice(0, -1) }); // Remove 's' from type
                 }
             });
         });
         
+        // Also check if current spawner has unsaved changes
+        if (this.state.currentSpawnerFile && this.spawnerEditor) {
+            // Auto-save current spawner
+            await this.spawnerEditor.saveSpawner();
+        }
+        
         if (modifiedFiles.length === 0) {
-            this.showToast('No files to save', 'info');
+            if (!silent) this.showToast('No files to save', 'info');
             return;
         }
         
         const saveAllBtn = document.getElementById('save-all-btn');
         
-        // Disable button during save
-        if (saveAllBtn) {
+        // Initialize save progress
+        this.state.saveProgress = { current: 0, total: modifiedFiles.length, currentFile: '' };
+        
+        // Disable button during save and show progress (skip for silent auto-save)
+        if (saveAllBtn && !silent) {
             saveAllBtn.disabled = true;
-            saveAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            saveAllBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Saving 0/${modifiedFiles.length}...`;
         }
         
-        this.showSavingStatus();
-        let savedCount = 0;
-        let errorCount = 0;
-        const failedFiles = [];
+        if (!silent) {
+            this.showSavingStatus();
+            this.updateSaveProgressUI();
+        }
         
         if (window.DEBUG_MODE) console.log(`💾 Saving ${modifiedFiles.length} modified file${modifiedFiles.length > 1 ? 's' : ''}...`);
         
         try {
-            // Save each file individually with retry logic
-            for (const { file, type } of modifiedFiles) {
-                let saveSuccess = false;
-                let retryCount = 0;
-                const maxRetries = 3;
-                
-                while (!saveSuccess && retryCount < maxRetries) {
-                    try {
-                        await this.fileManager.saveFile(file, type, true); // true = immediate save
-                        file.modified = false;
-                        file.isNew = false;
-                        file.lastSaved = new Date().toISOString();
-                        savedCount++;
-                        saveSuccess = true;
-                        if (window.DEBUG_MODE) console.log(`✅ Saved: ${file.name}`);
-                    } catch (error) {
-                        retryCount++;
-                        if (retryCount >= maxRetries) {
-                            console.error(`Failed to save ${file.name}:`, error);
-                            failedFiles.push(file.name);
-                            errorCount++;
-                        } else {
-                            if (window.DEBUG_MODE) console.warn(`⚠️ Save attempt ${retryCount} for ${file.name} failed, retrying...`);
-                            await new Promise(resolve => setTimeout(resolve, 500));
-                        }
-                    }
+            // Deduplicate references (same file object might appear multiple times)
+            const uniqueModifiedFiles = [];
+            const seen = new WeakSet();
+            for (const mf of modifiedFiles) {
+                if (!seen.has(mf.file)) {
+                    uniqueModifiedFiles.push(mf);
+                    seen.add(mf.file);
                 }
             }
             
-            // Update state - only clear isDirty if all files saved successfully
-            this.state.isDirty = errorCount > 0;
-            this.updateSaveStatusIndicator();
-            this.packManager.refresh(); // Refresh tree to remove asterisks
-            
-            // Show summary
-            if (errorCount === 0) {
-                this.showToast(`✅ Successfully saved all ${savedCount} file${savedCount > 1 ? 's' : ''}`, 'success');
-            } else {
-                const failedList = failedFiles.join(', ');
-                this.showToast(`⚠️ Saved ${savedCount} of ${modifiedFiles.length} files. Failed: ${failedList}`, 'warning');
+            // Update total with deduplicated count
+            this.state.saveProgress.total = uniqueModifiedFiles.length;
+
+            // Clear modified flags on all files BEFORE saving
+            // This ensures the pack data saved to storage has clean flags
+            for (let i = 0; i < uniqueModifiedFiles.length; i++) {
+                const { file, type } = uniqueModifiedFiles[i];
+                const displayName = file.fileName || file.name || file.internalName || 'Unnamed';
+                
+                // Update progress UI (skip for silent auto-save)
+                this.state.saveProgress.current = i + 1;
+                this.state.saveProgress.currentFile = displayName;
+                if (!silent) this.updateSaveProgressUI();
+                
+                // Clear file-level flags
+                file.modified = false;
+                file.isNew = false;
+                file.lastSaved = new Date().toISOString();
+
+                // Also clear entry-level flags when applicable
+                if (Array.isArray(file.entries)) {
+                    file.entries.forEach(e => {
+                        if (e) {
+                            e.modified = false;
+                            e.isNew = false;
+                            e.lastSaved = new Date().toISOString();
+                        }
+                    });
+                }
+                
+                if (window.DEBUG_MODE) console.log(`✅ Cleared flags for: ${displayName}`);
             }
+
+            // Save the entire pack to storage ONCE (not per file)
+            // This is more efficient and ensures atomic save
+            let saveSuccess = false;
+            let retryCount = 0;
+            const maxRetries = 3;
+
+            while (!saveSuccess && retryCount < maxRetries) {
+                try {
+                    await this.packManager.savePacks(true); // true = immediate save, bypass debounce
+                    saveSuccess = true;
+                    if (window.DEBUG_MODE) console.log(`✅ Pack saved successfully to storage`);
+                } catch (error) {
+                    retryCount++;
+                    if (retryCount >= maxRetries) {
+                        console.error('Failed to save pack after retries:', error);
+                        // Restore modified flags since save failed
+                        for (const { file } of uniqueModifiedFiles) {
+                            file.modified = true;
+                        }
+                        throw error;
+                    } else {
+                        if (window.DEBUG_MODE) console.warn(`⚠️ Save attempt ${retryCount} failed, retrying...`);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                }
+            }
+
+            // Update last saved timestamp
+            this.state.lastSavedTimestamp = new Date();
+            
+            // Clear the dirty state - all files are now saved
+            this.state.isDirty = false;
+            this.state.hasContentEdits = false;
+            this.updateSaveStatusIndicator();
+
+            // Refresh tree to reflect saved state (with enhanced badges)
+            if (this.packManager && typeof this.packManager.renderPackTree === 'function') {
+                this.packManager.renderPackTree();
+            } else if (this.packManager && typeof this.packManager.refresh === 'function') {
+                this.packManager.refresh();
+            }
+
+            // Show success message (skip for silent auto-save)
+            if (!silent) {
+                this.showToast(`✅ Successfully saved ${uniqueModifiedFiles.length} file${uniqueModifiedFiles.length > 1 ? 's' : ''}`, 'success');
+            }
+            
+        } catch (error) {
+            console.error('Save all failed:', error);
+            if (!silent) {
+                this.showToast('❌ Failed to save files. Please try again.', 'error');
+            }
+            
+            // Re-check dirty state since some saves may have failed
+            this.state.isDirty = this.hasModifiedFiles();
+            this.state.hasContentEdits = this.state.isDirty;
+            this.updateSaveStatusIndicator();
         } finally {
             // Re-enable button
-            if (saveAllBtn) {
+            if (saveAllBtn && !silent) {
                 saveAllBtn.innerHTML = '<i class="fas fa-save"></i> Save All';
                 this.updateSaveStatusIndicator(); // This will set correct disabled state
             }
@@ -1951,16 +2859,402 @@ class MythicMobsEditor {
     }
     
     /**
-     * Toggle recent changes dropdown
+     * Update save progress UI during Save All operation
+     */
+    updateSaveProgressUI() {
+        const saveAllBtn = document.getElementById('save-all-btn');
+        const dropdownSaveAllBtn = document.getElementById('dropdown-save-all-btn');
+        const { current, total, currentFile } = this.state.saveProgress;
+        
+        if (total === 0) return;
+        
+        const progressText = `Saving ${current}/${total}...`;
+        
+        if (saveAllBtn && saveAllBtn.disabled) {
+            saveAllBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${progressText}`;
+            saveAllBtn.title = currentFile ? `Saving: ${currentFile}` : progressText;
+        }
+        
+        if (dropdownSaveAllBtn && dropdownSaveAllBtn.disabled) {
+            dropdownSaveAllBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${progressText}`;
+        }
+        
+        // Update the dropdown content with progress
+        const progressEl = document.getElementById('save-progress-indicator');
+        if (progressEl) {
+            progressEl.innerHTML = `
+                <div class="save-progress-bar">
+                    <div class="save-progress-fill" style="width: ${(current/total) * 100}%"></div>
+                </div>
+                <div class="save-progress-text">${currentFile || progressText}</div>
+            `;
+        }
+    }
+    
+    /**
+     * Get relative time string for last saved timestamp
+     */
+    getLastSavedRelativeTime() {
+        if (!this.state.lastSavedTimestamp) return null;
+        
+        const now = new Date();
+        const diff = now - this.state.lastSavedTimestamp;
+        const seconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        
+        if (seconds < 5) return 'just now';
+        if (seconds < 60) return `${seconds} seconds ago`;
+        if (minutes === 1) return '1 minute ago';
+        if (minutes < 60) return `${minutes} minutes ago`;
+        if (hours === 1) return '1 hour ago';
+        if (hours < 24) return `${hours} hours ago`;
+        if (days === 1) return 'yesterday';
+        return `${days} days ago`;
+    }
+    
+    /**
+     * Format timestamp for display
+     */
+    formatTimestamp(date) {
+        if (!date) return '';
+        const d = new Date(date);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    /**
+     * Check for cloud conflicts before saving
+     * Returns true if save should proceed, false if user cancelled
+     */
+    async checkForCloudConflicts() {
+        if (!this.storage?.db?.useCloud || !this.state.cloudDataHash) {
+            return { proceed: true };
+        }
+        
+        try {
+            const conflictResult = await this.storage.db.checkForConflicts(
+                'packs',
+                this.packManager?.packs,
+                this.state.cloudDataHash
+            );
+            
+            if (conflictResult.hasConflict) {
+                if (window.DEBUG_MODE) console.warn('⚠️ Cloud conflict detected!', conflictResult);
+                
+                // Show conflict resolution modal
+                const resolution = await this.showConflictModal(conflictResult);
+                return resolution;
+            }
+        } catch (error) {
+            if (window.DEBUG_MODE) console.warn('Conflict check error:', error);
+        }
+        
+        return { proceed: true };
+    }
+    
+    /**
+     * Show conflict resolution modal
+     */
+    showConflictModal(conflictInfo) {
+        return new Promise((resolve) => {
+            // Create modal HTML
+            const modalHtml = `
+                <div class="modal-overlay conflict-modal-overlay" id="conflict-modal-overlay">
+                    <div class="modal conflict-modal">
+                        <div class="modal-header conflict-header">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h3>Cloud Sync Conflict</h3>
+                        </div>
+                        <div class="modal-body">
+                            <p class="conflict-message">
+                                The cloud data has been modified since you started editing.
+                                Choose how to resolve this conflict:
+                            </p>
+                            <div class="conflict-info">
+                                <div class="conflict-detail">
+                                    <i class="fas fa-cloud"></i>
+                                    <span>Cloud updated: ${new Date(conflictInfo.cloudUpdatedAt).toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <div class="conflict-options">
+                                <button class="btn conflict-btn keep-local" data-action="local">
+                                    <i class="fas fa-laptop"></i>
+                                    <div class="conflict-btn-content">
+                                        <strong>Keep Local Changes</strong>
+                                        <span>Overwrite cloud with your changes</span>
+                                    </div>
+                                </button>
+                                <button class="btn conflict-btn use-cloud" data-action="cloud">
+                                    <i class="fas fa-cloud-download-alt"></i>
+                                    <div class="conflict-btn-content">
+                                        <strong>Use Cloud Version</strong>
+                                        <span>Discard local changes, use cloud data</span>
+                                    </div>
+                                </button>
+                                <button class="btn conflict-btn view-diff" data-action="diff">
+                                    <i class="fas fa-code-branch"></i>
+                                    <div class="conflict-btn-content">
+                                        <strong>View Differences</strong>
+                                        <span>Compare local vs cloud before deciding</span>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" data-action="cancel">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add modal to DOM
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            const modal = document.getElementById('conflict-modal-overlay');
+            
+            // Handle button clicks
+            modal.addEventListener('click', async (e) => {
+                const action = e.target.closest('[data-action]')?.dataset.action;
+                if (!action) return;
+                
+                modal.remove();
+                
+                switch (action) {
+                    case 'local':
+                        // Keep local, overwrite cloud
+                        resolve({ proceed: true, useCloudData: false });
+                        break;
+                    case 'cloud':
+                        // Use cloud data, discard local
+                        await this.loadCloudData(conflictInfo.cloudData);
+                        resolve({ proceed: false, useCloudData: true });
+                        break;
+                    case 'diff':
+                        // Show diff view
+                        await this.showConflictDiff(conflictInfo);
+                        // After viewing diff, show modal again
+                        const newResolution = await this.showConflictModal(conflictInfo);
+                        resolve(newResolution);
+                        break;
+                    case 'cancel':
+                    default:
+                        resolve({ proceed: false, cancelled: true });
+                        break;
+                }
+            });
+        });
+    }
+    
+    /**
+     * Load cloud data (when user chooses cloud version in conflict)
+     */
+    async loadCloudData(cloudData) {
+        try {
+            if (cloudData && this.packManager) {
+                this.packManager.packs = cloudData;
+                this.packManager.renderPackTree();
+                this.showToast('✅ Loaded cloud version', 'success');
+                
+                // Update hash
+                this.state.cloudDataHash = this.storage.db.generateDataHash(cloudData);
+            }
+        } catch (error) {
+            console.error('Failed to load cloud data:', error);
+            this.showToast('❌ Failed to load cloud version', 'error');
+        }
+    }
+    
+    /**
+     * Show conflict diff view
+     */
+    async showConflictDiff(conflictInfo) {
+        return new Promise((resolve) => {
+            const localSummary = this.getPackSummary(this.packManager?.packs);
+            const cloudSummary = this.getPackSummary(conflictInfo.cloudData);
+            
+            const diffHtml = `
+                <div class="modal-overlay diff-modal-overlay" id="diff-modal-overlay">
+                    <div class="modal diff-modal">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-code-branch"></i> Compare Versions</h3>
+                        </div>
+                        <div class="modal-body">
+                            <div class="diff-comparison">
+                                <div class="diff-column local-column">
+                                    <h4><i class="fas fa-laptop"></i> Local Version</h4>
+                                    <div class="diff-summary">
+                                        ${localSummary}
+                                    </div>
+                                </div>
+                                <div class="diff-divider">
+                                    <i class="fas fa-arrows-alt-h"></i>
+                                </div>
+                                <div class="diff-column cloud-column">
+                                    <h4><i class="fas fa-cloud"></i> Cloud Version</h4>
+                                    <div class="diff-summary">
+                                        ${cloudSummary}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" id="close-diff-btn">Close</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', diffHtml);
+            const modal = document.getElementById('diff-modal-overlay');
+            
+            document.getElementById('close-diff-btn').addEventListener('click', () => {
+                modal.remove();
+                resolve();
+            });
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                    resolve();
+                }
+            });
+        });
+    }
+    
+    /**
+     * Show auto-save suggestion modal after repeated unsaved changes popups
+     * @returns {Promise<boolean>} True if user wants to enable auto-save
+     */
+    showAutoSaveSuggestionModal() {
+        return new Promise((resolve) => {
+            const modalHtml = `
+                <div class="modal-overlay autosave-suggestion-modal" id="autosave-suggestion-overlay">
+                    <div class="modal autosave-suggestion-content">
+                        <div class="autosave-suggestion-header">
+                            <i class="fas fa-save autosave-icon pulse-animation"></i>
+                            <h2>Enable Auto-Save?</h2>
+                        </div>
+                        <div class="autosave-suggestion-body">
+                            <p class="autosave-message">
+                                <i class="fas fa-lightbulb"></i>
+                                We noticed you've had unsaved changes multiple times. Would you like to enable <strong>Auto-Save</strong> to automatically save your work?
+                            </p>
+                            <div class="autosave-benefits">
+                                <h4><i class="fas fa-star"></i> Benefits of Auto-Save:</h4>
+                                <ul>
+                                    <li><i class="fas fa-check-circle"></i> Never lose your work unexpectedly</li>
+                                    <li><i class="fas fa-check-circle"></i> Changes are saved automatically as you work</li>
+                                    <li><i class="fas fa-check-circle"></i> No more "Unsaved changes" popups</li>
+                                    <li><i class="fas fa-check-circle"></i> Syncs to cloud automatically (if connected)</li>
+                                </ul>
+                            </div>
+                            <div class="autosave-settings-preview">
+                                <p><i class="fas fa-cog"></i> You can adjust auto-save settings anytime in <strong>Settings</strong>.</p>
+                            </div>
+                        </div>
+                        <div class="autosave-suggestion-footer">
+                            <button class="btn btn-success btn-lg" id="enable-autosave-btn">
+                                <i class="fas fa-check"></i> Enable Auto-Save
+                            </button>
+                            <button class="btn btn-secondary" id="decline-autosave-btn">
+                                <i class="fas fa-times"></i> No Thanks
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            const modal = document.getElementById('autosave-suggestion-overlay');
+            
+            // Animate in
+            requestAnimationFrame(() => {
+                modal.classList.add('visible');
+            });
+            
+            const cleanup = (result) => {
+                modal.classList.remove('visible');
+                setTimeout(() => modal.remove(), 300);
+                resolve(result);
+            };
+            
+            document.getElementById('enable-autosave-btn').addEventListener('click', () => {
+                cleanup(true);
+            });
+            
+            document.getElementById('decline-autosave-btn').addEventListener('click', () => {
+                cleanup(false);
+            });
+            
+            // Close on overlay click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    cleanup(false);
+                }
+            });
+            
+            // Close on Escape
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    document.removeEventListener('keydown', escHandler);
+                    cleanup(false);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+        });
+    }
+    
+    /**
+     * Generate pack summary for diff view
+     */
+    getPackSummary(packs) {
+        if (!packs || !Array.isArray(packs)) {
+            return '<p class="diff-empty">No data</p>';
+        }
+        
+        let html = '';
+        for (const pack of packs) {
+            const mobCount = pack.mobs?.length || 0;
+            const skillCount = pack.skills?.length || 0;
+            const itemCount = pack.items?.length || 0;
+            const droptableCount = pack.droptables?.length || 0;
+            
+            html += `
+                <div class="diff-pack">
+                    <strong>${pack.name || 'Unnamed Pack'}</strong>
+                    <ul>
+                        <li><i class="fas fa-skull"></i> ${mobCount} mobs</li>
+                        <li><i class="fas fa-magic"></i> ${skillCount} skills</li>
+                        <li><i class="fas fa-gem"></i> ${itemCount} items</li>
+                        <li><i class="fas fa-box-open"></i> ${droptableCount} droptables</li>
+                    </ul>
+                </div>
+            `;
+        }
+        
+        return html || '<p class="diff-empty">No packs</p>';
+    }
+    
+    /**
+     * Toggle recent changes dropdown - now shows unsaved files when there are unsaved changes
      */
     toggleRecentChanges(e) {
         e.stopPropagation();
-        // Only toggle dropdown in advanced mode
-        if (this.state.currentMode !== 'advanced') return;
         
-        const dropdown = document.getElementById('recent-changes-dropdown');
-        if (dropdown) {
-            dropdown.classList.toggle('hidden');
+        const modifiedCount = this.getModifiedFileCount();
+        
+        // If there are unsaved changes, show unsaved files dropdown
+        if (modifiedCount > 0 || this.state.isDirty) {
+            this.toggleUnsavedFilesDropdown();
+        } else if (this.state.currentMode === 'advanced') {
+            // Otherwise show recent changes in advanced mode
+            const dropdown = document.getElementById('recent-changes-dropdown');
+            if (dropdown) {
+                if (dropdown.classList.contains('hidden')) {
+                    this.updateRecentChangesDropdown();
+                }
+                dropdown.classList.toggle('hidden');
+            }
         }
     }
     
@@ -2298,35 +3592,17 @@ class MythicMobsEditor {
             return;
         }
         
-        // Check if user has manually edited the preview panel
-        if (this._previewHasManualEdits) {
-            const currentContent = preview.textContent;
-            
-            if (currentContent !== this._originalPreviewContent) {
-                // Prompt user to apply or discard changes
-                const result = await this.showConfirmDialog(
-                    'You have unsaved manual edits in the YAML preview panel. What would you like to do?',
-                    'Unsaved YAML Edits',
-                    [
-                        { text: 'Apply Changes', value: 'apply', primary: true },
-                        { text: 'Discard Changes', value: 'discard' },
-                        { text: 'Cancel', value: 'cancel' }
-                    ]
-                );
-                
-                if (result === 'cancel') {
-                    return; // Don't update preview, keep manual edits
-                } else if (result === 'apply') {
-                    await this.applyManualYAMLEdits(currentContent);
-                }
-                // If 'discard', continue with normal preview update
-            }
-            this._previewHasManualEdits = false;
-        }
+        // Reset manual edits flag when updating preview programmatically
+        this._previewHasManualEdits = false;
         
-        if (!this.state.currentFile) {
+        if (!this.state.currentFile && !this.state.currentSpawnerFile) {
             preview.textContent = '# Select an item to see YAML preview';
             return;
+        }
+        
+        // If we're viewing a spawner, let the spawner editor handle the preview
+        if (this.state.currentSpawnerFile && this.spawnerEditor) {
+            return; // Spawner editor manages its own preview updates
         }
         
         try {
@@ -2336,6 +3612,14 @@ class MythicMobsEditor {
             if (this.state.currentFileType === 'packinfo') {
                 const packinfo = this.state.currentFile.data || this.state.currentFile;
                 yaml = `Name: ${packinfo.Name}\nVersion: ${packinfo.Version}\nAuthor: ${packinfo.Author}\nIcon:\n  Material: ${packinfo.Icon.Material}\n  Model: ${packinfo.Icon.Model}\nURL: ${packinfo.URL}\nDescription:\n${packinfo.Description.map(line => `- ${line}`).join('\n')}`;
+            } else if (this.state.currentFileType === 'stats') {
+                // Handle stats.yml file - export all stats entries
+                const statsFile = this.state.currentFile;
+                if (statsFile && statsFile.entries && statsFile.entries.length > 0) {
+                    yaml = statsFile.entries.map(stat => this.yamlExporter.exportStat(stat)).join('\n');
+                } else {
+                    yaml = '# No stats configured yet\n# Click "New Stat" to add your first stat';
+                }
             } else {
                 // Set pack context for template-aware mob exports
                 if (this.state.currentPack && this.state.currentFileType === 'mob') {
@@ -3188,7 +4472,9 @@ class MythicMobsEditor {
                     { keys: ['Ctrl', 'Shift', 'I'], desc: 'New Item' },
                     { keys: ['Ctrl', 'Shift', 'T'], desc: 'New DropTable' },
                     { keys: ['Ctrl', 'Shift', 'R'], desc: 'New RandomSpawn' },
-                    { keys: ['Ctrl', 'Shift', 'P'], desc: 'Browse Templates' }
+                    { keys: ['Ctrl', 'Shift', 'S'], desc: 'New Spawner' },
+                    { keys: ['Ctrl', 'Shift', 'P'], desc: 'Browse Templates' },
+                    { keys: ['Ctrl', 'Shift', 'H'], desc: 'Placeholder Browser' }
                 ]
             },
             {

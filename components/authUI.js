@@ -461,26 +461,71 @@ class AuthUI {
         });
     }
     
-    // Sync Status Methods
+    // Sync Status Methods - Updates both old sync-status and new sync-indicator
     setSyncStatus(status) {
-        if (!this.syncStatus) return;
+        // Update legacy sync status if it exists
+        if (this.syncStatus) {
+            this.syncStatus.classList.remove('synced', 'syncing', 'error', 'offline');
+            this.syncStatus.classList.add(status);
+            
+            const statusText = {
+                synced: 'Synced',
+                syncing: 'Syncing...',
+                error: 'Sync Error',
+                offline: 'Offline'
+            };
+            
+            if (this.syncText) {
+                this.syncText.textContent = statusText[status] || 'Unknown';
+            }
+        }
         
-        // Remove all status classes
-        this.syncStatus.classList.remove('synced', 'syncing', 'error', 'offline');
+        // Update new sync indicator
+        const syncIndicator = document.getElementById('sync-indicator');
+        if (syncIndicator) {
+            syncIndicator.classList.remove('synced', 'syncing', 'error', 'offline');
+            syncIndicator.classList.add(status);
+            
+            const icon = syncIndicator.querySelector('i');
+            if (icon) {
+                if (status === 'syncing') {
+                    icon.className = 'fas fa-sync fa-spin';
+                } else if (status === 'error') {
+                    icon.className = 'fas fa-exclamation-triangle';
+                } else {
+                    icon.className = 'fas fa-cloud';
+                }
+            }
+        }
         
-        // Add current status
-        this.syncStatus.classList.add(status);
-        
-        // Update text
-        const statusText = {
-            synced: 'Synced',
-            syncing: 'Syncing...',
-            error: 'Sync Error',
-            offline: 'Offline'
-        };
-        
-        if (this.syncText) {
-            this.syncText.textContent = statusText[status] || 'Unknown';
+        // Update sync badge in dropdown
+        const syncBadge = document.getElementById('sync-badge');
+        if (syncBadge) {
+            syncBadge.classList.remove('synced', 'syncing', 'error', 'offline');
+            syncBadge.classList.add(status);
+            
+            const badgeIcon = syncBadge.querySelector('i');
+            const badgeText = syncBadge.querySelector('span');
+            
+            if (badgeIcon) {
+                if (status === 'syncing') {
+                    badgeIcon.className = 'fas fa-sync fa-spin';
+                } else if (status === 'error') {
+                    badgeIcon.className = 'fas fa-exclamation-triangle';
+                } else {
+                    badgeIcon.className = 'fas fa-cloud';
+                }
+            }
+            
+            if (badgeText) {
+                const texts = {
+                    synced: 'Cloud Sync',
+                    syncing: 'Syncing...',
+                    error: 'Sync Error',
+                    offline: 'Offline'
+                };
+                badgeText.textContent = texts[status] || 'Unknown';
+            }
         }
     }
     
@@ -488,6 +533,10 @@ class AuthUI {
         this.setSyncStatus('syncing');
         setTimeout(() => {
             this.setSyncStatus('synced');
+            // Also update the main save status indicator
+            if (window.editor && typeof window.editor.updateSaveStatusIndicator === 'function') {
+                window.editor.updateSaveStatusIndicator();
+            }
         }, 500);
     }
     

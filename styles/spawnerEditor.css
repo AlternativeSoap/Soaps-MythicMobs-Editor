@@ -1,0 +1,1033 @@
+/**
+ * ===================================
+ * SPAWNER EDITOR STYLES - REDESIGNED
+ * ===================================
+ * 
+ * Clean, simplified editor for MythicMobs Spawner configurations
+ * Using collapsible cards matching other editors
+ * 
+ * @version 2.0.0
+ */
+
+/* ================================
+   EDITOR CONTAINER
+   ================================ */
+
+.spawner-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.spawner-editor-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* ================================
+   COMPACT WARNING BANNER
+   ================================ */
+
+.spawner-warning-compact {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    transition: all 0.2s ease;
+}
+
+/* Warning banner is now non-expandable - removed .minimized and .expanded states */
+
+.warning-icon-small {
+    flex-shrink: 0;
+    color: var(--error, #ef4444);
+    font-size: 1rem;
+}
+
+.warning-text {
+    flex: 1;
+    color: var(--text-secondary, #94a3b8);
+    line-height: 1.4;
+}
+
+.warning-text strong {
+    color: var(--error, #ef4444);
+}
+
+/* Removed .warning-toggle styles - banner is now non-expandable */
+
+/* ================================
+   EDITOR HEADER ENHANCEMENTS
+   (Uses global .editor-header from main.css)
+   ================================ */
+
+/* Spawner name badge - matches mob-name style */
+.spawner-name {
+    color: var(--accent-secondary, #06b6d4);
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 4px 10px;
+    background: rgba(6, 182, 212, 0.1);
+    border-radius: 6px;
+    border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+/* Mode Badge - matches global style */
+.mode-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.mode-badge.beginner {
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+}
+
+.mode-badge.advanced {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c4b5fd;
+}
+
+.mode-badge.guided {
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+}
+
+/* ================================
+   EDITOR HEADER FIX
+   (Ensure proper layout within spawner-editor container)
+   ================================ */
+
+.spawner-editor .editor-header {
+    margin: -1rem -1rem 0 -1rem;
+    padding: 1rem 1.5rem;
+    width: calc(100% + 2rem); /* Ensure full width despite negative margins */
+    box-sizing: border-box;
+}
+
+/* Prevent editor-actions from shrinking and causing button overlap */
+.spawner-editor .editor-actions {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+/* Allow h2 to shrink properly while actions stay intact */
+.spawner-editor .editor-header h2 {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+/* Ensure action-group buttons don't overlap */
+.spawner-editor .editor-actions .action-group {
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+/* ================================
+   COLLAPSIBLE CARDS
+   ================================ */
+
+.spawner-editor .collapsible-card {
+    background: var(--bg-secondary, #1a1d2e);
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.spawner-editor .collapsible-header {
+    display: flex;
+    align-items: center;
+    padding: 0.875rem 1rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.spawner-editor .collapsible-header:hover {
+    background: var(--bg-elevated, #1e2235);
+}
+
+.spawner-editor .card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary, #e2e8f0);
+    flex: 1;
+}
+
+.spawner-editor .card-title i:first-child {
+    color: var(--accent-primary, #7c3aed);
+    font-size: 0.875rem;
+    width: 1.25rem;
+    text-align: center;
+}
+
+.spawner-editor .collapse-icon {
+    margin-left: auto;
+    color: var(--text-muted, #64748b);
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
+}
+
+.spawner-editor .collapsible-card:not(.collapsed) .collapse-icon {
+    transform: rotate(0deg);
+}
+
+.spawner-editor .collapsible-card.collapsed .collapse-icon {
+    transform: rotate(-90deg);
+}
+
+.spawner-editor .collapsible-card-body {
+    padding: 1rem;
+    border-top: 1px solid var(--border-primary, rgba(255, 255, 255, 0.08));
+}
+
+.spawner-editor .collapsible-card.collapsed .collapsible-card-body {
+    display: none;
+}
+
+/* ================================
+   FORM ELEMENTS
+   ================================ */
+
+.spawner-editor .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.spawner-editor .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+}
+
+.spawner-editor .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 0.75rem;
+}
+
+.spawner-editor .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.spawner-editor .form-label {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.spawner-editor .required {
+    color: var(--error, #ef4444);
+}
+
+.spawner-editor .tooltip-trigger {
+    color: var(--text-muted, #64748b);
+    cursor: help;
+    opacity: 0.6;
+    font-size: 0.75rem;
+}
+
+.spawner-editor .tooltip-trigger:hover {
+    opacity: 1;
+}
+
+.spawner-editor .form-input {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary, #252a3e);
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: 6px;
+    color: var(--text-primary, #e2e8f0);
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+}
+
+.spawner-editor .form-input:focus {
+    outline: none;
+    border-color: var(--accent-primary, #7c3aed);
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+}
+
+.spawner-editor .form-hint {
+    font-size: 0.6875rem;
+    color: var(--text-muted, #64748b);
+}
+
+/* Input Group */
+.spawner-editor .input-group {
+    display: flex;
+    gap: 0.375rem;
+}
+
+.spawner-editor .input-group .form-input {
+    flex: 1;
+}
+
+.spawner-editor .input-group .btn-icon {
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary, #252a3e);
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: 6px;
+    color: var(--text-secondary, #94a3b8);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.spawner-editor .input-group .btn-icon:hover {
+    background: var(--accent-primary, #7c3aed);
+    color: white;
+    border-color: var(--accent-primary, #7c3aed);
+}
+
+/* Input with Suffix */
+.spawner-editor .input-with-suffix {
+    display: flex;
+    align-items: center;
+}
+
+.spawner-editor .input-with-suffix .form-input {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    flex: 1;
+}
+
+.spawner-editor .input-suffix {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-elevated, #1e2235);
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.75rem;
+    color: var(--text-muted, #64748b);
+}
+
+.spawner-editor .input-with-suffix.compact {
+    max-width: 180px;
+}
+
+/* Coordinate Group */
+.spawner-editor .coordinate-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--bg-tertiary, #252a3e);
+    border-radius: 8px;
+}
+
+.spawner-editor .coordinate-group .form-group {
+    margin-bottom: 0;
+}
+
+.spawner-editor .coordinate-group .form-label {
+    font-size: 0.75rem;
+    text-align: center;
+    justify-content: center;
+}
+
+.spawner-editor .coordinate-group .form-input {
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* ================================
+   TOGGLE & CHECKBOX STYLES
+   ================================ */
+
+.spawner-editor .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.625rem 0;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-primary, rgba(255, 255, 255, 0.08));
+}
+
+.spawner-editor .toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-primary, #e2e8f0);
+}
+
+.spawner-editor .toggle-label input {
+    display: none;
+}
+
+.spawner-editor .toggle-switch {
+    position: relative;
+    width: 2.5rem;
+    height: 1.375rem;
+    background: var(--bg-tertiary, #252a3e);
+    border-radius: 1rem;
+    transition: all 0.2s ease;
+}
+
+.spawner-editor .toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 1rem;
+    height: 1rem;
+    background: var(--text-muted, #64748b);
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.spawner-editor .toggle-label input:checked + .toggle-switch {
+    background: var(--accent-primary, #7c3aed);
+}
+
+.spawner-editor .toggle-label input:checked + .toggle-switch::after {
+    left: calc(100% - 1.25rem);
+    background: white;
+}
+
+.spawner-editor .toggle-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted, #64748b);
+}
+
+/* Checkbox Row */
+.spawner-editor .checkbox-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.spawner-editor .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.spawner-editor .checkbox-label input {
+    display: none;
+}
+
+.spawner-editor .checkbox-box {
+    width: 1.125rem;
+    height: 1.125rem;
+    border: 2px solid var(--border-primary, rgba(255, 255, 255, 0.2));
+    border-radius: 4px;
+    background: var(--bg-tertiary, #252a3e);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.spawner-editor .checkbox-label input:checked + .checkbox-box {
+    background: var(--accent-primary, #7c3aed);
+    border-color: var(--accent-primary, #7c3aed);
+}
+
+.spawner-editor .checkbox-label input:checked + .checkbox-box::after {
+    content: '✓';
+    color: white;
+    font-size: 0.6875rem;
+    font-weight: bold;
+}
+
+/* Timer fields disabled state */
+.spawner-editor .timer-fields.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* Inline form */
+.spawner-editor .inline-form {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.spawner-editor .inline-form .form-label {
+    margin: 0;
+}
+
+/* ================================
+   BEHAVIOR SUBSECTIONS
+   ================================ */
+
+.spawner-editor .behavior-subsection {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-primary, rgba(255, 255, 255, 0.06));
+}
+
+.spawner-editor .behavior-subsection:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.spawner-editor .behavior-subsection:first-child {
+    padding-top: 0;
+}
+
+.spawner-editor .subsection-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.75rem 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.spawner-editor .subsection-title i {
+    color: var(--accent-primary, #7c3aed);
+    opacity: 0.7;
+    font-size: 0.75rem;
+}
+
+/* ================================
+   CONDITIONS
+   ================================ */
+
+.spawner-editor .conditions-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.spawner-editor .conditions-description {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--text-muted, #64748b);
+    line-height: 1.5;
+}
+
+.spawner-editor .conditions-description a {
+    color: var(--accent-primary, #7c3aed);
+    text-decoration: none;
+}
+
+.spawner-editor .conditions-description a:hover {
+    text-decoration: underline;
+}
+
+.spawner-editor .conditions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.spawner-editor .conditions-empty {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--bg-tertiary, #252a3e);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    color: var(--text-muted, #64748b);
+}
+
+.spawner-editor .conditions-empty i {
+    opacity: 0.5;
+}
+
+.spawner-editor .condition-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.spawner-editor .condition-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    background: var(--accent-primary, #7c3aed);
+    border-radius: 4px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: white;
+    flex-shrink: 0;
+}
+
+.spawner-editor .condition-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary, #252a3e);
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.spawner-editor .condition-display:hover {
+    background: var(--bg-elevated, #1e2235);
+    border-color: var(--accent-primary, #7c3aed);
+}
+
+.spawner-editor .condition-display .condition-text {
+    flex: 1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8125rem;
+    color: var(--text-secondary, #94a3b8);
+    word-break: break-all;
+}
+
+.spawner-editor .condition-display .edit-condition {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #64748b);
+    padding: 0.25rem;
+    width: auto;
+    height: auto;
+}
+
+.spawner-editor .condition-display:hover .edit-condition {
+    opacity: 1;
+}
+
+.spawner-editor .condition-display .edit-condition:hover {
+    color: var(--accent-primary, #7c3aed);
+}
+
+.spawner-editor .condition-input {
+    flex: 1;
+}
+
+/* Small icon-only delete buttons in form fields (NOT header buttons) */
+.spawner-editor .spawner-editor-content .btn-danger:not(.btn-outline) {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--error, #ef4444);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    width: 2rem;
+    height: 2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    padding: 0;
+}
+
+.spawner-editor .spawner-editor-content .btn-danger:not(.btn-outline):hover {
+    background: var(--error, #ef4444);
+    color: white;
+}
+
+/* ================================
+   BUTTONS (Form buttons within editor content)
+   ================================ */
+
+.spawner-editor .spawner-editor-content .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: none;
+}
+
+.spawner-editor .spawner-editor-content .btn-sm {
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+}
+
+.spawner-editor .spawner-editor-content .btn-primary {
+    background: var(--accent-primary, #7c3aed);
+    color: white;
+}
+
+.spawner-editor .spawner-editor-content .btn-primary:hover {
+    background: var(--accent-hover, #6d28d9);
+}
+
+.spawner-editor .spawner-editor-content .btn-icon {
+    padding: 0;
+    width: 2rem;
+    height: 2rem;
+    justify-content: center;
+}
+
+/* ================================
+   QUICK MOB SELECTOR (Modal)
+   ================================ */
+
+.quick-mob-selector .quick-selector-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10200;
+    padding: 2rem;
+}
+
+.quick-selector-content {
+    background: var(--bg-secondary, #1a1d2e);
+    border-radius: 12px;
+    padding: 1.25rem;
+    width: 100%;
+    max-width: 360px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.quick-selector-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.quick-selector-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-primary, #e2e8f0);
+}
+
+.quick-selector-header .btn-icon {
+    background: none;
+    border: none;
+    color: var(--text-muted, #64748b);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.quick-selector-header .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.quick-selector-content .mob-filter {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary, #252a3e);
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: 6px;
+    color: var(--text-primary, #e2e8f0);
+    font-size: 0.875rem;
+    width: 100%;
+}
+
+.mob-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.mob-option {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.75rem;
+    background: var(--bg-tertiary, #252a3e);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 0.875rem;
+}
+
+.mob-option:hover {
+    background: var(--accent-primary, #7c3aed);
+    color: white;
+}
+
+.mob-option i {
+    opacity: 0.7;
+}
+
+.no-mobs {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-muted, #64748b);
+    font-size: 0.875rem;
+}
+
+/* ================================
+   ENTITY PICKER STYLES
+   ================================ */
+
+.spawner-editor .mob-picker-section {
+    margin-bottom: 1rem;
+}
+
+.spawner-editor .entity-picker-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Selected Entity Chip */
+.spawner-editor .entity-chips-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.spawner-editor .entity-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.spawner-editor .entity-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--accent-primary, #7c3aed);
+    color: white;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.spawner-editor .entity-chip.mythicmob-chip {
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
+}
+
+.spawner-editor .chip-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background: rgba(0, 0, 0, 0.2);
+    border: none;
+    border-radius: 50%;
+    color: inherit;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.spawner-editor .chip-remove:hover {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+/* Entity Search */
+.spawner-editor .entity-search-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.spawner-editor .entity-search-input {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    background: var(--bg-tertiary, #252a3e);
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: 6px;
+    color: var(--text-primary, #e2e8f0);
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+}
+
+.spawner-editor .entity-search-input:focus {
+    outline: none;
+    border-color: var(--accent-primary, #7c3aed);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+.spawner-editor .entity-search-hint {
+    color: var(--text-muted, #64748b);
+    font-size: 0.75rem;
+}
+
+.spawner-editor .entity-search-hint kbd {
+    display: inline-block;
+    padding: 0.125rem 0.375rem;
+    background: var(--bg-quaternary, #1a1d2e);
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 0.6875rem;
+}
+
+/* Entity Browser */
+.spawner-editor .entity-browser {
+    max-height: 280px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-quaternary, #1a1d2e);
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: 8px;
+}
+
+.spawner-editor .entity-browser::-webkit-scrollbar {
+    width: 8px;
+}
+
+.spawner-editor .entity-browser::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.spawner-editor .entity-browser::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary, #252a3e);
+    border-radius: 4px;
+}
+
+.spawner-editor .entity-browser::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary, #7c3aed);
+}
+
+/* Entity Category */
+.spawner-editor .entity-category {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.spawner-editor .entity-category-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted, #64748b);
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--border-primary, rgba(255, 255, 255, 0.05));
+}
+
+/* Entity Grid */
+.spawner-editor .entity-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+.spawner-editor .entity-item {
+    padding: 0.375rem 0.625rem;
+    background: var(--bg-tertiary, #252a3e);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-secondary, #94a3b8);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.spawner-editor .entity-item:hover {
+    background: var(--bg-secondary, #1e293b);
+    border-color: var(--accent-primary, #7c3aed);
+    color: var(--text-primary, #e2e8f0);
+}
+
+.spawner-editor .entity-item.selected {
+    background: var(--accent-primary, #7c3aed);
+    color: white;
+    border-color: var(--accent-primary, #7c3aed);
+}
+
+.spawner-editor .entity-item.mythicmob-item {
+    background: rgba(168, 85, 247, 0.15);
+    border-color: rgba(168, 85, 247, 0.3);
+    color: #c4b5fd;
+}
+
+.spawner-editor .entity-item.mythicmob-item:hover {
+    background: rgba(168, 85, 247, 0.25);
+    border-color: #a855f7;
+}
+
+.spawner-editor .entity-item.mythicmob-item.selected {
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
+    color: white;
+}
+
+/* ================================
+   RESPONSIVE
+   ================================ */
+
+@media (max-width: 768px) {
+    .spawner-editor .grid-2,
+    .spawner-editor .grid-3 {
+        grid-template-columns: 1fr;
+    }
+    
+    .spawner-editor .coordinate-group {
+        grid-template-columns: 1fr;
+    }
+    
+    .spawner-editor .checkbox-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .spawner-editor .toggle-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .spawner-editor .conditions-header {
+        flex-direction: column;
+    }
+    
+    .spawner-editor .inline-form {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .spawner-editor .inline-form .input-with-suffix.compact {
+        max-width: 100%;
+    }
+    
+    .spawner-editor .entity-browser {
+        max-height: 200px;
+    }
+}

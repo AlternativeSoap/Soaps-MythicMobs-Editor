@@ -37,6 +37,9 @@ class YAMLExporter {
                 case 'randomspawn':
                     yaml = this.exportRandomSpawn(data);
                     break;
+                case 'stat':
+                    yaml = this.exportStat(data);
+                    break;
                 default:
                     return '# Unknown type';
             }
@@ -1933,6 +1936,117 @@ class YAMLExporter {
         syntax += ` ${action}`;
         
         return syntax;
+    }
+
+    /**
+     * Export stat data to YAML format
+     * @param {Object} data - Stat configuration object
+     * @returns {String} YAML string
+     */
+    exportStat(data) {
+        if (!data || !data.name) return '';
+        
+        let yaml = `${data.name}:\n`;
+        
+        // Enabled (only output if false)
+        if (data.Enabled === false) {
+            yaml += `  Enabled: false\n`;
+        }
+        
+        // Display name
+        if (data.Display) {
+            yaml += `  Display: "${data.Display}"\n`;
+        }
+        
+        // Type
+        if (data.Type) {
+            yaml += `  Type: ${data.Type}\n`;
+        }
+        
+        // Triggers (array)
+        if (data.Triggers && data.Triggers.length > 0) {
+            yaml += `  Triggers:\n`;
+            data.Triggers.forEach(t => {
+                yaml += `  - ${t}\n`;
+            });
+        }
+        
+        // Execution Point
+        if (data.ExecutionPoint && data.ExecutionPoint !== 'PRE') {
+            yaml += `  ExecutionPoint: ${data.ExecutionPoint}\n`;
+        }
+        
+        // Base Value
+        if (data.BaseValue !== undefined && data.BaseValue !== null && data.BaseValue !== 0) {
+            yaml += `  BaseValue: ${data.BaseValue}\n`;
+        }
+        
+        // Damage Formula
+        if (data.DamageFormula) {
+            yaml += `  DamageFormula: "${data.DamageFormula}"\n`;
+        }
+        
+        // Damage Type
+        if (data.DamageType) {
+            yaml += `  DamageType: ${data.DamageType}\n`;
+        }
+        
+        // Formula Key (for STATIC type)
+        if (data.FormulaKey) {
+            yaml += `  FormulaKey: ${data.FormulaKey}\n`;
+        }
+        
+        // Min Value
+        if (data.MinValue !== undefined && data.MinValue !== null && data.MinValue !== '') {
+            yaml += `  MinValue: ${data.MinValue}\n`;
+        }
+        
+        // Max Value
+        if (data.MaxValue !== undefined && data.MaxValue !== null && data.MaxValue !== '') {
+            yaml += `  MaxValue: ${data.MaxValue}\n`;
+        }
+        
+        // Priority
+        if (data.Priority !== undefined && data.Priority !== null && data.Priority !== '' && data.Priority !== 0) {
+            yaml += `  Priority: ${data.Priority}\n`;
+        }
+        
+        // Always Active
+        if (data.AlwaysActive === true) {
+            yaml += `  AlwaysActive: true\n`;
+        }
+        
+        // Conditions (array of strings)
+        if (data.Conditions && data.Conditions.length > 0) {
+            yaml += `  Conditions:\n`;
+            data.Conditions.forEach(c => {
+                yaml += `  - ${c}\n`;
+            });
+        }
+        
+        // Skills (array of strings, for PROC type)
+        if (data.Skills && data.Skills.length > 0) {
+            yaml += `  Skills:\n`;
+            data.Skills.forEach(s => {
+                yaml += `  ${s}\n`;
+            });
+        }
+        
+        // Formatting
+        if (data.Formatting && Object.keys(data.Formatting).length > 0) {
+            yaml += `  Formatting:\n`;
+            if (data.Formatting.Additive) {
+                yaml += `    Additive: '${data.Formatting.Additive}'\n`;
+            }
+            if (data.Formatting.Multiply) {
+                yaml += `    Multiply: '${data.Formatting.Multiply}'\n`;
+            }
+            if (data.Formatting.Compound) {
+                yaml += `    Compound: '${data.Formatting.Compound}'\n`;
+            }
+        }
+        
+        return yaml;
     }
 }
 

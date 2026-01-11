@@ -54,10 +54,6 @@
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
     
-    <!-- Preload Critical Fonts -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style">
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" as="style">
-    
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -81,6 +77,9 @@
     <link rel="stylesheet" href="styles/packImporter.css">
     <link rel="stylesheet" href="styles/skillLineBuilder.css">
     <link rel="stylesheet" href="styles/mechanicBrowser.css">
+    <link rel="stylesheet" href="styles/placeholderBrowser.css">
+    <link rel="stylesheet" href="styles/spawnerEditor.css">
+    <link rel="stylesheet" href="styles/statsEditor.css">
     <link rel="stylesheet" href="styles/adminPanel.css">
     <link rel="stylesheet" href="styles/adminPanelEnhanced.css">
     <link rel="stylesheet" href="styles/templateWizard.css">
@@ -117,28 +116,45 @@
                 </div>
             </div>
             <div class="header-right">
-                <!-- Sync Status -->
-                <div class="sync-status synced" id="sync-status" title="Cloud sync status">
-                    <i class="fas fa-cloud"></i>
-                    <span class="sync-text">Synced</span>
+                <!-- Unified Save/Sync Status Container -->
+                <div class="unified-save-container">
+                    <!-- Cloud Sync Indicator (small icon) -->
+                    <div class="sync-indicator" id="sync-indicator" title="Cloud sync status">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                    
+                    <!-- Main Save Status -->
+                    <div class="save-status-container">
+                        <div class="save-status saved" id="save-status" title="Click to view details">
+                            <i class="fas fa-check-circle"></i>
+                            <span>All Saved</span>
+                        </div>
+                        <div class="recent-changes-dropdown hidden" id="recent-changes-dropdown">
+                            <div class="dropdown-header">
+                                <div class="dropdown-title">
+                                    <h4>Save Status</h4>
+                                    <span class="sync-badge" id="sync-badge">
+                                        <i class="fas fa-cloud"></i>
+                                        <span>Synced</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="dropdown-content" id="recent-changes-list">
+                                <div class="no-changes">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>All changes saved</span>
+                                </div>
+                            </div>
+                            <div class="dropdown-footer">
+                                <button class="btn btn-sm btn-primary" id="dropdown-save-all-btn">
+                                    <i class="fas fa-save"></i> Save All
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="save-status saved" id="save-status" title="Click to view recent changes">
-                    <i class="fas fa-check-circle"></i>
-                    <span>All changes saved</span>
-                </div>
-                <div class="recent-changes-dropdown hidden advanced-only" id="recent-changes-dropdown">
-                    <div class="dropdown-header">
-                        <h4>Recent Changes</h4>
-                    </div>
-                    <div class="dropdown-content" id="recent-changes-list">
-                        <div class="no-changes">No recent changes</div>
-                    </div>
-                    <div class="dropdown-footer">
-                        <button class="btn btn-sm btn-secondary" id="view-all-changes-btn">View All Changes</button>
-                    </div>
-                </div>
-                <button class="btn btn-primary" id="save-all-btn" title="Save all modified files" aria-label="Save all modified files">
+                <button class="btn btn-primary" id="save-all-btn" title="Save all modified files (Ctrl+Shift+S)" aria-label="Save all modified files">
                     <i class="fas fa-save" aria-hidden="true"></i> Save All
                 </button>
                 
@@ -305,6 +321,9 @@
                     <div class="pack-tree-header">
                         <span>Packs</span>
                         <div class="pack-tree-actions">
+                            <button class="icon-btn" id="refresh-tree-btn" title="Refresh File Tree">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
                             <button class="icon-btn" id="expand-all-btn" title="Expand All">
                                 <i class="fas fa-angle-double-down"></i>
                             </button>
@@ -435,6 +454,39 @@
                                         </div>
                                         <span class="action-shortcut"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>R</kbd></span>
                                     </button>
+                                    <button class="action-card action-card-spawner advanced-only" id="quick-new-spawner">
+                                        <div class="action-card-glow"></div>
+                                        <div class="action-card-icon">
+                                            <i class="fas fa-dungeon"></i>
+                                        </div>
+                                        <div class="action-card-content">
+                                            <h3>Spawner</h3>
+                                            <p>Create mob spawner configs</p>
+                                        </div>
+                                        <span class="action-shortcut"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>S</kbd></span>
+                                    </button>
+                                    <button class="action-card action-card-placeholder advanced-only" id="quick-placeholder-browser">
+                                        <div class="action-card-glow"></div>
+                                        <div class="action-card-icon">
+                                            <i class="fas fa-code"></i>
+                                        </div>
+                                        <div class="action-card-content">
+                                            <h3>Placeholders</h3>
+                                            <p>Browse all placeholders</p>
+                                        </div>
+                                        <span class="action-shortcut"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>H</kbd></span>
+                                    </button>
+                                    <button class="action-card action-card-stats advanced-only" id="quick-stats-editor">
+                                        <div class="action-card-glow"></div>
+                                        <div class="action-card-icon">
+                                            <i class="fas fa-chart-line"></i>
+                                        </div>
+                                        <div class="action-card-content">
+                                            <h3>Stats</h3>
+                                            <p>Create custom stat systems</p>
+                                        </div>
+                                        <span class="action-shortcut"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>A</kbd></span>
+                                    </button>
                                     <button class="action-card action-card-import advanced-only" id="quick-import">
                                         <div class="action-card-glow"></div>
                                         <div class="action-card-icon">
@@ -538,8 +590,14 @@
                     <!-- RandomSpawn Editor View -->
                     <div id="randomspawn-editor-view" class="view-container"></div>
 
+                    <!-- Spawner Editor View -->
+                    <div id="spawner-editor-view" class="view-container"></div>
+
                     <!-- PackInfo Editor View -->
                     <div id="packinfo-editor-view" class="view-container"></div>
+
+                    <!-- Stats Editor View -->
+                    <div id="stats-editor-view" class="view-container"></div>
                 </div>
             </main>
 
@@ -1255,6 +1313,10 @@
     <script src="components/targeterBrowser.js?v=3.8"></script>
     <script src="components/mechanicBrowser.js"></script>
     <script src="components/skillBrowser.js"></script>
+    <script src="data/placeholders.js"></script>
+    <script src="components/placeholderBrowser.js"></script>
+    <script src="components/spawnerEditor.js"></script>
+    <script src="components/statsEditor.js"></script>
     <script src="components/creationModeSelector.js"></script>
     <script src="components/notificationModal.js"></script>
     <script src="components/templateManager.js?v=20260102"></script>
@@ -1668,9 +1730,15 @@
             // ==========================================
             // Service Worker Registration (PWA Support)
             // ==========================================
-            if ('serviceWorker' in navigator) {
+            // Only register service worker in production (when not on localhost)
+            if ('serviceWorker' in navigator && !window.location.hostname.includes('127.0.0.1') && !window.location.hostname.includes('localhost')) {
                 window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('/Soaps-MythicMobs-Editor/service-worker.js')
+                    // Use path relative to current location for flexibility
+                    const swPath = window.location.pathname.includes('/Soaps-MythicMobs-Editor/') 
+                        ? '/Soaps-MythicMobs-Editor/service-worker.js' 
+                        : './service-worker.js';
+                    
+                    navigator.serviceWorker.register(swPath)
                         .then(registration => {
                             console.log('SW registered:', registration.scope);
                             
@@ -1688,7 +1756,8 @@
                             });
                         })
                         .catch(err => {
-                            console.warn('SW registration failed:', err);
+                            // Silently ignore SW errors - PWA is optional
+                            if (window.DEBUG_MODE) console.warn('SW registration failed:', err);
                         });
                 });
             }

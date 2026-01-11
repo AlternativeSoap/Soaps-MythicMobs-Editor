@@ -156,6 +156,8 @@ class DatabaseStorageManager {
     
     /**
      * Set data to cloud and localStorage
+     * - If logged in (useCloud=true): saves to both cloud and localStorage
+     * - If not logged in (useCloud=false): saves to localStorage only
      */
     async set(key, value) {
         if (window.DEBUG_MODE) {
@@ -166,14 +168,15 @@ class DatabaseStorageManager {
             });
         }
         
-        // Save to localStorage first (always available)
+        // Save to localStorage first (always available as fallback)
         try {
             localStorage.setItem(this.prefix + key, JSON.stringify(value));
+            if (window.DEBUG_MODE) console.log(`✅ Saved to localStorage: ${key}`);
         } catch (error) {
             console.error(`Failed to save to localStorage:`, error);
         }
         
-        // Try cloud storage
+        // Try cloud storage if user is authenticated
         if (this.useCloud && this.userId) {
             try {
                 const { error } = await this.supabase
@@ -188,11 +191,15 @@ class DatabaseStorageManager {
                     });
                 
                 if (error) throw error;
+                if (window.DEBUG_MODE) console.log(`✅ Saved to CLOUD: ${key} for user ${this.userId}`);
                 return true;
             } catch (error) {
-                if (window.DEBUG_MODE) console.warn(`Cloud save failed for ${key}:`, error);
-                return true; // Still return true since localStorage succeeded
+                console.warn(`⚠️ Cloud save failed for ${key}:`, error);
+                // Still return true since localStorage succeeded
+                return true;
             }
+        } else {
+            if (window.DEBUG_MODE) console.log(`ℹ️ Cloud storage disabled, saved to localStorage only: ${key}`);
         }
         
         return true;
@@ -329,10 +336,29 @@ class DatabaseStorageManager {
     
     /**
      * Update user ID (called when auth state changes)
+     * This is critical for switching between local-only and cloud storage
      */
     async updateUserId(userId) {
+        const previousUserId = this.userId;
         this.userId = userId;
+        
         if (userId) {
+            // User logged in - enable cloud storage
+            this.useCloud = true;
+            if (window.DEBUG_MODE) console.log(`✅ Cloud storage ENABLED for user: ${userId}`);
+        } else {
+            // User logged out - disable cloud storage, use localStorage only
+            this.useCloud = false;
+            this.userId = this.getOrCreateAnonymousId();
+            if (window.DEBUG_MODE) console.log(`⚠️ Cloud storage DISABLED, using localStorage with anon ID: ${this.userId}`);
+        }
+        
+        if (window.DEBUG_MODE) {
+            console.log('Storage state updated:', {
+                previousUserId,
+                newUserId: this.userId,
+                useCloud: this.useCloud
+            });
         }
     }
     
@@ -367,6 +393,81 @@ class DatabaseStorageManager {
         } catch (error) {
             console.error('Failed to sync from cloud:', error);
         }
+    }
+    
+    /**
+     * Generate a simple hash for conflict detection
+     */
+    generateDataHash(data) {
+        const str = JSON.stringify(data);
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash.toString(16);
+    }
+    
+    /**
+     * Get cloud data with metadata for conflict detection
+     */
+    async getCloudDataWithMeta(key) {
+        if (!this.useCloud || !this.userId) {
+            return { data: null, updatedAt: null, hash: null };
+        }
+        
+        try {
+            const { data, error } = await this.supabase
+                .from('user_data')
+                .select('value, updated_at')
+                .eq('user_id', this.userId)
+                .eq('key', key)
+                .maybeSingle();
+            
+            if (error) throw error;
+            
+            if (data) {
+                return {
+                    data: data.value,
+                    updatedAt: data.updated_at,
+                    hash: this.generateDataHash(data.value)
+                };
+            }
+        } catch (error) {
+            if (window.DEBUG_MODE) console.warn(`Failed to get cloud data with meta for ${key}:`, error);
+        }
+        
+        return { data: null, updatedAt: null, hash: null };
+    }
+    
+    /**
+     * Check for conflicts before saving
+     * Returns: { hasConflict, localHash, cloudHash, cloudData, cloudUpdatedAt }
+     */
+    async checkForConflicts(key, localData, expectedCloudHash) {
+        if (!this.useCloud || !this.userId || !expectedCloudHash) {
+            return { hasConflict: false };
+        }
+        
+        try {
+            const cloudMeta = await this.getCloudDataWithMeta(key);
+            
+            if (cloudMeta.hash && cloudMeta.hash !== expectedCloudHash) {
+                // Cloud data has changed since we last loaded it
+                return {
+                    hasConflict: true,
+                    localHash: this.generateDataHash(localData),
+                    cloudHash: cloudMeta.hash,
+                    cloudData: cloudMeta.data,
+                    cloudUpdatedAt: cloudMeta.updatedAt
+                };
+            }
+        } catch (error) {
+            if (window.DEBUG_MODE) console.warn('Conflict check failed:', error);
+        }
+        
+        return { hasConflict: false };
     }
 }
 

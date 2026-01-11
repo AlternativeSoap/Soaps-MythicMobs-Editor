@@ -1,0 +1,990 @@
+/**
+ * Stats Editor - Simplified & Modern Design
+ * Clean, fast, intuitive
+ */
+
+/* ============================================
+   Base Container
+   ============================================ */
+.stats-editor.simplified {
+    background: var(--bg-primary, #0f0f17);
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============================================
+   Header
+   ============================================ */
+.se-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: var(--bg-secondary, #1a1a25);
+    border-bottom: 1px solid var(--border-color, #2a2a3a);
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.se-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.se-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.se-title-group h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary, #fff);
+}
+
+.se-id {
+    font-size: 0.8rem;
+    color: var(--text-muted, #666);
+    font-family: 'Fira Code', monospace;
+}
+
+.se-header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+.se-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+}
+
+.se-btn i { font-size: 0.85em; }
+
+.se-btn-primary {
+    background: linear-gradient(135deg, #7c3aed, #6366f1);
+    color: white;
+}
+.se-btn-primary:hover {
+    background: linear-gradient(135deg, #8b5cf6, #818cf8);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+}
+
+.se-btn-back {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary, #252530);
+    color: var(--text-secondary, #aaa);
+    border-radius: 10px;
+    margin-right: 8px;
+}
+.se-btn-back:hover {
+    background: var(--bg-hover, rgba(255,255,255,0.1));
+    color: var(--text-primary, #fff);
+}
+.se-btn-back i {
+    font-size: 1rem;
+}
+
+.se-btn-outline {
+    background: transparent;
+    border: 1px solid var(--border-color, #333);
+    color: var(--text-secondary, #aaa);
+}
+.se-btn-outline:hover {
+    border-color: var(--accent-color, #7c3aed);
+    color: var(--accent-color, #7c3aed);
+}
+
+.se-btn-danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+.se-btn-danger:hover {
+    background: #ef4444;
+    color: white;
+}
+
+.se-btn-icon {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary, #252530);
+    color: var(--text-secondary, #888);
+    border-radius: 8px;
+}
+.se-btn-icon:hover {
+    background: var(--accent-color, #7c3aed);
+    color: white;
+}
+
+.se-btn-sm {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    background: var(--bg-tertiary, #252530);
+    color: var(--text-primary, #fff);
+    border: 1px solid var(--border-color, #333);
+    margin-top: 10px;
+}
+.se-btn-sm:hover {
+    background: var(--accent-color, #7c3aed);
+    border-color: var(--accent-color, #7c3aed);
+    color: white;
+    transform: translateY(-1px);
+}
+.se-btn-sm i {
+    margin-right: 4px;
+}
+
+.se-btn-x {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted, #666);
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+.se-btn-x:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+/* ============================================
+   Body
+   ============================================ */
+.se-body {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+/* ============================================
+   Presets (Quick Start)
+   ============================================ */
+.se-presets {
+    margin-bottom: 24px;
+    padding: 16px 20px;
+    background: var(--bg-secondary, #1a1a25);
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #2a2a3a);
+}
+
+.se-presets-label {
+    font-size: 0.8rem;
+    color: var(--text-muted, #666);
+    margin-bottom: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.se-presets-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.se-preset {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--bg-tertiary, #252530);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text-primary, #e0e0e0);
+}
+.se-preset:hover {
+    border-color: var(--accent-color, #7c3aed);
+    background: rgba(124, 58, 237, 0.1);
+    transform: translateY(-2px);
+}
+
+.se-preset-icon {
+    font-size: 1.1rem;
+}
+
+.se-preset-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* ============================================
+   Form
+   ============================================ */
+.se-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.se-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.se-row-main {
+    background: var(--bg-secondary, #1a1a25);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #2a2a3a);
+}
+
+.se-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 140px;
+}
+
+.se-field-grow { flex: 1; }
+.se-field-full { flex: 1 1 100%; }
+.se-field-small { width: 100px; flex: none; }
+.se-field-toggle { justify-content: flex-end; }
+
+.se-field label {
+    font-size: 0.8rem;
+    color: var(--text-muted, #888);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.se-field label small {
+    font-weight: 400;
+    opacity: 0.7;
+}
+
+/* Help Tooltip Icon */
+.se-help {
+    color: var(--text-muted, #666);
+    cursor: help;
+    font-size: 0.85em;
+    transition: color 0.15s;
+}
+.se-help:hover {
+    color: var(--accent-color, #7c3aed);
+}
+.se-help i {
+    font-size: 0.9em;
+}
+
+/* ============================================
+   Inputs
+   ============================================ */
+.se-input {
+    padding: 10px 14px;
+    background: var(--bg-tertiary, #252530);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 8px;
+    color: var(--text-primary, #e0e0e0);
+    font-size: 0.9rem;
+    transition: all 0.15s;
+}
+
+.se-input:focus {
+    outline: none;
+    border-color: var(--accent-color, #7c3aed);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}
+
+.se-input::placeholder {
+    color: var(--text-muted, #555);
+}
+
+.se-input-lg {
+    font-size: 1rem;
+    padding: 12px 16px;
+}
+
+.se-input-mono {
+    font-family: 'Fira Code', monospace;
+}
+
+.se-select {
+    padding: 10px 14px;
+    background: var(--bg-tertiary, #252530);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 8px;
+    color: var(--text-primary, #e0e0e0);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.se-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted, #666);
+}
+
+/* ============================================
+   Toggle Switch
+   ============================================ */
+.se-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.se-toggle input { display: none; }
+
+.se-toggle-slider {
+    width: 40px;
+    height: 22px;
+    background: var(--bg-tertiary, #333);
+    border-radius: 11px;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.se-toggle-slider::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #666;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: all 0.2s;
+}
+
+.se-toggle input:checked + .se-toggle-slider {
+    background: var(--accent-color, #7c3aed);
+}
+
+.se-toggle input:checked + .se-toggle-slider::after {
+    transform: translateX(18px);
+    background: white;
+}
+
+.se-toggle-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #aaa);
+}
+
+/* ============================================
+   Type Buttons
+   ============================================ */
+.se-type-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.se-type-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    background: var(--bg-tertiary, #252530);
+    border: 2px solid var(--border-color, #333);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text-primary, #e0e0e0);
+}
+
+.se-type-btn:hover {
+    border-color: var(--text-muted, #555);
+    transform: translateY(-1px);
+}
+
+.se-type-btn.active {
+    border-color: var(--accent-color, #7c3aed);
+    background: rgba(124, 58, 237, 0.15);
+}
+
+.se-type-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.se-type-name {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* ============================================
+   Chips (Triggers)
+   ============================================ */
+.se-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.se-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--bg-tertiary, #252530);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #aaa);
+}
+
+.se-chip input { display: none; }
+
+.se-chip:hover {
+    border-color: var(--text-muted, #555);
+}
+
+.se-chip.active {
+    background: rgba(124, 58, 237, 0.2);
+    border-color: var(--accent-color, #7c3aed);
+    color: var(--text-primary, #fff);
+}
+
+/* ============================================
+   Button Group (Execution Point)
+   ============================================ */
+.se-btn-group {
+    display: flex;
+    gap: 0;
+}
+
+.se-btn-choice {
+    flex: 1;
+    padding: 10px 16px;
+    background: var(--bg-tertiary, #252530);
+    border: 1px solid var(--border-color, #333);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: var(--text-secondary, #aaa);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.se-btn-choice:first-child {
+    border-radius: 8px 0 0 8px;
+}
+
+.se-btn-choice:last-child {
+    border-radius: 0 8px 8px 0;
+    border-left: none;
+}
+
+.se-btn-choice small {
+    font-size: 0.7rem;
+    font-weight: 400;
+    opacity: 0.7;
+}
+
+.se-btn-choice:hover {
+    background: var(--bg-secondary, #1e1e2e);
+}
+
+.se-btn-choice.active {
+    background: rgba(124, 58, 237, 0.2);
+    border-color: var(--accent-color, #7c3aed);
+    color: var(--text-primary, #fff);
+}
+
+/* ============================================
+   Formula Row
+   ============================================ */
+.se-formula-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.se-formula-row .se-input {
+    flex: 1;
+}
+
+.se-formula-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.se-formula-btn {
+    padding: 8px 12px;
+    background: var(--bg-tertiary, #252530);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--text-secondary, #aaa);
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.se-formula-btn:hover {
+    border-color: var(--accent-color, #7c3aed);
+    color: var(--accent-color, #7c3aed);
+}
+
+.se-formula-example {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: var(--bg-tertiary, #252530);
+    border-radius: 6px;
+    font-size: 0.8rem;
+}
+
+.se-formula-vars {
+    color: var(--text-secondary, #888);
+    font-style: italic;
+}
+
+.se-formula-example-calc {
+    color: var(--text-primary, #eee);
+}
+
+.se-formula-example-calc strong {
+    color: var(--success-color, #10b981);
+}
+
+.se-formula-reduction {
+    color: var(--text-secondary, #888);
+    font-size: 0.75rem;
+}
+
+/* ============================================
+   Conditions & Skills Lists
+   ============================================ */
+.se-conditions,
+.se-skills-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.se-condition-list,
+.se-skills-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.se-condition-item,
+.se-skill-item {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.se-condition-item .se-input,
+.se-skill-item .se-input {
+    flex: 1;
+}
+
+.se-condition-add {
+    margin-top: 4px;
+}
+
+.se-condition-add .se-select {
+    width: 100%;
+    max-width: 300px;
+}
+
+/* ============================================
+   Advanced Options (Collapsed)
+   ============================================ */
+.se-advanced {
+    margin-top: 8px;
+    background: var(--bg-secondary, #1a1a25);
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #2a2a3a);
+    overflow: hidden;
+}
+
+.se-advanced summary {
+    padding: 14px 20px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-muted, #888);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+}
+
+.se-advanced summary:hover {
+    color: var(--text-secondary, #aaa);
+}
+
+.se-advanced summary::marker {
+    display: none;
+}
+
+.se-advanced summary::-webkit-details-marker {
+    display: none;
+}
+
+.se-advanced[open] summary {
+    border-bottom: 1px solid var(--border-color, #2a2a3a);
+}
+
+.se-advanced-content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ============================================
+   Formatting Grid
+   ============================================ */
+.se-formatting-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.se-format-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.se-format-label {
+    width: 24px;
+    height: 24px;
+    background: var(--bg-tertiary, #333);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    color: var(--text-muted, #666);
+    flex-shrink: 0;
+}
+
+.se-format-item .se-input {
+    flex: 1;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+}
+
+/* ============================================
+   File View (Stats List)
+   ============================================ */
+.stats-editor.file-view .se-body {
+    padding: 20px 24px;
+}
+
+.se-search-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.se-search-bar .se-input {
+    max-width: 400px;
+}
+
+.se-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.se-filter {
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid var(--border-color, #333);
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--text-muted, #888);
+    transition: all 0.15s;
+}
+
+.se-filter:hover {
+    border-color: var(--text-secondary, #666);
+    color: var(--text-secondary, #aaa);
+}
+
+.se-filter.active {
+    background: var(--accent-color, #7c3aed);
+    border-color: var(--accent-color, #7c3aed);
+    color: white;
+}
+
+/* ============================================
+   Stats Grid (Cards)
+   ============================================ */
+.se-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+}
+
+.se-stat-card {
+    background: var(--bg-secondary, #1a1a25);
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #2a2a3a);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.se-stat-card:hover {
+    border-color: var(--accent-color, #7c3aed);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.se-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--bg-tertiary, #252530);
+    border-bottom: 2px solid;
+}
+
+.se-card-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+}
+
+.se-card-type {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted, #888);
+}
+
+.se-card-disabled {
+    margin-left: auto;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.se-card-body {
+    padding: 16px;
+}
+
+.se-card-body h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 6px 0;
+    color: var(--text-primary, #fff);
+}
+
+.se-card-body code {
+    font-size: 0.75rem;
+    color: var(--text-muted, #666);
+    font-family: 'Fira Code', monospace;
+}
+
+.se-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-color, #2a2a3a);
+    font-size: 0.8rem;
+    color: var(--text-muted, #888);
+}
+
+.se-card-footer .se-btn-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.se-stat-card:hover .se-card-footer .se-btn-icon {
+    opacity: 1;
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+.se-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted, #666);
+}
+
+.se-empty i {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.3;
+}
+
+.se-empty p {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.se-empty-hint {
+    font-size: 0.85rem;
+    margin-top: 8px;
+    opacity: 0.7;
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 768px) {
+    .se-header {
+        padding: 12px 16px;
+    }
+
+    .se-body {
+        padding: 16px;
+    }
+
+    .se-row {
+        flex-direction: column;
+    }
+
+    .se-field {
+        width: 100%;
+    }
+
+    .se-field-small {
+        width: 100%;
+    }
+
+    .se-type-buttons {
+        flex-direction: column;
+    }
+
+    .se-type-btn {
+        width: 100%;
+    }
+
+    .se-btn-group {
+        flex-direction: column;
+    }
+
+    .se-btn-choice:first-child {
+        border-radius: 8px 8px 0 0;
+    }
+
+    .se-btn-choice:last-child {
+        border-radius: 0 0 8px 8px;
+        border-left: 1px solid var(--border-color, #333);
+        border-top: none;
+    }
+
+    .se-formula-row {
+        flex-direction: column;
+    }
+
+    .se-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .se-presets-grid {
+        flex-direction: column;
+    }
+
+    .se-preset {
+        width: 100%;
+    }
+}
+
+/* ============================================
+   Pack Tree - Stats.yml Root File Item
+   ============================================ */
+.file-item.root-file {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.file-item.root-file:hover {
+    background: var(--bg-hover, rgba(255,255,255,0.05));
+}
+
+.file-item.root-file .stats-icon {
+    color: #6366f1;
+}
+
+.file-item.root-file .file-name {
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--text-primary, #fff);
+}
+
+.file-item.root-file .badge {
+    background: var(--bg-tertiary, #2a2a3a);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    color: var(--text-muted, #888);
+}
+
+.file-item.root-file.advanced-only {
+    position: relative;
+}
+
+.file-item.root-file.modified .file-name::after {
+    content: ' •';
+    color: #f59e0b;
+}

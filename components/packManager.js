@@ -33,6 +33,12 @@ class PackManager {
      * Initialize new features (search, recent files, favorites, context menu)
      */
     initializeFeatures() {
+        // Simple escape helper for rendering tooltips
+        this.esc = (text) => {
+            if (text === undefined || text === null) return '';
+            return String(text).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        };
+
         // Initialize context menu
         if (typeof ContextMenu !== 'undefined') {
             this.contextMenu = new ContextMenu();
@@ -142,7 +148,8 @@ class PackManager {
         
         this.contextMenu.registerAction('exportPack', (data) => {
             if (data?.packId) {
-                this.exportPack(data.packId);
+                // Show export dialog with this pack pre-selected
+                this.showExportDialog([data.packId]);
             }
         });
         
@@ -150,6 +157,34 @@ class PackManager {
             if (data?.packId) {
                 this.deletePack(data.packId);
             }
+        });
+        
+        // === MYTHICMOBS ROOT FOLDER ACTIONS ===
+        
+        this.contextMenu.registerAction('newPack', () => {
+            // Delegate to the main app for consistent creation flow (validations, UX)
+            if (this.editor && typeof this.editor.createNewPack === 'function') {
+                this.editor.createNewPack();
+            } else {
+                this.showCreatePackDialog();
+            }
+        });
+        
+        this.contextMenu.registerAction('exportAllPacks', () => {
+            // Show export dialog with all packs selected
+            this.showExportDialog(this.packs.map(p => p.id));
+        });
+        
+        this.contextMenu.registerAction('collapseAllPacks', () => {
+            this.collapseAllPacks();
+        });
+        
+        this.contextMenu.registerAction('expandAllPacks', () => {
+            this.expandAllPacks();
+        });
+        
+        this.contextMenu.registerAction('deleteAllPacks', () => {
+            this.deleteAllPacks();
         });
         
         // === SHARED ACTIONS ===
@@ -172,6 +207,7 @@ class PackManager {
     
     async loadPacks() {
         if (window.DEBUG_MODE) {
+            console.log('🔄 Loading packs from storage...');
         }
         
         const saved = await this.editor.storage.get('packs');
@@ -186,13 +222,85 @@ class PackManager {
         
         if (saved && saved.length > 0) {
             this.packs = saved;
-            // Ensure all packs have packinfo
+            // Ensure all packs have packinfo and clear stale modified/isNew flags
+            // Since data was loaded from storage, it's already persisted - no unsaved changes
             this.packs.forEach(pack => {
                 if (!pack.packinfo) {
                     pack.packinfo = this.createDefaultPackInfo(pack.name);
                 }
+                // Clear pack-level flags - data is already saved
+                pack.modified = false;
+                pack.isNew = false;
+                
+                // Clear flags on all files and entries within each collection
+                const fileTypes = ['mobs', 'skills', 'items', 'droptables', 'randomspawns'];
+                fileTypes.forEach(type => {
+                    if (pack[type] && Array.isArray(pack[type])) {
+                        pack[type].forEach(file => {
+                            file.modified = false;
+                            file.isNew = false;
+                            // Also clear entry-level flags
+                            if (file.entries && Array.isArray(file.entries)) {
+                                file.entries.forEach(entry => {
+                                    if (entry) {
+                                        entry.modified = false;
+                                        entry.isNew = false;
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+                
+                // Also clear flags on stats file if it exists
+                if (pack.stats) {
+                    pack.stats.modified = false;
+                    pack.stats.isNew = false;
+                    if (pack.stats.entries && Array.isArray(pack.stats.entries)) {
+                        pack.stats.entries.forEach(entry => {
+                            if (entry) {
+                                entry.modified = false;
+                                entry.isNew = false;
+                            }
+                        });
+                    }
+                }
+                
+                // Clear flags on spawners array if it exists
+                if (pack.spawners && Array.isArray(pack.spawners)) {
+                    pack.spawners.forEach(spawner => {
+                        if (spawner) {
+                            spawner.modified = false;
+                            spawner.isNew = false;
+                            if (spawner.entries && Array.isArray(spawner.entries)) {
+                                spawner.entries.forEach(entry => {
+                                    if (entry) {
+                                        entry.modified = false;
+                                        entry.isNew = false;
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+                
+                // Clear flags on spawnerFiles object if it exists
+                if (pack.spawnerFiles && typeof pack.spawnerFiles === 'object') {
+                    Object.values(pack.spawnerFiles).forEach(spawnerFile => {
+                        if (spawnerFile) {
+                            spawnerFile.modified = false;
+                            spawnerFile.isNew = false;
+                        }
+                    });
+                }
             });
             this.activePack = this.packs[0];
+            
+            // Generate cloud data hash for conflict detection
+            if (this.editor?.storage?.db?.generateDataHash) {
+                this.editor.state.cloudDataHash = this.editor.storage.db.generateDataHash(this.packs);
+                if (window.DEBUG_MODE) console.log('📊 Cloud data hash generated:', this.editor.state.cloudDataHash);
+            }
         } else {
             // Create default pack
             const defaultPack = await this.createPack('My First Pack');
@@ -221,13 +329,25 @@ class PackManager {
             items: [],
             droptables: [],
             randomspawns: [],
+            stats: null, // Single stats.yml file
             assets: [],
             packinfo: this.createDefaultPackInfo(name),
-            tooltips: []
+            tooltips: [],
+            isNew: true,  // Mark as new for Save All tracking
+            modified: true // Mark as modified
         };
         
         this.packs.push(pack);
-        this.savePacks();
+        
+        // Only auto-save if auto-save is enabled, otherwise just mark dirty
+        if (this.editor?.settings?.autoSave) {
+            this.savePacks();
+        } else {
+            // Mark editor as dirty so Save All becomes available
+            if (this.editor && typeof this.editor.markDirty === 'function') {
+                this.editor.markDirty();
+            }
+        }
         
         // Clear folder states so all folders start collapsed for the new pack
         localStorage.removeItem('folderStates');
@@ -277,11 +397,16 @@ class PackManager {
                 this.editor.authUI.setSyncStatus('syncing');
             }
             
+            // Log save details
+            const db = this.editor.storage?.db;
+            const storageType = (db?.useCloud && db?.userId) ? 'CLOUD' : 'LOCAL';
+            
             if (window.DEBUG_MODE) {
-                console.log('Saving packs to storage...', {
+                console.log(`💾 Saving packs to ${storageType} storage...`, {
                     packCount: this.packs.length,
                     totalSkills: this.packs.reduce((sum, p) => sum + (p.skills?.length || 0), 0),
-                    userId: this.editor.storage.db?.userId || 'unknown'
+                    userId: db?.userId || 'unknown',
+                    useCloud: db?.useCloud || false
                 });
             }
             
@@ -292,6 +417,16 @@ class PackManager {
             const verification = await this.editor.storage.get('packs');
             if (!verification || verification.length !== this.packs.length) {
                 throw new Error('Save verification failed - data mismatch');
+            }
+            
+            if (window.DEBUG_MODE) {
+                console.log(`✅ Packs saved successfully to ${storageType}`);
+            }
+            
+            // Update cloud data hash for conflict detection
+            if (db?.generateDataHash) {
+                this.editor.state.cloudDataHash = db.generateDataHash(this.packs);
+                if (window.DEBUG_MODE) console.log('📊 Cloud data hash updated:', this.editor.state.cloudDataHash);
             }
             
             // Show success
@@ -382,12 +517,66 @@ class PackManager {
         const container = document.getElementById('pack-tree');
         if (!container) return;
         
-        if (this.packs.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>No packs yet. Create one to get started!</p></div>';
-            return;
+        // Check for advanced mode - use state.currentMode (not settings.mode)
+        const isAdvancedMode = this.editor?.state?.currentMode === 'advanced';
+        const spawnerFiles = this.getSpawnerFiles();
+        const hasSpawners = spawnerFiles.length > 0;
+        
+        // Debug logging for spawner folder visibility
+        if (window.DEBUG_MODE) {
+            console.log('📁 Spawners folder debug:', {
+                isAdvancedMode,
+                currentMode: this.editor?.state?.currentMode,
+                spawnerFiles,
+                hasSpawners,
+                currentPack: this.editor?.state?.currentPack?.name,
+                spawnerFilesObj: this.editor?.state?.currentPack?.spawnerFiles
+            });
         }
         
-        container.innerHTML = this.packs.map(pack => this.renderPackItem(pack)).join('');
+        // Render MythicMobs root folder structure
+        let html = `
+            <div class="mythicmobs-root">
+                <!-- MythicMobs Root Folder -->
+                <div class="root-folder-item" data-root-folder="mythicmobs">
+                    <div class="root-folder-header ${this.isMythicMobsExpanded() ? '' : 'collapsed'}" data-root="mythicmobs">
+                        <i class="fas fa-chevron-${this.isMythicMobsExpanded() ? 'down' : 'right'} root-chevron"></i>
+                        <i class="fas fa-dragon root-icon"></i>
+                        <span>MythicMobs</span>
+                    </div>
+                    <div class="root-folder-content ${this.isMythicMobsExpanded() ? '' : 'collapsed'}">
+                        <!-- Packs directly under MythicMobs (no intermediate Packs folder) -->
+                        ${this.packs.length === 0 
+                            ? '<div class="empty-state"><p>No packs yet. Create one to get started!</p></div>'
+                            : this.packs.map(pack => this.renderPackItem(pack)).join('')
+                        }
+                        
+                        ${isAdvancedMode ? `
+                        <!-- Spawners Sub-folder (Advanced Mode Only) -->
+                        <div class="subfolder-item spawners-folder" data-subfolder="spawners">
+                            <div class="subfolder-header ${this.isSpawnersFolderExpanded() ? '' : 'collapsed'}" data-subfolder="spawners">
+                                <i class="fas fa-chevron-${this.isSpawnersFolderExpanded() ? 'down' : 'right'} subfolder-chevron"></i>
+                                <i class="fas fa-dungeon subfolder-icon"></i>
+                                <span>Spawners</span>
+                                <span class="badge">${this.getSpawnerFiles().length}</span>
+                            </div>
+                            <div class="subfolder-content ${this.isSpawnersFolderExpanded() ? '' : 'collapsed'}">
+                                ${this.renderSpawnerFiles()}
+                                <button class="add-item-btn add-spawner-btn" data-type="spawner">
+                                    <i class="fas fa-plus"></i> New Spawner
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Stats.yml Root File (Advanced Mode Only) - at MythicMobs root level -->
+                        ${this.renderStatsRootFile()}
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = html;
         
         // Setup delegated event listeners ONCE (handles clicks, context menus, etc.)
         this.setupDelegatedEventListeners();
@@ -563,6 +752,28 @@ class PackManager {
     }
     
     /**
+     * Render stats.yml at MythicMobs root level (not inside packs)
+     * Stats are global, not pack-specific
+     */
+    renderStatsRootFile() {
+        // Get stats from active pack (they're stored per-pack but displayed globally)
+        const stats = this.activePack?.stats;
+        const entryCount = stats?.entries?.length || 0;
+        const isModified = stats?.modified || false;
+        const isActive = this.editor?.state?.currentView === 'stats';
+        
+        return `
+            <div class="file-item root-file stats-file advanced-only ${isModified ? 'modified' : ''} ${isActive ? 'active' : ''}" 
+                data-file-id="${stats?.id || 'stats_file'}" 
+                data-file-type="stat">
+                <i class="fas fa-chart-line file-icon stats-icon"></i>
+                <span class="file-name">stats.yml</span>
+                <span class="badge">${entryCount}</span>
+            </div>
+        `;
+    }
+
+    /**
      * Render file-based collection (files containing entries)
      * Always uses file-based structure
      */
@@ -635,10 +846,89 @@ class PackManager {
         const container = document.getElementById('pack-tree');
         if (!container) return;
         
+        // === HEADER BUTTONS (outside pack-tree, need separate listeners) ===
+        const refreshBtn = document.getElementById('refresh-tree-btn');
+        const expandBtn = document.getElementById('expand-all-btn');
+        const collapseBtn = document.getElementById('collapse-all-btn');
+        
+        if (refreshBtn && !refreshBtn._listenerAttached) {
+            refreshBtn._listenerAttached = true;
+            refreshBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const icon = refreshBtn.querySelector('i');
+                if (icon) icon.classList.add('fa-spin');
+                this.renderPackTree();
+                if (window.showToast) window.showToast('File tree refreshed', 'success');
+                setTimeout(() => { if (icon) icon.classList.remove('fa-spin'); }, 500);
+            });
+        }
+        
+        if (expandBtn && !expandBtn._listenerAttached) {
+            expandBtn._listenerAttached = true;
+            expandBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.expandAllFolders();
+            });
+        }
+        
+        if (collapseBtn && !collapseBtn._listenerAttached) {
+            collapseBtn._listenerAttached = true;
+            collapseBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.collapseAllFolders();
+            });
+        }
+        
         // === CLICK EVENTS (delegated) ===
         container.addEventListener('click', (e) => {
             // Prevent handling if the element is inside an input (inline editing)
             if (e.target.closest('input')) return;
+            
+            // === NEW: Root folder header toggle ===
+            const rootFolderHeader = e.target.closest('.root-folder-header');
+            if (rootFolderHeader) {
+                e.stopPropagation();
+                const rootName = rootFolderHeader.dataset.root;
+                this.toggleRootFolder(rootName);
+                return;
+            }
+            
+            // === NEW: Subfolder header toggle ===
+            const subfolderHeader = e.target.closest('.subfolder-header');
+            if (subfolderHeader) {
+                e.stopPropagation();
+                const subfolderName = subfolderHeader.dataset.subfolder;
+                this.toggleSubfolder(subfolderName);
+                return;
+            }
+            
+            // === NEW: Spawner file click ===
+            const spawnerFile = e.target.closest('.spawner-file-item');
+            if (spawnerFile) {
+                e.stopPropagation();
+                const fileName = spawnerFile.dataset.spawnerFile;
+                if (!e.target.closest('.delete-spawner-btn')) {
+                    this.openSpawnerFile(fileName);
+                }
+                return;
+            }
+            
+            // === NEW: Delete spawner button ===
+            const deleteSpawnerBtn = e.target.closest('.delete-spawner-btn');
+            if (deleteSpawnerBtn) {
+                e.stopPropagation();
+                const fileName = deleteSpawnerBtn.dataset.spawnerFile;
+                this.deleteSpawnerFile(fileName);
+                return;
+            }
+            
+            // === NEW: Add spawner button ===
+            const addSpawnerBtn = e.target.closest('.add-spawner-btn');
+            if (addSpawnerBtn) {
+                e.stopPropagation();
+                this.editor.createNewSpawner();
+                return;
+            }
             
             // Favorite star button
             const favoriteBtn = e.target.closest('.favorite-star-btn');
@@ -674,6 +964,7 @@ class PackManager {
                     case 'item': this.editor.createNewItem(); break;
                     case 'droptable': this.editor.createNewDropTable(); break;
                     case 'randomspawn': this.editor.createNewRandomSpawn(); break;
+                    case 'stat': this.editor.createNewStat(); break;
                 }
                 return;
             }
@@ -742,6 +1033,17 @@ class PackManager {
                 const fileId = fileItem.dataset.fileId;
                 const fileType = fileItem.dataset.fileType;
                 
+                // Special handling for stats file
+                if (fileType === 'stat') {
+                    // Remove active class from all file items and set it on stats file
+                    container.querySelectorAll('.file-item.active, .entry-item.active').forEach(el => el.classList.remove('active'));
+                    fileItem.classList.add('active');
+                    
+                    // showStatsEditor handles state for YAML preview
+                    this.editor.showStatsEditor();
+                    return;
+                }
+                
                 // Try to find file in active pack first
                 let file = this.findFile(fileId, fileType);
                 
@@ -776,16 +1078,6 @@ class PackManager {
                     // Different pack - activate (which also expands it)
                     this.setActivePack(pack);
                 }
-                return;
-            }
-            
-            // Expand all / Collapse all buttons
-            if (e.target.closest('#expand-all-btn')) {
-                this.expandAllFolders();
-                return;
-            }
-            if (e.target.closest('#collapse-all-btn')) {
-                this.collapseAllFolders();
                 return;
             }
         });
@@ -930,6 +1222,32 @@ class PackManager {
                 });
                 return;
             }
+            
+            // MythicMobs root folder context menu
+            const rootFolderHeader = e.target.closest('.root-folder-header');
+            if (rootFolderHeader) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const packCount = this.packs.length;
+                
+                const menuItems = [
+                    { label: 'New Pack', icon: 'fa-plus', action: 'newPack' },
+                    { separator: true },
+                    { label: 'Expand All Packs', icon: 'fa-expand-alt', action: 'expandAllPacks' },
+                    { label: 'Collapse All Packs', icon: 'fa-compress-alt', action: 'collapseAllPacks' },
+                    { separator: true },
+                    { label: `Export All Packs (${packCount})`, icon: 'fa-file-archive', action: 'exportAllPacks' },
+                    { separator: true },
+                    { label: `Delete All Packs (${packCount})`, icon: 'fa-trash', action: 'deleteAllPacks', danger: true }
+                ];
+                
+                this.contextMenu.show(e.clientX, e.clientY, menuItems, {
+                    itemType: 'root',
+                    packCount
+                });
+                return;
+            }
         });
         
         // Mark as initialized
@@ -943,17 +1261,28 @@ class PackManager {
         const isExpanded = fileStates[file.id] || false;
         const entryCount = file.entries?.length || 0;
         const isPlaceholder = file._importMeta?.isPlaceholderFile;
+        const modifiedTitle = file.modified ? (`Unsaved changes${file.lastModified ? ' - ' + new Date(file.lastModified).toLocaleString() : ''}`) : '';
+        const isNew = file.isNew;
+        
+        // Determine badge type: new (green) or modified (orange)
+        let statusBadge = '';
+        if (file.isNew) {
+            statusBadge = `<span class="file-status-badge new" title="New file - not saved yet"><i class="fas fa-plus-circle"></i></span>`;
+        } else if (file.modified) {
+            statusBadge = `<span class="file-status-badge modified" title="${this.esc(modifiedTitle)}"><i class="fas fa-circle"></i></span>`;
+        }
         
         return `
             <div class="yaml-file-container" data-file-id="${file.id}" data-file-type="${type}">
-                <div class="yaml-file-header ${isPlaceholder ? 'placeholder-file' : ''}" 
+                <div class="yaml-file-header ${isPlaceholder ? 'placeholder-file' : ''} ${file.modified ? 'has-changes' : ''} ${file.isNew ? 'is-new' : ''}" 
                      data-file-id="${file.id}" 
                      data-file-type="${type}" 
-                     data-file-name="${file.fileName}">
+                     data-file-name="${file.fileName}" title="${this.esc(modifiedTitle)}">
                     <i class="fas ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} file-chevron"></i>
                     <i class="fas fa-file-code yaml-file-icon"></i>
                     <span class="yaml-file-name">${file.fileName}</span>
                     <span class="badge entry-count">${entryCount}</span>
+                    ${statusBadge}
                 </div>
                 <div class="yaml-file-entries ${isExpanded ? 'expanded' : 'collapsed'}">
                     ${(file.entries || []).map(entry => this.renderEntryItem(entry, type, file.id)).join('')}
@@ -972,6 +1301,7 @@ class PackManager {
             item: 'fa-gem',
             droptable: 'fa-table',
             randomspawn: 'fa-map-marked-alt',
+            stat: 'fa-chart-bar',
             asset: 'fa-cube'
         };
         
@@ -979,16 +1309,26 @@ class PackManager {
         const displayName = entry.internalName || entry.name || 'Unnamed';
         const isPlaceholder = entry._placeholder;
         const isFavorited = this.isFavorited(entry.id);
+        const entryModifiedTitle = entry.modified ? (`Unsaved changes${entry.lastModified ? ' - ' + new Date(entry.lastModified).toLocaleString() : ''}`) : '';
+        
+        // Determine status indicator: new (green dot) or modified (orange dot)
+        let statusDot = '';
+        if (entry.isNew) {
+            statusDot = `<span class="entry-status-dot new" title="New - not saved yet">●</span>`;
+        } else if (entry.modified) {
+            statusDot = `<span class="entry-status-dot modified" title="${this.esc(entryModifiedTitle)}">●</span>`;
+        }
         
         return `
-            <div class="entry-item ${isActive ? 'active' : ''} ${isPlaceholder ? 'placeholder-entry' : ''}" 
+            <div class="entry-item ${isActive ? 'active' : ''} ${isPlaceholder ? 'placeholder-entry' : ''} ${entry.modified ? 'has-changes' : ''} ${entry.isNew ? 'is-new' : ''}" 
                  data-entry-id="${entry.id}" 
                  data-file-type="${type}"
                  data-file-name="${displayName}"
-                 data-parent-file-id="${parentFileId}">
+                 data-parent-file-id="${parentFileId}" title="${this.esc(entryModifiedTitle)}">
                 <i class="fas ${icons[type]} entry-icon"></i>
                 <span>${displayName}</span>
                 ${isPlaceholder ? '<span class="placeholder-badge">placeholder</span>' : ''}
+                ${statusDot}
                 <button class="favorite-star-btn ${isFavorited ? 'favorited' : ''}" 
                         data-entry-id="${entry.id}"
                         data-file-name="${displayName}"
@@ -1007,6 +1347,7 @@ class PackManager {
             item: 'fa-gem',
             droptable: 'fa-table',
             randomspawn: 'fa-map-marked-alt',
+            stat: 'fa-chart-bar',
             asset: 'fa-cube'
         };
         
@@ -1061,6 +1402,168 @@ class PackManager {
         const saved = localStorage.getItem('folderStates');
         // Return empty object - folders are collapsed by default (no state = collapsed)
         return saved ? JSON.parse(saved) : {};
+    }
+    
+    // ============================================
+    // Root Folder State Management
+    // ============================================
+    
+    /**
+     * Check if MythicMobs root folder is expanded
+     */
+    isMythicMobsExpanded() {
+        const states = this.getFolderStates();
+        // Default to expanded
+        return states['mythicmobs-root'] !== false;
+    }
+    
+    /**
+     * Check if Packs subfolder is expanded
+     */
+    isPacksFolderExpanded() {
+        const states = this.getFolderStates();
+        // Default to expanded
+        return states['packs-subfolder'] !== false;
+    }
+    
+    /**
+     * Check if Spawners subfolder is expanded
+     */
+    isSpawnersFolderExpanded() {
+        const states = this.getFolderStates();
+        // Default to expanded so users can see it
+        return states['spawners-subfolder'] !== false;
+    }
+    
+    /**
+     * Toggle root folder expand/collapse
+     */
+    toggleRootFolder(rootName) {
+        const states = this.getFolderStates();
+        const key = `${rootName}-root`;
+        states[key] = states[key] === false; // Toggle (default true)
+        localStorage.setItem('folderStates', JSON.stringify(states));
+        this.renderPackTree();
+    }
+    
+    /**
+     * Toggle subfolder expand/collapse
+     */
+    toggleSubfolder(subfolderName) {
+        const states = this.getFolderStates();
+        const key = `${subfolderName}-subfolder`;
+        
+        // Packs and spawners default to expanded, toggle them
+        if (subfolderName === 'packs' || subfolderName === 'spawners') {
+            // Default is expanded (true), toggle to collapsed (false) and vice versa
+            states[key] = states[key] === false ? undefined : false; // undefined = default expanded
+        } else {
+            states[key] = !states[key];
+        }
+        
+        localStorage.setItem('folderStates', JSON.stringify(states));
+        this.renderPackTree();
+    }
+    
+    /**
+     * Get all spawner files from current pack or global spawners storage
+     */
+    getSpawnerFiles() {
+        // Check global spawners storage first (for pack-independent spawners)
+        if (window.globalSpawnerFiles && Object.keys(window.globalSpawnerFiles).length > 0) {
+            return Object.keys(window.globalSpawnerFiles);
+        }
+        
+        // Fall back to current pack's spawner files
+        if (this.editor?.state?.currentPack?.spawnerFiles) {
+            return Object.keys(this.editor.state.currentPack.spawnerFiles);
+        }
+        
+        return [];
+    }
+    
+    /**
+     * Render spawner files list in the spawners folder
+     */
+    renderSpawnerFiles() {
+        const spawnerFiles = this.getSpawnerFiles();
+        
+        if (spawnerFiles.length === 0) {
+            return '<div class="empty-spawners"><p>No spawner files yet.</p></div>';
+        }
+        
+        return spawnerFiles.map(fileName => {
+            const isActive = this.editor?.state?.currentSpawnerFile === fileName;
+            const isModified = this.isSpawnerModified(fileName);
+            
+            return `
+                <div class="spawner-file-item ${isActive ? 'active' : ''}" data-spawner-file="${this.escapeHtml(fileName)}">
+                    <i class="fas fa-map-marker-alt file-icon"></i>
+                    <span class="file-name">${this.escapeHtml(fileName)}</span>
+                    ${isModified ? '<span class="modified-indicator">•</span>' : ''}
+                    <button class="btn-icon delete-spawner-btn" data-spawner-file="${this.escapeHtml(fileName)}" title="Delete spawner">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    /**
+     * Check if a spawner file has been modified
+     */
+    isSpawnerModified(fileName) {
+        // Check in global storage
+        if (window.globalSpawnerFiles?.[fileName]?.modified) {
+            return true;
+        }
+        // Check in pack storage
+        if (this.editor?.state?.currentPack?.spawnerFiles?.[fileName]?.modified) {
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Open a spawner file in the spawner editor
+     */
+    openSpawnerFile(fileName) {
+        if (this.editor && typeof this.editor.showSpawnerEditor === 'function') {
+            this.editor.showSpawnerEditor(fileName);
+            this.renderPackTree(); // Update to show active state
+        }
+    }
+    
+    /**
+     * Delete a spawner file
+     */
+    async deleteSpawnerFile(fileName) {
+        const confirmed = await this.editor?.showConfirmDialog?.(
+            `Are you sure you want to delete "${fileName}"?`,
+            'Delete Spawner File'
+        );
+        
+        if (!confirmed) return;
+        
+        // Remove from global storage
+        if (window.globalSpawnerFiles?.[fileName]) {
+            delete window.globalSpawnerFiles[fileName];
+        }
+        
+        // Remove from pack storage
+        if (this.editor?.state?.currentPack?.spawnerFiles?.[fileName]) {
+            delete this.editor.state.currentPack.spawnerFiles[fileName];
+        }
+        
+        // If this was the current spawner file, go back to dashboard
+        if (this.editor?.state?.currentSpawnerFile === fileName) {
+            this.editor.state.currentSpawnerFile = null;
+            this.editor.goToDashboard();
+        }
+        
+        this.renderPackTree();
+        this.editor?.showToast?.('Spawner file deleted', 'success');
+        this.editor?.markDirty?.();
     }
     
     /**
@@ -1949,6 +2452,8 @@ class PackManager {
                 fileName: uniqueFileName,
                 relativePath: this.getRelativePath(type, uniqueFileName),
                 entries: [],
+                isNew: true,
+                modified: true,
                 _importMeta: {
                     createdAt: new Date().toISOString()
                 }
@@ -1965,7 +2470,18 @@ class PackManager {
         
         targetFile.entries.push(file);
         
-        this.savePacks();
+        // Mark file as modified
+        targetFile.modified = true;
+        
+        // Only auto-save if setting is enabled, otherwise just mark dirty
+        if (this.editor?.settings?.autoSave) {
+            this.savePacks();
+        } else {
+            // Mark as dirty so Save All becomes available
+            if (this.editor && typeof this.editor.markDirty === 'function') {
+                this.editor.markDirty();
+            }
+        }
         
         // Only full re-render if we created a new file, otherwise just update the specific file container
         if (isNewFile) {
@@ -2012,7 +2528,19 @@ class PackManager {
         const file = collection.find(f => f.id === fileId);
         if (file && file.entries) {
             file.entries.push(entry);
-            this.savePacks();
+            
+            // Mark file as modified
+            file.modified = true;
+            
+            // Only auto-save if setting is enabled, otherwise just mark dirty
+            if (this.editor?.settings?.autoSave) {
+                this.savePacks();
+            } else {
+                // Mark as dirty so Save All becomes available
+                if (this.editor && typeof this.editor.markDirty === 'function') {
+                    this.editor.markDirty();
+                }
+            }
             this.renderPackTree();
             return true;
         }
@@ -2044,6 +2572,8 @@ class PackManager {
             fileName: uniqueFileName,
             relativePath: this.getRelativePath(type, uniqueFileName),
             entries: [],
+            isNew: true,  // Mark as new for Save All tracking
+            modified: true, // Mark as modified
             _importMeta: {
                 createdAt: new Date().toISOString()
             }
@@ -2056,7 +2586,16 @@ class PackManager {
         this.saveFolderState(folderName, true);
         this.saveFileState(newFile.id, false); // Don't auto-expand the file itself
         
-        this.savePacks();
+        // Only auto-save if auto-save is enabled, otherwise just mark dirty
+        if (this.editor?.settings?.autoSave) {
+            this.savePacks();
+        } else {
+            // Mark editor as dirty so Save All becomes available
+            if (this.editor && typeof this.editor.markDirty === 'function') {
+                this.editor.markDirty();
+            }
+        }
+        
         this.renderPackTree();
         return true;
     }
@@ -2092,6 +2631,8 @@ class PackManager {
             fileName: uniqueFileName,
             relativePath: this.getRelativePath(type, uniqueFileName),
             entries: entries,
+            isNew: true,
+            modified: true,
             _importMeta: {
                 createdAt: new Date().toISOString(),
                 source: 'template'
@@ -2105,7 +2646,15 @@ class PackManager {
         this.saveFolderState(folderName, true);
         this.saveFileState(newFile.id, true); // Auto-expand to show entries
         
-        this.savePacks();
+        // Only auto-save if setting is enabled, otherwise just mark dirty
+        if (this.editor?.settings?.autoSave) {
+            this.savePacks();
+        } else {
+            // Mark as dirty so Save All becomes available
+            if (this.editor && typeof this.editor.markDirty === 'function') {
+                this.editor.markDirty();
+            }
+        }
         this.renderPackTree();
         
         return newFile;
@@ -2167,13 +2716,24 @@ class PackManager {
             fileName: fileName,
             relativePath: this.getRelativePath(type, fileName),
             entries: [],
+            isNew: true,
+            modified: true,
             _importMeta: {
                 createdAt: new Date().toISOString()
             }
         };
         
         collection.push(newFile);
-        this.savePacks();
+        
+        // Only auto-save if setting is enabled, otherwise just mark dirty
+        if (this.editor?.settings?.autoSave) {
+            this.savePacks();
+        } else {
+            // Mark as dirty so Save All becomes available
+            if (this.editor && typeof this.editor.markDirty === 'function') {
+                this.editor.markDirty();
+            }
+        }
         this.renderPackTree();
         return newFile;
     }
@@ -2237,7 +2797,15 @@ class PackManager {
                 this.editor.goToDashboard();
             }
             
-            this.savePacks();
+            // Only auto-save if setting is enabled, otherwise just mark dirty
+            if (this.editor?.settings?.autoSave) {
+                this.savePacks();
+            } else {
+                // Mark as dirty so Save All becomes available
+                if (this.editor && typeof this.editor.markDirty === 'function') {
+                    this.editor.markDirty();
+                }
+            }
             this.renderPackTree();
             return true;
         }
@@ -2260,6 +2828,9 @@ class PackManager {
             if (entryIndex >= 0) {
                 file.entries.splice(entryIndex, 1);
                 
+                // Mark file as modified
+                file.modified = true;
+                
                 // If the deleted entry is currently open, go to dashboard
                 if (this.editor.state.currentFile && this.editor.state.currentFile.id === entryId) {
                     this.editor.goToDashboard();
@@ -2272,7 +2843,15 @@ class PackManager {
                 //     if (fileIndex >= 0) collection.splice(fileIndex, 1);
                 // }
                 
-                this.savePacks();
+                // Only auto-save if setting is enabled, otherwise just mark dirty
+                if (this.editor?.settings?.autoSave) {
+                    this.savePacks();
+                } else {
+                    // Mark as dirty so Save All becomes available
+                    if (this.editor && typeof this.editor.markDirty === 'function') {
+                        this.editor.markDirty();
+                    }
+                }
                 this.renderPackTree();
                 return true;
             }
@@ -2406,11 +2985,15 @@ class PackManager {
             
             const zip = new JSZip();
             
+            // Create MythicMobs/PackName folder structure
+            const packFolderName = pack.name.replace(/[^a-z0-9\s]/gi, '').trim() || 'MyPack';
+            const packRoot = zip.folder('MythicMobs').folder(packFolderName);
+            
             // Helper to export a collection (always file-based structure)
             const exportCollection = (collection, folderName, type) => {
                 if (!collection || collection.length === 0) return;
                 
-                const folder = zip.folder(folderName);
+                const folder = packRoot.folder(folderName);
                 
                 // Set pack context for template-aware mob exports
                 if (type === 'mob') {
@@ -2445,6 +3028,21 @@ class PackManager {
             exportCollection(pack.droptables, 'DropTables', 'droptable');
             exportCollection(pack.randomspawns, 'RandomSpawns', 'randomspawn');
             
+            // Export stats.yml in MythicMobs root folder (not in pack subfolder)
+            if (pack.stats && pack.stats.entries && pack.stats.entries.length > 0) {
+                let statsYaml = '';
+                pack.stats.entries.forEach((stat, index) => {
+                    const yaml = this.editor.yamlExporter.exportWithoutFooter(stat, 'stat');
+                    statsYaml += yaml;
+                    if (index < pack.stats.entries.length - 1) {
+                        statsYaml += '\n';
+                    }
+                });
+                statsYaml += '\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n# Made by AlternativeSoap\'s MythicMob Editor\n# Discord: https://discord.gg/eUFRvyzJua';
+                // Place stats.yml in MythicMobs root, not in pack subfolder
+                zip.folder('MythicMobs').file('stats.yml', statsYaml);
+            }
+            
             // Export packinfo.yml
             const packinfo = pack.packinfo || this.createDefaultPackInfo(pack.name);
             const footer = '\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n# Made by AlternativeSoap\'s MythicMob Editor\n# Discord: https://discord.gg/eUFRvyzJua';
@@ -2457,10 +3055,10 @@ Icon:
 URL: ${packinfo.URL || ''}
 Description:
 ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join('\n')}` + footer;
-            zip.file('packinfo.yml', packinfoYaml);
+            packRoot.file('packinfo.yml', packinfoYaml);
             
             // Export tooltips.yml
-            zip.file('tooltips.yml', '# Tooltips configuration\n' + footer);
+            packRoot.file('tooltips.yml', '# Tooltips configuration\n' + footer);
             
             // Generate and download
             const content = await zip.generateAsync({ type: 'blob' });
@@ -2521,6 +3119,666 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
         this.editor.showToast('Pack deleted successfully', 'success');
     }
     
+    /**
+     * Delete all packs after confirmation
+     */
+    async deleteAllPacks() {
+        if (this.packs.length === 0) {
+            this.editor.showToast('No packs to delete', 'info');
+            return;
+        }
+        
+        const confirmed = await this.editor.showConfirmDialog(
+            'Delete All Packs',
+            `Are you sure you want to delete ALL ${this.packs.length} pack(s)? This cannot be undone!`,
+            'Delete All',
+            'Cancel'
+        );
+        
+        if (!confirmed) {
+            return;
+        }
+        
+        // Second confirmation for safety
+        const doubleConfirmed = await this.editor.showConfirmDialog(
+            'Final Confirmation',
+            `This will permanently delete ${this.packs.length} pack(s) and all their contents. Are you absolutely sure?`,
+            'Yes, Delete Everything',
+            'Cancel'
+        );
+        
+        if (!doubleConfirmed) {
+            return;
+        }
+        
+        // Clear all packs
+        this.packs = [];
+        this.activePack = null;
+        this.editor.state.currentPack = null;
+        this.editor.goToDashboard();
+        
+        this.savePacks();
+        this.renderPackTree();
+        this.editor.showToast('All packs deleted', 'success');
+    }
+    
+    /**
+     * Export all packs as a single ZIP file
+     */
+    async exportAllPacks() {
+        if (this.packs.length === 0) {
+            this.editor.showToast('No packs to export', 'info');
+            return;
+        }
+        
+        try {
+            const JSZip = window.JSZip;
+            if (!JSZip) {
+                this.editor.showToast('JSZip library not loaded', 'error');
+                return;
+            }
+            
+            const zip = new JSZip();
+            const mythicMobsFolder = zip.folder('MythicMobs');
+            
+            // Export each pack
+            for (const pack of this.packs) {
+                const packFolderName = pack.name.replace(/[^a-z0-9\s]/gi, '').trim() || 'MyPack';
+                const packRoot = mythicMobsFolder.folder(packFolderName);
+                
+                // Helper to export a collection
+                const exportCollection = (collection, folderName, type) => {
+                    if (!collection || collection.length === 0) return;
+                    
+                    const folder = packRoot.folder(folderName);
+                    
+                    if (type === 'mob') {
+                        this.editor.yamlExporter.setPackContext(pack);
+                    }
+                    
+                    collection.forEach(file => {
+                        if (!file.entries || file.entries.length === 0) return;
+                        
+                        let yamlContent = '';
+                        file.entries.forEach((entry, index) => {
+                            const yaml = this.editor.yamlExporter.exportWithoutFooter(entry, type);
+                            yamlContent += yaml;
+                            if (index < file.entries.length - 1) {
+                                yamlContent += '\n';
+                            }
+                        });
+                        
+                        yamlContent += '\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n# Made by AlternativeSoap\'s MythicMob Editor\n# Discord: https://discord.gg/eUFRvyzJua';
+                        folder.file(file.fileName, yamlContent);
+                    });
+                };
+                
+                // Export all collections for this pack
+                exportCollection(pack.mobs, 'Mobs', 'mob');
+                exportCollection(pack.skills, 'Skills', 'skill');
+                exportCollection(pack.items, 'Items', 'item');
+                exportCollection(pack.droptables, 'DropTables', 'droptable');
+                exportCollection(pack.randomspawns, 'RandomSpawns', 'randomspawn');
+                
+                // Export packinfo.yml
+                const packinfo = pack.packinfo || this.createDefaultPackInfo(pack.name);
+                const footer = '\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n# Made by AlternativeSoap\'s MythicMob Editor\n# Discord: https://discord.gg/eUFRvyzJua';
+                const packinfoYaml = `Name: ${packinfo.Name || pack.name}
+Version: ${packinfo.Version || '1.0.0'}
+Author: ${packinfo.Author || ''}
+Icon:
+  Material: ${packinfo.Icon?.Material || 'DIAMOND'}
+  Model: ${packinfo.Icon?.Model || 0}
+URL: ${packinfo.URL || ''}
+Description:
+${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join('\n')}` + footer;
+                packRoot.file('packinfo.yml', packinfoYaml);
+                
+                // Export tooltips.yml
+                packRoot.file('tooltips.yml', '# Tooltips configuration\n' + footer);
+            }
+            
+            // Generate and download
+            const content = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `MythicMobs_AllPacks_${new Date().toISOString().split('T')[0]}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            this.editor.showToast(`Exported ${this.packs.length} pack(s) successfully`, 'success');
+        } catch (error) {
+            console.error('Export all packs error:', error);
+            this.editor.showToast('Failed to export packs', 'error');
+        }
+    }
+    
+    /**
+     * Show export dialog with pack selection
+     * @param {string[]} preSelectedPackIds - Array of pack IDs to pre-select
+     */
+    async showExportDialog(preSelectedPackIds = []) {
+        if (this.packs.length === 0) {
+            this.editor.showToast('No packs to export', 'info');
+            return;
+        }
+        
+        // Create and show the export dialog
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay export-dialog-overlay';
+        overlay.innerHTML = `
+            <div class="modal export-dialog-modal">
+                <div class="modal-header">
+                    <h2><i class="fas fa-file-export"></i> Export Packs</h2>
+                    <button class="modal-close export-dialog-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="export-dialog-content">
+                        <!-- Export Type Selection -->
+                        <div class="export-section">
+                            <h3><i class="fas fa-folder-tree"></i> Export Structure</h3>
+                            <div class="export-type-options">
+                                <label class="export-type-option">
+                                    <input type="radio" name="exportType" value="mythicmobs" checked>
+                                    <div class="option-content">
+                                        <i class="fas fa-dragon"></i>
+                                        <div class="option-text">
+                                            <strong>Full MythicMobs Folder</strong>
+                                            <span>Creates: MythicMobs/[PackName]/...</span>
+                                            <span class="option-hint">Best for dropping into your server's plugins folder</span>
+                                        </div>
+                                    </div>
+                                </label>
+                                <label class="export-type-option">
+                                    <input type="radio" name="exportType" value="packsonly">
+                                    <div class="option-content">
+                                        <i class="fas fa-box"></i>
+                                        <div class="option-text">
+                                            <strong>Pack Folders Only</strong>
+                                            <span>Creates: [PackName]/...</span>
+                                            <span class="option-hint">Best for adding to existing MythicMobs folder</span>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Pack Selection -->
+                        <div class="export-section">
+                            <h3><i class="fas fa-cubes"></i> Select Packs to Export</h3>
+                            <div class="export-select-all">
+                                <label>
+                                    <input type="checkbox" id="exportSelectAll" ${preSelectedPackIds.length === this.packs.length ? 'checked' : ''}>
+                                    <span>Select All (${this.packs.length} packs)</span>
+                                </label>
+                            </div>
+                            <div class="export-pack-list">
+                                ${this.packs.map(pack => {
+                                    const isSelected = preSelectedPackIds.includes(pack.id);
+                                    const mobCount = pack.mobs?.reduce((sum, f) => sum + (f.entries?.length || 0), 0) || 0;
+                                    const skillCount = pack.skills?.reduce((sum, f) => sum + (f.entries?.length || 0), 0) || 0;
+                                    const itemCount = pack.items?.reduce((sum, f) => sum + (f.entries?.length || 0), 0) || 0;
+                                    const dropCount = pack.droptables?.reduce((sum, f) => sum + (f.entries?.length || 0), 0) || 0;
+                                    const spawnerCount = pack.spawnerFiles ? Object.keys(pack.spawnerFiles).length : 0;
+                                    
+                                    return `
+                                        <label class="export-pack-item ${isSelected ? 'selected' : ''}">
+                                            <input type="checkbox" value="${pack.id}" ${isSelected ? 'checked' : ''}>
+                                            <div class="pack-info">
+                                                <span class="pack-name"><i class="fas fa-box"></i> ${this.escapeHtml(pack.name)}</span>
+                                                <span class="pack-stats">
+                                                    ${mobCount > 0 ? `<span title="Mobs"><i class="fas fa-skull"></i>${mobCount}</span>` : ''}
+                                                    ${skillCount > 0 ? `<span title="Skills"><i class="fas fa-magic"></i>${skillCount}</span>` : ''}
+                                                    ${itemCount > 0 ? `<span title="Items"><i class="fas fa-gem"></i>${itemCount}</span>` : ''}
+                                                    ${dropCount > 0 ? `<span title="DropTables"><i class="fas fa-table"></i>${dropCount}</span>` : ''}
+                                                    ${spawnerCount > 0 ? `<span title="Spawners"><i class="fas fa-dungeon"></i>${spawnerCount}</span>` : ''}
+                                                </span>
+                                            </div>
+                                        </label>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                        
+                        <!-- Include Spawners Option (only shown if spawners exist) -->
+                        ${this.getSpawnerFiles().length > 0 ? `
+                        <div class="export-section">
+                            <h3><i class="fas fa-dungeon"></i> Global Spawners</h3>
+                            <label class="export-option-checkbox">
+                                <input type="checkbox" id="exportIncludeSpawners" checked>
+                                <span>Include Spawners folder (${this.getSpawnerFiles().length} files)</span>
+                            </label>
+                        </div>
+                        ` : ''}
+                        
+                        <!-- Export Preview -->
+                        <div class="export-section export-preview-section">
+                            <h3><i class="fas fa-eye"></i> Export Preview</h3>
+                            <div class="export-preview" id="exportPreview">
+                                <div class="preview-loading">Calculating...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary export-dialog-cancel">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button class="btn btn-primary export-dialog-confirm" id="exportConfirmBtn">
+                        <i class="fas fa-download"></i> Export Selected
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        
+        // Get DOM elements
+        const modal = overlay.querySelector('.export-dialog-modal');
+        const closeBtn = overlay.querySelector('.export-dialog-close');
+        const cancelBtn = overlay.querySelector('.export-dialog-cancel');
+        const confirmBtn = overlay.querySelector('.export-dialog-confirm');
+        const selectAllCheckbox = overlay.querySelector('#exportSelectAll');
+        const packCheckboxes = overlay.querySelectorAll('.export-pack-item input[type="checkbox"]');
+        const exportTypeRadios = overlay.querySelectorAll('input[name="exportType"]');
+        const exportPreview = overlay.querySelector('#exportPreview');
+        
+        // Update preview function
+        const updatePreview = () => {
+            const selectedPacks = Array.from(packCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => this.packs.find(p => p.id === cb.value))
+                .filter(Boolean);
+            
+            const exportType = overlay.querySelector('input[name="exportType"]:checked')?.value || 'mythicmobs';
+            const includeSpawners = overlay.querySelector('#exportIncludeSpawners')?.checked ?? false;
+            
+            if (selectedPacks.length === 0) {
+                exportPreview.innerHTML = '<div class="preview-empty">No packs selected</div>';
+                confirmBtn.disabled = true;
+                return;
+            }
+            
+            confirmBtn.disabled = false;
+            
+            let previewHtml = '<div class="preview-tree">';
+            
+            if (exportType === 'mythicmobs') {
+                previewHtml += '<div class="tree-item root"><i class="fas fa-folder"></i> MythicMobs/</div>';
+                selectedPacks.forEach(pack => {
+                    const packName = pack.name.replace(/[^a-z0-9\s]/gi, '').trim() || 'MyPack';
+                    previewHtml += `<div class="tree-item pack"><i class="fas fa-folder"></i> ${this.escapeHtml(packName)}/</div>`;
+                    previewHtml += this.renderExportPreviewFolders(pack, 2);
+                });
+                
+                if (includeSpawners && this.getSpawnerFiles().length > 0) {
+                    previewHtml += '<div class="tree-item folder" style="margin-left: 20px;"><i class="fas fa-folder"></i> Spawners/</div>';
+                    this.getSpawnerFiles().forEach(file => {
+                        previewHtml += `<div class="tree-item file" style="margin-left: 40px;"><i class="fas fa-file-code"></i> ${this.escapeHtml(file)}</div>`;
+                    });
+                }
+            } else {
+                selectedPacks.forEach(pack => {
+                    const packName = pack.name.replace(/[^a-z0-9\s]/gi, '').trim() || 'MyPack';
+                    previewHtml += `<div class="tree-item pack"><i class="fas fa-folder"></i> ${this.escapeHtml(packName)}/</div>`;
+                    previewHtml += this.renderExportPreviewFolders(pack, 1);
+                });
+            }
+            
+            previewHtml += '</div>';
+            exportPreview.innerHTML = previewHtml;
+        };
+        
+        // Event listeners
+        const closeDialog = () => overlay.remove();
+        
+        closeBtn.addEventListener('click', closeDialog);
+        cancelBtn.addEventListener('click', closeDialog);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeDialog();
+        });
+        
+        // Select all toggle
+        selectAllCheckbox.addEventListener('change', (e) => {
+            packCheckboxes.forEach(cb => {
+                cb.checked = e.target.checked;
+                cb.closest('.export-pack-item')?.classList.toggle('selected', e.target.checked);
+            });
+            updatePreview();
+        });
+        
+        // Individual pack checkboxes
+        packCheckboxes.forEach(cb => {
+            cb.addEventListener('change', () => {
+                cb.closest('.export-pack-item')?.classList.toggle('selected', cb.checked);
+                const allChecked = Array.from(packCheckboxes).every(c => c.checked);
+                const someChecked = Array.from(packCheckboxes).some(c => c.checked);
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = someChecked && !allChecked;
+                updatePreview();
+            });
+        });
+        
+        // Export type radio buttons
+        exportTypeRadios.forEach(radio => {
+            radio.addEventListener('change', updatePreview);
+        });
+        
+        // Spawners checkbox
+        overlay.querySelector('#exportIncludeSpawners')?.addEventListener('change', updatePreview);
+        
+        // Confirm export
+        confirmBtn.addEventListener('click', async () => {
+            const selectedPackIds = Array.from(packCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+            
+            if (selectedPackIds.length === 0) {
+                this.editor.showToast('Please select at least one pack', 'warning');
+                return;
+            }
+            
+            const exportType = overlay.querySelector('input[name="exportType"]:checked')?.value || 'mythicmobs';
+            const includeSpawners = overlay.querySelector('#exportIncludeSpawners')?.checked ?? false;
+            
+            closeDialog();
+            await this.executeExport(selectedPackIds, exportType, includeSpawners);
+        });
+        
+        // Initial preview update
+        updatePreview();
+        
+        // Focus trap and ESC key
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape') {
+                closeDialog();
+                document.removeEventListener('keydown', escHandler);
+            }
+        });
+    }
+    
+    /**
+     * Render export preview folders for a pack
+     */
+    renderExportPreviewFolders(pack, indentLevel) {
+        const indent = indentLevel * 20;
+        let html = '';
+        
+        const folders = [
+            { name: 'Mobs', data: pack.mobs },
+            { name: 'Skills', data: pack.skills },
+            { name: 'Items', data: pack.items },
+            { name: 'DropTables', data: pack.droptables },
+            { name: 'RandomSpawns', data: pack.randomspawns }
+        ];
+        
+        folders.forEach(folder => {
+            if (folder.data && folder.data.length > 0) {
+                const fileCount = folder.data.length;
+                html += `<div class="tree-item folder" style="margin-left: ${indent}px;"><i class="fas fa-folder"></i> ${folder.name}/ <span class="file-count">(${fileCount} files)</span></div>`;
+            }
+        });
+        
+        // Add packinfo.yml
+        html += `<div class="tree-item file" style="margin-left: ${indent}px;"><i class="fas fa-file-code"></i> packinfo.yml</div>`;
+        html += `<div class="tree-item file" style="margin-left: ${indent}px;"><i class="fas fa-file-code"></i> tooltips.yml</div>`;
+        
+        // Add spawners if per-pack spawners exist
+        if (pack.spawnerFiles && Object.keys(pack.spawnerFiles).length > 0) {
+            const spawnerCount = Object.keys(pack.spawnerFiles).length;
+            html += `<div class="tree-item folder" style="margin-left: ${indent}px;"><i class="fas fa-folder"></i> Spawners/ <span class="file-count">(${spawnerCount} files)</span></div>`;
+        }
+        
+        return html;
+    }
+    
+    /**
+     * Execute the export with selected options
+     */
+    async executeExport(selectedPackIds, exportType, includeSpawners) {
+        try {
+            const JSZip = window.JSZip;
+            if (!JSZip) {
+                this.editor.showToast('JSZip library not loaded', 'error');
+                return;
+            }
+            
+            const zip = new JSZip();
+            const selectedPacks = this.packs.filter(p => selectedPackIds.includes(p.id));
+            
+            // Root folder based on export type
+            const rootFolder = exportType === 'mythicmobs' ? zip.folder('MythicMobs') : zip;
+            
+            const footer = '\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n#\n# Made by AlternativeSoap\'s MythicMob Editor\n# Discord: https://discord.gg/eUFRvyzJua';
+            
+            // Export each selected pack
+            for (const pack of selectedPacks) {
+                const packFolderName = pack.name.replace(/[^a-z0-9\s]/gi, '').trim() || 'MyPack';
+                const packRoot = rootFolder.folder(packFolderName);
+                
+                // Helper to export a collection
+                const exportCollection = (collection, folderName, type) => {
+                    if (!collection || collection.length === 0) return;
+                    
+                    const folder = packRoot.folder(folderName);
+                    
+                    if (type === 'mob') {
+                        this.editor.yamlExporter.setPackContext(pack);
+                    }
+                    
+                    collection.forEach(file => {
+                        if (!file.entries || file.entries.length === 0) return;
+                        
+                        let yamlContent = '';
+                        file.entries.forEach((entry, index) => {
+                            const yaml = this.editor.yamlExporter.exportWithoutFooter(entry, type);
+                            yamlContent += yaml;
+                            if (index < file.entries.length - 1) {
+                                yamlContent += '\n';
+                            }
+                        });
+                        
+                        yamlContent += footer;
+                        folder.file(file.fileName, yamlContent);
+                    });
+                };
+                
+                // Export all collections
+                exportCollection(pack.mobs, 'Mobs', 'mob');
+                exportCollection(pack.skills, 'Skills', 'skill');
+                exportCollection(pack.items, 'Items', 'item');
+                exportCollection(pack.droptables, 'DropTables', 'droptable');
+                exportCollection(pack.randomspawns, 'RandomSpawns', 'randomspawn');
+                
+                // Export per-pack spawners if they exist
+                if (pack.spawnerFiles && Object.keys(pack.spawnerFiles).length > 0) {
+                    const spawnersFolder = packRoot.folder('Spawners');
+                    for (const [fileName, spawnerData] of Object.entries(pack.spawnerFiles)) {
+                        // Generate YAML for each spawner
+                        let yaml = '';
+                        if (spawnerData && Object.keys(spawnerData).length > 0) {
+                            yaml = this.generateSpawnerYAML(spawnerData, fileName);
+                        } else {
+                            yaml = '# Empty spawner file\n';
+                        }
+                        yaml += footer;
+                        spawnersFolder.file(fileName, yaml);
+                    }
+                }
+                
+                // Export packinfo.yml
+                const packinfo = pack.packinfo || this.createDefaultPackInfo(pack.name);
+                const packinfoYaml = `Name: ${packinfo.Name || pack.name}
+Version: ${packinfo.Version || '1.0.0'}
+Author: ${packinfo.Author || ''}
+Icon:
+  Material: ${packinfo.Icon?.Material || 'DIAMOND'}
+  Model: ${packinfo.Icon?.Model || 0}
+URL: ${packinfo.URL || ''}
+Description:
+${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join('\n')}` + footer;
+                packRoot.file('packinfo.yml', packinfoYaml);
+                
+                // Export tooltips.yml
+                packRoot.file('tooltips.yml', '# Tooltips configuration\n' + footer);
+            }
+            
+            // Export global spawners if requested (MythicMobs structure only)
+            if (includeSpawners && exportType === 'mythicmobs') {
+                const globalSpawners = this.getSpawnerFiles();
+                if (globalSpawners.length > 0) {
+                    const spawnersFolder = rootFolder.folder('Spawners');
+                    for (const fileName of globalSpawners) {
+                        const spawnerData = window.globalSpawnerFiles?.[fileName] || 
+                                          this.editor?.state?.currentPack?.spawnerFiles?.[fileName];
+                        let yaml = '';
+                        if (spawnerData && Object.keys(spawnerData).length > 0) {
+                            yaml = this.generateSpawnerYAML(spawnerData, fileName);
+                        } else {
+                            yaml = '# Empty spawner file\n';
+                        }
+                        yaml += footer;
+                        spawnersFolder.file(fileName, yaml);
+                    }
+                }
+            }
+            
+            // Generate filename
+            let downloadName;
+            if (selectedPacks.length === 1) {
+                downloadName = `${selectedPacks[0].name.replace(/[^a-z0-9]/gi, '_')}.zip`;
+            } else if (exportType === 'mythicmobs') {
+                downloadName = `MythicMobs_${new Date().toISOString().split('T')[0]}.zip`;
+            } else {
+                downloadName = `MythicMobs_Packs_${new Date().toISOString().split('T')[0]}.zip`;
+            }
+            
+            // Generate and download
+            const content = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = downloadName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            this.editor.showToast(`Exported ${selectedPacks.length} pack(s) successfully`, 'success');
+        } catch (error) {
+            console.error('Export error:', error);
+            this.editor.showToast('Failed to export packs', 'error');
+        }
+    }
+    
+    /**
+     * Generate YAML for a spawner
+     */
+    generateSpawnerYAML(spawnerData, fileName) {
+        if (!spawnerData.MobName) {
+            return '# Spawner configuration\n';
+        }
+        
+        const spawnerName = spawnerData.SpawnerGroup || spawnerData.MobName + 'Spawner';
+        
+        let yaml = `${spawnerName}:\n`;
+        yaml += `  MobName: ${spawnerData.MobName}\n`;
+        yaml += `  World: ${spawnerData.World || 'world'}\n`;
+        
+        if (spawnerData.SpawnerGroup) {
+            yaml += `  SpawnerGroup: ${spawnerData.SpawnerGroup}\n`;
+        }
+        
+        yaml += `  X: ${spawnerData.X || 0}\n`;
+        yaml += `  Y: ${spawnerData.Y || 64}\n`;
+        yaml += `  Z: ${spawnerData.Z || 0}\n`;
+        
+        if (spawnerData.Radius) yaml += `  Radius: ${spawnerData.Radius}\n`;
+        if (spawnerData.RadiusY) yaml += `  RadiusY: ${spawnerData.RadiusY}\n`;
+        
+        yaml += `  UseTimer: ${spawnerData.UseTimer ?? true}\n`;
+        
+        if (spawnerData.MaxMobs) yaml += `  MaxMobs: ${spawnerData.MaxMobs}\n`;
+        if (spawnerData.MobLevel && spawnerData.MobLevel > 1) yaml += `  MobLevel: ${spawnerData.MobLevel}\n`;
+        if (spawnerData.MobsPerSpawn && spawnerData.MobsPerSpawn > 1) yaml += `  MobsPerSpawn: ${spawnerData.MobsPerSpawn}\n`;
+        
+        if (spawnerData.Cooldown) yaml += `  Cooldown: ${spawnerData.Cooldown}\n`;
+        if (spawnerData.Warmup) yaml += `  Warmup: ${spawnerData.Warmup}\n`;
+        
+        yaml += `  CheckForPlayers: ${spawnerData.CheckForPlayers ?? true}\n`;
+        if (spawnerData.ActivationRange) yaml += `  ActivationRange: ${spawnerData.ActivationRange}\n`;
+        
+        if (spawnerData.LeashRange) yaml += `  LeashRange: ${spawnerData.LeashRange}\n`;
+        if (spawnerData.HealOnLeash) yaml += `  HealOnLeash: true\n`;
+        if (spawnerData.ResetThreatOnLeash) yaml += `  ResetThreatOnLeash: true\n`;
+        
+        if (spawnerData.ShowFlames) yaml += `  ShowFlames: true\n`;
+        if (spawnerData.Breakable) yaml += `  Breakable: true\n`;
+        
+        if (spawnerData.Conditions && spawnerData.Conditions.length > 0) {
+            yaml += `  Conditions:\n`;
+            spawnerData.Conditions.forEach(c => {
+                yaml += `  - ${c}\n`;
+            });
+        }
+        
+        return yaml;
+    }
+
+    /**
+     * Collapse all pack folders
+     */
+    collapseAllPacks() {
+        // Mark all packs as collapsed using the canonical storage key
+        const collapsedStates = this.getCollapsedStates();
+        this.packs.forEach(pack => {
+            collapsedStates[pack.id] = true;
+        });
+        // Persist using the same storage key used by getCollapsedStates()
+        localStorage.setItem('packCollapsedStates', JSON.stringify(collapsedStates));
+        this.renderPackTree();
+        this.editor.showToast('All packs collapsed', 'info');
+    }
+    
+    /**
+     * Expand all pack folders
+     */
+    expandAllPacks() {
+        // Mark all packs as expanded using the canonical storage key
+        const collapsedStates = this.getCollapsedStates();
+        this.packs.forEach(pack => {
+            collapsedStates[pack.id] = false;
+        });
+        // Persist using the same storage key used by getCollapsedStates()
+        localStorage.setItem('packCollapsedStates', JSON.stringify(collapsedStates));
+        this.renderPackTree();
+        this.editor.showToast('All packs expanded', 'info');
+    }
+    
+    /**
+     * Show create pack dialog
+     */
+    async showCreatePackDialog() {
+        const name = await this.editor.showPrompt(
+            'Create New Pack',
+            'Enter a name for your new pack:',
+            'My Pack'
+        );
+        
+        if (name && name.trim()) {
+            const pack = await this.createPack(name.trim());
+            this.activePack = pack;
+            this.editor.state.currentPack = pack;
+            this.renderPackTree();
+            this.editor.showToast(`Pack "${name.trim()}" created`, 'success');
+        }
+    }
+
     /**
      * Attach drag and drop event listeners for pack reordering
      */
@@ -2997,7 +4255,8 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
             skill: 'fa-magic',
             item: 'fa-gem',
             droptable: 'fa-table',
-            randomspawn: 'fa-map-marked-alt'
+            randomspawn: 'fa-map-marked-alt',
+            stat: 'fa-chart-bar'
         };
         
         list.innerHTML = this.recentFiles.map(file => {
@@ -3233,7 +4492,8 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
             skill: 'fa-magic',
             item: 'fa-gem',
             droptable: 'fa-table',
-            randomspawn: 'fa-map-marked-alt'
+            randomspawn: 'fa-map-marked-alt',
+            stat: 'fa-chart-bar'
         };
         
         list.innerHTML = validFavorites.map(file => {
@@ -3602,7 +4862,18 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
         // Add to parent file
         parentFile.entries.push(duplicated);
         
-        this.savePacks();
+        // Mark file as modified
+        parentFile.modified = true;
+        
+        // Only auto-save if setting is enabled, otherwise just mark dirty
+        if (this.editor?.settings?.autoSave) {
+            this.savePacks();
+        } else {
+            // Mark as dirty so Save All becomes available
+            if (this.editor && typeof this.editor.markDirty === 'function') {
+                this.editor.markDirty();
+            }
+        }
         this.renderPackTree();
         this.editor.showToast(`Duplicated as "${newName}"`, 'success');
         
@@ -3682,6 +4953,10 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
         duplicated.fileName = newName;
         duplicated.name = newName;
         
+        // Mark as new and modified
+        duplicated.isNew = true;
+        duplicated.modified = true;
+        
         // Generate new IDs for all entries
         if (duplicated.entries) {
             duplicated.entries.forEach(entry => {
@@ -3692,7 +4967,15 @@ ${(packinfo.Description || ['A MythicMobs pack']).map(line => `- ${line}`).join(
         // Add to collection
         collection.push(duplicated);
         
-        this.savePacks();
+        // Only auto-save if setting is enabled, otherwise just mark dirty
+        if (this.editor?.settings?.autoSave) {
+            this.savePacks();
+        } else {
+            // Mark as dirty so Save All becomes available
+            if (this.editor && typeof this.editor.markDirty === 'function') {
+                this.editor.markDirty();
+            }
+        }
         this.renderPackTree();
         this.editor.showToast(`Duplicated file as "${newName}"`, 'success');
         

@@ -115,6 +115,20 @@ class RandomSpawnEditor {
             return;
         }
         
+        // Ensure _parentFile is set for entries loaded from files
+        // This is critical for Save All to work correctly
+        if (!spawn._parentFile && this.editor?.state?.currentPack) {
+            const pack = this.editor.state.currentPack;
+            if (pack.randomspawns) {
+                for (const parentFile of pack.randomspawns) {
+                    if (parentFile.entries && parentFile.entries.some(e => e.id === spawn.id)) {
+                        spawn._parentFile = { id: parentFile.id, fileName: parentFile.fileName };
+                        break;
+                    }
+                }
+            }
+        }
+        
         // Determine if multi-type mode
         this.isMultiTypeMode = spawn.Types && Array.isArray(spawn.Types) && spawn.Types.length > 0;
         
@@ -141,7 +155,7 @@ class RandomSpawnEditor {
                             <i class="fas fa-plus"></i> New Section
                         </button>
                     </div>
-                    <button class="btn btn-primary" id="save-randomspawn">
+                    <button class="btn btn-primary" id="save-randomspawn" title="Save current file (Ctrl+S)">
                         <i class="fas fa-save"></i> Save
                     </button>
                 </div>
@@ -1337,6 +1351,17 @@ class RandomSpawnEditor {
         
         const oldName = file.name;
         file.name = newName.trim();
+        
+        // Mark the entry as modified
+        file.modified = true;
+        file.lastModified = new Date().toISOString();
+        
+        // CRITICAL: Mark the parent file container as modified for Save All to work
+        if (parentFile) {
+            parentFile.modified = true;
+            parentFile.lastModified = new Date().toISOString();
+            console.log(`✅ Marked parent file ${parentFile.fileName || parentFile.id} as modified after rename`);
+        }
         
         // Update the UI
         this.render(file);
