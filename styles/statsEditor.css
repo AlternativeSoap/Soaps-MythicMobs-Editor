@@ -770,6 +770,7 @@
     overflow: hidden;
     cursor: pointer;
     transition: all 0.15s;
+    position: relative;
 }
 
 .se-stat-card:hover {
@@ -845,23 +846,36 @@
 .se-card-actions {
     display: flex;
     gap: 4px;
+    position: relative;
+    z-index: 100;
+    pointer-events: auto !important;
 }
 
 .se-card-footer .se-btn-icon {
     width: 28px;
     height: 28px;
     font-size: 0.8rem;
-    opacity: 0;
+    opacity: 1;
     transition: all 0.15s;
     border: none;
     background: transparent;
     color: var(--text-muted, #888);
-    cursor: pointer;
+    cursor: pointer !important;
     border-radius: 4px;
+    position: relative;
+    z-index: 101;
+    pointer-events: auto !important;
+}
+
+.se-btn-edit,
+.se-btn-delete {
+    cursor: pointer !important;
+    pointer-events: auto !important;
 }
 
 .se-card-footer .se-btn-icon:hover {
     background: rgba(255, 255, 255, 0.1);
+    opacity: 1;
 }
 
 .se-card-footer .se-btn-delete:hover {

@@ -1214,6 +1214,69 @@ class PackManager {
             }
         });
         
+        // === LONG-PRESS FOR MOBILE CONTEXT MENU ===
+        let longPressTimer = null;
+        let longPressTarget = null;
+        const LONG_PRESS_DURATION = 500;
+        
+        container.addEventListener('touchstart', (e) => {
+            if (!this.contextMenu) return;
+            
+            const target = e.target.closest('.entry-item, .yaml-file-header, .pack-header, .root-folder-header');
+            if (target) {
+                longPressTarget = target;
+                const touch = e.touches[0];
+                
+                longPressTimer = setTimeout(() => {
+                    // Prevent any click events
+                    e.preventDefault();
+                    
+                    // Trigger context menu via synthetic contextmenu event
+                    const contextEvent = new MouseEvent('contextmenu', {
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: touch.clientX,
+                        clientY: touch.clientY
+                    });
+                    target.dispatchEvent(contextEvent);
+                    
+                    // Haptic feedback if available
+                    if (window.mobileManager?.vibrate) {
+                        window.mobileManager.vibrate([20]);
+                    } else if (navigator.vibrate) {
+                        navigator.vibrate(20);
+                    }
+                    
+                    longPressTimer = null;
+                    longPressTarget = null;
+                }, LONG_PRESS_DURATION);
+            }
+        }, { passive: false });
+        
+        container.addEventListener('touchmove', () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+                longPressTarget = null;
+            }
+        }, { passive: true });
+        
+        container.addEventListener('touchend', () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+                longPressTarget = null;
+            }
+        }, { passive: true });
+        
+        container.addEventListener('touchcancel', () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+                longPressTarget = null;
+            }
+        });
+        
         // === CONTEXT MENU EVENTS (delegated) ===
         container.addEventListener('contextmenu', (e) => {
             if (!this.contextMenu) return;

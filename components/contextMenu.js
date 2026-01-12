@@ -1,10 +1,12 @@
 /**
  * Context Menu Component
  * Reusable right-click context menu system
+ * Enhanced with mobile touch support
  */
 class ContextMenu {
     constructor() {
         this.menu = null;
+        this.backdrop = null;
         this.currentTarget = null;
         this.currentData = null;
         this.actions = new Map();
@@ -13,10 +15,19 @@ class ContextMenu {
         this._boundOnContextMenu = this._onContextMenu.bind(this);
         this._boundOnResize = this.hide.bind(this);
         
+        // Mobile detection
+        this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                       || window.innerWidth <= 768;
+        
         this.init();
     }
     
     init() {
+        // Create backdrop for mobile
+        this.backdrop = document.createElement('div');
+        this.backdrop.className = 'context-menu-backdrop';
+        document.body.appendChild(this.backdrop);
+        
         // Create menu element
         this.menu = document.createElement('div');
         this.menu.className = 'context-menu';
@@ -29,6 +40,10 @@ class ContextMenu {
                 this.hide();
             }
         }, true);
+        
+        // Close on backdrop click (mobile)
+        this.backdrop.addEventListener('click', () => this.hide());
+        this.backdrop.addEventListener('touchstart', () => this.hide(), { passive: true });
         
         // Close menu on any right-click (to show new menu or native menu)
         document.addEventListener('contextmenu', this._boundOnContextMenu, true);
@@ -50,6 +65,12 @@ class ContextMenu {
         this.menu.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
+        });
+        
+        // Update mobile state on resize
+        window.addEventListener('resize', () => {
+            this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                           || window.innerWidth <= 768;
         });
     }
     
@@ -81,7 +102,10 @@ class ContextMenu {
         
         this.currentData = data;
         
-        // Build menu HTML
+        // Check if mobile for positioning
+        const isMobileView = document.body.dataset.device === 'mobile' || this.isMobile;
+        
+        // Build menu HTML with mobile-friendly touch targets
         this.menu.innerHTML = items.map(item => {
             if (item.separator) {
                 return '<div class="context-menu-separator"></div>';
@@ -111,47 +135,92 @@ class ContextMenu {
                 
                 this.hide();
             });
+            
+            // Touch support
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const action = btn.dataset.action;
+                const handler = this.actions.get(action);
+                
+                if (handler) {
+                    handler(this.currentData, e);
+                }
+                
+                this.hide();
+            });
         });
         
-        // Position menu initially off-screen to measure
-        this.menu.style.left = '-9999px';
-        this.menu.style.top = '-9999px';
-        this.menu.classList.add('visible');
-        
-        // Get dimensions after rendering
-        requestAnimationFrame(() => {
-            const rect = this.menu.getBoundingClientRect();
-            const menuWidth = rect.width;
-            const menuHeight = rect.height;
+        // Mobile: Show as bottom sheet
+        if (isMobileView) {
+            this.menu.classList.add('mobile-sheet');
+            this.backdrop.classList.add('visible');
+            this.menu.classList.add('visible');
             
-            // Calculate position with boundary checks
-            let finalX = x;
-            let finalY = y;
+            // Animate in with slight delay
+            requestAnimationFrame(() => {
+                this.menu.style.transform = 'translateY(0)';
+            });
+        } else {
+            // Desktop: Position at cursor
+            this.menu.classList.remove('mobile-sheet');
             
-            // Check right boundary
-            if (x + menuWidth > window.innerWidth - 10) {
-                finalX = x - menuWidth;
-            }
+            // Position menu initially off-screen to measure
+            this.menu.style.left = '-9999px';
+            this.menu.style.top = '-9999px';
+            this.menu.style.transform = '';
+            this.menu.classList.add('visible');
             
-            // Check bottom boundary
-            if (y + menuHeight > window.innerHeight - 10) {
-                finalY = y - menuHeight;
-            }
-            
-            // Ensure not off left or top edge
-            finalX = Math.max(10, finalX);
-            finalY = Math.max(10, finalY);
-            
-            this.menu.style.left = finalX + 'px';
-            this.menu.style.top = finalY + 'px';
-        });
+            // Get dimensions after rendering
+            requestAnimationFrame(() => {
+                const rect = this.menu.getBoundingClientRect();
+                const menuWidth = rect.width;
+                const menuHeight = rect.height;
+                
+                // Calculate position with boundary checks
+                let finalX = x;
+                let finalY = y;
+                
+                // Check right boundary
+                if (x + menuWidth > window.innerWidth - 10) {
+                    finalX = x - menuWidth;
+                }
+                
+                // Check bottom boundary
+                if (y + menuHeight > window.innerHeight - 10) {
+                    finalY = y - menuHeight;
+                }
+                
+                // Ensure not off left or top edge
+                finalX = Math.max(10, finalX);
+                finalY = Math.max(10, finalY);
+                
+                this.menu.style.left = finalX + 'px';
+                this.menu.style.top = finalY + 'px';
+            });
+        }
     }
     
     /**
      * Hide context menu
      */
     hide() {
-        this.menu.classList.remove('visible');
+        const isMobileView = document.body.dataset.device === 'mobile' || this.isMobile;
+        
+        if (isMobileView) {
+            this.menu.style.transform = 'translateY(100%)';
+            this.backdrop.classList.remove('visible');
+            
+            // Delay removal of visible class for animation
+            setTimeout(() => {
+                this.menu.classList.remove('visible');
+                this.menu.classList.remove('mobile-sheet');
+            }, 200);
+        } else {
+            this.menu.classList.remove('visible');
+        }
+        
         this.currentTarget = null;
         this.currentData = null;
     }

@@ -1041,33 +1041,54 @@ class StatsEditor {
         // Stat cards - click to edit (but not on action buttons)
         document.querySelectorAll('.se-stat-card').forEach(card => {
             card.addEventListener('click', (e) => {
-                // Don't trigger if clicking on action buttons
-                if (e.target.closest('.se-btn-edit') || e.target.closest('.se-btn-delete')) return;
+                // Don't trigger if clicking on action buttons or their containers
+                if (e.target.closest('.se-btn-edit') || 
+                    e.target.closest('.se-btn-delete') || 
+                    e.target.closest('.se-card-actions')) {
+                    return;
+                }
                 
                 const statId = card.dataset.stat;
-                const stats = this.editor.state?.currentPack?.Stats || [];
+                const stats = this.editor.state?.currentPack?.stats?.entries || [];
                 const stat = stats.find(s => s.id === statId);
                 if (stat) this.renderStat(stat);
             });
         });
         
         // Edit buttons
-        document.querySelectorAll('.se-btn-edit').forEach(btn => {
+        const editButtons = document.querySelectorAll('.se-btn-edit');
+        console.log(`[StatsEditor] Found ${editButtons.length} edit buttons`);
+        editButtons.forEach(btn => {
             btn.addEventListener('click', (e) => {
+                console.log('[StatsEditor] Edit button clicked!', e.target);
+                e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
+                
                 const statId = btn.dataset.stat;
-                const stats = this.editor.state?.currentPack?.Stats || [];
+                console.log('[StatsEditor] Editing stat:', statId);
+                const stats = this.editor.state?.currentPack?.stats?.entries || [];
+                console.log('[StatsEditor] Available stats:', stats.map(s => ({ id: s.id, name: s.name })));
                 const stat = stats.find(s => s.id === statId);
-                if (stat) this.renderStat(stat);
+                if (stat) {
+                    this.renderStat(stat);
+                } else {
+                    console.warn('[StatsEditor] Stat not found:', statId);
+                }
             });
         });
         
         // Delete buttons
-        document.querySelectorAll('.se-btn-delete').forEach(btn => {
+        const deleteButtons = document.querySelectorAll('.se-btn-delete');
+        console.log(`[StatsEditor] Found ${deleteButtons.length} delete buttons`);
+        deleteButtons.forEach(btn => {
             btn.addEventListener('click', async (e) => {
+                console.log('[StatsEditor] Delete button clicked!', e.target);
+                e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 const statId = btn.dataset.stat;
-                const stats = this.editor.state?.currentPack?.Stats || [];
+                const stats = this.editor.state?.currentPack?.stats?.entries || [];
                 const stat = stats.find(s => s.id === statId);
                 
                 if (stat) {

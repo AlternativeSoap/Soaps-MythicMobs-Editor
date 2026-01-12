@@ -117,6 +117,25 @@ class MythicMobsEditor {
             this.state.currentMode = this.settings.defaultMode;
             document.body.setAttribute('data-mode', this.state.currentMode);
             
+            // ============================================
+            // MOBILE SUPPORT INITIALIZATION
+            // Initialize mobile manager early to set device attributes
+            // ============================================
+            if (typeof MobileManager !== 'undefined') {
+                this.mobileManager = new MobileManager();
+                this.mobileManager.init(this); // Pass editor reference
+                
+                console.log(`📱 Device: ${this.mobileManager.deviceType}, Touch: ${this.mobileManager.isTouchDevice}`);
+                
+                // Initialize mobile skill wizard on mobile/tablet
+                if (this.mobileManager.isMobile || this.mobileManager.isTablet) {
+                    if (typeof MobileSkillWizard !== 'undefined') {
+                        this.mobileSkillWizard = new MobileSkillWizard();
+                        console.log('📱 Mobile skill wizard initialized');
+                    }
+                }
+            }
+            
             // Initialize pack manager
             this.packManager = new PackManager(this);
             
@@ -209,6 +228,25 @@ class MythicMobsEditor {
         // Mode switcher
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                const isMobile = document.body.dataset.device === 'mobile' || document.body.classList.contains('mobile-mode');
+                const isActive = btn.classList.contains('active');
+
+                // Prevent switching to the same mode when clicking the active button (no-op)
+                if (isActive) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    return;
+                }
+
+                // Also prevent default when active button is a mobile dropdown trigger
+                if ((isMobile && window.mobileManager && window.mobileManager.state?.mobileMode) || e.currentTarget.getAttribute('data-mode-dropdown') === 'true') {
+                    if (e.currentTarget.getAttribute('data-mode-dropdown') === 'true') {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        return;
+                    }
+                }
+
                 const mode = e.currentTarget.dataset.mode;
                 this.switchMode(mode);
             });
@@ -5047,9 +5085,61 @@ class MythicMobsEditor {
             case 'backup':
                 this.showBackupManager();
                 break;
+            case 'settings':
+                this.showSettings();
+                break;
+            case 'help':
+                this.showHelp();
+                break;
+            case 'about':
+                this.showAbout();
+                break;
             default:
                 console.warn('Unknown tool:', tool);
         }
+    }
+    
+    /**
+     * Show help documentation
+     */
+    showHelp() {
+        // Open help modal or documentation
+        if (this.documentationHelper) {
+            this.documentationHelper.show();
+        } else {
+            // Fallback: open external docs
+            window.open('https://git.lumine.io/mythiccraft/MythicMobs/-/wikis/home', '_blank');
+        }
+    }
+    
+    /**
+     * Show about dialog
+     */
+    showAbout() {
+        this.showModal({
+            title: 'About Soaps MythicMobs Editor',
+            content: `
+                <div style="text-align: center; padding: 20px;">
+                    <i class="fas fa-dragon" style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 16px;"></i>
+                    <h3 style="margin: 0 0 8px 0;">Soaps MythicMobs Editor</h3>
+                    <p style="color: var(--text-secondary); margin: 0 0 16px 0;">Version 2.0.0</p>
+                    <p style="color: var(--text-tertiary); font-size: 0.875rem; margin: 0;">
+                        A powerful visual editor for creating MythicMobs configurations.<br>
+                        Built with ❤️ for the Minecraft community.
+                    </p>
+                    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-primary);">
+                        <a href="https://github.com" target="_blank" style="color: var(--accent-primary); text-decoration: none; margin: 0 8px;">
+                            <i class="fab fa-github"></i> GitHub
+                        </a>
+                        <a href="https://discord.gg/mythicmobs" target="_blank" style="color: var(--accent-primary); text-decoration: none; margin: 0 8px;">
+                            <i class="fab fa-discord"></i> Discord
+                        </a>
+                    </div>
+                </div>
+            `,
+            showCancel: false,
+            confirmText: 'Close'
+        });
     }
     
     /**

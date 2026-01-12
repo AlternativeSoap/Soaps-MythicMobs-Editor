@@ -3121,7 +3121,7 @@ input.inline-edit:focus {
 
 .pack-search-input {
     width: 100%;
-    padding: 0.5rem 2rem 0.5rem 2.25rem;
+    padding: 0.5rem 2rem 0.5rem 2.75rem;
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);

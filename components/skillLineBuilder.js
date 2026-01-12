@@ -917,6 +917,25 @@ class SkillLineBuilder {
     // ========================================
     
     open(options = {}) {
+        // ============================================
+        // MOBILE REDIRECT: Use mobile wizard on touch devices
+        // ============================================
+        if (window.editor && window.editor.mobileManager) {
+            const mm = window.editor.mobileManager;
+            if (mm.isMobile && window.editor.mobileSkillWizard) {
+                // On mobile, open the simplified wizard instead
+                window.editor.mobileSkillWizard.open({
+                    existingLine: options.initialLine,
+                    onComplete: (skillLine) => {
+                        if (options.onAdd && typeof options.onAdd === 'function') {
+                            options.onAdd(skillLine);
+                        }
+                    }
+                });
+                return; // Don't open the desktop builder
+            }
+        }
+        
         // Re-cache DOM elements to ensure fresh references (fixes re-open bug)
         this.cacheDOMElements();
         
@@ -2663,6 +2682,73 @@ class SkillLineBuilder {
         const div = document.createElement('div');
         div.textContent = String(text);
         return div.innerHTML;
+    }
+    
+    /**
+     * Public API: Add a skill line to the queue
+     * Used by mobile skill wizard and other external tools
+     * @param {string|object} lineData - Skill line string or object with line data
+     */
+    addToQueue(lineData) {
+        let line = '';
+        
+        if (typeof lineData === 'string') {
+            line = lineData;
+        } else if (typeof lineData === 'object') {
+            // Build line from object
+            line = lineData.preview || this.buildLineFromData(lineData);
+        }
+        
+        if (line && line.trim()) {
+            // Ensure it starts with dash
+            if (!line.trim().startsWith('-')) {
+                line = '- ' + line.trim();
+            }
+            
+            this.setState(s => ({
+                ...s,
+                queue: [...(s.queue || []), line]
+            }));
+            
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Build skill line from data object
+     * @param {object} data - Object with mechanic, targeter, trigger, conditions
+     */
+    buildLineFromData(data) {
+        let line = '- ';
+        
+        if (!data.mechanic) return '';
+        
+        line += data.mechanic;
+        
+        if (data.params && Object.keys(data.params).length > 0) {
+            const paramStr = Object.entries(data.params)
+                .filter(([k, v]) => v !== '' && v != null)
+                .map(([k, v]) => `${k}=${v}`)
+                .join(';');
+            if (paramStr) line += `{${paramStr}}`;
+        }
+        
+        if (data.targeter) {
+            line += ` @${data.targeter}`;
+        }
+        
+        if (data.trigger) {
+            line += ` ~${data.trigger}`;
+        }
+        
+        if (data.conditions && data.conditions.length > 0) {
+            data.conditions.forEach(c => {
+                line += ` ?${c.name || c}`;
+            });
+        }
+        
+        return line;
     }
 }
 

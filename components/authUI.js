@@ -137,9 +137,28 @@ class AuthUI {
     }
     
     setupUserDropdown() {
-        this.userAccountBtn?.addEventListener('click', (e) => {
+        // Handle both click and touch events for mobile support
+        let touchHandled = false;
+        
+        const toggleDropdown = (e) => {
             e.stopPropagation();
+            e.preventDefault();
             this.userDropdown?.classList.toggle('show');
+        };
+        
+        // Handle touch events
+        this.userAccountBtn?.addEventListener('touchend', (e) => {
+            touchHandled = true;
+            toggleDropdown(e);
+            // Reset flag after a short delay
+            setTimeout(() => { touchHandled = false; }, 300);
+        });
+        
+        // Handle click events (but skip if touch was already handled)
+        this.userAccountBtn?.addEventListener('click', (e) => {
+            if (!touchHandled) {
+                toggleDropdown(e);
+            }
         });
         
         this.loginBtn?.addEventListener('click', () => {
