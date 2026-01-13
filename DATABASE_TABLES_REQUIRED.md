@@ -1223,7 +1223,425 @@ CREATE POLICY "Users can remove own votes"
 
 ---
 
-## Summary Table Count: 16 Tables
+## 17. `user_sessions`
+
+**Purpose:** Track online users with heartbeat-based presence detection for admin analytics.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY DEFAULT gen_random_uuid() | Session ID |
+| `user_id` | UUID | REFERENCES auth.users(id) ON DELETE CASCADE | User (NULL for anonymous) |
+| `session_token` | VARCHAR(64) | NOT NULL UNIQUE | Unique session identifier |
+| `started_at` | TIMESTAMPTZ | DEFAULT NOW() | Session start time |
+| `last_seen_at` | TIMESTAMPTZ | DEFAULT NOW() | Last heartbeat |
+| `user_agent` | TEXT | | Browser/device info |
+| `ip_hash` | VARCHAR(64) | | Hashed IP for uniqueness (privacy) |
+| `current_page` | TEXT | | Current page URL |
+| `referrer` | TEXT | | How user arrived |
+| `is_active` | BOOLEAN | DEFAULT true | Session still active |
+
+**Used by:** `activityTracker.js`, `adminPanelEnhanced.js`
+
+```sql
+-- =============================================
+-- TABLE: user_sessions
+-- Track online users with heartbeat presence
+-- =============================================
+CREATE TABLE user_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    session_token VARCHAR(64) NOT NULL UNIQUE,
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    last_seen_at TIMESTAMPTZ DEFAULT NOW(),
+    user_agent TEXT,
+    ip_hash VARCHAR(64),
+    current_page TEXT,
+    referrer TEXT,
+    is_active BOOLEAN DEFAULT true
+);
+
+-- Indexes
+CREATE INDEX idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX idx_user_sessions_active ON user_sessions(is_active, last_seen_at DESC);
+CREATE INDEX idx_user_sessions_token ON user_sessions(session_token);
+
+-- RLS Policies
+ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Admins can view all sessions
+CREATE POLICY "Admins can view all sessions"
+    ON user_sessions FOR SELECT
+    USING (is_admin(auth.uid()));
+
+-- Anyone can insert/update their own session
+CREATE POLICY "Users can manage own sessions"
+    ON user_sessions FOR INSERT
+    WITH CHECK (true);
+
+CREATE POLICY "Users can update own sessions"
+    ON user_sessions FOR UPDATE
+    USING (true);
+
+-- Cleanup function for stale sessions (run periodically)
+CREATE OR REPLACE FUNCTION cleanup_stale_sessions()
+RETURNS void
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    -- Mark sessions inactive if no heartbeat in last 5 minutes
+    UPDATE user_sessions 
+    SET is_active = false 
+    WHERE is_active = true 
+    AND last_seen_at < NOW() - INTERVAL '5 minutes';
+    
+    -- Delete sessions older than 30 days
+    DELETE FROM user_sessions 
+    WHERE last_seen_at < NOW() - INTERVAL '30 days';
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+## 18. `page_views`
+
+**Purpose:** Track page views and site traffic for analytics dashboard.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY DEFAULT gen_random_uuid() | View ID |
+| `user_id` | UUID | REFERENCES auth.users(id) ON DELETE SET NULL | User (NULL for anonymous) |
+| `session_id` | UUID | REFERENCES user_sessions(id) ON DELETE SET NULL | Associated session |
+| `page_path` | TEXT | NOT NULL | Page URL path |
+| `page_title` | TEXT | | Page title |
+| `referrer` | TEXT | | Referring URL |
+| `user_agent` | TEXT | | Browser info |
+| `screen_width` | INTEGER | | Screen width |
+| `screen_height` | INTEGER | | Screen height |
+| `view_duration` | INTEGER | | Time spent on page (seconds) |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | View timestamp |
+
+**Used by:** `activityTracker.js`, `adminPanelEnhanced.js`
+
+```sql
+-- =============================================
+-- TABLE: page_views
+-- Track page views for analytics
+-- =============================================
+CREATE TABLE page_views (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    session_id UUID REFERENCES user_sessions(id) ON DELETE SET NULL,
+    page_path TEXT NOT NULL,
+    page_title TEXT,
+    referrer TEXT,
+    user_agent TEXT,
+    screen_width INTEGER,
+    screen_height INTEGER,
+    view_duration INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for analytics queries
+CREATE INDEX idx_page_views_created ON page_views(created_at DESC);
+CREATE INDEX idx_page_views_user ON page_views(user_id);
+CREATE INDEX idx_page_views_session ON page_views(session_id);
+CREATE INDEX idx_page_views_page ON page_views(page_path);
+CREATE INDEX idx_page_views_date ON page_views(DATE(created_at));
+
+-- RLS Policies
+ALTER TABLE page_views ENABLE ROW LEVEL SECURITY;
+
+-- Admins can view all page views
+CREATE POLICY "Admins can view all page views"
+    ON page_views FOR SELECT
+    USING (is_admin(auth.uid()));
+
+-- Anyone can log page views
+CREATE POLICY "Anyone can log page views"
+    ON page_views FOR INSERT
+    WITH CHECK (true);
+
+-- Function to get page view statistics
+CREATE OR REPLACE FUNCTION get_page_view_stats(days_back INTEGER DEFAULT 7)
+RETURNS TABLE(
+    total_views BIGINT,
+    unique_visitors BIGINT,
+    unique_users BIGINT,
+    avg_duration NUMERIC,
+    top_pages JSONB
+)
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*)::BIGINT as total_views,
+        COUNT(DISTINCT session_id)::BIGINT as unique_visitors,
+        COUNT(DISTINCT user_id)::BIGINT as unique_users,
+        COALESCE(AVG(view_duration), 0)::NUMERIC as avg_duration,
+        (
+            SELECT jsonb_agg(row_to_json(t))
+            FROM (
+                SELECT page_path, COUNT(*) as views
+                FROM page_views
+                WHERE created_at > NOW() - (days_back || ' days')::INTERVAL
+                GROUP BY page_path
+                ORDER BY views DESC
+                LIMIT 10
+            ) t
+        ) as top_pages
+    FROM page_views
+    WHERE created_at > NOW() - (days_back || ' days')::INTERVAL;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+## 19. `user_activity_detailed`
+
+**Purpose:** Enhanced activity tracking for individual user behavior analysis in admin panel.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY DEFAULT gen_random_uuid() | Activity ID |
+| `user_id` | UUID | REFERENCES auth.users(id) ON DELETE CASCADE | User being tracked |
+| `session_id` | UUID | REFERENCES user_sessions(id) ON DELETE SET NULL | Session context |
+| `action_type` | VARCHAR(50) | NOT NULL | Action category |
+| `action_name` | VARCHAR(100) | NOT NULL | Specific action |
+| `target_type` | VARCHAR(50) | | What was acted upon (mob, skill, template, etc.) |
+| `target_id` | TEXT | | ID of the target |
+| `target_name` | TEXT | | Name of the target |
+| `metadata` | JSONB | DEFAULT '{}' | Additional details |
+| `page_path` | TEXT | | Where action occurred |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Action timestamp |
+
+**Used by:** `activityTracker.js`, `adminPanelEnhanced.js` (User Activity Viewer)
+
+```sql
+-- =============================================
+-- TABLE: user_activity_detailed
+-- Detailed user action tracking for admin review
+-- =============================================
+CREATE TABLE user_activity_detailed (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    session_id UUID REFERENCES user_sessions(id) ON DELETE SET NULL,
+    action_type VARCHAR(50) NOT NULL,
+    action_name VARCHAR(100) NOT NULL,
+    target_type VARCHAR(50),
+    target_id TEXT,
+    target_name TEXT,
+    metadata JSONB DEFAULT '{}',
+    page_path TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for querying
+CREATE INDEX idx_user_activity_detailed_user ON user_activity_detailed(user_id);
+CREATE INDEX idx_user_activity_detailed_created ON user_activity_detailed(created_at DESC);
+CREATE INDEX idx_user_activity_detailed_action ON user_activity_detailed(action_type, action_name);
+CREATE INDEX idx_user_activity_detailed_session ON user_activity_detailed(session_id);
+
+-- RLS Policies
+ALTER TABLE user_activity_detailed ENABLE ROW LEVEL SECURITY;
+
+-- Admins can view all detailed activity
+CREATE POLICY "Admins can view all detailed activity"
+    ON user_activity_detailed FOR SELECT
+    USING (is_admin(auth.uid()));
+
+-- Users can log their own activity
+CREATE POLICY "Users can log own activity"
+    ON user_activity_detailed FOR INSERT
+    WITH CHECK (auth.uid() = user_id OR auth.uid() IS NOT NULL);
+
+-- Function to get user activity summary
+CREATE OR REPLACE FUNCTION get_user_activity_summary(target_user_id UUID, days_back INTEGER DEFAULT 30)
+RETURNS TABLE(
+    total_actions BIGINT,
+    action_breakdown JSONB,
+    most_active_days JSONB,
+    recent_actions JSONB
+)
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*)::BIGINT as total_actions,
+        (
+            SELECT jsonb_object_agg(action_type, cnt)
+            FROM (
+                SELECT action_type, COUNT(*) as cnt
+                FROM user_activity_detailed
+                WHERE user_id = target_user_id
+                AND created_at > NOW() - (days_back || ' days')::INTERVAL
+                GROUP BY action_type
+            ) t
+        ) as action_breakdown,
+        (
+            SELECT jsonb_agg(row_to_json(t))
+            FROM (
+                SELECT DATE(created_at) as day, COUNT(*) as actions
+                FROM user_activity_detailed
+                WHERE user_id = target_user_id
+                AND created_at > NOW() - (days_back || ' days')::INTERVAL
+                GROUP BY DATE(created_at)
+                ORDER BY actions DESC
+                LIMIT 7
+            ) t
+        ) as most_active_days,
+        (
+            SELECT jsonb_agg(row_to_json(t))
+            FROM (
+                SELECT action_type, action_name, target_type, target_name, created_at
+                FROM user_activity_detailed
+                WHERE user_id = target_user_id
+                ORDER BY created_at DESC
+                LIMIT 50
+            ) t
+        ) as recent_actions
+    FROM user_activity_detailed
+    WHERE user_id = target_user_id
+    AND created_at > NOW() - (days_back || ' days')::INTERVAL;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+## 20. `daily_stats`
+
+**Purpose:** Pre-aggregated daily statistics for fast analytics dashboard loading.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY DEFAULT gen_random_uuid() | Stat ID |
+| `stat_date` | DATE | NOT NULL UNIQUE | Date of statistics |
+| `total_users` | INTEGER | DEFAULT 0 | Cumulative user count |
+| `new_registrations` | INTEGER | DEFAULT 0 | New users that day |
+| `active_users` | INTEGER | DEFAULT 0 | Users active that day |
+| `total_sessions` | INTEGER | DEFAULT 0 | Sessions started |
+| `total_page_views` | INTEGER | DEFAULT 0 | Page views |
+| `total_templates` | INTEGER | DEFAULT 0 | Cumulative templates |
+| `new_templates` | INTEGER | DEFAULT 0 | Templates created |
+| `template_downloads` | INTEGER | DEFAULT 0 | Template uses |
+| `avg_session_duration` | INTEGER | DEFAULT 0 | Avg session in seconds |
+| `top_pages` | JSONB | DEFAULT '[]' | Most visited pages |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Record creation |
+| `updated_at` | TIMESTAMPTZ | DEFAULT NOW() | Last update |
+
+**Used by:** `adminPanelEnhanced.js` (Analytics Dashboard)
+
+```sql
+-- =============================================
+-- TABLE: daily_stats
+-- Pre-aggregated daily statistics for fast loading
+-- =============================================
+CREATE TABLE daily_stats (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    stat_date DATE NOT NULL UNIQUE,
+    total_users INTEGER DEFAULT 0,
+    new_registrations INTEGER DEFAULT 0,
+    active_users INTEGER DEFAULT 0,
+    total_sessions INTEGER DEFAULT 0,
+    total_page_views INTEGER DEFAULT 0,
+    total_templates INTEGER DEFAULT 0,
+    new_templates INTEGER DEFAULT 0,
+    template_downloads INTEGER DEFAULT 0,
+    avg_session_duration INTEGER DEFAULT 0,
+    top_pages JSONB DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for date queries
+CREATE INDEX idx_daily_stats_date ON daily_stats(stat_date DESC);
+
+-- RLS Policies
+ALTER TABLE daily_stats ENABLE ROW LEVEL SECURITY;
+
+-- Admins can view all stats
+CREATE POLICY "Admins can view all stats"
+    ON daily_stats FOR SELECT
+    USING (is_admin(auth.uid()));
+
+-- Only system can insert/update (via function)
+CREATE POLICY "System can manage stats"
+    ON daily_stats FOR ALL
+    USING (is_super_admin(auth.uid()));
+
+-- Function to update daily stats (call at end of day or periodically)
+CREATE OR REPLACE FUNCTION update_daily_stats(target_date DATE DEFAULT CURRENT_DATE)
+RETURNS void
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    stats_record RECORD;
+BEGIN
+    -- Calculate stats for the target date
+    SELECT 
+        (SELECT COUNT(*) FROM user_profiles) as total_users,
+        (SELECT COUNT(*) FROM user_profiles WHERE DATE(created_at) = target_date) as new_registrations,
+        (SELECT COUNT(DISTINCT user_id) FROM user_activity_logs WHERE DATE(timestamp) = target_date) as active_users,
+        (SELECT COUNT(*) FROM user_sessions WHERE DATE(started_at) = target_date) as total_sessions,
+        (SELECT COUNT(*) FROM page_views WHERE DATE(created_at) = target_date) as total_page_views,
+        (SELECT COUNT(*) FROM templates WHERE deleted = false) as total_templates,
+        (SELECT COUNT(*) FROM templates WHERE DATE(created_at) = target_date AND deleted = false) as new_templates,
+        (SELECT COUNT(*) FROM user_activity_logs WHERE activity_type = 'template_use' AND DATE(timestamp) = target_date) as template_downloads,
+        (
+            SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (last_seen_at - started_at)))::INTEGER, 0)
+            FROM user_sessions WHERE DATE(started_at) = target_date
+        ) as avg_session_duration,
+        (
+            SELECT COALESCE(jsonb_agg(row_to_json(t)), '[]'::jsonb)
+            FROM (
+                SELECT page_path, COUNT(*) as views
+                FROM page_views
+                WHERE DATE(created_at) = target_date
+                GROUP BY page_path
+                ORDER BY views DESC
+                LIMIT 10
+            ) t
+        ) as top_pages
+    INTO stats_record;
+
+    -- Upsert the stats
+    INSERT INTO daily_stats (
+        stat_date, total_users, new_registrations, active_users, 
+        total_sessions, total_page_views, total_templates, new_templates,
+        template_downloads, avg_session_duration, top_pages, updated_at
+    ) VALUES (
+        target_date, stats_record.total_users, stats_record.new_registrations,
+        stats_record.active_users, stats_record.total_sessions, stats_record.total_page_views,
+        stats_record.total_templates, stats_record.new_templates, stats_record.template_downloads,
+        stats_record.avg_session_duration, stats_record.top_pages, NOW()
+    )
+    ON CONFLICT (stat_date) DO UPDATE SET
+        total_users = EXCLUDED.total_users,
+        new_registrations = EXCLUDED.new_registrations,
+        active_users = EXCLUDED.active_users,
+        total_sessions = EXCLUDED.total_sessions,
+        total_page_views = EXCLUDED.total_page_views,
+        total_templates = EXCLUDED.total_templates,
+        new_templates = EXCLUDED.new_templates,
+        template_downloads = EXCLUDED.template_downloads,
+        avg_session_duration = EXCLUDED.avg_session_duration,
+        top_pages = EXCLUDED.top_pages,
+        updated_at = NOW();
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+## Summary Table Count: 20 Tables
 
 | # | Table Name | Required For |
 |---|------------|--------------|
@@ -1243,6 +1661,10 @@ CREATE POLICY "Users can remove own votes"
 | 14 | `hidden_built_ins` | Hide built-in browser items |
 | 15 | `template_comments` | 💬 Comment system on templates |
 | 16 | `comment_votes` | 👍 Upvote/downvote on comments |
+| 17 | `user_sessions` | 🟢 Online user tracking with heartbeat |
+| 18 | `page_views` | 📊 Page view analytics |
+| 19 | `user_activity_detailed` | 🔍 Detailed user action tracking |
+| 20 | `daily_stats` | 📈 Pre-aggregated daily statistics |
 
 ### New Features Enabled:
 - ⭐ **Ratings:** Users can rate templates 1-5 stars
@@ -1867,4 +2289,329 @@ CREATE POLICY "Users can update own notifications"
 CREATE POLICY "Users can delete own notifications"
     ON user_notifications FOR DELETE
     USING (auth.uid() = user_id);
+```
+
+---
+
+### Add Enhanced Analytics Tables (v1.3.0)
+
+Run this migration to add the new analytics tracking tables for online users, page views, detailed activity, and daily stats.
+
+```sql
+-- =============================================
+-- MIGRATION: Enhanced Analytics Tables v1.3.0
+-- Adds: user_sessions, page_views, user_activity_detailed, daily_stats
+-- Run this in Supabase SQL Editor
+-- =============================================
+
+-- 17. USER_SESSIONS - Track online users with heartbeat
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    session_token VARCHAR(64) NOT NULL UNIQUE,
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    last_seen_at TIMESTAMPTZ DEFAULT NOW(),
+    user_agent TEXT,
+    ip_hash VARCHAR(64),
+    current_page TEXT,
+    referrer TEXT,
+    is_active BOOLEAN DEFAULT true
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(is_active, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(session_token);
+
+ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Drop policies if they exist (for re-running)
+DROP POLICY IF EXISTS "Admins can view all sessions" ON user_sessions;
+DROP POLICY IF EXISTS "Users can manage own sessions" ON user_sessions;
+DROP POLICY IF EXISTS "Users can update own sessions" ON user_sessions;
+
+CREATE POLICY "Admins can view all sessions"
+    ON user_sessions FOR SELECT
+    USING (is_admin(auth.uid()));
+
+CREATE POLICY "Users can manage own sessions"
+    ON user_sessions FOR INSERT
+    WITH CHECK (true);
+
+CREATE POLICY "Users can update own sessions"
+    ON user_sessions FOR UPDATE
+    USING (true);
+
+-- Cleanup function for stale sessions
+CREATE OR REPLACE FUNCTION cleanup_stale_sessions()
+RETURNS void
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    UPDATE user_sessions 
+    SET is_active = false 
+    WHERE is_active = true 
+    AND last_seen_at < NOW() - INTERVAL '5 minutes';
+    
+    DELETE FROM user_sessions 
+    WHERE last_seen_at < NOW() - INTERVAL '30 days';
+END;
+$$ LANGUAGE plpgsql;
+
+-- 18. PAGE_VIEWS - Track page views for analytics
+CREATE TABLE IF NOT EXISTS page_views (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    session_id UUID REFERENCES user_sessions(id) ON DELETE SET NULL,
+    page_path TEXT NOT NULL,
+    page_title TEXT,
+    referrer TEXT,
+    user_agent TEXT,
+    screen_width INTEGER,
+    screen_height INTEGER,
+    view_duration INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_page_views_created ON page_views(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_page_views_user ON page_views(user_id);
+CREATE INDEX IF NOT EXISTS idx_page_views_session ON page_views(session_id);
+CREATE INDEX IF NOT EXISTS idx_page_views_page ON page_views(page_path);
+-- Note: Using created_at index for date filtering (DATE() function index removed due to IMMUTABLE requirement)
+
+ALTER TABLE page_views ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can view all page views" ON page_views;
+DROP POLICY IF EXISTS "Anyone can log page views" ON page_views;
+
+CREATE POLICY "Admins can view all page views"
+    ON page_views FOR SELECT
+    USING (is_admin(auth.uid()));
+
+CREATE POLICY "Anyone can log page views"
+    ON page_views FOR INSERT
+    WITH CHECK (true);
+
+-- Function to get page view statistics
+CREATE OR REPLACE FUNCTION get_page_view_stats(days_back INTEGER DEFAULT 7)
+RETURNS TABLE(
+    total_views BIGINT,
+    unique_visitors BIGINT,
+    unique_users BIGINT,
+    avg_duration NUMERIC,
+    top_pages JSONB
+)
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*)::BIGINT as total_views,
+        COUNT(DISTINCT session_id)::BIGINT as unique_visitors,
+        COUNT(DISTINCT user_id)::BIGINT as unique_users,
+        COALESCE(AVG(view_duration), 0)::NUMERIC as avg_duration,
+        (
+            SELECT jsonb_agg(row_to_json(t))
+            FROM (
+                SELECT page_path, COUNT(*) as views
+                FROM page_views
+                WHERE created_at > NOW() - (days_back || ' days')::INTERVAL
+                GROUP BY page_path
+                ORDER BY views DESC
+                LIMIT 10
+            ) t
+        ) as top_pages
+    FROM page_views
+    WHERE created_at > NOW() - (days_back || ' days')::INTERVAL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 19. USER_ACTIVITY_DETAILED - Detailed user action tracking
+CREATE TABLE IF NOT EXISTS user_activity_detailed (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    session_id UUID REFERENCES user_sessions(id) ON DELETE SET NULL,
+    action_type VARCHAR(50) NOT NULL,
+    action_name VARCHAR(100) NOT NULL,
+    target_type VARCHAR(50),
+    target_id TEXT,
+    target_name TEXT,
+    metadata JSONB DEFAULT '{}',
+    page_path TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_activity_detailed_user ON user_activity_detailed(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_activity_detailed_created ON user_activity_detailed(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_activity_detailed_action ON user_activity_detailed(action_type, action_name);
+CREATE INDEX IF NOT EXISTS idx_user_activity_detailed_session ON user_activity_detailed(session_id);
+
+ALTER TABLE user_activity_detailed ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can view all detailed activity" ON user_activity_detailed;
+DROP POLICY IF EXISTS "Users can log own activity" ON user_activity_detailed;
+
+CREATE POLICY "Admins can view all detailed activity"
+    ON user_activity_detailed FOR SELECT
+    USING (is_admin(auth.uid()));
+
+CREATE POLICY "Users can log own activity"
+    ON user_activity_detailed FOR INSERT
+    WITH CHECK (auth.uid() = user_id OR auth.uid() IS NOT NULL);
+
+-- Function to get user activity summary
+CREATE OR REPLACE FUNCTION get_user_activity_summary(target_user_id UUID, days_back INTEGER DEFAULT 30)
+RETURNS TABLE(
+    total_actions BIGINT,
+    action_breakdown JSONB,
+    most_active_days JSONB,
+    recent_actions JSONB
+)
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*)::BIGINT as total_actions,
+        (
+            SELECT jsonb_object_agg(action_type, cnt)
+            FROM (
+                SELECT action_type, COUNT(*) as cnt
+                FROM user_activity_detailed
+                WHERE user_id = target_user_id
+                AND created_at > NOW() - (days_back || ' days')::INTERVAL
+                GROUP BY action_type
+            ) t
+        ) as action_breakdown,
+        (
+            SELECT jsonb_agg(row_to_json(t))
+            FROM (
+                SELECT DATE(created_at) as day, COUNT(*) as actions
+                FROM user_activity_detailed
+                WHERE user_id = target_user_id
+                AND created_at > NOW() - (days_back || ' days')::INTERVAL
+                GROUP BY DATE(created_at)
+                ORDER BY actions DESC
+                LIMIT 7
+            ) t
+        ) as most_active_days,
+        (
+            SELECT jsonb_agg(row_to_json(t))
+            FROM (
+                SELECT action_type, action_name, target_type, target_name, created_at
+                FROM user_activity_detailed
+                WHERE user_id = target_user_id
+                ORDER BY created_at DESC
+                LIMIT 50
+            ) t
+        ) as recent_actions
+    FROM user_activity_detailed
+    WHERE user_id = target_user_id
+    AND created_at > NOW() - (days_back || ' days')::INTERVAL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 20. DAILY_STATS - Pre-aggregated daily statistics
+CREATE TABLE IF NOT EXISTS daily_stats (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    stat_date DATE NOT NULL UNIQUE,
+    total_users INTEGER DEFAULT 0,
+    new_registrations INTEGER DEFAULT 0,
+    active_users INTEGER DEFAULT 0,
+    total_sessions INTEGER DEFAULT 0,
+    total_page_views INTEGER DEFAULT 0,
+    total_templates INTEGER DEFAULT 0,
+    new_templates INTEGER DEFAULT 0,
+    template_downloads INTEGER DEFAULT 0,
+    avg_session_duration INTEGER DEFAULT 0,
+    top_pages JSONB DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(stat_date DESC);
+
+ALTER TABLE daily_stats ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can view all stats" ON daily_stats;
+DROP POLICY IF EXISTS "System can manage stats" ON daily_stats;
+
+CREATE POLICY "Admins can view all stats"
+    ON daily_stats FOR SELECT
+    USING (is_admin(auth.uid()));
+
+CREATE POLICY "System can manage stats"
+    ON daily_stats FOR ALL
+    USING (is_super_admin(auth.uid()));
+
+-- Function to update daily stats (can be scheduled or called manually)
+CREATE OR REPLACE FUNCTION update_daily_stats(target_date DATE DEFAULT CURRENT_DATE)
+RETURNS void
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    stats_record RECORD;
+BEGIN
+    SELECT 
+        (SELECT COUNT(*) FROM user_profiles) as total_users,
+        (SELECT COUNT(*) FROM user_profiles WHERE DATE(created_at) = target_date) as new_registrations,
+        (SELECT COUNT(DISTINCT user_id) FROM user_activity_logs WHERE DATE(timestamp) = target_date) as active_users,
+        (SELECT COUNT(*) FROM user_sessions WHERE DATE(started_at) = target_date) as total_sessions,
+        (SELECT COUNT(*) FROM page_views WHERE DATE(created_at) = target_date) as total_page_views,
+        (SELECT COUNT(*) FROM templates WHERE deleted = false) as total_templates,
+        (SELECT COUNT(*) FROM templates WHERE DATE(created_at) = target_date AND deleted = false) as new_templates,
+        (SELECT COUNT(*) FROM user_activity_logs WHERE activity_type = 'template_use' AND DATE(timestamp) = target_date) as template_downloads,
+        (
+            SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (last_seen_at - started_at)))::INTEGER, 0)
+            FROM user_sessions WHERE DATE(started_at) = target_date
+        ) as avg_session_duration,
+        (
+            SELECT COALESCE(jsonb_agg(row_to_json(t)), '[]'::jsonb)
+            FROM (
+                SELECT page_path, COUNT(*) as views
+                FROM page_views
+                WHERE DATE(created_at) = target_date
+                GROUP BY page_path
+                ORDER BY views DESC
+                LIMIT 10
+            ) t
+        ) as top_pages
+    INTO stats_record;
+
+    INSERT INTO daily_stats (
+        stat_date, total_users, new_registrations, active_users, 
+        total_sessions, total_page_views, total_templates, new_templates,
+        template_downloads, avg_session_duration, top_pages, updated_at
+    ) VALUES (
+        target_date, stats_record.total_users, stats_record.new_registrations,
+        stats_record.active_users, stats_record.total_sessions, stats_record.total_page_views,
+        stats_record.total_templates, stats_record.new_templates, stats_record.template_downloads,
+        stats_record.avg_session_duration, stats_record.top_pages, NOW()
+    )
+    ON CONFLICT (stat_date) DO UPDATE SET
+        total_users = EXCLUDED.total_users,
+        new_registrations = EXCLUDED.new_registrations,
+        active_users = EXCLUDED.active_users,
+        total_sessions = EXCLUDED.total_sessions,
+        total_page_views = EXCLUDED.total_page_views,
+        total_templates = EXCLUDED.total_templates,
+        new_templates = EXCLUDED.new_templates,
+        template_downloads = EXCLUDED.template_downloads,
+        avg_session_duration = EXCLUDED.avg_session_duration,
+        top_pages = EXCLUDED.top_pages,
+        updated_at = NOW();
+END;
+$$ LANGUAGE plpgsql;
+
+-- =============================================
+-- MIGRATION COMPLETE!
+-- New tables added:
+-- - user_sessions (online user tracking)
+-- - page_views (site analytics)
+-- - user_activity_detailed (detailed action tracking)
+-- - daily_stats (pre-aggregated statistics)
+-- =============================================
 ```

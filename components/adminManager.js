@@ -252,6 +252,53 @@ class AdminManager {
     }
 
     /**
+     * Grant admin role by user ID (super admin only)
+     */
+    async grantRoleById(userId, role, notes = '') {
+        if (!this.hasPermission('*')) {
+            throw new Error('Only super admins can grant roles');
+        }
+
+        if (!this.ROLES[role]) {
+            throw new Error('Invalid role');
+        }
+
+        try {
+            const currentUser = await this.authManager.getCurrentUser();
+
+            // Grant role
+            const { data, error } = await this.supabase
+                .from('admin_roles')
+                .insert({
+                    user_id: userId,
+                    role: role,
+                    granted_by: currentUser.id,
+                    notes: notes
+                })
+                .select()
+                .single();
+
+            if (error) {
+                if (error.code === '23505') { // Unique constraint violation
+                    throw new Error('User already has this role');
+                }
+                throw error;
+            }
+
+            // Log activity
+            await this.logActivity('grant_role', 'user', userId, {
+                role: role,
+                notes: notes
+            });
+
+            return data;
+        } catch (error) {
+            console.error('Error granting role:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Get all admin users
      */
     async getAllAdmins() {

@@ -126,8 +126,8 @@ class AdminPanel {
                             <span>Browser Management</span>
                         </button>
                         <button class="admin-tab" data-tab="users" id="adminTabUsers">
-                            <i class="fas fa-users-cog"></i>
-                            <span>Admin Users</span>
+                            <i class="fas fa-users"></i>
+                            <span>Users</span>
                         </button>
                         <button class="admin-tab" data-tab="activity">
                             <i class="fas fa-history"></i>
@@ -258,12 +258,43 @@ class AdminPanel {
                         <div class="admin-tab-content" data-tab-content="users">
                             <div class="admin-section-header">
                                 <div>
-                                    <h3>Admin Users</h3>
-                                    <p>Manage admin roles and permissions</p>
+                                    <h3><i class="fas fa-users"></i> Users</h3>
+                                    <p>View all users and manage admin roles</p>
                                 </div>
-                                <button class="btn btn-primary" id="btnGrantRole">
-                                    <i class="fas fa-user-plus"></i> Grant Admin Role
-                                </button>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <select id="usersViewFilter" class="form-select" style="width: 180px;">
+                                        <option value="all">👥 All Users</option>
+                                        <option value="admins">👑 Admin Users</option>
+                                    </select>
+                                    <button class="btn btn-primary" id="btnGrantRole">
+                                        <i class="fas fa-user-plus"></i> Grant Admin Role
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Users Stats Row -->
+                            <div class="users-stats-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
+                                <div class="users-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #8b5cf6;" id="statTotalUsers">-</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Total Users</div>
+                                </div>
+                                <div class="users-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #f59e0b;" id="statAdminUsers">-</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Admin Users</div>
+                                </div>
+                                <div class="users-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #10b981;" id="statNewUsers">-</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">New (7 days)</div>
+                                </div>
+                                <div class="users-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #3b82f6;" id="statActiveUsers">-</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Active Today</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Search Bar -->
+                            <div style="margin-bottom: 15px;">
+                                <input type="text" id="usersSearchInput" class="form-input" placeholder="Search users by email or username..." style="width: 100%;">
                             </div>
                             
                             <div id="adminUsersList" class="admin-users-list"></div>
@@ -273,15 +304,62 @@ class AdminPanel {
                         <div class="admin-tab-content" data-tab-content="activity">
                             <div class="admin-section-header">
                                 <div>
-                                    <h3>Activity Log</h3>
-                                    <p>Recent admin actions and changes</p>
+                                    <h3><i class="fas fa-stream"></i> Activity Log</h3>
+                                    <p>Real-time tracking of user and admin actions</p>
                                 </div>
-                                <button class="btn btn-secondary" id="btnRefreshActivity">
-                                    <i class="fas fa-sync-alt"></i> Refresh
-                                </button>
+                                <div style="display: flex; gap: 10px;">
+                                    <button class="btn btn-danger btn-sm" id="btnClearActivityLog" title="Clear all activity logs">
+                                        <i class="fas fa-trash-alt"></i> Clear Logs
+                                    </button>
+                                    <button class="btn btn-secondary" id="btnRefreshActivity">
+                                        <i class="fas fa-sync-alt"></i> Refresh
+                                    </button>
+                                </div>
                             </div>
                             
-                            <div id="adminActivityList" class="admin-activity-list"></div>
+                            <!-- Activity Stats Summary -->
+                            <div class="activity-stats-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
+                                <div class="activity-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #10b981;" id="activityTodayCount">-</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Today</div>
+                                </div>
+                                <div class="activity-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #8b5cf6;" id="activityWeekCount">-</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">This Week</div>
+                                </div>
+                                <div class="activity-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #f59e0b;" id="activityUniqueUsers">-</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Active Users</div>
+                                </div>
+                                <div class="activity-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #3b82f6;" id="activityTotalCount">-</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Total Logs</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Activity Filters -->
+                            <div class="activity-filters" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                                <input type="text" id="activitySearchInput" class="form-input" placeholder="Search activities..." style="flex: 1; min-width: 200px;">
+                                <select id="activityTypeFilter" class="form-select" style="width: 180px;">
+                                    <option value="all">All Activity Types</option>
+                                    <option value="login">🔐 Logins</option>
+                                    <option value="template">📝 Templates</option>
+                                    <option value="pack">📦 Packs</option>
+                                    <option value="mob">💀 Mobs</option>
+                                    <option value="skill">✨ Skills</option>
+                                    <option value="export">📤 Exports</option>
+                                    <option value="admin">👑 Admin Actions</option>
+                                </select>
+                                <select id="activityTimeFilter" class="form-select" style="width: 150px;">
+                                    <option value="all">All Time</option>
+                                    <option value="1h">Last Hour</option>
+                                    <option value="24h">Last 24 Hours</option>
+                                    <option value="7d">Last 7 Days</option>
+                                    <option value="30d">Last 30 Days</option>
+                                </select>
+                            </div>
+                            
+                            <div id="adminActivityList" class="admin-activity-list" style="max-height: 500px; overflow-y: auto;"></div>
                         </div>
                     </div>
                 </div>
@@ -352,6 +430,24 @@ class AdminPanel {
         
         // Refresh activity
         document.getElementById('btnRefreshActivity')?.addEventListener('click', () => {
+            this.loadActivityLog();
+        });
+        
+        // Clear activity logs
+        document.getElementById('btnClearActivityLog')?.addEventListener('click', () => {
+            this.clearActivityLogs();
+        });
+        
+        // Activity search and filters
+        document.getElementById('activitySearchInput')?.addEventListener('input', () => {
+            this._debounce(() => this.loadActivityLog(), 300);
+        });
+        
+        document.getElementById('activityTypeFilter')?.addEventListener('change', () => {
+            this.loadActivityLog();
+        });
+        
+        document.getElementById('activityTimeFilter')?.addEventListener('change', () => {
             this.loadActivityLog();
         });
         
@@ -470,6 +566,15 @@ class AdminPanel {
             this.showHiddenOnly = e.target.checked;
             this.filterBrowserItems('builtin');
         });
+
+        // Users tab filter and search
+        document.getElementById('usersViewFilter')?.addEventListener('change', () => {
+            this.loadUsers();
+        });
+        
+        document.getElementById('usersSearchInput')?.addEventListener('input', () => {
+            this._debounce(() => this.filterUsersDisplay(), 300);
+        });
     }
 
     /**
@@ -535,7 +640,7 @@ class AdminPanel {
         } else if (tabName === 'browsers') {
             this.loadBrowserManagement();
         } else if (tabName === 'users') {
-            this.loadAdminUsers();
+            this.loadUsers();
         } else if (tabName === 'activity') {
             this.loadActivityLog();
         }
@@ -1335,9 +1440,9 @@ class AdminPanel {
     }
 
     /**
-     * Load admin users
+     * Load users based on filter (all users or admin users only)
      */
-    async loadAdminUsers() {
+    async loadUsers() {
         if (!this.adminManager.hasPermission('*')) {
             document.getElementById('adminUsersList').innerHTML = `
                 <div class="empty-state">
@@ -1348,13 +1453,243 @@ class AdminPanel {
             return;
         }
 
+        const filter = document.getElementById('usersViewFilter')?.value || 'all';
+        
         try {
-            const admins = await this.adminManager.getAllAdmins();
-            this.renderAdminUsers(admins);
+            // Load stats
+            await this.loadUsersStats();
+            
+            if (filter === 'admins') {
+                const admins = await this.adminManager.getAllAdmins();
+                this._allUsersData = admins.map(a => ({ ...a, isAdmin: true }));
+                this.renderAdminUsers(admins);
+            } else {
+                await this.loadAllUsers();
+            }
         } catch (error) {
-            console.error('Error loading admins:', error);
-            this.showError('Failed to load admin users');
+            console.error('Error loading users:', error);
+            this.showError('Failed to load users');
         }
+    }
+
+    /**
+     * Load user statistics
+     */
+    async loadUsersStats() {
+        if (!window.supabaseClient) return;
+        
+        try {
+            // Total users
+            const { count: totalUsers } = await window.supabaseClient
+                .from('user_profiles')
+                .select('*', { count: 'exact', head: true });
+            
+            // Admin users count
+            const { data: adminData } = await window.supabaseClient
+                .from('admin_roles')
+                .select('user_id');
+            const uniqueAdmins = new Set(adminData?.map(a => a.user_id) || []).size;
+            
+            // New users in last 7 days
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            const { count: newUsers } = await window.supabaseClient
+                .from('user_profiles')
+                .select('*', { count: 'exact', head: true })
+                .gte('created_at', weekAgo.toISOString());
+            
+            // Active today (from sessions)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const { count: activeToday } = await window.supabaseClient
+                .from('user_sessions')
+                .select('user_id', { count: 'exact', head: true })
+                .gte('last_seen', today.toISOString());
+            
+            // Update UI
+            document.getElementById('statTotalUsers').textContent = this.formatNumber(totalUsers || 0);
+            document.getElementById('statAdminUsers').textContent = this.formatNumber(uniqueAdmins || 0);
+            document.getElementById('statNewUsers').textContent = this.formatNumber(newUsers || 0);
+            document.getElementById('statActiveUsers').textContent = this.formatNumber(activeToday || 0);
+        } catch (error) {
+            console.error('Error loading user stats:', error);
+        }
+    }
+
+    /**
+     * Load all users from user_profiles
+     */
+    async loadAllUsers() {
+        if (!window.supabaseClient) return;
+        
+        const container = document.getElementById('adminUsersList');
+        if (!container) return;
+        
+        container.innerHTML = '<div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading users...</div>';
+        
+        try {
+            // Get all users
+            const { data: users, error } = await window.supabaseClient
+                .from('user_profiles')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            if (error) throw error;
+            
+            // Get admin roles
+            const { data: adminRoles } = await window.supabaseClient
+                .from('admin_roles')
+                .select('user_id, role');
+            
+            // Create a map of user_id to roles
+            const adminMap = {};
+            adminRoles?.forEach(ar => {
+                if (!adminMap[ar.user_id]) adminMap[ar.user_id] = [];
+                adminMap[ar.user_id].push(ar.role);
+            });
+            
+            // Combine data
+            this._allUsersData = users.map(user => ({
+                ...user,
+                id: user.user_id, // Normalize to 'id' for consistency
+                isAdmin: !!adminMap[user.user_id],
+                adminRoles: adminMap[user.user_id] || []
+            }));
+            
+            this.renderAllUsers(this._allUsersData);
+        } catch (error) {
+            console.error('Error loading all users:', error);
+            container.innerHTML = '<div class="empty-state"><p>Failed to load users</p></div>';
+        }
+    }
+
+    /**
+     * Render all users list
+     */
+    renderAllUsers(users) {
+        const container = document.getElementById('adminUsersList');
+        if (!container) return;
+        
+        if (!users || users.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-users" style="font-size: 3rem; opacity: 0.3;"></i>
+                    <p>No users found</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = users.map(user => {
+            const isAdmin = user.isAdmin;
+            const highestRole = user.adminRoles?.[0];
+            const roleInfo = highestRole ? this.adminManager.getRoleInfo(highestRole) : null;
+            const createdDate = new Date(user.created_at);
+            const isNewUser = (Date.now() - createdDate.getTime()) < 7 * 24 * 60 * 60 * 1000; // 7 days
+            const displayName = user.display_name || user.email?.split('@')[0] || 'Unknown';
+            
+            return `
+                <div class="admin-user-card ${isAdmin ? 'is-admin' : ''}" data-user-id="${user.id}">
+                    <div class="admin-user-info">
+                        <div class="admin-user-avatar" style="${isAdmin ? `background: ${roleInfo?.color || '#8b5cf6'}22; color: ${roleInfo?.color || '#8b5cf6'};` : ''}">
+                            ${isAdmin ? (roleInfo?.icon || '👤') : '<i class="fas fa-user"></i>'}
+                        </div>
+                        <div>
+                            <h4>${displayName}</h4>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">${user.email || ''}</div>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                ${isAdmin ? `
+                                    <span class="admin-role-badge" style="background: ${roleInfo?.color || '#8b5cf6'}22; color: ${roleInfo?.color || '#8b5cf6'};">
+                                        ${roleInfo?.label || highestRole}
+                                    </span>
+                                ` : `
+                                    <span class="user-badge" style="background: var(--bg-tertiary); color: var(--text-secondary); padding: 2px 8px; border-radius: 4px; font-size: 11px;">
+                                        <i class="fas fa-user"></i> User
+                                    </span>
+                                `}
+                                ${isNewUser ? `
+                                    <span class="new-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 2px 8px; border-radius: 4px; font-size: 11px;">
+                                        <i class="fas fa-sparkles"></i> New
+                                    </span>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="admin-user-meta">
+                        <div><small>User ID:</small> <code style="font-size: 10px; opacity: 0.7;">${user.id.substring(0, 8)}...</code></div>
+                        <div><small>Joined:</small> ${this.formatDate(user.created_at)}</div>
+                    </div>
+                    <div class="user-actions" style="display: flex; gap: 8px;">
+                        ${isAdmin ? `
+                            <button class="btn btn-sm btn-danger" onclick="window.adminPanel.revokeRole('${user.id}', '${highestRole}', '${user.email}')" title="Revoke admin role">
+                                <i class="fas fa-user-minus"></i>
+                            </button>
+                        ` : `
+                            <button class="btn btn-sm btn-secondary" onclick="window.adminPanel.quickGrantRole('${user.id}', '${user.email}')" title="Grant admin role">
+                                <i class="fas fa-user-shield"></i>
+                            </button>
+                        `}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Filter users display based on search
+     */
+    filterUsersDisplay() {
+        const searchTerm = document.getElementById('usersSearchInput')?.value?.toLowerCase() || '';
+        
+        if (!this._allUsersData) return;
+        
+        const filtered = this._allUsersData.filter(user => {
+            const email = (user.email || '').toLowerCase();
+            const displayName = (user.display_name || '').toLowerCase();
+            const id = (user.id || '').toLowerCase();
+            return email.includes(searchTerm) || displayName.includes(searchTerm) || id.includes(searchTerm);
+        });
+        
+        const filter = document.getElementById('usersViewFilter')?.value || 'all';
+        if (filter === 'admins') {
+            this.renderAdminUsers(filtered.filter(u => u.isAdmin));
+        } else {
+            this.renderAllUsers(filtered);
+        }
+    }
+
+    /**
+     * Quick grant role to a user
+     */
+    async quickGrantRole(userId, email) {
+        const role = await window.editor?.showPrompt('Grant Admin Role', `Grant role to ${email}:\n(super_admin, template_admin, moderator)`);
+        if (!role || !this.adminManager.ROLES[role]) {
+            if (role) {
+                window.notificationModal?.alert(
+                    'Invalid role. Valid roles: super_admin, template_admin, moderator',
+                    'error',
+                    'Invalid Role'
+                );
+            }
+            return;
+        }
+        
+        try {
+            await this.adminManager.grantRoleById(userId, role);
+            this.showSuccess(`Granted ${role} to ${email}`);
+            await this.loadUsers();
+        } catch (error) {
+            console.error('Error granting role:', error);
+            this.showError(error.message || 'Failed to grant role');
+        }
+    }
+
+    /**
+     * Load admin users (legacy - now calls loadUsers)
+     */
+    async loadAdminUsers() {
+        document.getElementById('usersViewFilter').value = 'admins';
+        await this.loadUsers();
     }
 
     /**
@@ -1428,7 +1763,7 @@ class AdminPanel {
         try {
             await this.adminManager.grantRole(email, role, notes);
             this.showSuccess('Role granted successfully');
-            await this.loadAdminUsers();
+            await this.loadUsers();
         } catch (error) {
             console.error('Error granting role:', error);
             this.showError(error.message || 'Failed to grant role');
@@ -1453,6 +1788,7 @@ class AdminPanel {
         try {
             await this.adminManager.revokeRole(userId, role);
             this.showSuccess('Role revoked successfully');
+            await this.loadUsers();
             await this.loadAdminUsers();
         } catch (error) {
             console.error('Error revoking role:', error);
@@ -1461,12 +1797,66 @@ class AdminPanel {
     }
 
     /**
-     * Load activity log
+     * Load activity log with enhanced filtering
      */
     async loadActivityLog() {
         try {
-            const activities = await this.adminManager.getRecentActivity();
-            this.renderActivityLog(activities);
+            // Update activity stats
+            await this.loadActivityStats();
+            
+            // Get filter values
+            const search = document.getElementById('activitySearchInput')?.value || '';
+            const type = document.getElementById('activityTypeFilter')?.value || 'all';
+            const time = document.getElementById('activityTimeFilter')?.value || 'all';
+            
+            const activities = await this.adminManager.getRecentActivity(100);
+            
+            // Apply filters
+            let filtered = activities;
+            
+            // Search filter
+            if (search) {
+                const searchLower = search.toLowerCase();
+                filtered = filtered.filter(a => 
+                    (a.admin_display_name || '').toLowerCase().includes(searchLower) ||
+                    (a.action || '').toLowerCase().includes(searchLower) ||
+                    JSON.stringify(a.details || {}).toLowerCase().includes(searchLower)
+                );
+            }
+            
+            // Type filter
+            if (type !== 'all') {
+                filtered = filtered.filter(a => {
+                    const action = (a.action || '').toLowerCase();
+                    switch(type) {
+                        case 'login': return action.includes('login') || action.includes('auth');
+                        case 'template': return action.includes('template');
+                        case 'pack': return action.includes('pack');
+                        case 'mob': return action.includes('mob');
+                        case 'skill': return action.includes('skill');
+                        case 'export': return action.includes('export');
+                        case 'admin': return action.includes('role') || action.includes('admin') || action.includes('permission');
+                        default: return true;
+                    }
+                });
+            }
+            
+            // Time filter
+            if (time !== 'all') {
+                const now = new Date();
+                let since;
+                switch(time) {
+                    case '1h': since = new Date(now - 60 * 60 * 1000); break;
+                    case '24h': since = new Date(now - 24 * 60 * 60 * 1000); break;
+                    case '7d': since = new Date(now - 7 * 24 * 60 * 60 * 1000); break;
+                    case '30d': since = new Date(now - 30 * 24 * 60 * 60 * 1000); break;
+                }
+                if (since) {
+                    filtered = filtered.filter(a => new Date(a.created_at) > since);
+                }
+            }
+            
+            this.renderActivityLog(filtered);
         } catch (error) {
             console.error('Error loading activity log:', error);
             this.showError('Failed to load activity log');
@@ -1474,7 +1864,87 @@ class AdminPanel {
     }
 
     /**
-     * Render activity log
+     * Load activity statistics
+     */
+    async loadActivityStats() {
+        if (!window.supabaseClient) return;
+        
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            
+            // Today's count
+            const { count: todayCount } = await window.supabaseClient
+                .from('user_activity_logs')
+                .select('*', { count: 'exact', head: true })
+                .gte('timestamp', today.toISOString());
+            
+            // Week's count
+            const { count: weekCount } = await window.supabaseClient
+                .from('user_activity_logs')
+                .select('*', { count: 'exact', head: true })
+                .gte('timestamp', weekAgo.toISOString());
+            
+            // Unique users this week
+            const { data: uniqueData } = await window.supabaseClient
+                .from('user_activity_logs')
+                .select('user_id')
+                .gte('timestamp', weekAgo.toISOString());
+            const uniqueUsers = new Set(uniqueData?.map(d => d.user_id) || []).size;
+            
+            // Total count
+            const { count: totalCount } = await window.supabaseClient
+                .from('user_activity_logs')
+                .select('*', { count: 'exact', head: true });
+            
+            // Update UI
+            const todayEl = document.getElementById('activityTodayCount');
+            const weekEl = document.getElementById('activityWeekCount');
+            const uniqueEl = document.getElementById('activityUniqueUsers');
+            const totalEl = document.getElementById('activityTotalCount');
+            
+            if (todayEl) todayEl.textContent = this.formatNumber(todayCount || 0);
+            if (weekEl) weekEl.textContent = this.formatNumber(weekCount || 0);
+            if (uniqueEl) uniqueEl.textContent = this.formatNumber(uniqueUsers);
+            if (totalEl) totalEl.textContent = this.formatNumber(totalCount || 0);
+        } catch (e) {
+            console.warn('Could not load activity stats:', e);
+        }
+    }
+
+    /**
+     * Clear activity logs
+     */
+    async clearActivityLogs() {
+        if (!window.supabaseClient) {
+            this.showError('Database not available');
+            return;
+        }
+        
+        const confirmed = confirm('Are you sure you want to clear ALL activity logs? This cannot be undone.');
+        if (!confirmed) return;
+        
+        try {
+            const { error } = await window.supabaseClient
+                .from('user_activity_logs')
+                .delete()
+                .neq('id', '00000000-0000-0000-0000-000000000000');
+            
+            if (error) throw error;
+            
+            window.notificationModal?.alert('Activity logs cleared successfully!', 'success', 'Success');
+            this.loadActivityLog();
+        } catch (error) {
+            console.error('Error clearing activity logs:', error);
+            this.showError('Failed to clear activity logs');
+        }
+    }
+
+    /**
+     * Render activity log with improved design
      */
     renderActivityLog(activities) {
         const container = document.getElementById('adminActivityList');
@@ -1482,36 +1952,57 @@ class AdminPanel {
 
         if (activities.length === 0) {
             container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-clipboard-list" style="font-size: 3rem; opacity: 0.3;"></i>
-                    <p>No recent activity</p>
+                <div class="empty-state" style="text-align: center; padding: 60px 20px;">
+                    <i class="fas fa-clipboard-list" style="font-size: 48px; opacity: 0.3; margin-bottom: 15px;"></i>
+                    <p style="font-size: 16px; margin-bottom: 5px;">No activity found</p>
+                    <p style="font-size: 13px; color: var(--text-secondary);">Try adjusting your filters</p>
                 </div>
             `;
             return;
         }
 
         container.innerHTML = activities.map(activity => `
-            <div class="activity-log-item">
-                <div class="activity-icon">
-                    <i class="fas ${this.getActivityIcon(activity.action)}"></i>
+            <div class="activity-log-item" style="display: flex; gap: 15px; padding: 15px; background: var(--bg-secondary); border-radius: 10px; margin-bottom: 10px; transition: all 0.2s;">
+                <div class="activity-icon" style="width: 44px; height: 44px; border-radius: 10px; background: ${this.getActivityColor(activity.action)}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <i class="fas ${this.getActivityIcon(activity.action)}" style="color: white; font-size: 16px;"></i>
                 </div>
-                <div class="activity-content">
-                    <div class="activity-header">
-                        <strong>${activity.admin_display_name || 'Unknown User'}</strong>
-                        <span class="activity-action">${this.formatAction(activity.action)}</span>
-                    </div>
-                    <div class="activity-meta">
-                        <span>${this.formatDate(activity.created_at)}</span>
-                        ${activity.target_type ? `<span>Target: ${activity.target_type}</span>` : ''}
-                    </div>
-                    ${activity.details ? `
-                        <div class="activity-details">
-                            ${JSON.stringify(activity.details, null, 2)}
+                <div class="activity-content" style="flex: 1; min-width: 0;">
+                    <div class="activity-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
+                        <div>
+                            <strong style="color: var(--text-primary);">${this.escapeHtml(activity.admin_display_name || 'Unknown User')}</strong>
+                            <span class="activity-action" style="margin-left: 8px; padding: 3px 8px; background: var(--bg-tertiary); border-radius: 4px; font-size: 12px;">${this.formatAction(activity.action)}</span>
                         </div>
+                        <span class="activity-time" style="font-size: 12px; color: var(--text-muted); white-space: nowrap;">${this.formatDate(activity.created_at)}</span>
+                    </div>
+                    ${activity.target_type ? `
+                        <div class="activity-target" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 5px;">
+                            <i class="fas fa-crosshairs" style="margin-right: 5px;"></i> Target: <strong>${this.escapeHtml(activity.target_type)}</strong>
+                            ${activity.target_id ? ` (${activity.target_id.substring(0, 8)}...)` : ''}
+                        </div>
+                    ` : ''}
+                    ${activity.details && Object.keys(activity.details).length > 0 ? `
+                        <details class="activity-details" style="margin-top: 8px;">
+                            <summary style="cursor: pointer; color: var(--accent-primary); font-size: 12px;">View Details</summary>
+                            <pre style="background: var(--bg-tertiary); padding: 10px; border-radius: 6px; margin-top: 8px; font-size: 11px; overflow-x: auto;">${JSON.stringify(activity.details, null, 2)}</pre>
+                        </details>
                     ` : ''}
                 </div>
             </div>
         `).join('');
+    }
+
+    /**
+     * Get activity color based on action type
+     */
+    getActivityColor(action) {
+        const actionLower = (action || '').toLowerCase();
+        if (actionLower.includes('create') || actionLower.includes('add')) return 'linear-gradient(135deg, #10b981, #059669)';
+        if (actionLower.includes('delete') || actionLower.includes('remove')) return 'linear-gradient(135deg, #ef4444, #dc2626)';
+        if (actionLower.includes('update') || actionLower.includes('edit')) return 'linear-gradient(135deg, #f59e0b, #d97706)';
+        if (actionLower.includes('login') || actionLower.includes('auth')) return 'linear-gradient(135deg, #8b5cf6, #7c3aed)';
+        if (actionLower.includes('export')) return 'linear-gradient(135deg, #3b82f6, #2563eb)';
+        if (actionLower.includes('role') || actionLower.includes('admin')) return 'linear-gradient(135deg, #ec4899, #db2777)';
+        return 'linear-gradient(135deg, #6b7280, #4b5563)';
     }
 
     /**
@@ -2755,6 +3246,20 @@ class AdminPanel {
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
+    }
+
+    /**
+     * Format number for display (K, M suffixes)
+     * @param {number} num - The number to format
+     * @returns {string} - The formatted number string
+     */
+    formatNumber(num) {
+        if (num >= 1000000) {
+            return (num / 1000000).toFixed(1) + 'M';
+        } else if (num >= 1000) {
+            return (num / 1000).toFixed(1) + 'K';
+        }
+        return num.toString();
     }
 
     /**
