@@ -266,9 +266,26 @@ class AdminPanel {
                                         <option value="all">👥 All Users</option>
                                         <option value="admins">👑 Admin Users</option>
                                     </select>
+                                    <button class="btn btn-secondary" id="btnSyncProfiles" title="Sync missing user profiles from auth system">
+                                        <i class="fas fa-sync-alt"></i> Sync Profiles
+                                    </button>
                                     <button class="btn btn-primary" id="btnGrantRole">
                                         <i class="fas fa-user-plus"></i> Grant Admin Role
                                     </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Sync Warning Banner (hidden by default) -->
+                            <div id="usersSyncWarning" class="admin-warning-banner" style="display: none; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; display: none;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <i class="fas fa-exclamation-triangle" style="color: #f59e0b; font-size: 18px;"></i>
+                                    <div style="flex: 1;">
+                                        <strong style="color: #f59e0b;">Some users may be missing</strong>
+                                        <p style="margin: 4px 0 0; font-size: 12px; color: var(--text-secondary);">
+                                            Users who signed up before profile auto-creation was enabled won't appear here until they log in again.
+                                            Click "Sync Profiles" to create missing profiles (requires database RPC function).
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -426,6 +443,11 @@ class AdminPanel {
         // Grant role button
         document.getElementById('btnGrantRole')?.addEventListener('click', () => {
             this.showGrantRoleDialog();
+        });
+        
+        // Sync profiles button
+        document.getElementById('btnSyncProfiles')?.addEventListener('click', () => {
+            this.syncMissingProfiles();
         });
         
         // Refresh activity
@@ -1479,10 +1501,30 @@ class AdminPanel {
         if (!window.supabaseClient) return;
         
         try {
-            // Total users
-            const { count: totalUsers } = await window.supabaseClient
+            // Try to get total users from auth.users via RPC (more accurate)
+            let totalUsers = 0;
+            try {
+                totalUsers = await this.adminManager.getTotalAuthUsersCount();
+            } catch (e) {
+                // Fallback: count from user_profiles
+                const { count } = await window.supabaseClient
+                    .from('user_profiles')
+                    .select('*', { count: 'exact', head: true });
+                totalUsers = count || 0;
+            }
+            
+            // Count profiles we have
+            const { count: profileCount } = await window.supabaseClient
                 .from('user_profiles')
                 .select('*', { count: 'exact', head: true });
+            
+            // Show warning if counts don't match (some users don't have profiles)
+            const warningBanner = document.getElementById('usersSyncWarning');
+            if (warningBanner && totalUsers > (profileCount || 0)) {
+                warningBanner.style.display = 'block';
+            } else if (warningBanner) {
+                warningBanner.style.display = 'none';
+            }
             
             // Admin users count
             const { data: adminData } = await window.supabaseClient
@@ -1504,7 +1546,7 @@ class AdminPanel {
             const { count: activeToday } = await window.supabaseClient
                 .from('user_sessions')
                 .select('user_id', { count: 'exact', head: true })
-                .gte('last_seen', today.toISOString());
+                .gte('last_seen_at', today.toISOString());
             
             // Update UI
             document.getElementById('statTotalUsers').textContent = this.formatNumber(totalUsers || 0);
@@ -1732,6 +1774,48 @@ class AdminPanel {
                 </div>
             `;
         }).join('');
+    }
+
+    /**
+     * Sync missing user profiles from auth system
+     */
+    async syncMissingProfiles() {
+        const btn = document.getElementById('btnSyncProfiles');
+        const originalHTML = btn?.innerHTML;
+        
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+            }
+            
+            const result = await this.adminManager.syncMissingUserProfiles();
+            
+            if (result?.synced > 0) {
+                this.showSuccess(`Synced ${result.synced} missing user profile(s)`);
+                // Reload users to show the new profiles
+                await this.loadUsers();
+            } else if (result?.message) {
+                // RPC not available, show info
+                window.notificationModal?.alert(
+                    'To sync missing profiles, you need to add the sync_missing_user_profiles RPC function to your Supabase database.\n\n' +
+                    'Users will automatically have profiles created when they log in next time.\n\n' +
+                    'See DATABASE_TABLES_REQUIRED.md for the SQL code.',
+                    'info',
+                    'Manual Sync Not Available'
+                );
+            } else {
+                this.showSuccess('All user profiles are in sync');
+            }
+        } catch (error) {
+            console.error('Error syncing profiles:', error);
+            this.showError(error.message || 'Failed to sync profiles');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML || '<i class="fas fa-sync-alt"></i> Sync Profiles';
+            }
+        }
     }
 
     /**

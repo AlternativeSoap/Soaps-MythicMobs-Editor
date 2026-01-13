@@ -586,6 +586,66 @@ class AdminManager {
             </span>
         `;
     }
+
+    /**
+     * Sync missing user profiles from auth.users
+     * This creates user_profiles records for users who signed up
+     * before the database trigger was added
+     * 
+     * NOTE: This requires an RPC function in Supabase that has access to auth.users
+     * The RPC function should be named 'sync_missing_user_profiles'
+     */
+    async syncMissingUserProfiles() {
+        if (!this.hasPermission('*')) {
+            throw new Error('Only super admins can sync user profiles');
+        }
+
+        try {
+            // Call the RPC function that has SECURITY DEFINER access to auth.users
+            const { data, error } = await this.supabase
+                .rpc('sync_missing_user_profiles');
+
+            if (error) {
+                // If RPC doesn't exist, try an alternative approach
+                if (error.code === '42883' || error.message?.includes('does not exist')) {
+                    console.warn('sync_missing_user_profiles RPC not found. Users must log in to create their profiles.');
+                    return { synced: 0, message: 'RPC function not available. Users will be added when they log in.' };
+                }
+                throw error;
+            }
+
+            console.log('✅ User profile sync result:', data);
+            return data;
+        } catch (error) {
+            console.error('Error syncing user profiles:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get total count of auth users (requires RPC with auth access)
+     * Falls back to user_profiles count if RPC not available
+     */
+    async getTotalAuthUsersCount() {
+        try {
+            // Try RPC function first (has access to auth.users)
+            const { data, error } = await this.supabase
+                .rpc('get_total_auth_users_count');
+
+            if (error) {
+                // Fallback to user_profiles count
+                const { count } = await this.supabase
+                    .from('user_profiles')
+                    .select('*', { count: 'exact', head: true });
+                return count || 0;
+            }
+
+            return data || 0;
+        } catch (error) {
+            console.error('Error getting auth users count:', error);
+            return 0;
+        }
+    }
 }
 
 // Export for use in other modules

@@ -278,13 +278,13 @@ class AdminPanelEnhanced {
                                     <div style="font-size: 18px; font-weight: bold; color: white;" id="dailyPageViews">-</div>
                                     <div style="font-size: 10px; color: rgba(255,255,255,0.6);">Page Views</div>
                                 </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;">
+                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;" title="Cannot be reset - actual user registrations">
                                     <div style="font-size: 18px; font-weight: bold; color: white;" id="dailyNewUsers">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">New Users</div>
+                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);"><i class="fas fa-lock" style="font-size: 8px; margin-right: 3px;"></i>New Users</div>
                                 </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;">
+                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;" title="Cannot be reset - actual template records">
                                     <div style="font-size: 18px; font-weight: bold; color: white;" id="dailyTemplates">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">Templates</div>
+                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);"><i class="fas fa-lock" style="font-size: 8px; margin-right: 3px;"></i>Templates</div>
                                 </div>
                             </div>
                         </div>
@@ -309,13 +309,13 @@ class AdminPanelEnhanced {
                                     <div style="font-size: 18px; font-weight: bold; color: white;" id="monthlyPageViews">-</div>
                                     <div style="font-size: 10px; color: rgba(255,255,255,0.6);">Page Views</div>
                                 </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;">
+                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;" title="Cannot be reset - actual user registrations">
                                     <div style="font-size: 18px; font-weight: bold; color: white;" id="monthlyNewUsers">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">New Users</div>
+                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);"><i class="fas fa-lock" style="font-size: 8px; margin-right: 3px;"></i>New Users</div>
                                 </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;">
+                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;" title="Cannot be reset - actual template records">
                                     <div style="font-size: 18px; font-weight: bold; color: white;" id="monthlyTemplates">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">Templates</div>
+                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);"><i class="fas fa-lock" style="font-size: 8px; margin-right: 3px;"></i>Templates</div>
                                 </div>
                             </div>
                         </div>
@@ -340,13 +340,13 @@ class AdminPanelEnhanced {
                                     <div style="font-size: 18px; font-weight: bold; color: white;" id="yearlyPageViews">-</div>
                                     <div style="font-size: 10px; color: rgba(255,255,255,0.6);">Page Views</div>
                                 </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;">
+                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;" title="Cannot be reset - actual user registrations">
                                     <div style="font-size: 18px; font-weight: bold; color: white;" id="yearlyNewUsers">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">New Users</div>
+                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);"><i class="fas fa-lock" style="font-size: 8px; margin-right: 3px;"></i>New Users</div>
                                 </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;">
+                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;" title="Cannot be reset - actual template records">
                                     <div style="font-size: 18px; font-weight: bold; color: white;" id="yearlyTemplates">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">Templates</div>
+                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);"><i class="fas fa-lock" style="font-size: 8px; margin-right: 3px;"></i>Templates</div>
                                 </div>
                             </div>
                         </div>
@@ -887,9 +887,14 @@ class AdminPanelEnhanced {
                     </button>
                 </div>
                 <div class="modal-body" style="padding: 20px;">
-                    <p style="margin-bottom: 20px; color: var(--text-secondary);">
-                        Select which analytics data to reset. <strong>Note:</strong> "Total Users" and "Templates" cannot be reset as they are live counts from the database.
+                    <p style="margin-bottom: 15px; color: var(--text-secondary);">
+                        Select which analytics data to reset.
                     </p>
+                    <div style="margin-bottom: 20px; padding: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;">
+                        <p style="color: #3b82f6; font-size: 13px; margin: 0;">
+                            <i class="fas fa-info-circle"></i> <strong>Note:</strong> "Total Users", "New Users" (in time period cards), and "Templates" cannot be reset - these are actual database records representing real registered users and content.
+                        </p>
+                    </div>
                     
                     <div style="display: flex; flex-direction: column; gap: 12px;">
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; cursor: pointer;">
@@ -983,58 +988,94 @@ class AdminPanelEnhanced {
         }
 
         const results = [];
+        const warnings = [];
         
         try {
             if (selections.sessions) {
-                const { error } = await window.supabaseClient
+                const { data, error, count } = await window.supabaseClient
                     .from('user_sessions')
                     .delete()
-                    .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
-                if (error) throw error;
-                results.push('Sessions cleared');
+                    .neq('id', '00000000-0000-0000-0000-000000000000')
+                    .select('id', { count: 'exact' });
+                if (error) throw new Error(`Sessions: ${error.message}`);
+                if (data && data.length > 0) {
+                    results.push(`Sessions (${data.length} deleted)`);
+                } else {
+                    warnings.push('Sessions (0 deleted - RLS may be blocking)');
+                }
             }
             
             if (selections.pageviews) {
-                const { error } = await window.supabaseClient
+                const { data, error } = await window.supabaseClient
                     .from('page_views')
                     .delete()
-                    .neq('id', '00000000-0000-0000-0000-000000000000');
-                if (error) throw error;
-                results.push('Page views cleared');
+                    .neq('id', '00000000-0000-0000-0000-000000000000')
+                    .select('id', { count: 'exact' });
+                if (error) throw new Error(`Page views: ${error.message}`);
+                if (data && data.length > 0) {
+                    results.push(`Page views (${data.length} deleted)`);
+                } else {
+                    warnings.push('Page views (0 deleted - RLS may be blocking)');
+                }
             }
             
             if (selections.activity) {
-                const { error } = await window.supabaseClient
+                const { data, error } = await window.supabaseClient
                     .from('user_activity_logs')
                     .delete()
-                    .neq('id', '00000000-0000-0000-0000-000000000000');
-                if (error) throw error;
-                results.push('Activity logs cleared');
+                    .neq('id', '00000000-0000-0000-0000-000000000000')
+                    .select('id', { count: 'exact' });
+                if (error) throw new Error(`Activity logs: ${error.message}`);
+                if (data && data.length > 0) {
+                    results.push(`Activity logs (${data.length} deleted)`);
+                } else {
+                    warnings.push('Activity logs (0 deleted - RLS may be blocking)');
+                }
             }
             
             if (selections.detailed) {
-                const { error } = await window.supabaseClient
+                const { data, error } = await window.supabaseClient
                     .from('user_activity_detailed')
                     .delete()
-                    .neq('id', '00000000-0000-0000-0000-000000000000');
-                if (error) throw error;
-                results.push('Detailed activity cleared');
+                    .neq('id', '00000000-0000-0000-0000-000000000000')
+                    .select('id', { count: 'exact' });
+                if (error) throw new Error(`Detailed activity: ${error.message}`);
+                if (data && data.length > 0) {
+                    results.push(`Detailed activity (${data.length} deleted)`);
+                } else {
+                    warnings.push('Detailed activity (0 deleted - RLS may be blocking)');
+                }
             }
             
             if (selections.dailystats) {
-                const { error } = await window.supabaseClient
+                const { data, error } = await window.supabaseClient
                     .from('daily_stats')
                     .delete()
-                    .neq('id', '00000000-0000-0000-0000-000000000000');
-                if (error) throw error;
-                results.push('Daily stats cleared');
+                    .neq('id', '00000000-0000-0000-0000-000000000000')
+                    .select('id', { count: 'exact' });
+                if (error) throw new Error(`Daily stats: ${error.message}`);
+                if (data && data.length > 0) {
+                    results.push(`Daily stats (${data.length} deleted)`);
+                } else {
+                    warnings.push('Daily stats (0 deleted - RLS may be blocking)');
+                }
             }
             
-            window.notificationModal?.alert(
-                `Successfully reset: ${results.join(', ')}`,
-                'success',
-                'Data Reset Complete'
-            );
+            // Build result message
+            let message = '';
+            if (results.length > 0) {
+                message += `✅ Deleted: ${results.join(', ')}`;
+            }
+            if (warnings.length > 0) {
+                if (message) message += '\n\n';
+                message += `⚠️ Not deleted: ${warnings.join(', ')}\n\nYou need to add DELETE policies for admins in Supabase. See DATABASE_TABLES_REQUIRED.md for the SQL.`;
+            }
+            
+            if (results.length > 0) {
+                window.notificationModal?.alert(message, warnings.length > 0 ? 'warning' : 'success', 'Reset Results');
+            } else if (warnings.length > 0) {
+                window.notificationModal?.alert(message, 'error', 'Reset Failed - RLS Blocking');
+            }
             
             // Refresh analytics
             this.loadAnalytics();

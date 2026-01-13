@@ -71,10 +71,58 @@ class AuthManager {
             });
             
             if (error) throw error;
+            
+            // Ensure user profile exists (backup for when DB trigger doesn't exist)
+            if (data.user) {
+                await this.ensureUserProfile(data.user);
+            }
+            
             return { success: true, user: data.user, session: data.session };
         } catch (error) {
             console.error('Signup error:', error);
             return { success: false, error: error.message };
+        }
+    }
+    
+    /**
+     * Ensure user profile exists in database
+     * This is a backup for when the database trigger doesn't exist
+     */
+    async ensureUserProfile(user) {
+        if (!this.supabase || !user) return;
+        
+        try {
+            // Check if profile already exists
+            const { data: existingProfile } = await this.supabase
+                .from('user_profiles')
+                .select('user_id')
+                .eq('user_id', user.id)
+                .single();
+            
+            if (existingProfile) {
+                console.log('✅ User profile already exists');
+                return;
+            }
+            
+            // Create profile
+            const displayName = user.email ? user.email.split('@')[0] : 'User';
+            const { error } = await this.supabase
+                .from('user_profiles')
+                .insert({
+                    user_id: user.id,
+                    email: user.email,
+                    display_name: displayName,
+                    created_at: new Date().toISOString()
+                });
+            
+            if (error && error.code !== '23505') { // Ignore unique constraint violation
+                console.error('Failed to create user profile:', error);
+            } else {
+                console.log('✅ User profile created successfully');
+            }
+        } catch (error) {
+            // Non-critical, profile will be created by userProfileManager
+            console.warn('Could not ensure user profile:', error);
         }
     }
     
@@ -93,6 +141,12 @@ class AuthManager {
             });
             
             if (error) throw error;
+            
+            // Ensure user profile exists (backup for users created before profile trigger was added)
+            if (data.user) {
+                await this.ensureUserProfile(data.user);
+            }
+            
             return { success: true, user: data.user, session: data.session };
         } catch (error) {
             console.error('Login error:', error);

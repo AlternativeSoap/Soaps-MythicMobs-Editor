@@ -4,6 +4,50 @@ Complete list of tables needed for the MythicMobs Editor to work correctly.
 
 ---
 
+## ⚡ Quick Fix: Admin Delete Policies
+
+If the admin panel "Reset Analytics" feature doesn't work, you're missing DELETE policies. Run this SQL in Supabase:
+
+```sql
+-- =============================================
+-- QUICK FIX: Add DELETE policies for admin reset
+-- Run this in Supabase SQL Editor
+-- =============================================
+
+-- user_activity_logs
+CREATE POLICY "Admins can delete activity logs"
+    ON user_activity_logs FOR DELETE
+    USING (
+        EXISTS (
+            SELECT 1 FROM admin_roles ar 
+            WHERE ar.user_id = auth.uid() 
+            AND ar.role IN ('super_admin', 'admin')
+        )
+    );
+
+-- user_sessions
+CREATE POLICY "Admins can delete sessions"
+    ON user_sessions FOR DELETE
+    USING (is_admin(auth.uid()));
+
+-- page_views
+CREATE POLICY "Admins can delete page views"
+    ON page_views FOR DELETE
+    USING (is_admin(auth.uid()));
+
+-- user_activity_detailed
+CREATE POLICY "Admins can delete detailed activity"
+    ON user_activity_detailed FOR DELETE
+    USING (is_admin(auth.uid()));
+
+-- daily_stats
+CREATE POLICY "Admins can delete stats"
+    ON daily_stats FOR DELETE
+    USING (is_admin(auth.uid()));
+```
+
+---
+
 ## 1. `user_profiles`
 
 **Purpose:** Store user display names and extended profile data.
@@ -75,6 +119,60 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- =============================================
+-- RPC FUNCTION: sync_missing_user_profiles
+-- Purpose: Creates user_profiles for auth users who don't have one
+-- Used by: Admin Panel "Sync Profiles" button
+-- =============================================
+CREATE OR REPLACE FUNCTION sync_missing_user_profiles()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    synced_count INTEGER := 0;
+BEGIN
+    -- Insert profiles for auth users that don't have one
+    INSERT INTO public.user_profiles (user_id, email, display_name, created_at)
+    SELECT 
+        au.id,
+        au.email,
+        COALESCE(au.raw_user_meta_data->>'display_name', split_part(au.email, '@', 1)),
+        COALESCE(au.created_at, NOW())
+    FROM auth.users au
+    LEFT JOIN public.user_profiles up ON au.id = up.user_id
+    WHERE up.user_id IS NULL
+    ON CONFLICT (user_id) DO NOTHING;
+    
+    GET DIAGNOSTICS synced_count = ROW_COUNT;
+    
+    RETURN json_build_object(
+        'success', true,
+        'synced', synced_count
+    );
+END;
+$$;
+
+-- =============================================
+-- RPC FUNCTION: get_total_auth_users_count
+-- Purpose: Returns total count of registered users from auth.users
+-- Used by: Admin Panel user statistics
+-- =============================================
+CREATE OR REPLACE FUNCTION get_total_auth_users_count()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    total INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO total FROM auth.users;
+    RETURN total;
+END;
+$$;
 ```
 
 ---
@@ -562,6 +660,17 @@ CREATE POLICY "Admins can view all activity"
 CREATE POLICY "Authenticated users can log activity"
     ON user_activity_logs FOR INSERT
     WITH CHECK (auth.uid() IS NOT NULL);
+
+-- DELETE policy for admins (required for analytics reset)
+CREATE POLICY "Admins can delete activity logs"
+    ON user_activity_logs FOR DELETE
+    USING (
+        EXISTS (
+            SELECT 1 FROM admin_roles ar 
+            WHERE ar.user_id = auth.uid() 
+            AND ar.role IN ('super_admin', 'admin')
+        )
+    );
 ```
 
 ---
@@ -1282,6 +1391,11 @@ CREATE POLICY "Users can update own sessions"
     ON user_sessions FOR UPDATE
     USING (true);
 
+-- Admins can delete sessions (required for analytics reset)
+CREATE POLICY "Admins can delete sessions"
+    ON user_sessions FOR DELETE
+    USING (is_admin(auth.uid()));
+
 -- Cleanup function for stale sessions (run periodically)
 CREATE OR REPLACE FUNCTION cleanup_stale_sessions()
 RETURNS void
@@ -1362,6 +1476,11 @@ CREATE POLICY "Admins can view all page views"
 CREATE POLICY "Anyone can log page views"
     ON page_views FOR INSERT
     WITH CHECK (true);
+
+-- Admins can delete page views (required for analytics reset)
+CREATE POLICY "Admins can delete page views"
+    ON page_views FOR DELETE
+    USING (is_admin(auth.uid()));
 
 -- Function to get page view statistics
 CREATE OR REPLACE FUNCTION get_page_view_stats(days_back INTEGER DEFAULT 7)
@@ -1458,6 +1577,11 @@ CREATE POLICY "Admins can view all detailed activity"
 CREATE POLICY "Users can log own activity"
     ON user_activity_detailed FOR INSERT
     WITH CHECK (auth.uid() = user_id OR auth.uid() IS NOT NULL);
+
+-- Admins can delete detailed activity (required for analytics reset)
+CREATE POLICY "Admins can delete detailed activity"
+    ON user_activity_detailed FOR DELETE
+    USING (is_admin(auth.uid()));
 
 -- Function to get user activity summary
 CREATE OR REPLACE FUNCTION get_user_activity_summary(target_user_id UUID, days_back INTEGER DEFAULT 30)
@@ -1575,6 +1699,11 @@ CREATE POLICY "Admins can view all stats"
 CREATE POLICY "System can manage stats"
     ON daily_stats FOR ALL
     USING (is_super_admin(auth.uid()));
+
+-- Admins can delete stats (required for analytics reset)
+CREATE POLICY "Admins can delete stats"
+    ON daily_stats FOR DELETE
+    USING (is_admin(auth.uid()));
 
 -- Function to update daily stats (call at end of day or periodically)
 CREATE OR REPLACE FUNCTION update_daily_stats(target_date DATE DEFAULT CURRENT_DATE)
