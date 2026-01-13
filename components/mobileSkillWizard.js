@@ -284,6 +284,7 @@ class MobileSkillWizard {
                         <i class="fas fa-magic"></i>
                         <span>Skill Builder</span>
                     </div>
+                    <div class="wizard-context-badge"></div>
                     <div class="wizard-step-indicator"></div>
                 </div>
                 
@@ -427,6 +428,24 @@ class MobileSkillWizard {
         this.isOpen = true;
         this.onComplete = options.onComplete || null;
         
+        // Handle context (mob vs skill)
+        // Skills don't have triggers - they are called by triggers in mobs
+        this.context = options.context || 'skill';
+        
+        // Update steps based on context - skip trigger for skill context
+        if (this.context === 'skill') {
+            this.steps = ['mechanic', 'targeter', 'conditions', 'modifiers', 'review'];
+        } else {
+            this.steps = ['mechanic', 'targeter', 'trigger', 'conditions', 'modifiers', 'review'];
+        }
+        
+        // Update context badge
+        const contextBadge = this.overlay.querySelector('.wizard-context-badge');
+        if (contextBadge) {
+            const isMob = this.context === 'mob';
+            contextBadge.innerHTML = `<span class="context-badge ${this.context}">${isMob ? 'MOB' : 'SKILL'}</span>`;
+        }
+        
         // Pre-fill if editing
         if (options.existingLine) {
             this.parseExistingLine(options.existingLine);
@@ -435,6 +454,7 @@ class MobileSkillWizard {
         this.overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
         
+        this.renderProgressSteps(); // Re-render progress with correct steps
         this.renderCurrentStep();
         this.updatePreview();
     }
@@ -679,11 +699,12 @@ class MobileSkillWizard {
             </div>
             
             ${suggestions.length > 0 ? `
-                <div class="smart-suggestions">
-                    <div class="suggestions-header">
-                        <i class="fas fa-lightbulb"></i>
-                        <span>Quick Pick</span>
-                    </div>
+                <button class="quick-pick-toggle" onclick="this.classList.toggle('expanded'); this.nextElementSibling.classList.toggle('hidden');">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>Quick Pick</span>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </button>
+                <div class="smart-suggestions hidden">
                     <div class="suggestions-chips">
                         ${suggestions.map(s => `
                             <button class="suggestion-chip ${this.state.mechanic === s.name ? 'selected' : ''}" 
