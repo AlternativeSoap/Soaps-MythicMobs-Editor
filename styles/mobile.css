@@ -53,20 +53,84 @@ body.mobile-mode .app-container {
     height: 100dvh; /* Dynamic viewport height for mobile browsers */
 }
 
-/* Prevent text selection on interactive elements */
+/* ============================================
+   UNIVERSAL TOUCH SYSTEM STYLES
+   ============================================ */
+
+/* Prevent text selection on ALL interactive elements */
 body[data-device="mobile"] button,
 body[data-device="mobile"] .btn,
+body[data-device="mobile"] .icon-btn,
 body[data-device="mobile"] .mobile-nav-item,
 body[data-device="mobile"] .fab-main,
-body[data-device="mobile"] .mobile-tool-item {
+body[data-device="mobile"] .fab-menu-item,
+body[data-device="mobile"] .mobile-tool-item,
+body[data-device="mobile"] .modal-close,
+body[data-device="mobile"] .btn-close,
+body[data-device="mobile"] [role="button"],
+body[data-device="mobile"] a,
+body[data-device="mobile"] .clickable {
     -webkit-user-select: none;
     user-select: none;
     touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+}
+
+/* Touch active state - visual feedback */
+body[data-device="mobile"] .touch-active {
+    transform: scale(0.96) !important;
+    opacity: 0.85 !important;
+    transition: transform 0.1s ease, opacity 0.1s ease !important;
+}
+
+/* Ensure all buttons have minimum touch target */
+body[data-device="mobile"] button,
+body[data-device="mobile"] .btn,
+body[data-device="mobile"] .icon-btn {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* Small buttons still need touch target */
+body[data-device="mobile"] .btn-sm,
+body[data-device="mobile"] .btn-xs {
+    min-height: 40px;
+    min-width: 40px;
+    padding: 8px 16px;
+}
+
+/* Icon buttons need proper sizing */
+body[data-device="mobile"] .icon-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+/* Remove hover effects on touch - they cause stickiness */
+@media (hover: none) and (pointer: coarse) {
+    body[data-device="mobile"] button:hover,
+    body[data-device="mobile"] .btn:hover,
+    body[data-device="mobile"] .icon-btn:hover {
+        background: inherit;
+        transform: none;
+    }
 }
 
 /* Disable pull-to-refresh on iOS when scrolling */
-body[data-device="mobile"] .scrollable-content {
+body[data-device="mobile"] .scrollable-content,
+body[data-device="mobile"] .modal-body,
+body[data-device="mobile"] .editor-content,
+body[data-device="mobile"] .view-container {
     overscroll-behavior-y: contain;
+}
+
+/* Disable browser pull-to-refresh entirely */
+body[data-device="mobile"] {
+    overscroll-behavior-y: none;
 }
 
 /* ============================================
@@ -2577,16 +2641,151 @@ body[data-device="mobile"] select {
 }
 
 /* ============================================
-   MOBILE TOAST ENHANCEMENTS
+   MOBILE TOAST ENHANCEMENTS - SWIPEABLE
    ============================================ */
 
+/* Toast container - bottom for mobile */
+body[data-device="mobile"] #toast-container {
+    position: fixed !important;
+    top: auto !important;
+    bottom: calc(var(--mobile-nav-height, 56px) + var(--safe-area-bottom, 0px) + 16px) !important;
+    left: 12px !important;
+    right: 12px !important;
+    display: flex !important;
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+    z-index: 10000 !important;
+    pointer-events: none !important;
+}
+
+/* Mobile toast base styles */
 body[data-device="mobile"] .toast,
 body[data-device="mobile"] .notification-toast {
-    bottom: calc(var(--mobile-nav-height) + var(--safe-area-bottom) + 16px) !important;
-    left: 16px !important;
-    right: 16px !important;
+    position: relative !important;
+    width: 100% !important;
+    min-width: unset !important;
     max-width: none !important;
-    border-radius: var(--mobile-radius) !important;
+    margin: 0 !important;
+    padding: 14px 48px 14px 16px !important;
+    background: var(--bg-tertiary, #1e2030) !important;
+    border: 1px solid var(--border-color, #2a2d3e) !important;
+    border-left-width: 4px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    pointer-events: auto !important;
+    touch-action: pan-x !important;
+    cursor: grab !important;
+    transform: translateX(0) !important;
+    transition: transform 0.15s ease-out, opacity 0.15s ease-out, background 0.2s ease !important;
+    animation: mobileToastSlideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    will-change: transform, opacity !important;
+}
+
+/* Swipe hint indicator */
+body[data-device="mobile"] .toast::after,
+body[data-device="mobile"] .notification-toast::after {
+    content: '';
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 4px;
+    background: var(--text-muted, rgba(255, 255, 255, 0.3));
+    border-radius: 2px;
+    opacity: 0.5;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+/* Animate hint on touch */
+body[data-device="mobile"] .toast.swiping::after,
+body[data-device="mobile"] .notification-toast.swiping::after {
+    opacity: 0.8;
+    transform: translateY(-50%) translateX(4px);
+}
+
+/* Toast being swiped */
+body[data-device="mobile"] .toast.swiping,
+body[data-device="mobile"] .notification-toast.swiping {
+    cursor: grabbing !important;
+    transition: none !important;
+    user-select: none !important;
+}
+
+/* Toast dismissed via swipe */
+body[data-device="mobile"] .toast.dismissed,
+body[data-device="mobile"] .notification-toast.dismissed {
+    transform: translateX(120%) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: transform 0.25s ease-in, opacity 0.25s ease-in !important;
+}
+
+/* Toast type colors */
+body[data-device="mobile"] .toast.success {
+    border-left-color: var(--success, #22c55e) !important;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), var(--bg-tertiary, #1e2030)) !important;
+}
+
+body[data-device="mobile"] .toast.error {
+    border-left-color: var(--error, #ef4444) !important;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), var(--bg-tertiary, #1e2030)) !important;
+}
+
+body[data-device="mobile"] .toast.warning {
+    border-left-color: var(--warning, #f59e0b) !important;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), var(--bg-tertiary, #1e2030)) !important;
+}
+
+body[data-device="mobile"] .toast.info {
+    border-left-color: var(--info, #3b82f6) !important;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), var(--bg-tertiary, #1e2030)) !important;
+}
+
+/* Toast icon */
+body[data-device="mobile"] .toast .toast-icon,
+body[data-device="mobile"] .notification-toast .toast-icon {
+    font-size: 1.35rem !important;
+    flex-shrink: 0 !important;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2)) !important;
+}
+
+/* Toast content */
+body[data-device="mobile"] .toast .toast-content,
+body[data-device="mobile"] .notification-toast .toast-content {
+    flex: 1 !important;
+    min-width: 0 !important;
+}
+
+body[data-device="mobile"] .toast .toast-message,
+body[data-device="mobile"] .notification-toast .toast-message {
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    color: var(--text-primary, #fff) !important;
+    line-height: 1.4 !important;
+    word-break: break-word !important;
+}
+
+/* Slide up animation */
+@keyframes mobileToastSlideUp {
+    0% {
+        opacity: 0;
+        transform: translateY(100%) scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Stacked toasts fade slightly */
+body[data-device="mobile"] #toast-container .toast:not(:last-child),
+body[data-device="mobile"] #toast-container .notification-toast:not(:last-child) {
+    opacity: 0.85 !important;
+    transform: scale(0.96) !important;
 }
 
 /* ============================================
@@ -7458,4 +7657,2438 @@ body[data-device="mobile"] .smart-suggestion-item:active {
     body[data-device="mobile"] .modal-body {
         max-height: calc(100vh - 100px) !important;
     }
+}
+
+/* ============================================
+   ULTRA-COMPACT MOBILE UI SYSTEM
+   ============================================
+   Maximizes content space by:
+   1. Collapsing filters/toolbars behind toggles
+   2. Compact headers with icons-only actions
+   3. Auto-hiding on scroll
+   4. Floating action buttons
+   5. Unified tab systems
+   ============================================ */
+
+/* ============================================
+   TEMPLATE SELECTOR - SPACE OPTIMIZED
+   ============================================ */
+
+/* Ultra-compact modal header */
+body[data-device="mobile"] #templateSelectorOverlay .modal-header {
+    display: flex !important;
+    align-items: center !important;
+    padding: 10px 12px !important;
+    padding-top: calc(10px + var(--safe-area-top, 0px)) !important;
+    min-height: 44px !important;
+    gap: 8px !important;
+    border-bottom: 1px solid var(--border-color, #2a2d3e) !important;
+    flex-shrink: 0 !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .modal-header h2 {
+    font-size: 1rem !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .modal-header h2 i {
+    font-size: 0.9rem !important;
+}
+
+/* Hide create button text, keep icon */
+body[data-device="mobile"] #templateSelectorCreate span {
+    display: none !important;
+}
+
+/* Make "+ New" button larger and more prominent on mobile - override header button size */
+body[data-device="mobile"] #templateSelectorOverlay .modal-header #templateSelectorCreate,
+body[data-device="mobile"] #templateSelectorCreate {
+    width: auto !important;
+    height: auto !important;
+    padding: 12px 16px !important;
+    min-width: 50px !important;
+    min-height: 44px !important;
+    font-size: 1.1rem !important;
+    background: var(--primary-color, #6366f1) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35) !important;
+}
+
+body[data-device="mobile"] #templateSelectorCreate i {
+    font-size: 1.2rem !important;
+}
+
+/* Compact header buttons */
+body[data-device="mobile"] #templateSelectorOverlay .modal-header .btn,
+body[data-device="mobile"] #templateSelectorOverlay .modal-header .btn-icon {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+}
+
+/* Compact search bar */
+body[data-device="mobile"] #templateSelectorOverlay .search-bar {
+    padding: 8px 12px !important;
+    margin: 0 !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .search-input {
+    height: 40px !important;
+    font-size: 15px !important;
+    padding-left: 36px !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .search-icon {
+    left: 10px !important;
+    font-size: 14px !important;
+}
+
+/* Entity type tabs - ultra compact single row */
+body[data-device="mobile"] #templateSelectorOverlay .entity-type-tabs,
+body[data-device="mobile"] #entityTypeTabs {
+    display: flex !important;
+    gap: 6px !important;
+    padding: 6px 12px !important;
+    margin-bottom: 0 !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .entity-type-tab {
+    flex: 1 !important;
+    padding: 8px 10px !important;
+    font-size: 0.8125rem !important;
+    min-height: 38px !important;
+    border-radius: 8px !important;
+    gap: 6px !important;
+    border-width: 2px !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .entity-type-tab span:not(.entity-count) {
+    display: none !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .entity-type-tab i {
+    font-size: 1rem !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .entity-type-tab .entity-count {
+    font-size: 0.75rem !important;
+    padding: 2px 6px !important;
+}
+
+/* COLLAPSIBLE FILTER TOOLBAR - Hidden by default */
+body[data-device="mobile"] #templateSelectorOverlay .template-toolbar {
+    display: none !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+    margin: 0 12px 8px 12px !important;
+    background: var(--bg-tertiary) !important;
+    border-radius: 10px !important;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-toolbar.mobile-expanded {
+    display: flex !important;
+    max-height: 300px;
+    padding: 12px !important;
+}
+
+/* Filter toggle button (injected by JS) */
+body[data-device="mobile"] .mobile-filter-toggle {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    width: calc(100% - 24px) !important;
+    margin: 6px 12px !important;
+    padding: 10px 14px !important;
+    background: var(--bg-tertiary) !important;
+    border: 1px solid var(--border-color, #2a2d3e) !important;
+    border-radius: 10px !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+body[data-device="mobile"] .mobile-filter-toggle:active {
+    background: var(--bg-secondary) !important;
+    transform: scale(0.98) !important;
+}
+
+body[data-device="mobile"] .mobile-filter-toggle .filter-count {
+    background: var(--accent-primary, #8b5cf6) !important;
+    color: white !important;
+    padding: 2px 6px !important;
+    border-radius: 10px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+}
+
+/* Toolbar filters - vertical stack on mobile */
+body[data-device="mobile"] #templateSelectorOverlay .template-toolbar select {
+    width: 100% !important;
+    height: 40px !important;
+    font-size: 14px !important;
+    border-radius: 8px !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-toolbar .view-toggle {
+    display: none !important; /* Hide view toggle on mobile - always use list */
+}
+
+/* Hide dividers */
+body[data-device="mobile"] #templateSelectorOverlay .template-toolbar > div[style*="height: 24px"][style*="width: 1px"] {
+    display: none !important;
+}
+
+/* Category tabs - horizontal scroll, compact */
+body[data-device="mobile"] #templateSelectorOverlay .category-tabs,
+body[data-device="mobile"] #templateTabs {
+    display: flex !important;
+    overflow-x: auto !important;
+    gap: 4px !important;
+    padding: 6px 12px !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-shrink: 0 !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .category-tabs::-webkit-scrollbar {
+    display: none !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .category-tab,
+body[data-device="mobile"] #templateTabs button {
+    flex-shrink: 0 !important;
+    padding: 8px 12px !important;
+    font-size: 0.8125rem !important;
+    min-height: 34px !important;
+    border-radius: 8px !important;
+    white-space: nowrap !important;
+}
+
+/* Content area - maximize space */
+body[data-device="mobile"] #templateSelectorOverlay .condition-browser-body {
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    padding: 8px !important;
+}
+
+/* Footer - minimal */
+body[data-device="mobile"] #templateSelectorOverlay .modal-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 8px 12px !important;
+    padding-bottom: calc(8px + var(--safe-area-bottom, 0px)) !important;
+    min-height: auto !important;
+    border-top: 1px solid var(--border-color, #2a2d3e) !important;
+    flex-shrink: 0 !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .modal-footer #templateCount {
+    font-size: 0.75rem !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .modal-footer .btn {
+    min-height: 36px !important;
+    padding: 0 16px !important;
+    font-size: 0.875rem !important;
+}
+
+/* Comparison panel - compact */
+body[data-device="mobile"] #comparisonPanel {
+    padding: 8px 12px !important;
+}
+
+body[data-device="mobile"] #comparisonPanel span {
+    font-size: 0.8125rem !important;
+}
+
+/* Template cards - list view forced on mobile for space efficiency */
+body[data-device="mobile"] #templateSelectorOverlay .template-grid,
+body[data-device="mobile"] #templateSelectorOverlay #templateList {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-grid-card,
+body[data-device="mobile"] #templateSelectorOverlay .template-list-card {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    padding: 12px !important;
+    gap: 12px !important;
+    border-radius: 10px !important;
+    min-height: auto !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-card-header {
+    display: none !important; /* Hide large header section */
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-card-body {
+    flex: 1 !important;
+    padding: 0 !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-card-title {
+    font-size: 0.9375rem !important;
+    margin-bottom: 4px !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-card-desc {
+    font-size: 0.8125rem !important;
+    -webkit-line-clamp: 1 !important;
+    line-clamp: 1 !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-card-footer,
+body[data-device="mobile"] #templateSelectorOverlay .template-card-stats {
+    display: none !important; /* Hide stats to save space */
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-card-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-card-actions .btn {
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    min-width: auto !important;
+}
+
+/* ============================================
+   EDITOR VIEWS - ULTRA COMPACT HEADERS
+   ============================================ */
+
+/* Minimal sticky header that auto-hides */
+body[data-device="mobile"] .editor-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+    padding: 8px 12px !important;
+    margin: 0 -12px !important;
+    margin-bottom: 8px !important;
+    border-bottom: 1px solid var(--border-color, #2a2d3e) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-height: 48px !important;
+    transition: transform 0.3s ease, opacity 0.3s ease !important;
+}
+
+/* Header hidden state when scrolling down */
+body[data-device="mobile"] .editor-header.header-hidden {
+    transform: translateY(-100%) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Compact title area */
+body[data-device="mobile"] .editor-header h2 {
+    font-size: 0.9375rem !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+}
+
+body[data-device="mobile"] .editor-header h2 i {
+    font-size: 1rem !important;
+    flex-shrink: 0 !important;
+}
+
+/* Mob/skill name - truncate */
+body[data-device="mobile"] .editor-header .mob-name,
+body[data-device="mobile"] .editor-header .skill-name,
+body[data-device="mobile"] .editor-header .item-name,
+body[data-device="mobile"] .editor-header .file-name {
+    font-size: 0.875rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 120px !important;
+}
+
+/* Mode badge - smaller */
+body[data-device="mobile"] .editor-header .mode-badge {
+    font-size: 0.625rem !important;
+    padding: 2px 6px !important;
+    display: none !important; /* Hide mode badge on mobile */
+}
+
+/* Actions - icon only buttons */
+body[data-device="mobile"] .editor-header .editor-actions {
+    display: flex !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+    overflow: visible !important;
+}
+
+body[data-device="mobile"] .editor-header .editor-actions .btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    font-size: 0.875rem !important;
+}
+
+/* Hide button text, show icon only */
+body[data-device="mobile"] .editor-header .editor-actions .btn span,
+body[data-device="mobile"] .editor-header .editor-actions .btn:not(.btn-icon)::after {
+    display: none !important;
+}
+
+body[data-device="mobile"] .editor-header .editor-actions .btn i {
+    margin: 0 !important;
+}
+
+/* Show only first 3 action buttons, rest go to overflow menu */
+body[data-device="mobile"] .editor-header .editor-actions .btn:nth-child(n+4) {
+    display: none !important;
+}
+
+/* Overflow menu button */
+body[data-device="mobile"] .editor-header .editor-actions .mobile-more-btn {
+    display: flex !important;
+}
+
+/* ============================================
+   BREADCRUMB - COMPACT
+   ============================================ */
+
+body[data-device="mobile"] .breadcrumb,
+body[data-device="mobile"] .file-breadcrumb,
+body[data-device="mobile"] .mobile-breadcrumb {
+    font-size: 0.75rem !important;
+    padding: 6px 12px !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+}
+
+body[data-device="mobile"] .breadcrumb-item,
+body[data-device="mobile"] .breadcrumb span {
+    max-width: 80px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* Only show last 2 breadcrumb items */
+body[data-device="mobile"] .breadcrumb-item:not(:nth-last-child(-n+2)):not(:first-child) {
+    display: none !important;
+}
+
+body[data-device="mobile"] .breadcrumb-item:nth-last-child(3)::before {
+    content: "..." !important;
+    margin-right: 4px !important;
+}
+
+/* ============================================
+   FORM SECTIONS - COLLAPSIBLE CARDS
+   ============================================ */
+
+/* All sections collapsed by default on mobile */
+body[data-device="mobile"] .mob-section,
+body[data-device="mobile"] .config-section,
+body[data-device="mobile"] .card.collapsible-card {
+    background: var(--bg-tertiary, #252836) !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--border-color, #2a2d3e) !important;
+    margin-bottom: 8px !important;
+    overflow: hidden !important;
+}
+
+body[data-device="mobile"] .mob-section-header,
+body[data-device="mobile"] .config-section h4,
+body[data-device="mobile"] .card-header.collapsible-header {
+    padding: 12px !important;
+    min-height: 48px !important;
+    font-size: 0.875rem !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+}
+
+body[data-device="mobile"] .mob-section-header i,
+body[data-device="mobile"] .config-section h4 i {
+    font-size: 0.9375rem !important;
+    width: 20px !important;
+    color: var(--accent-primary, #8b5cf6) !important;
+}
+
+/* Collapse indicator */
+body[data-device="mobile"] .mob-section-header::after,
+body[data-device="mobile"] .config-section h4::after {
+    content: "\f078" !important; /* chevron-down */
+    font-family: 'Font Awesome 6 Free' !important;
+    font-weight: 900 !important;
+    margin-left: auto !important;
+    font-size: 0.75rem !important;
+    opacity: 0.6 !important;
+    transition: transform 0.2s ease !important;
+}
+
+body[data-device="mobile"] .mob-section.collapsed .mob-section-header::after,
+body[data-device="mobile"] .config-section.collapsed h4::after {
+    transform: rotate(-90deg) !important;
+}
+
+body[data-device="mobile"] .mob-section-content,
+body[data-device="mobile"] .config-section-content {
+    padding: 12px !important;
+}
+
+/* ============================================
+   FLOATING ACTION BUTTONS
+   ============================================ */
+
+body[data-device="mobile"] .mobile-fab-container {
+    position: fixed !important;
+    bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-area-bottom, 0px) + 16px) !important;
+    right: 16px !important;
+    z-index: 900 !important;
+    display: flex !important;
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+}
+
+body[data-device="mobile"] .mobile-fab {
+    width: 52px !important;
+    height: 52px !important;
+    border-radius: 50% !important;
+    background: var(--accent-primary, #8b5cf6) !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.25rem !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+body[data-device="mobile"] .mobile-fab:active {
+    transform: scale(0.95) !important;
+}
+
+body[data-device="mobile"] .mobile-fab.fab-secondary {
+    width: 44px !important;
+    height: 44px !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+    color: var(--text-primary, white) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    font-size: 1rem !important;
+}
+
+/* Hide inline delete/action buttons when we have FABs */
+body[data-device="mobile"] .editor-card-actions .btn-danger:not(.mobile-fab),
+body[data-device="mobile"] .mob-editor-actions .btn:not(.btn-primary):not(.mobile-fab) {
+    display: none !important;
+}
+
+/* ============================================
+   INLINE FORM OPTIMIZATION
+   ============================================ */
+
+/* Compact form groups */
+body[data-device="mobile"] .form-group {
+    margin-bottom: 12px !important;
+}
+
+body[data-device="mobile"] .form-label {
+    font-size: 0.8125rem !important;
+    margin-bottom: 4px !important;
+}
+
+body[data-device="mobile"] .form-control,
+body[data-device="mobile"] .form-input,
+body[data-device="mobile"] input[type="text"],
+body[data-device="mobile"] input[type="number"],
+body[data-device="mobile"] select {
+    height: 42px !important;
+    min-height: 42px !important;
+    font-size: 15px !important; /* Prevents iOS zoom */
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+}
+
+body[data-device="mobile"] textarea.form-control {
+    min-height: 80px !important;
+    font-size: 15px !important;
+}
+
+/* Inline label + input for compact layout */
+body[data-device="mobile"] .form-group.inline {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+body[data-device="mobile"] .form-group.inline .form-label {
+    margin-bottom: 0 !important;
+    flex-shrink: 0 !important;
+    width: 80px !important;
+}
+
+body[data-device="mobile"] .form-group.inline .form-control {
+    flex: 1 !important;
+}
+
+/* ============================================
+   SWIPE-TO-REVEAL ACTIONS
+   ============================================ */
+
+body[data-device="mobile"] .swipe-container {
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+body[data-device="mobile"] .swipe-content {
+    transition: transform 0.2s ease !important;
+}
+
+body[data-device="mobile"] .swipe-actions {
+    position: absolute !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    right: 0 !important;
+    display: flex !important;
+    align-items: stretch !important;
+    transform: translateX(100%) !important;
+}
+
+body[data-device="mobile"] .swipe-action-btn {
+    width: 60px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.125rem !important;
+}
+
+body[data-device="mobile"] .swipe-action-btn.action-edit {
+    background: var(--accent-primary, #8b5cf6) !important;
+    color: white !important;
+}
+
+body[data-device="mobile"] .swipe-action-btn.action-delete {
+    background: var(--danger-color, #ef4444) !important;
+    color: white !important;
+}
+
+/* ============================================
+   MODAL CONTENT - MAXIMIZE SPACE
+   ============================================ */
+
+body[data-device="mobile"] .condition-modal .modal-content,
+body[data-device="mobile"] .template-browser-content {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* ============================================
+   BOTTOM SHEET ACTIONS
+   ============================================ */
+
+body[data-device="mobile"] .mobile-bottom-sheet-actions {
+    position: fixed !important;
+    bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-area-bottom, 0px)) !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+    border-top: 1px solid var(--border-color, #2a2d3e) !important;
+    padding: 8px 12px !important;
+    display: flex !important;
+    gap: 8px !important;
+    z-index: 800 !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.2) !important;
+}
+
+body[data-device="mobile"] .mobile-bottom-sheet-actions .btn {
+    flex: 1 !important;
+    min-height: 44px !important;
+    font-size: 0.875rem !important;
+    border-radius: 8px !important;
+}
+
+body[data-device="mobile"] .mobile-bottom-sheet-actions .btn-primary {
+    flex: 2 !important;
+}
+
+/* ============================================
+   QUICK ACCESS IMPROVEMENTS
+   ============================================ */
+
+/* Dashboard stat cards - compact */
+body[data-device="mobile"] .stat-card,
+body[data-device="mobile"] .dashboard-stat {
+    padding: 12px !important;
+    border-radius: 10px !important;
+}
+
+body[data-device="mobile"] .stat-card .stat-value,
+body[data-device="mobile"] .dashboard-stat .stat-number {
+    font-size: 1.5rem !important;
+}
+
+body[data-device="mobile"] .stat-card .stat-label {
+    font-size: 0.75rem !important;
+}
+
+/* Recent items - compact list */
+body[data-device="mobile"] .recent-item,
+body[data-device="mobile"] .activity-item {
+    padding: 10px 12px !important;
+    min-height: 44px !important;
+}
+
+/* ============================================
+   TOOLTIPS & POPOVERS - BOTTOM SHEET STYLE
+   ============================================ */
+
+body[data-device="mobile"] .tooltip,
+body[data-device="mobile"] [role="tooltip"] {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    transform: none !important;
+    border-radius: 16px 16px 0 0 !important;
+    max-width: 100% !important;
+    padding: 16px !important;
+    padding-bottom: calc(16px + var(--safe-area-bottom, 0px)) !important;
+}
+
+/* ============================================
+   SPECIFIC EDITOR OPTIMIZATIONS
+   ============================================ */
+
+/* Mob Editor - hide redundant elements */
+body[data-device="mobile"] .mob-editor-container .alert-info,
+body[data-device="mobile"] .mob-editor-container .quick-tips {
+    display: none !important; /* Hide tips to save space */
+}
+
+/* Skill Editor - compact skill lines */
+body[data-device="mobile"] .skill-line-item {
+    padding: 10px 12px !important;
+    min-height: 44px !important;
+    gap: 8px !important;
+}
+
+body[data-device="mobile"] .skill-line-content {
+    font-size: 0.8125rem !important;
+}
+
+body[data-device="mobile"] .skill-line-actions {
+    display: none !important; /* Show on tap/swipe instead */
+}
+
+/* Item Editor - compact preview */
+body[data-device="mobile"] .item-preview-card {
+    padding: 12px !important;
+}
+
+/* ============================================
+   SEARCHABLE DROPDOWN - COMPACT
+   ============================================ */
+
+body[data-device="mobile"] .searchable-dropdown {
+    min-height: 42px !important;
+}
+
+body[data-device="mobile"] .searchable-dropdown .dropdown-display {
+    font-size: 14px !important;
+    padding: 8px 12px !important;
+}
+
+body[data-device="mobile"] .searchable-dropdown .dropdown-menu {
+    max-height: 50vh !important;
+}
+
+body[data-device="mobile"] .searchable-dropdown .dropdown-item {
+    padding: 10px 12px !important;
+    min-height: 44px !important;
+}
+
+/* ============================================
+   HIDE DESKTOP-ONLY ELEMENTS
+   ============================================ */
+
+body[data-device="mobile"] .desktop-only,
+body[data-device="mobile"] .hide-mobile,
+body[data-device="mobile"] .quick-start-section,
+body[data-device="mobile"] .sidebar-tips,
+body[data-device="mobile"] .keyboard-shortcuts-hint {
+    display: none !important;
+}
+
+/* ============================================
+   UTILITY CLASSES FOR MOBILE LAYOUT
+   ============================================ */
+
+body[data-device="mobile"] .mobile-hidden {
+    display: none !important;
+}
+
+body[data-device="mobile"] .mobile-full-width {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+body[data-device="mobile"] .mobile-stack {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+}
+
+body[data-device="mobile"] .mobile-row {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    align-items: center !important;
+}
+
+body[data-device="mobile"] .mobile-compact {
+    padding: 8px !important;
+    font-size: 0.875rem !important;
+}
+
+body[data-device="mobile"] .mobile-tight {
+    margin: 0 !important;
+    padding: 4px !important;
+}
+
+/* ============================================
+   MOB EDITOR CARD - ULTRA COMPACT
+   ============================================ */
+
+/* Main editor card - simplified */
+body[data-device="mobile"] .mob-editor-card,
+body[data-device="mobile"] .editor-card {
+    background: var(--bg-secondary, #1a1d2e) !important;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    margin-bottom: 8px !important;
+}
+
+/* Editor card header - minimal */
+body[data-device="mobile"] .mob-editor-card .card-header,
+body[data-device="mobile"] .editor-card .card-header {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 0 0 10px 0 !important;
+    margin-bottom: 10px !important;
+    border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1)) !important;
+}
+
+body[data-device="mobile"] .mob-editor-card .card-header h3,
+body[data-device="mobile"] .editor-card .card-header h3 {
+    font-size: 0.9375rem !important;
+    margin: 0 !important;
+    flex: 1 !important;
+}
+
+body[data-device="mobile"] .mob-editor-card .card-header i {
+    font-size: 1rem !important;
+    color: var(--accent-primary, #8b5cf6) !important;
+}
+
+/* Hide card icon circle backgrounds on mobile */
+body[data-device="mobile"] .mob-editor-card .card-icon,
+body[data-device="mobile"] .editor-card .card-icon {
+    display: none !important;
+}
+
+/* Inline name + mode badge */
+body[data-device="mobile"] .mob-editor-card .mob-name-wrapper,
+body[data-device="mobile"] .editor-card .entity-name-wrapper {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+}
+
+/* Mode badge - very small */
+body[data-device="mobile"] .mob-editor-card .mode-badge,
+body[data-device="mobile"] .editor-card .mode-badge {
+    font-size: 0.625rem !important;
+    padding: 2px 6px !important;
+    border-radius: 8px !important;
+    white-space: nowrap !important;
+}
+
+/* Name input - clean */
+body[data-device="mobile"] .mob-editor-card input[type="text"],
+body[data-device="mobile"] .editor-card input[type="text"] {
+    height: 40px !important;
+    font-size: 15px !important;
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+    background: var(--bg-tertiary, #252836) !important;
+    border: 1px solid var(--border-color, #2a2d3e) !important;
+}
+
+/* Action buttons - horizontal row, icon only */
+body[data-device="mobile"] .mob-editor-card .card-actions,
+body[data-device="mobile"] .editor-card .card-actions,
+body[data-device="mobile"] .mob-editor-card .editor-card-actions {
+    display: flex !important;
+    gap: 8px !important;
+    margin-top: 12px !important;
+    padding-top: 12px !important;
+    border-top: 1px solid var(--border-color, rgba(255,255,255,0.1)) !important;
+}
+
+body[data-device="mobile"] .mob-editor-card .card-actions .btn,
+body[data-device="mobile"] .editor-card .card-actions .btn {
+    flex: 1 !important;
+    min-height: 40px !important;
+    font-size: 0.8125rem !important;
+    padding: 0 10px !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+}
+
+/* Primary action button - larger */
+body[data-device="mobile"] .mob-editor-card .btn-primary,
+body[data-device="mobile"] .editor-card .btn-primary {
+    flex: 2 !important;
+}
+
+/* Delete button - compact danger style */
+body[data-device="mobile"] .mob-editor-card .btn-danger,
+body[data-device="mobile"] .editor-card .btn-danger {
+    flex: 0 0 40px !important;
+    width: 40px !important;
+    padding: 0 !important;
+}
+
+body[data-device="mobile"] .mob-editor-card .btn-danger span,
+body[data-device="mobile"] .editor-card .btn-danger span {
+    display: none !important;
+}
+
+/* Hide description/subtitle text on mobile */
+body[data-device="mobile"] .mob-editor-card .form-hint,
+body[data-device="mobile"] .editor-card .form-hint,
+body[data-device="mobile"] .mob-editor-card .card-description {
+    display: none !important;
+}
+
+/* ============================================
+   FORM FIELDS IN EDITORS - COMPACT
+   ============================================ */
+
+body[data-device="mobile"] .mob-basic-info,
+body[data-device="mobile"] .editor-basic-info {
+    margin-bottom: 12px !important;
+}
+
+body[data-device="mobile"] .mob-basic-info .form-group,
+body[data-device="mobile"] .editor-basic-info .form-group {
+    margin-bottom: 10px !important;
+}
+
+body[data-device="mobile"] .mob-basic-info .form-label,
+body[data-device="mobile"] .editor-basic-info .form-label {
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    color: var(--text-secondary) !important;
+    margin-bottom: 4px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+/* Required field indicator */
+body[data-device="mobile"] .form-label .required,
+body[data-device="mobile"] .form-label::after {
+    color: var(--danger-color, #ef4444) !important;
+    font-size: 0.75rem !important;
+}
+
+/* ============================================
+   SEARCHABLE DROPDOWN - SPACE EFFICIENT
+   ============================================ */
+
+body[data-device="mobile"] .searchable-dropdown-container {
+    margin-bottom: 10px !important;
+}
+
+body[data-device="mobile"] .searchable-dropdown-trigger,
+body[data-device="mobile"] .searchable-dropdown .dropdown-display {
+    min-height: 40px !important;
+    height: 40px !important;
+    font-size: 14px !important;
+    padding: 8px 12px !important;
+    padding-right: 32px !important;
+    border-radius: 8px !important;
+}
+
+body[data-device="mobile"] .searchable-dropdown-arrow {
+    right: 10px !important;
+    font-size: 12px !important;
+}
+
+/* Dropdown menu as bottom sheet */
+body[data-device="mobile"] .searchable-dropdown-menu,
+body[data-device="mobile"] .searchable-dropdown .dropdown-menu {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    max-height: 60vh !important;
+    border-radius: 16px 16px 0 0 !important;
+    z-index: 10000 !important;
+    animation: slideUpSheet 0.25s ease !important;
+}
+
+body[data-device="mobile"] .searchable-dropdown-menu .dropdown-search,
+body[data-device="mobile"] .searchable-dropdown .dropdown-search {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1 !important;
+    padding: 12px !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+    border-bottom: 1px solid var(--border-color, #2a2d3e) !important;
+}
+
+body[data-device="mobile"] .searchable-dropdown-menu .dropdown-item {
+    min-height: 44px !important;
+    padding: 12px 16px !important;
+}
+
+/* ============================================
+   SECTIONS LIST - COMPACT NAVIGATION
+   ============================================ */
+
+body[data-device="mobile"] .sections-list,
+body[data-device="mobile"] .mob-sections-nav {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    margin-bottom: 12px !important;
+}
+
+body[data-device="mobile"] .section-nav-item,
+body[data-device="mobile"] .section-link {
+    padding: 8px 12px !important;
+    font-size: 0.8125rem !important;
+    border-radius: 8px !important;
+    background: var(--bg-tertiary, #252836) !important;
+    color: var(--text-secondary) !important;
+    min-height: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+body[data-device="mobile"] .section-nav-item.active,
+body[data-device="mobile"] .section-link.active {
+    background: var(--accent-primary, #8b5cf6) !important;
+    color: white !important;
+}
+
+/* ============================================
+   COLLAPSIBLE SECTIONS - SIMPLIFIED
+   ============================================ */
+
+body[data-device="mobile"] .collapsible-card {
+    margin-bottom: 8px !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+}
+
+body[data-device="mobile"] .collapsible-header {
+    padding: 12px 14px !important;
+    min-height: 46px !important;
+    font-size: 0.875rem !important;
+    background: var(--bg-tertiary, #252836) !important;
+}
+
+body[data-device="mobile"] .collapsible-header .card-title {
+    font-size: 0.875rem !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+body[data-device="mobile"] .collapsible-header .card-badge {
+    font-size: 0.625rem !important;
+    padding: 2px 6px !important;
+    margin-left: auto !important;
+}
+
+body[data-device="mobile"] .collapsible-header .collapse-icon {
+    font-size: 0.75rem !important;
+    opacity: 0.6 !important;
+    margin-left: 8px !important;
+}
+
+body[data-device="mobile"] .collapsible-card-body {
+    padding: 12px 14px !important;
+}
+
+/* ============================================
+   MOBILE OVERFLOW MENU STYLES
+   ============================================ */
+
+body[data-device="mobile"] .mobile-overflow-menu {
+    display: none;
+    position: fixed !important;
+    bottom: calc(var(--mobile-nav-height, 64px) + env(safe-area-inset-bottom, 0px)) !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+    border-top: 1px solid var(--border-color, #2a2d3e) !important;
+    padding: 12px !important;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 1000 !important;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.3) !important;
+    border-radius: 16px 16px 0 0 !important;
+}
+
+body[data-device="mobile"] .mobile-overflow-menu.visible {
+    display: block !important;
+    animation: slideUpSheet 0.25s ease !important;
+}
+
+body[data-device="mobile"] .mobile-overflow-menu .btn {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    margin-bottom: 8px !important;
+    min-height: 44px !important;
+    padding: 10px 14px !important;
+    border-radius: 8px !important;
+}
+
+body[data-device="mobile"] .mobile-overflow-menu .btn:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* ============================================
+   EMPTY STATES - COMPACT
+   ============================================ */
+
+body[data-device="mobile"] .empty-state,
+body[data-device="mobile"] .no-results {
+    padding: 24px 16px !important;
+    text-align: center !important;
+}
+
+body[data-device="mobile"] .empty-state i {
+    font-size: 2rem !important;
+    margin-bottom: 12px !important;
+    opacity: 0.5 !important;
+}
+
+body[data-device="mobile"] .empty-state h3 {
+    font-size: 1rem !important;
+    margin-bottom: 8px !important;
+}
+
+body[data-device="mobile"] .empty-state p {
+    font-size: 0.875rem !important;
+    opacity: 0.7 !important;
+}
+
+/* ============================================
+   LOADING STATES - COMPACT
+   ============================================ */
+
+body[data-device="mobile"] .loading-spinner,
+body[data-device="mobile"] .skeleton {
+    min-height: 40px !important;
+}
+
+body[data-device="mobile"] .skeleton-card {
+    height: 60px !important;
+    margin-bottom: 8px !important;
+}
+
+/* ============================================
+   SMALL SCREEN ADAPTATIONS (<350px)
+   ============================================ */
+
+@media screen and (max-width: 350px) {
+    body[data-device="mobile"] .mob-editor-card .card-actions .btn span {
+        display: none !important;
+    }
+    
+    body[data-device="mobile"] .mob-editor-card .card-actions .btn {
+        padding: 0 8px !important;
+    }
+    
+    body[data-device="mobile"] .entity-type-tab {
+        padding: 6px 8px !important;
+    }
+    
+    body[data-device="mobile"] .entity-type-tab i {
+        font-size: 0.9rem !important;
+    }
+    
+    body[data-device="mobile"] .category-tab {
+        padding: 6px 10px !important;
+        font-size: 0.75rem !important;
+    }
+}
+
+/* ============================================
+   FOCUSED EDITING MODE
+   ============================================
+   When editing a specific field, maximize focus
+   by hiding non-essential UI elements
+   ============================================ */
+
+body[data-device="mobile"].editing-focus .mobile-bottom-nav {
+    transform: translateY(100%) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+body[data-device="mobile"].editing-focus .app-header {
+    transform: translateY(-100%) !important;
+    opacity: 0 !important;
+}
+
+body[data-device="mobile"].editing-focus .breadcrumb,
+body[data-device="mobile"].editing-focus .file-breadcrumb {
+    display: none !important;
+}
+
+body[data-device="mobile"].editing-focus .view-container {
+    padding-bottom: 16px !important;
+}
+
+/* ============================================
+   VIEW TRANSITIONS - SMOOTH NAVIGATION
+   ============================================ */
+
+body[data-device="mobile"] .view-container {
+    transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+
+body[data-device="mobile"] .view-container.view-entering {
+    opacity: 0 !important;
+    transform: translateX(20px) !important;
+}
+
+body[data-device="mobile"] .view-container.view-leaving {
+    opacity: 0 !important;
+    transform: translateX(-20px) !important;
+}
+
+/* ============================================
+   TOUCH INTERACTION STATES
+   ============================================ */
+
+body[data-device="mobile"] .touchable:active,
+body[data-device="mobile"] .btn:active,
+body[data-device="mobile"] .card:active,
+body[data-device="mobile"] .list-item:active {
+    transform: scale(0.98) !important;
+    opacity: 0.9 !important;
+}
+
+body[data-device="mobile"] .touchable,
+body[data-device="mobile"] .btn,
+body[data-device="mobile"] .card,
+body[data-device="mobile"] .list-item {
+    transition: transform 0.1s ease, opacity 0.1s ease !important;
+}
+
+/* ============================================
+   SAFE AREA PADDING - ALL CONTAINERS
+   ============================================ */
+
+body[data-device="mobile"] .modal-footer,
+body[data-device="mobile"] .sheet-footer,
+body[data-device="mobile"] .action-bar {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+body[data-device="mobile"] .modal-header {
+    padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+}
+
+/* ============================================
+   VISUAL HIERARCHY IMPROVEMENTS
+   ============================================ */
+
+/* Reduce contrast on secondary elements */
+body[data-device="mobile"] .text-muted,
+body[data-device="mobile"] .form-hint,
+body[data-device="mobile"] .help-text {
+    opacity: 0.6 !important;
+    font-size: 0.75rem !important;
+}
+
+/* Increase contrast on primary elements */
+body[data-device="mobile"] h1, 
+body[data-device="mobile"] h2, 
+body[data-device="mobile"] h3,
+body[data-device="mobile"] .card-title,
+body[data-device="mobile"] .section-title {
+    font-weight: 600 !important;
+    letter-spacing: -0.01em !important;
+}
+
+/* ============================================
+   QUICK TEMPLATES MODAL - FINAL OPTIMIZATIONS
+   ============================================ */
+
+/* Force list view for templates on mobile */
+body[data-device="mobile"] #templateSelectorOverlay .template-grid {
+    grid-template-columns: 1fr !important;
+}
+
+/* Template card - super compact inline style */
+body[data-device="mobile"] #templateSelectorOverlay .template-card,
+body[data-device="mobile"] #templateSelectorOverlay .template-grid-card {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    padding: 10px 12px !important;
+    gap: 10px !important;
+    min-height: 56px !important;
+    max-height: 70px !important;
+}
+
+/* Template icon/type badge - compact circle */
+body[data-device="mobile"] #templateSelectorOverlay .template-type-badge,
+body[data-device="mobile"] #templateSelectorOverlay .template-icon {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    border-radius: 8px !important;
+    font-size: 0.875rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+}
+
+/* Template info - single line */
+body[data-device="mobile"] #templateSelectorOverlay .template-info,
+body[data-device="mobile"] #templateSelectorOverlay .template-card-body {
+    flex: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-name,
+body[data-device="mobile"] #templateSelectorOverlay .template-card-title {
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    margin-bottom: 2px !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-desc,
+body[data-device="mobile"] #templateSelectorOverlay .template-card-desc {
+    font-size: 0.75rem !important;
+    opacity: 0.7 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+}
+
+/* Template actions - icon only */
+body[data-device="mobile"] #templateSelectorOverlay .template-actions,
+body[data-device="mobile"] #templateSelectorOverlay .template-card-actions {
+    display: flex !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+}
+
+body[data-device="mobile"] #templateSelectorOverlay .template-actions .btn {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    font-size: 0.8125rem !important;
+}
+
+/* Hide extra template metadata */
+body[data-device="mobile"] #templateSelectorOverlay .template-meta,
+body[data-device="mobile"] #templateSelectorOverlay .template-tags,
+body[data-device="mobile"] #templateSelectorOverlay .template-author,
+body[data-device="mobile"] #templateSelectorOverlay .template-date,
+body[data-device="mobile"] #templateSelectorOverlay .template-stats-row,
+body[data-device="mobile"] #templateSelectorOverlay .template-card-header,
+body[data-device="mobile"] #templateSelectorOverlay .template-card-footer {
+    display: none !important;
+}
+
+/* ============================================
+   CONTENT AREA MAXIMIZATION
+   ============================================ */
+
+/* Remove unnecessary padding/margins */
+body[data-device="mobile"] .condition-browser-body,
+body[data-device="mobile"] .browser-body,
+body[data-device="mobile"] .modal-body {
+    padding: 8px !important;
+}
+
+body[data-device="mobile"] .condition-list,
+body[data-device="mobile"] .template-list,
+body[data-device="mobile"] .browser-list {
+    gap: 6px !important;
+}
+
+/* Compact info banners */
+body[data-device="mobile"] .alert-info,
+body[data-device="mobile"] .info-banner,
+body[data-device="mobile"] .tip-box {
+    padding: 8px 10px !important;
+    font-size: 0.75rem !important;
+    border-radius: 8px !important;
+}
+
+body[data-device="mobile"] .alert-info i,
+body[data-device="mobile"] .info-banner i {
+    font-size: 0.875rem !important;
+}
+
+/* ============================================
+   FINAL SPACE RECOVERY - OVERRIDE ALL
+   ============================================ */
+
+/* Minimal view padding */
+body[data-device="mobile"] #home-view,
+body[data-device="mobile"] #files-view,
+body[data-device="mobile"] #mob-editor-view,
+body[data-device="mobile"] #skill-editor-view,
+body[data-device="mobile"] #item-editor-view,
+body[data-device="mobile"] #droptable-editor-view,
+body[data-device="mobile"] #yaml-editor-view {
+    padding: 8px !important;
+    padding-bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-area-bottom, 0px) + 16px) !important;
+}
+
+/* Cards tight spacing */
+body[data-device="mobile"] .card + .card,
+body[data-device="mobile"] .section + .section {
+    margin-top: 8px !important;
+}
+
+/* Zero margin resets */
+body[data-device="mobile"] .mb-4 { margin-bottom: 12px !important; }
+body[data-device="mobile"] .mb-6 { margin-bottom: 16px !important; }
+body[data-device="mobile"] .py-4 { padding-top: 12px !important; padding-bottom: 12px !important; }
+body[data-device="mobile"] .px-4 { padding-left: 12px !important; padding-right: 12px !important; }
+body[data-device="mobile"] .gap-4 { gap: 12px !important; }
+body[data-device="mobile"] .gap-6 { gap: 16px !important; }
+
+/* ============================================
+   EDITOR VIEW MODE - MAXIMUM CONTENT SPACE
+   ============================================
+   When viewing an editor, hide or minimize
+   the top chrome to maximize editing space
+   ============================================ */
+
+/* HIDE APP HEADER when in any editor view */
+body[data-device="mobile"][data-current-view="mob-editor"] .app-header,
+body[data-device="mobile"][data-current-view="skill-editor"] .app-header,
+body[data-device="mobile"][data-current-view="item-editor"] .app-header,
+body[data-device="mobile"][data-current-view="droptable-editor"] .app-header,
+body[data-device="mobile"][data-current-view="yaml-editor"] .app-header,
+body[data-device="mobile"][data-current-view="randomspawn-editor"] .app-header,
+body[data-device="mobile"][data-current-view="spawner"] .app-header,
+body[data-device="mobile"][data-current-view="stats"] .app-header {
+    display: none !important;
+}
+
+/* HIDE SEARCH BAR when in editor views */
+body[data-device="mobile"][data-current-view="mob-editor"] .mobile-search-bar,
+body[data-device="mobile"][data-current-view="skill-editor"] .mobile-search-bar,
+body[data-device="mobile"][data-current-view="item-editor"] .mobile-search-bar,
+body[data-device="mobile"][data-current-view="droptable-editor"] .mobile-search-bar,
+body[data-device="mobile"][data-current-view="yaml-editor"] .mobile-search-bar,
+body[data-device="mobile"][data-current-view="randomspawn-editor"] .mobile-search-bar,
+body[data-device="mobile"][data-current-view="spawner"] .mobile-search-bar,
+body[data-device="mobile"][data-current-view="stats"] .mobile-search-bar,
+body[data-device="mobile"][data-current-view="mob-editor"] #mobile-search-container,
+body[data-device="mobile"][data-current-view="skill-editor"] #mobile-search-container,
+body[data-device="mobile"][data-current-view="item-editor"] #mobile-search-container,
+body[data-device="mobile"][data-current-view="droptable-editor"] #mobile-search-container,
+body[data-device="mobile"][data-current-view="yaml-editor"] #mobile-search-container,
+body[data-device="mobile"][data-current-view="randomspawn-editor"] #mobile-search-container,
+body[data-device="mobile"][data-current-view="spawner"] #mobile-search-container,
+body[data-device="mobile"][data-current-view="stats"] #mobile-search-container {
+    display: none !important;
+}
+
+/* COMPACT BREADCRUMB - single line, smaller */
+body[data-device="mobile"][data-current-view*="editor"] .mobile-breadcrumb,
+body[data-device="mobile"][data-current-view*="editor"] .file-breadcrumb,
+body[data-device="mobile"][data-current-view*="editor"] .breadcrumb {
+    padding: 6px 10px !important;
+    font-size: 0.6875rem !important;
+    background: var(--bg-tertiary, #252836) !important;
+    border-radius: 6px !important;
+    margin: 4px 8px !important;
+}
+
+/* ============================================
+   UNIFIED EDITOR CARD - SUPER COMPACT
+   ============================================ */
+
+/* The main editor card container */
+body[data-device="mobile"] .mob-editor-view .card,
+body[data-device="mobile"] .skill-editor-view .card,
+body[data-device="mobile"] .item-editor-view .card,
+body[data-device="mobile"] #mob-editor-view > .card:first-child,
+body[data-device="mobile"] #skill-editor-view > .card:first-child,
+body[data-device="mobile"] #item-editor-view > .card:first-child {
+    padding: 10px !important;
+    border-radius: 10px !important;
+    margin-bottom: 8px !important;
+}
+
+/* Editor card header - SINGLE LINE with inline elements */
+body[data-device="mobile"] .mob-editor-view .card-header,
+body[data-device="mobile"] #mob-editor-view .card-header,
+body[data-device="mobile"] .editor-card-header {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    padding-bottom: 8px !important;
+    margin-bottom: 8px !important;
+    border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1)) !important;
+    min-height: auto !important;
+}
+
+/* Editor icon - small inline */
+body[data-device="mobile"] .mob-editor-view .card-header .card-icon,
+body[data-device="mobile"] #mob-editor-view .card-header i:first-child,
+body[data-device="mobile"] .editor-card-header .editor-icon {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    font-size: 0.875rem !important;
+    background: var(--accent-primary, #8b5cf6) !important;
+    color: white !important;
+    border-radius: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+}
+
+/* Editor title - inline, truncated */
+body[data-device="mobile"] .mob-editor-view .card-header h3,
+body[data-device="mobile"] #mob-editor-view .card-header h2,
+body[data-device="mobile"] .editor-card-header .editor-title {
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+/* Entity name badge - inline */
+body[data-device="mobile"] .mob-editor-view .mob-name-display,
+body[data-device="mobile"] #mob-editor-view .entity-name,
+body[data-device="mobile"] .editor-card-header .entity-name {
+    font-size: 0.75rem !important;
+    padding: 3px 8px !important;
+    background: var(--bg-tertiary, #252836) !important;
+    border-radius: 4px !important;
+    max-width: 80px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Mode badge - tiny */
+body[data-device="mobile"] .mob-editor-view .mode-badge,
+body[data-device="mobile"] #mob-editor-view .mode-badge,
+body[data-device="mobile"] .editor-card-header .mode-badge {
+    font-size: 0.5625rem !important;
+    padding: 2px 5px !important;
+    border-radius: 4px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    flex-shrink: 0 !important;
+}
+
+/* HIDE THE FULL ACTION BUTTON ROW */
+body[data-device="mobile"] .mob-editor-view .editor-actions,
+body[data-device="mobile"] #mob-editor-view .editor-actions,
+body[data-device="mobile"] .mob-editor-view .card-actions-row,
+body[data-device="mobile"] #mob-editor-view .card-actions-row,
+body[data-device="mobile"] .editor-card-actions-row {
+    display: none !important;
+}
+
+/* ============================================
+   FLOATING ACTION BAR - BOTTOM OF SCREEN
+   ============================================
+   Move all editor actions to a floating bar
+   ============================================ */
+
+body[data-device="mobile"] .mobile-editor-action-bar {
+    position: fixed !important;
+    bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-area-bottom, 0px)) !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+    border-top: 1px solid var(--border-color, #2a2d3e) !important;
+    padding: 8px 12px !important;
+    display: flex !important;
+    gap: 8px !important;
+    z-index: 800 !important;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+body[data-device="mobile"] .mobile-editor-action-bar .btn {
+    flex: 1 !important;
+    min-height: 40px !important;
+    font-size: 0.8125rem !important;
+    padding: 0 8px !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+}
+
+/* Primary save button - larger */
+body[data-device="mobile"] .mobile-editor-action-bar .btn-primary {
+    flex: 2 !important;
+    background: var(--accent-primary, #8b5cf6) !important;
+}
+
+/* Delete button - icon only */
+body[data-device="mobile"] .mobile-editor-action-bar .btn-danger {
+    flex: 0 0 40px !important;
+    width: 40px !important;
+    padding: 0 !important;
+}
+
+body[data-device="mobile"] .mobile-editor-action-bar .btn-danger span {
+    display: none !important;
+}
+
+/* ============================================
+   FORM CONTENT - START IMMEDIATELY
+   ============================================ */
+
+/* First form section - no top margin */
+body[data-device="mobile"] .mob-sections > .card:first-child,
+body[data-device="mobile"] .config-sections > .section:first-child,
+body[data-device="mobile"] .editor-sections > *:first-child {
+    margin-top: 0 !important;
+}
+
+/* Collapsible section headers - compact */
+body[data-device="mobile"] .collapsible-header,
+body[data-device="mobile"] .section-header,
+body[data-device="mobile"] .mob-section-header {
+    padding: 10px 12px !important;
+    min-height: 40px !important;
+    font-size: 0.8125rem !important;
+}
+
+/* Section content - tighter */
+body[data-device="mobile"] .collapsible-card-body,
+body[data-device="mobile"] .section-content,
+body[data-device="mobile"] .mob-section-content {
+    padding: 10px 12px !important;
+}
+
+/* Form labels - smaller */
+body[data-device="mobile"] .form-label,
+body[data-device="mobile"] label {
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+    color: var(--text-secondary) !important;
+    margin-bottom: 4px !important;
+}
+
+/* Form inputs - reduced height */
+body[data-device="mobile"] .form-control,
+body[data-device="mobile"] .form-input,
+body[data-device="mobile"] input[type="text"],
+body[data-device="mobile"] input[type="number"],
+body[data-device="mobile"] input[type="email"],
+body[data-device="mobile"] select {
+    height: 38px !important;
+    min-height: 38px !important;
+    font-size: 14px !important;
+    padding: 6px 10px !important;
+}
+
+/* Form hints - hidden on mobile to save space */
+body[data-device="mobile"] .form-hint,
+body[data-device="mobile"] .help-text,
+body[data-device="mobile"] small.text-muted {
+    display: none !important;
+}
+
+/* ============================================
+   BROWSER MODALS - COMPACT HEADERS
+   ============================================ */
+
+/* All browser/modal headers - minimal */
+body[data-device="mobile"] .condition-modal .modal-header,
+body[data-device="mobile"] .browser-modal .modal-header,
+body[data-device="mobile"] .mechanic-browser-modal .modal-header,
+body[data-device="mobile"] .targeter-browser-modal .modal-header,
+body[data-device="mobile"] .skill-browser-modal .modal-header,
+body[data-device="mobile"] .condition-browser-modal .modal-header {
+    padding: 10px 12px !important;
+    min-height: 44px !important;
+    gap: 8px !important;
+}
+
+body[data-device="mobile"] .condition-modal .modal-header h2,
+body[data-device="mobile"] .browser-modal .modal-header h2 {
+    font-size: 0.9375rem !important;
+}
+
+/* Browser search bars - compact */
+body[data-device="mobile"] .condition-modal .search-bar,
+body[data-device="mobile"] .browser-modal .search-bar {
+    padding: 6px 10px !important;
+}
+
+body[data-device="mobile"] .condition-modal .search-input,
+body[data-device="mobile"] .browser-modal .search-input {
+    height: 36px !important;
+    font-size: 14px !important;
+}
+
+/* Category tabs - smaller */
+body[data-device="mobile"] .condition-modal .category-tabs,
+body[data-device="mobile"] .browser-modal .category-tabs {
+    padding: 4px 10px !important;
+    gap: 4px !important;
+}
+
+body[data-device="mobile"] .condition-modal .category-tab,
+body[data-device="mobile"] .browser-modal .category-tab {
+    padding: 6px 10px !important;
+    font-size: 0.75rem !important;
+    min-height: 30px !important;
+}
+
+/* Browser content - maximize */
+body[data-device="mobile"] .condition-modal .modal-body,
+body[data-device="mobile"] .condition-modal .condition-browser-body,
+body[data-device="mobile"] .browser-modal .browser-body {
+    padding: 6px !important;
+}
+
+/* Browser items - compact */
+body[data-device="mobile"] .condition-item,
+body[data-device="mobile"] .mechanic-item,
+body[data-device="mobile"] .browser-item {
+    padding: 10px !important;
+    min-height: 50px !important;
+}
+
+body[data-device="mobile"] .condition-name,
+body[data-device="mobile"] .mechanic-name,
+body[data-device="mobile"] .browser-item-name {
+    font-size: 0.875rem !important;
+}
+
+body[data-device="mobile"] .condition-desc,
+body[data-device="mobile"] .mechanic-desc,
+body[data-device="mobile"] .browser-item-desc {
+    font-size: 0.75rem !important;
+    -webkit-line-clamp: 1 !important;
+    line-clamp: 1 !important;
+}
+
+/* Browser footer - minimal */
+body[data-device="mobile"] .condition-modal .modal-footer,
+body[data-device="mobile"] .browser-modal .modal-footer {
+    padding: 8px 10px !important;
+    min-height: auto !important;
+}
+
+/* ============================================
+   ADJUST CONTENT AREA FOR HIDDEN HEADER
+   ============================================ */
+
+body[data-device="mobile"][data-current-view*="editor"] .app-content {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+
+body[data-device="mobile"][data-current-view*="editor"] .view-container {
+    padding-top: 4px !important;
+}
+
+/* When action bar is present, add bottom padding */
+body[data-device="mobile"][data-current-view*="editor"] .view-container {
+    padding-bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-area-bottom, 0px) + 56px) !important;
+}
+
+/* ============================================
+   SKILL EDITOR SPECIFIC - COMPACT
+   ============================================ */
+
+body[data-device="mobile"] .skill-list {
+    gap: 6px !important;
+}
+
+body[data-device="mobile"] .skill-item {
+    padding: 8px 10px !important;
+    min-height: 44px !important;
+}
+
+body[data-device="mobile"] .skill-item-name {
+    font-size: 0.8125rem !important;
+}
+
+body[data-device="mobile"] .skill-line-item {
+    padding: 6px 8px !important;
+    min-height: 36px !important;
+    font-size: 0.75rem !important;
+}
+
+/* ============================================
+   ITEM EDITOR SPECIFIC - COMPACT
+   ============================================ */
+
+body[data-device="mobile"] .item-preview-card {
+    padding: 8px !important;
+}
+
+body[data-device="mobile"] .item-preview-card .preview-item {
+    transform: scale(0.8) !important;
+}
+
+/* ============================================
+   YAML EDITOR SPECIFIC - MAXIMIZE CODE AREA
+   ============================================ */
+
+body[data-device="mobile"] .yaml-editor-container {
+    padding: 0 !important;
+}
+
+body[data-device="mobile"] .yaml-editor-container .CodeMirror,
+body[data-device="mobile"] .yaml-editor-container textarea {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+}
+
+/* ============================================
+   CRITICAL: MOB EDITOR HEADER - ULTRA COMPACT
+   ============================================
+   This targets the exact structure from mobEditor.js:
+   .editor-header > h2 + .editor-actions
+   ============================================ */
+
+/* Editor header container - single row, minimal height */
+body[data-device="mobile"] #mob-editor-view .editor-header,
+body[data-device="mobile"] #skill-editor-view .editor-header,
+body[data-device="mobile"] #item-editor-view .editor-header,
+body[data-device="mobile"] #droptable-editor-view .editor-header {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
+    margin: 0 !important;
+    margin-bottom: 8px !important;
+    background: var(--bg-tertiary, #252836) !important;
+    border-radius: 8px !important;
+    border: none !important;
+    position: relative !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+}
+
+/* Title area - compact inline */
+body[data-device="mobile"] #mob-editor-view .editor-header h2,
+body[data-device="mobile"] #skill-editor-view .editor-header h2,
+body[data-device="mobile"] #item-editor-view .editor-header h2,
+body[data-device="mobile"] #droptable-editor-view .editor-header h2 {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    font-size: 0.875rem !important;
+    margin: 0 !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+}
+
+/* Editor type icon */
+body[data-device="mobile"] #mob-editor-view .editor-header h2 > i:first-child,
+body[data-device="mobile"] #skill-editor-view .editor-header h2 > i:first-child,
+body[data-device="mobile"] #item-editor-view .editor-header h2 > i:first-child {
+    font-size: 0.9rem !important;
+    flex-shrink: 0 !important;
+}
+
+/* Hide "Mob Editor" / "Skill Editor" text - just show icon */
+body[data-device="mobile"] #mob-editor-view .editor-header h2,
+body[data-device="mobile"] #skill-editor-view .editor-header h2,
+body[data-device="mobile"] #item-editor-view .editor-header h2 {
+    font-size: 0 !important;
+}
+
+body[data-device="mobile"] #mob-editor-view .editor-header h2 > i:first-child,
+body[data-device="mobile"] #skill-editor-view .editor-header h2 > i:first-child,
+body[data-device="mobile"] #item-editor-view .editor-header h2 > i:first-child {
+    font-size: 1rem !important;
+}
+
+/* Mob/skill name span - show this */
+body[data-device="mobile"] #mob-editor-view .editor-header .mob-name,
+body[data-device="mobile"] #skill-editor-view .editor-header .skill-name,
+body[data-device="mobile"] #item-editor-view .editor-header .item-name {
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
+    max-width: 100px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+}
+
+/* HIDE mode badge on mobile */
+body[data-device="mobile"] #mob-editor-view .editor-header .mode-badge,
+body[data-device="mobile"] #skill-editor-view .editor-header .mode-badge,
+body[data-device="mobile"] #item-editor-view .editor-header .mode-badge {
+    display: none !important;
+}
+
+/* HIDE the entire editor-actions div (buttons go to floating bar) */
+body[data-device="mobile"] #mob-editor-view .editor-header .editor-actions,
+body[data-device="mobile"] #skill-editor-view .editor-header .editor-actions,
+body[data-device="mobile"] #item-editor-view .editor-header .editor-actions,
+body[data-device="mobile"] #droptable-editor-view .editor-header .editor-actions {
+    display: none !important;
+}
+
+/* ============================================
+   EDITOR CONTENT AREA - NO TOP PADDING
+   ============================================ */
+
+body[data-device="mobile"] #mob-editor-view .editor-content,
+body[data-device="mobile"] #skill-editor-view .editor-content,
+body[data-device="mobile"] #item-editor-view .editor-content,
+body[data-device="mobile"] #droptable-editor-view .editor-content {
+    padding: 0 !important;
+}
+
+/* ============================================
+   CORE IDENTITY SECTION - FIRST VISIBLE CONTENT
+   ============================================ */
+
+/* First card in editor - Core Identity */
+body[data-device="mobile"] #mob-editor-view .editor-content > .card:first-child,
+body[data-device="mobile"] #mob-editor-view .editor-content > div:first-child,
+body[data-device="mobile"] .core-identity-section {
+    margin-top: 0 !important;
+}
+
+/* Core Identity header */
+body[data-device="mobile"] .core-identity-section .card-header,
+body[data-device="mobile"] .core-identity-section .collapsible-header {
+    padding: 10px 12px !important;
+    min-height: 40px !important;
+}
+
+body[data-device="mobile"] .core-identity-section .card-title {
+    font-size: 0.8125rem !important;
+}
+
+/* Form content inside sections */
+body[data-device="mobile"] .core-identity-section .card-body,
+body[data-device="mobile"] .core-identity-section .collapsible-card-body {
+    padding: 10px 12px !important;
+}
+
+/* Internal Name field - the most important */
+body[data-device="mobile"] #mob-internal-name,
+body[data-device="mobile"] #skill-internal-name,
+body[data-device="mobile"] #item-internal-name {
+    height: 40px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+}
+
+/* ============================================
+   SPACE BETWEEN SECTIONS - MINIMAL
+   ============================================ */
+
+body[data-device="mobile"] .card.collapsible-card {
+    margin-bottom: 6px !important;
+}
+
+body[data-device="mobile"] .card.collapsible-card + .card.collapsible-card {
+    margin-top: 0 !important;
+}
+
+/* ============================================
+   BOTTOM PADDING FOR FLOATING ACTION BAR
+   ============================================ */
+
+body[data-device="mobile"] #mob-editor-view,
+body[data-device="mobile"] #skill-editor-view,
+body[data-device="mobile"] #item-editor-view,
+body[data-device="mobile"] #droptable-editor-view,
+body[data-device="mobile"] #yaml-editor-view {
+    padding-bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-area-bottom, 0px) + 60px) !important;
+}
+
+/* ============================================
+   DASHBOARD MOBILE OPTIMIZATION
+   ============================================ */
+
+body[data-device="mobile"] .dashboard-content,
+body[data-device="mobile"] #dashboard-view {
+    padding: 8px !important;
+    gap: 8px !important;
+}
+
+/* Dashboard welcome section */
+body[data-device="mobile"] .dashboard-welcome {
+    padding: 12px !important;
+    margin-bottom: 8px !important;
+}
+
+body[data-device="mobile"] .dashboard-welcome h2 {
+    font-size: 1rem !important;
+    margin-bottom: 4px !important;
+}
+
+body[data-device="mobile"] .dashboard-welcome p {
+    font-size: 0.8125rem !important;
+    line-height: 1.4 !important;
+}
+
+/* Dashboard quick actions - horizontal scroll */
+body[data-device="mobile"] .dashboard-actions,
+body[data-device="mobile"] .quick-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    gap: 8px !important;
+    padding: 4px 0 12px 0 !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+}
+
+body[data-device="mobile"] .dashboard-actions::-webkit-scrollbar,
+body[data-device="mobile"] .quick-actions::-webkit-scrollbar {
+    display: none !important;
+}
+
+body[data-device="mobile"] .dashboard-action-btn,
+body[data-device="mobile"] .quick-action-btn {
+    flex: 0 0 auto !important;
+    min-width: 100px !important;
+    max-width: 120px !important;
+    padding: 12px 8px !important;
+    font-size: 0.75rem !important;
+    border-radius: 10px !important;
+}
+
+body[data-device="mobile"] .dashboard-action-btn i,
+body[data-device="mobile"] .quick-action-btn i {
+    font-size: 1.25rem !important;
+    margin-bottom: 6px !important;
+}
+
+/* Dashboard cards - full width stack */
+body[data-device="mobile"] .dashboard-grid,
+body[data-device="mobile"] .dashboard-cards {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+}
+
+body[data-device="mobile"] .dashboard-card {
+    padding: 12px !important;
+    border-radius: 10px !important;
+}
+
+body[data-device="mobile"] .dashboard-card h3 {
+    font-size: 0.8125rem !important;
+    margin-bottom: 8px !important;
+}
+
+/* ============================================
+   FLOATING EDITOR ACTION BAR STYLES
+   ============================================ */
+
+.mobile-editor-action-bar {
+    position: fixed !important;
+    bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-area-bottom, 0px)) !important;
+    left: 0 !important;
+    right: 0 !important;
+    display: none;
+    justify-content: space-around !important;
+    align-items: center !important;
+    padding: 8px 16px !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+    border-top: 1px solid var(--border-primary, rgba(255, 255, 255, 0.08)) !important;
+    z-index: 998 !important;
+    gap: 8px !important;
+}
+
+.mobile-editor-action-bar .btn {
+    flex: 1 !important;
+    min-height: 44px !important;
+    max-width: 100px !important;
+    font-size: 0.75rem !important;
+    padding: 8px !important;
+    border-radius: 8px !important;
+}
+
+.mobile-editor-action-bar .btn i {
+    font-size: 0.875rem !important;
+}
+
+.mobile-editor-action-bar .btn-primary {
+    flex: 1.5 !important;
+    max-width: 140px !important;
+}
+
+.mobile-editor-action-bar .btn-danger {
+    flex: 0.8 !important;
+    max-width: 80px !important;
+}
+
+/* ============================================
+   MODAL IMPROVEMENTS - FULLSCREEN ON MOBILE
+   ============================================ */
+
+body[data-device="mobile"] .modal-content,
+body[data-device="mobile"] .condition-modal .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+}
+
+body[data-device="mobile"] .modal-header {
+    padding: 12px 16px !important;
+    min-height: 50px !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+}
+
+body[data-device="mobile"] .modal-header h2,
+body[data-device="mobile"] .modal-header h3 {
+    font-size: 1rem !important;
+}
+
+body[data-device="mobile"] .modal-body {
+    padding: 12px !important;
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+
+body[data-device="mobile"] .modal-footer {
+    padding: 12px 16px !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+    border-top: 1px solid var(--border-primary, rgba(255, 255, 255, 0.08)) !important;
+}
+
+/* Modal close button - ensure touchable */
+body[data-device="mobile"] .modal-close,
+body[data-device="mobile"] .btn-close {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* ============================================
+   FORM ELEMENTS - LARGER TOUCH TARGETS
+   ============================================ */
+
+body[data-device="mobile"] .form-input,
+body[data-device="mobile"] .form-select,
+body[data-device="mobile"] .form-textarea,
+body[data-device="mobile"] input[type="text"],
+body[data-device="mobile"] input[type="number"],
+body[data-device="mobile"] input[type="email"],
+body[data-device="mobile"] select,
+body[data-device="mobile"] textarea {
+    min-height: 44px !important;
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+    padding: 10px 12px !important;
+    border-radius: 8px !important;
+}
+
+body[data-device="mobile"] .form-label {
+    font-size: 0.8125rem !important;
+    margin-bottom: 4px !important;
+}
+
+body[data-device="mobile"] .form-group {
+    margin-bottom: 12px !important;
+}
+
+/* Checkbox and radio - larger */
+body[data-device="mobile"] input[type="checkbox"],
+body[data-device="mobile"] input[type="radio"] {
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+}
+
+/* Toggle switch - larger */
+body[data-device="mobile"] .toggle-switch {
+    min-width: 50px !important;
+    min-height: 28px !important;
+}
+
+/* ============================================
+   BOTTOM NAV IMPROVEMENTS
+   ============================================ */
+
+.mobile-bottom-nav {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: var(--mobile-nav-height, 64px) !important;
+    padding-bottom: var(--safe-area-bottom, 0px) !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+    border-top: 1px solid var(--border-primary, rgba(255, 255, 255, 0.08)) !important;
+    z-index: 1000 !important;
+}
+
+.mobile-nav-item {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-secondary, #94a3b8) !important;
+    font-size: 0.625rem !important;
+    padding: 8px 4px !important;
+    transition: color 0.2s ease !important;
+    cursor: pointer !important;
+}
+
+.mobile-nav-item i {
+    font-size: 1.25rem !important;
+}
+
+.mobile-nav-item.active {
+    color: var(--accent-primary, #8b5cf6) !important;
+}
+
+.mobile-nav-item.active i {
+    transform: scale(1.1) !important;
+}
+
+/* ============================================
+   FAB (FLOATING ACTION BUTTON)
+   ============================================ */
+
+.mobile-fab {
+    position: fixed !important;
+    right: 16px !important;
+    bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-area-bottom, 0px) + 16px) !important;
+    z-index: 999 !important;
+}
+
+.fab-main {
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 50% !important;
+    background: var(--accent-primary, #8b5cf6) !important;
+    border: none !important;
+    color: white !important;
+    font-size: 1.5rem !important;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.fab-main:active {
+    transform: scale(0.95) !important;
+}
+
+.mobile-fab.open .fab-main {
+    transform: rotate(45deg) !important;
+    background: var(--error, #ef4444) !important;
+}
+
+.fab-menu {
+    position: absolute !important;
+    bottom: 70px !important;
+    right: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transform: translateY(20px) !important;
+    transition: all 0.2s ease !important;
+}
+
+.mobile-fab.open .fab-menu {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0) !important;
+}
+
+.fab-menu-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 16px !important;
+    background: var(--bg-secondary, #1a1d2e) !important;
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.08)) !important;
+    border-radius: 25px !important;
+    color: var(--text-primary, #e2e8f0) !important;
+    font-size: 0.8125rem !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.fab-menu-item:active {
+    transform: scale(0.95) !important;
+    background: var(--accent-primary, #8b5cf6) !important;
+}
+
+/* ============================================
+   UTILITY CLASSES FOR MOBILE
+   ============================================ */
+
+/* Hide on mobile */
+body[data-device="mobile"] .hide-mobile {
+    display: none !important;
+}
+
+/* Show only on mobile */
+.show-mobile {
+    display: none !important;
+}
+
+body[data-device="mobile"] .show-mobile {
+    display: block !important;
+}
+
+/* Full width on mobile */
+body[data-device="mobile"] .mobile-full-width {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Stack horizontal layouts vertically on mobile */
+body[data-device="mobile"] .mobile-stack {
+    flex-direction: column !important;
+}
+
+/* ============================================
+   DISABLE PULL-TO-REFRESH COMPLETELY
+   ============================================ */
+
+body[data-device="mobile"] {
+    overscroll-behavior: none !important;
+}
+
+html, body {
+    overscroll-behavior-y: contain;
+}
+
+/* ============================================
+   ANIMATIONS FOR TOUCH FEEDBACK
+   ============================================ */
+
+@keyframes touchPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.96); }
+    100% { transform: scale(1); }
+}
+
+@keyframes slideUpSheet {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
 }

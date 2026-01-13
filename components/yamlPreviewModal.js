@@ -157,7 +157,7 @@ class YamlPreviewModal {
         const downloadYmlBtn = document.getElementById('downloadYmlBtn');
         const downloadYamlBtn = document.getElementById('downloadYamlBtn');
 
-        // Close handlers
+        // Close handlers - click only (Universal Touch System handles mobile)
         closeBtn.addEventListener('click', () => this.close());
         closeBtnFooter.addEventListener('click', () => this.close());
         

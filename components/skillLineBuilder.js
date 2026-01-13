@@ -918,14 +918,33 @@ class SkillLineBuilder {
     
     open(options = {}) {
         // ============================================
-        // MOBILE REDIRECT: Use mobile wizard on touch devices
+        // MOBILE REDIRECT: Use mobile wizard on mobile/tablet devices
         // ============================================
         if (window.editor && window.editor.mobileManager) {
             const mm = window.editor.mobileManager;
-            if (mm.isMobile && window.editor.mobileSkillWizard) {
-                // On mobile, open the simplified wizard instead
+            
+            // Check mobile mode state OR device type properties OR touch + small screen
+            const isMobileDevice = mm.state?.mobileMode || 
+                                   mm.isMobile || 
+                                   mm.isTablet || 
+                                   mm.deviceType === 'mobile' || 
+                                   mm.deviceType === 'tablet' ||
+                                   (mm.isTouchDevice && window.innerWidth < 1024);
+            
+            // Initialize mobile wizard on-demand if needed and not yet created
+            if (isMobileDevice && !window.editor.mobileSkillWizard && typeof MobileSkillWizard !== 'undefined') {
+                window.editor.mobileSkillWizard = new MobileSkillWizard();
+                console.log('📱 Mobile skill wizard initialized on-demand');
+            }
+            
+            const useMobileWizard = isMobileDevice && window.editor.mobileSkillWizard;
+            
+            if (useMobileWizard) {
+                console.log('📱 Redirecting to mobile skill wizard');
+                // On mobile/tablet, open the simplified wizard instead
                 window.editor.mobileSkillWizard.open({
                     existingLine: options.initialLine,
+                    context: options.context || 'skill', // Pass context to mobile wizard
                     onComplete: (skillLine) => {
                         if (options.onAdd && typeof options.onAdd === 'function') {
                             options.onAdd(skillLine);

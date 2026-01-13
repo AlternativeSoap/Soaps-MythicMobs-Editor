@@ -127,12 +127,16 @@ class MythicMobsEditor {
                 
                 console.log(`📱 Device: ${this.mobileManager.deviceType}, Touch: ${this.mobileManager.isTouchDevice}`);
                 
-                // Initialize mobile skill wizard on mobile/tablet
-                if (this.mobileManager.isMobile || this.mobileManager.isTablet) {
-                    if (typeof MobileSkillWizard !== 'undefined') {
-                        this.mobileSkillWizard = new MobileSkillWizard();
-                        console.log('📱 Mobile skill wizard initialized');
-                    }
+                // Initialize mobile skill wizard on mobile/tablet OR touch devices OR when mobileMode is active
+                // This ensures the wizard is available when needed, even if initial detection was wrong
+                const shouldInitMobileWizard = this.mobileManager.isMobile || 
+                                                this.mobileManager.isTablet || 
+                                                this.mobileManager.state?.mobileMode ||
+                                                this.mobileManager.isTouchDevice;
+                                                
+                if (shouldInitMobileWizard && typeof MobileSkillWizard !== 'undefined') {
+                    this.mobileSkillWizard = new MobileSkillWizard();
+                    console.log('📱 Mobile skill wizard initialized');
                 }
             }
             
@@ -634,6 +638,11 @@ class MythicMobsEditor {
         this.state.currentView = 'dashboard';
         this.state.currentFile = null;
         this.state.currentFileType = null;
+        
+        // Dispatch view change event for mobile manager
+        document.dispatchEvent(new CustomEvent('viewchange', { 
+            detail: { view: 'dashboard', type: null, file: null }
+        }));
         
         // Update breadcrumb
         this.updateBreadcrumb();
@@ -1492,6 +1501,11 @@ class MythicMobsEditor {
         this.state.currentView = 'spawner';
         this.state.currentSpawnerFile = fileName;
         
+        // Dispatch view change event for mobile manager
+        document.dispatchEvent(new CustomEvent('viewchange', { 
+            detail: { view: 'spawner', type: 'spawner', file: fileName }
+        }));
+        
         // Hide all views - use consistent approach with class toggle AND style reset
         document.querySelectorAll('.view-container').forEach(v => {
             v.classList.remove('active');
@@ -1578,6 +1592,11 @@ class MythicMobsEditor {
         this.state.currentView = 'stats';
         this.state.currentFile = pack.stats;
         this.state.currentFileType = 'stats';
+        
+        // Dispatch view change event for mobile manager
+        document.dispatchEvent(new CustomEvent('viewchange', { 
+            detail: { view: 'stats', type: 'stats', file: pack.stats }
+        }));
         
         // Hide all views
         document.querySelectorAll('.view-container').forEach(v => {
@@ -1892,6 +1911,11 @@ class MythicMobsEditor {
         this.state.currentView = `${type}-editor`;
         this.state.hasContentEdits = false; // Reset for new file - no edits made yet
         this.state.isDirty = false; // Reset dirty flag for new file
+        
+        // Dispatch view change event for mobile manager and other listeners
+        document.dispatchEvent(new CustomEvent('viewchange', { 
+            detail: { view: this.state.currentView, type: type, file: file }
+        }));
         
         // Add to recent files
         if (file && file.id && type !== 'packinfo' && type !== 'tooltips') {

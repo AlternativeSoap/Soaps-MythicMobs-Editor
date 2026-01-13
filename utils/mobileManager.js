@@ -112,12 +112,31 @@ class MobileManager {
         // Store editor reference
         this.editor = editor || window.editor;
         
+        // Re-detect after DOM is ready (more accurate detection)
+        // This catches cases where constructor detection was too early
+        this.isTouchDevice = this.detectTouchSupport();
+        this.deviceType = this.detectDeviceType();
+        this.isMobile = this.deviceType === 'mobile';
+        this.isTablet = this.deviceType === 'tablet';
+        this.isDesktop = this.deviceType === 'desktop';
+        
         // Set device attribute on body
         this.updateDeviceAttribute();
         
-        // Only activate mobile mode for mobile/tablet devices
-        if (this.deviceType !== 'desktop') {
+        // CRITICAL: Initialize Universal Touch System FIRST (before any UI)
+        if (this.isTouchDevice) {
+            this.initUniversalTouchSystem();
+        }
+        
+        // Activate mobile mode for mobile/tablet OR touch devices with medium screens
+        // This covers cases where UA detection fails but touch is detected
+        const shouldActivateMobile = this.deviceType !== 'desktop' || 
+                                     (this.isTouchDevice && window.innerWidth < this.breakpoints.tablet);
+        
+        if (shouldActivateMobile) {
             this.activateMobileMode();
+            // Setup swipeable toasts for mobile
+            this.setupSwipeableToasts();
         }
         
         // Listen for resize/orientation changes
@@ -134,15 +153,433 @@ class MobileManager {
         // Setup keyboard detection (for virtual keyboards)
         this.setupKeyboardDetection();
         
-        // Setup pull-to-refresh
-        if (this.deviceType !== 'desktop') {
-            this.setupPullToRefresh();
-        }
+        // Setup pull-to-refresh (disabled - too many issues)
+        // if (this.deviceType !== 'desktop') {
+        //     this.setupPullToRefresh();
+        // }
         
         // Load action history for smart suggestions
         this.loadActionHistory();
         
-        console.log(`📱 MobileManager initialized: ${this.deviceType}, touch: ${this.isTouchDevice}`);
+        console.log(`📱 MobileManager initialized: ${this.deviceType}, touch: ${this.isTouchDevice}, mobileMode: ${this.state.mobileMode}`);
+    }
+    
+    /**
+     * ===================================
+     * UNIVERSAL TOUCH SYSTEM
+     * ===================================
+     * Centralized touch handling for ALL interactive elements
+     * Fixes: double-firing, inconsistent feedback, title tooltips, touch targets
+     */
+    initUniversalTouchSystem() {
+        console.log('📱 Initializing Universal Touch System...');
+        
+        // Track touch state to prevent click after touch
+        this.touchState = {
+            touchStartTime: 0,
+            touchTarget: null,
+            touchHandled: false,
+            lastTouchEnd: 0
+        };
+        
+        // Remove ALL title attributes on touch devices (prevents tooltips)
+        this.removeAllTitles();
+        
+        // Global touch interceptor for all interactive elements
+        document.addEventListener('touchstart', (e) => this.handleGlobalTouchStart(e), { passive: true, capture: true });
+        document.addEventListener('touchend', (e) => this.handleGlobalTouchEnd(e), { passive: false, capture: true });
+        document.addEventListener('click', (e) => this.handleGlobalClick(e), { capture: true });
+        
+        // Observe DOM for new elements
+        this.observeForNewElements();
+        
+        // Setup header dropdowns for mobile (single-tap + click-outside-to-close)
+        this.setupMobileHeaderDropdowns();
+        
+        console.log('📱 Universal Touch System ready');
+    }
+    
+    /**
+     * Remove all title attributes on touch devices
+     * Prevents annoying tooltip popups on touch
+     */
+    removeAllTitles() {
+        // Remove existing titles
+        document.querySelectorAll('[title]').forEach(el => {
+            el.dataset.originalTitle = el.getAttribute('title');
+            el.removeAttribute('title');
+        });
+    }
+    
+    /**
+     * Observe DOM for new elements and remove their titles
+     */
+    observeForNewElements() {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) {
+                        // Remove titles from new elements
+                        if (node.hasAttribute?.('title')) {
+                            node.dataset.originalTitle = node.getAttribute('title');
+                            node.removeAttribute('title');
+                        }
+                        node.querySelectorAll?.('[title]').forEach(el => {
+                            el.dataset.originalTitle = el.getAttribute('title');
+                            el.removeAttribute('title');
+                        });
+                    }
+                });
+            });
+        });
+        
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+    
+    /**
+     * Setup mobile-friendly header dropdowns (Mode, Profile, Tools)
+     * Single tap to toggle, tap anywhere outside to close
+     */
+    setupMobileHeaderDropdowns() {
+        console.log('📱 Setting up mobile header dropdowns...');
+        
+        // Track all open dropdowns for click-outside handling
+        const closeAllDropdowns = (exceptElement) => {
+            // Close user dropdown
+            const userDropdown = document.getElementById('user-dropdown');
+            if (userDropdown && !exceptElement?.closest('.user-account')) {
+                userDropdown.classList.remove('show');
+            }
+            
+            // Close mode dropdown
+            const modeDropdown = document.getElementById('mode-dropdown');
+            if (modeDropdown && !exceptElement?.closest('.mode-switcher')) {
+                modeDropdown.classList.remove('visible');
+            }
+            
+            // Close tools dropdown
+            const toolsDropdown = document.getElementById('tools-dropdown');
+            if (toolsDropdown && !exceptElement?.closest('.tools-menu')) {
+                toolsDropdown.classList.remove('show');
+            }
+        };
+        
+        // User Account Button - single tap toggle
+        const userAccountBtn = document.getElementById('user-account-btn');
+        if (userAccountBtn) {
+            // Remove existing handlers by cloning
+            const newUserBtn = userAccountBtn.cloneNode(true);
+            userAccountBtn.parentNode.replaceChild(newUserBtn, userAccountBtn);
+            
+            newUserBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('📱 User account button touched');
+                
+                // Close other dropdowns first
+                closeAllDropdowns(newUserBtn);
+                
+                // Toggle user dropdown
+                const userDropdown = document.getElementById('user-dropdown');
+                if (userDropdown) {
+                    userDropdown.classList.toggle('show');
+                    this.vibrate('selection');
+                }
+            }, { passive: false });
+            
+            // Also support regular click for desktop
+            newUserBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Don't toggle if already handled by touch
+                if (this.touchState.lastTouchEnd && Date.now() - this.touchState.lastTouchEnd < 300) {
+                    return;
+                }
+                
+                closeAllDropdowns(newUserBtn);
+                const userDropdown = document.getElementById('user-dropdown');
+                userDropdown?.classList.toggle('show');
+            });
+        }
+        
+        // Tools Button - single tap toggle (only on mobile, desktop has hover)
+        const toolsBtn = document.getElementById('tools-btn');
+        if (toolsBtn) {
+            const newToolsBtn = toolsBtn.cloneNode(true);
+            toolsBtn.parentNode.replaceChild(newToolsBtn, toolsBtn);
+            
+            newToolsBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('📱 Tools button touched');
+                
+                closeAllDropdowns(newToolsBtn);
+                
+                const toolsDropdown = document.getElementById('tools-dropdown');
+                if (toolsDropdown) {
+                    toolsDropdown.classList.toggle('show');
+                    this.vibrate('selection');
+                }
+            }, { passive: false });
+            
+            newToolsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this.touchState.lastTouchEnd && Date.now() - this.touchState.lastTouchEnd < 300) {
+                    return;
+                }
+                closeAllDropdowns(newToolsBtn);
+                document.getElementById('tools-dropdown')?.classList.toggle('show');
+            });
+        }
+        
+        // Mode Switcher (Advanced/Beginner dropdown) - single tap toggle
+        this.setupModeSwitcherTouch(closeAllDropdowns);
+        
+        // Global tap handler to close dropdowns when tapping outside
+        document.addEventListener('touchstart', (e) => {
+            // Don't close if tapping on a dropdown trigger or inside a dropdown
+            const target = e.target;
+            if (target.closest('.user-account') || 
+                target.closest('.tools-menu') || 
+                target.closest('.mode-switcher') ||
+                target.closest('.user-dropdown') ||
+                target.closest('.tools-dropdown') ||
+                target.closest('.mode-dropdown')) {
+                return;
+            }
+            
+            closeAllDropdowns();
+        }, { passive: true });
+        
+        // Also handle regular clicks for desktop
+        document.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target.closest('.user-account') || 
+                target.closest('.tools-menu') || 
+                target.closest('.mode-switcher')) {
+                return;
+            }
+            
+            closeAllDropdowns();
+        });
+        
+        console.log('📱 Mobile header dropdowns ready');
+    }
+    
+    /**
+     * Setup mode switcher for single-tap on mobile
+     */
+    setupModeSwitcherTouch(closeAllDropdowns) {
+        const modeSwitcher = document.querySelector('.mode-switcher');
+        if (!modeSwitcher) return;
+        
+        // Get all mode buttons
+        const modeButtons = modeSwitcher.querySelectorAll('.mode-btn');
+        
+        modeButtons.forEach(btn => {
+            // Clone to remove existing handlers
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            newBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('📱 Mode button touched:', newBtn.dataset.mode || 'active');
+                
+                // Close other dropdowns
+                closeAllDropdowns(newBtn);
+                
+                // If this is the active button, toggle the dropdown
+                if (newBtn.classList.contains('active')) {
+                    this.toggleModeDropdown(newBtn);
+                    this.vibrate('selection');
+                } else {
+                    // Switch to this mode
+                    const mode = newBtn.dataset.mode;
+                    if (mode && mode !== 'guided') {
+                        this.setEditorMode(mode);
+                        // vibrate happens in setEditorMode
+                    } else if (mode === 'guided') {
+                        this.showToast('Guided mode is not available on mobile', 'warning');
+                    }
+                }
+            }, { passive: false });
+            
+            // Click handler for desktop fallback
+            newBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                // Skip if touch was recently handled
+                if (this.touchState.lastTouchEnd && Date.now() - this.touchState.lastTouchEnd < 300) {
+                    return;
+                }
+                
+                if (newBtn.classList.contains('active')) {
+                    this.toggleModeDropdown(newBtn);
+                } else {
+                    const mode = newBtn.dataset.mode;
+                    if (mode && mode !== 'guided') {
+                        this.setEditorMode(mode);
+                    }
+                }
+            });
+        });
+    }
+    
+    /**
+     * Global touch start handler
+     */
+    handleGlobalTouchStart(e) {
+        const target = e.target.closest('button, .btn, a, [role="button"], .clickable, .mobile-nav-item, .fab-main, .fab-menu-item, .icon-btn, .modal-close, .btn-close, [data-action]');
+        
+        // Skip if this is a dropdown trigger that has its own handling
+        if (target?.classList.contains('user-account-btn') || 
+            target?.classList.contains('mode-btn') ||
+            target?.id === 'tools-btn' ||
+            target?.id === 'mobile-close-yaml' ||
+            target?.id === 'mobile-header-more-btn' ||
+            target?.closest('.mode-switcher')) {
+            console.log('📱 Touch START (has own handler - skipping):', target.id || target.className);
+            return;
+        }
+        
+        if (target) {
+            this.touchState.touchStartTime = Date.now();
+            this.touchState.touchTarget = target;
+            this.touchState.touchHandled = false;
+            
+            // Debug logging
+            console.log('📱 Touch START:', target.id || target.className || target.tagName, target);
+            
+            // Visual feedback - pressed state
+            target.classList.add('touch-active');
+            target.style.transform = 'scale(0.96)';
+            target.style.opacity = '0.85';
+        }
+    }
+    
+    /**
+     * Global touch end handler
+     */
+    handleGlobalTouchEnd(e) {
+        const target = this.touchState.touchTarget;
+        
+        if (target) {
+            // Reset visual state
+            target.classList.remove('touch-active');
+            target.style.transform = '';
+            target.style.opacity = '';
+            
+            // Check if this was a valid tap (not a scroll)
+            const touchDuration = Date.now() - this.touchState.touchStartTime;
+            
+            // Debug logging
+            console.log('📱 Touch END:', target.id || target.className || target.tagName, 'duration:', touchDuration + 'ms');
+            
+            if (touchDuration < 500) {
+                // Mark as handled to prevent click from firing
+                this.touchState.touchHandled = true;
+                this.touchState.lastTouchEnd = Date.now();
+                
+                // Haptic feedback
+                this.vibrate('selection');
+                
+                // Execute the action
+                e.preventDefault();
+                
+                console.log('📱 Dispatching click to:', target.id || target.className);
+                
+                // Simulate click on the target
+                const clickEvent = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                });
+                clickEvent._fromTouch = true;
+                target.dispatchEvent(clickEvent);
+            }
+        }
+        
+        this.touchState.touchTarget = null;
+    }
+    
+    /**
+     * Global click handler - prevents double-firing after touch
+     */
+    handleGlobalClick(e) {
+        // If this click came from our touch handler, let it through
+        if (e._fromTouch) {
+            console.log('📱 Click from touch - allowing:', e.target.id || e.target.className);
+            return;
+        }
+        
+        // If we recently handled a touch, block the native click
+        const timeSinceTouch = Date.now() - this.touchState.lastTouchEnd;
+        
+        if (timeSinceTouch < 300 && this.touchState.touchHandled) {
+            console.log('📱 Blocking native click (too soon after touch):', e.target.id || e.target.className);
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+        
+        // Allow regular clicks
+        const target = e.target.closest('button, .btn, .icon-btn, .modal-close, .btn-close');
+        if (target) {
+            console.log('📱 Native click on:', target.id || target.className);
+        }
+    }
+    
+    /**
+     * Make a specific element touch-friendly
+     * Use this for dynamically added elements or custom handlers
+     */
+    makeTouchFriendly(element, handler) {
+        if (!element || !this.isTouchDevice) return;
+        
+        let touchHandled = false;
+        
+        // Touch handler
+        element.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            touchHandled = true;
+            
+            // Visual feedback
+            element.style.transform = 'scale(0.96)';
+            element.style.opacity = '0.85';
+            
+            setTimeout(() => {
+                element.style.transform = '';
+                element.style.opacity = '';
+            }, 100);
+            
+            // Haptic
+            this.vibrate('selection');
+            
+            // Execute handler
+            if (handler) handler(e);
+            
+            // Reset after delay
+            setTimeout(() => { touchHandled = false; }, 300);
+        }, { passive: false });
+        
+        // Block click if touch was handled
+        element.addEventListener('click', (e) => {
+            if (touchHandled) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
+        
+        // Remove title
+        if (element.hasAttribute('title')) {
+            element.dataset.originalTitle = element.getAttribute('title');
+            element.removeAttribute('title');
+        }
     }
     
     /**
@@ -417,23 +854,54 @@ class MobileManager {
     }
     
     /**
-     * Detect device type based on screen width and user agent
+     * Detect device type based on screen width, user agent, and touch capability
      */
     detectDeviceType() {
         const width = window.innerWidth;
         const userAgent = navigator.userAgent.toLowerCase();
         
-        // Check user agent for mobile devices
-        const isMobileUA = /android|webos|iphone|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
-        const isTabletUA = /ipad|tablet|playbook|silk/i.test(userAgent) || 
-                          (userAgent.includes('android') && !userAgent.includes('mobile'));
+        // Check user agent for mobile devices (expanded patterns)
+        const isMobileUA = /android|webos|iphone|ipod|blackberry|iemobile|opera mini|mobile|phone/i.test(userAgent);
         
-        // Combine UA detection with screen width
+        // Check user agent for tablet devices (expanded patterns)
+        const isTabletUA = /ipad|tablet|playbook|silk|kindle|surface/i.test(userAgent) || 
+                          (userAgent.includes('android') && !userAgent.includes('mobile')) ||
+                          (userAgent.includes('macintosh') && 'ontouchend' in document);  // iPad with desktop Safari
+        
+        // Check for touch capability (another signal for mobile/tablet)
+        const hasTouch = this.detectTouchSupport();
+        
+        // CSS media query check for coarse pointer (touchscreen)
+        const hasCoarsePointer = window.matchMedia?.('(pointer: coarse)')?.matches || false;
+        
+        // CSS media query check for hover capability (desktop usually has this)
+        const canHover = window.matchMedia?.('(hover: hover)')?.matches || false;
+        
+        // Determine device type with multiple signals
+        // Mobile: small screen OR mobile UA
         if (isMobileUA || width < this.breakpoints.mobile) {
             return 'mobile';
-        } else if (isTabletUA || (width >= this.breakpoints.mobile && width < this.breakpoints.tablet)) {
+        }
+        
+        // Tablet: tablet UA OR (medium screen with touch/coarse pointer and no hover)
+        if (isTabletUA) {
             return 'tablet';
         }
+        
+        // Medium-sized touch device without hover = probably tablet
+        if (width >= this.breakpoints.mobile && width < this.breakpoints.tablet) {
+            if (hasTouch || hasCoarsePointer) {
+                return 'tablet';
+            }
+            // Medium screen but has hover = could be small laptop, treat as tablet for safety
+            return 'tablet';
+        }
+        
+        // Large screen with touch but no hover = probably large tablet (like iPad Pro)
+        if (width >= this.breakpoints.tablet && (hasTouch || hasCoarsePointer) && !canHover) {
+            return 'tablet';
+        }
+        
         return 'desktop';
     }
     
@@ -442,8 +910,10 @@ class MobileManager {
      */
     detectTouchSupport() {
         return 'ontouchstart' in window || 
+               'ontouchend' in document ||
                navigator.maxTouchPoints > 0 || 
-               navigator.msMaxTouchPoints > 0;
+               navigator.msMaxTouchPoints > 0 ||
+               window.matchMedia?.('(pointer: coarse)')?.matches || false;
     }
     
     /**
@@ -608,18 +1078,11 @@ class MobileManager {
             }, true);
         }
         
-        // Setup compact mode dropdown trigger (active pill)
+        // Mode dropdown setup is now handled by setupModeSwitcherTouch() in setupMobileHeaderDropdowns()
+        // We only need to set the attribute for identification
         const activeBtn = document.querySelector('.mode-switcher .mode-btn.active');
         if (activeBtn) {
-            // mark as dropdown trigger so global click handler can ignore it
             activeBtn.setAttribute('data-mode-dropdown', 'true');
-
-            if (!document.getElementById('mode-dropdown')) {
-                activeBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.toggleModeDropdown(e.currentTarget);
-                });
-            }
         }
     }
 
@@ -785,7 +1248,7 @@ class MobileManager {
                     <button class="icon-btn" id="mobile-export-yaml" title="Export">
                         <i class="fas fa-download"></i>
                     </button>
-                    <button class="icon-btn" id="mobile-close-yaml" title="Close">
+                    <button class="icon-btn" id="mobile-close-yaml">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -1361,28 +1824,32 @@ class MobileManager {
         this.dom.headerMoreBtn = moreBtn;
         this.dom.headerDropdown = dropdown;
         
-        // Setup event listeners - handle both click and touch
+        // Setup event listeners - use touchstart for instant response on mobile
         let touchHandled = false;
         
-        const toggleDropdown = (e) => {
+        // Primary: touchstart handler for instant mobile response (like profile button)
+        moreBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('📱 More button touched (touchstart)');
+            touchHandled = true;
+            this.toggleMobileHeaderDropdown(); // This already calls vibrate
+            
+            // Reset flag after a short delay
+            setTimeout(() => { touchHandled = false; }, 300);
+        }, { passive: false });
+        
+        // Fallback: click handler for desktop/accessibility
+        moreBtn.addEventListener('click', (e) => {
+            if (touchHandled) {
+                console.log('📱 More button click skipped (touch handled)');
+                return;
+            }
+            
             e.stopPropagation();
             e.preventDefault();
             this.toggleMobileHeaderDropdown();
-        };
-        
-        // Handle touch events
-        moreBtn.addEventListener('touchend', (e) => {
-            touchHandled = true;
-            toggleDropdown(e);
-            // Reset flag after a short delay
-            setTimeout(() => { touchHandled = false; }, 300);
-        });
-        
-        // Handle click events (but skip if touch was already handled)
-        moreBtn.addEventListener('click', (e) => {
-            if (!touchHandled) {
-                toggleDropdown(e);
-            }
         });
         
         dropdown.querySelectorAll('.mobile-header-dropdown-item').forEach(item => {
@@ -1873,45 +2340,75 @@ class MobileManager {
             this.getEditor()?.createNewPack();
         });
         
-        // Mobile copy YAML
-        document.getElementById('mobile-copy-yaml')?.addEventListener('click', () => {
-            this.copyYAMLToClipboard();
-        });
+        // Mobile copy YAML - use makeTouchFriendly for consistent handling
+        const copyYamlBtn = document.getElementById('mobile-copy-yaml');
+        if (copyYamlBtn) {
+            this.makeTouchFriendly(copyYamlBtn, () => this.copyYAMLToClipboard());
+        }
         
         // Mobile export YAML
-        document.getElementById('mobile-export-yaml')?.addEventListener('click', () => {
-            this.getEditor()?.exportYAML();
-        });
+        const exportYamlBtn = document.getElementById('mobile-export-yaml');
+        if (exportYamlBtn) {
+            this.makeTouchFriendly(exportYamlBtn, () => this.getEditor()?.exportYAML());
+        }
         
-        // Mobile close YAML button - use direct reference and ensure it works
+        // Mobile close YAML button - direct handler with debugging
         const closeYamlBtn = document.getElementById('mobile-close-yaml');
         if (closeYamlBtn) {
-            // Remove any existing listeners by cloning
+            console.log('📱 Setting up close YAML button handler');
+            
+            // Remove any existing handlers first
             const newCloseBtn = closeYamlBtn.cloneNode(true);
             closeYamlBtn.parentNode.replaceChild(newCloseBtn, closeYamlBtn);
             
-            newCloseBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.closeYAMLSheet();
-                // Reset active state to home
-                this.dom.bottomNav?.querySelectorAll('.mobile-nav-item').forEach(item => {
-                    item.classList.toggle('active', item.dataset.panel === 'home');
-                });
-                this.state.activePanel = 'home';
-            });
+            // Track if we've handled this touch to prevent double-firing
+            let touchHandled = false;
             
-            // Also handle touch for mobile
+            // Primary: touchend handler for mobile (fires first)
             newCloseBtn.addEventListener('touchend', (e) => {
+                console.log('📱 Close YAML button TOUCHEND!');
                 e.preventDefault();
                 e.stopPropagation();
-                this.closeYAMLSheet();
-                this.dom.bottomNav?.querySelectorAll('.mobile-nav-item').forEach(item => {
-                    item.classList.toggle('active', item.dataset.panel === 'home');
-                });
-                this.state.activePanel = 'home';
+                
+                if (touchHandled) {
+                    console.log('📱 Touch already handled, skipping');
+                    return;
+                }
+                
+                touchHandled = true;
+                this.closeYAMLSheet(); // This already calls updateNavActiveState
+                this.vibrate('selection');
+                
+                // Reset flag after a short delay
+                setTimeout(() => { touchHandled = false; }, 300);
+            }, { passive: false });
+            
+            // Fallback: click handler for desktop/accessibility
+            newCloseBtn.addEventListener('click', (e) => {
+                // Skip if already handled by touch
+                if (touchHandled) {
+                    console.log('📱 Close YAML button click skipped (touch handled)');
+                    return;
+                }
+                
+                console.log('📱 Close YAML button CLICKED!');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                this.closeYAMLSheet(); // This already calls updateNavActiveState
             });
         }
+    }
+    
+    /**
+     * Update bottom nav active state
+     */
+    updateNavActiveState(panel) {
+        console.log('📱 Updating nav active state to:', panel);
+        this.dom.bottomNav?.querySelectorAll('.mobile-nav-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.panel === panel);
+        });
+        this.state.activePanel = panel;
     }
     
     /**
@@ -1921,31 +2418,25 @@ class MobileManager {
         const panel = e.currentTarget.dataset.panel;
         const currentItem = e.currentTarget;
         
+        console.log('📱 Nav click:', panel);
+        
         // Special handling for YAML toggle - clicking again closes it
         if (panel === 'yaml') {
             const isCurrentlyActive = currentItem.classList.contains('active');
+            console.log('📱 YAML nav clicked, currently active:', isCurrentlyActive, 'sheet open:', this.state.yamlSheetOpen);
+            
             if (isCurrentlyActive && this.state.yamlSheetOpen) {
                 // Close YAML and deactivate
                 this.closeYAMLSheet();
-                currentItem.classList.remove('active');
-                // Set home as active
-                this.dom.bottomNav.querySelector('[data-panel="home"]')?.classList.add('active');
-                this.state.activePanel = 'home';
                 return;
             }
-        }
-        
-        // Update active state - only for home/files, others are temporary actions
-        if (panel === 'home' || panel === 'yaml') {
-            this.dom.bottomNav.querySelectorAll('.mobile-nav-item').forEach(item => {
-                item.classList.toggle('active', item.dataset.panel === panel);
-            });
         }
         
         // Handle panel navigation
         switch (panel) {
             case 'home':
                 this.closeYAMLSheet(); // Close YAML when going home
+                this.updateNavActiveState('home');
                 this.getEditor()?.goToDashboard();
                 break;
             case 'files':
@@ -1958,8 +2449,6 @@ class MobileManager {
                 this.toggleYAMLSheet();
                 break;
         }
-        
-        this.state.activePanel = panel;
     }
     
     /**
@@ -2202,9 +2691,13 @@ class MobileManager {
      * Toggle YAML bottom sheet
      */
     toggleYAMLSheet() {
-        if (!this.dom.yamlSheet) return;
+        if (!this.dom.yamlSheet) {
+            console.log('📱 toggleYAMLSheet: No yamlSheet found!');
+            return;
+        }
         
         const isOpen = this.dom.yamlSheet.classList.contains('open');
+        console.log('📱 Toggle YAML sheet, currently open:', isOpen);
         
         if (isOpen) {
             this.closeYAMLSheet();
@@ -2219,6 +2712,8 @@ class MobileManager {
     openYAMLSheet() {
         if (!this.dom.yamlSheet) return;
         
+        console.log('📱 Opening YAML sheet');
+        
         // Sync content from desktop preview
         const desktopPreview = document.getElementById('yaml-preview-content');
         const mobileContent = document.getElementById('mobile-yaml-content');
@@ -2230,6 +2725,9 @@ class MobileManager {
         this.dom.yamlSheet.classList.add('open');
         this.dom.yamlSheet.style.height = `${this.state.yamlSheetHeight * 100}%`;
         this.state.yamlSheetOpen = true;
+        
+        // Update nav active state to YAML
+        this.updateNavActiveState('yaml');
     }
     
     /**
@@ -2238,8 +2736,23 @@ class MobileManager {
     closeYAMLSheet() {
         if (!this.dom.yamlSheet) return;
         
+        // Prevent multiple close calls
+        if (!this.state.yamlSheetOpen) {
+            console.log('📱 YAML sheet already closed, skipping');
+            return;
+        }
+        
+        console.log('📱 Closing YAML sheet');
+        
         this.dom.yamlSheet.classList.remove('open');
+        
+        // CRITICAL: Reset inline height so CSS can take over
+        this.dom.yamlSheet.style.height = '';
+        
         this.state.yamlSheetOpen = false;
+        
+        // Update nav active state to home
+        this.updateNavActiveState('home');
     }
     
     /**
@@ -2491,6 +3004,12 @@ class MobileManager {
                 
                 if (newDeviceType !== this.deviceType) {
                     this.deviceType = newDeviceType;
+                    
+                    // Update convenience properties to match new device type
+                    this.isMobile = newDeviceType === 'mobile';
+                    this.isTablet = newDeviceType === 'tablet';
+                    this.isDesktop = newDeviceType === 'desktop';
+                    
                     this.updateDeviceAttribute();
                     
                     // Activate/deactivate mobile mode
@@ -2722,7 +3241,12 @@ class MobileManager {
             pattern = this.hapticPatterns[pattern] || this.hapticPatterns.light;
         }
         
-        navigator.vibrate(pattern);
+        // Wrap in try-catch to handle Chrome's intervention silently
+        try {
+            navigator.vibrate(pattern);
+        } catch (e) {
+            // Vibration blocked by browser - this is fine, just ignore
+        }
     }
     
     /**
@@ -2739,9 +3263,113 @@ class MobileManager {
         }
     }
     
-    // Alias for compatibility
+    // Aliases for compatibility
     showToast(message, type = 'info') {
         this.showNotification(message, type);
+    }
+    
+    /**
+     * Setup swipeable toast notifications for mobile
+     * Toasts can be swiped right to dismiss
+     */
+    setupSwipeableToasts() {
+        const toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            console.warn('📱 Toast container not found for swipeable setup');
+            return;
+        }
+        
+        console.log('📱 Setting up swipeable toasts...');
+        
+        // Observe for new toasts being added
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1 && node.classList?.contains('toast')) {
+                        this.makeToastSwipeable(node);
+                    }
+                });
+            });
+        });
+        
+        observer.observe(toastContainer, { childList: true });
+        
+        // Make existing toasts swipeable
+        toastContainer.querySelectorAll('.toast').forEach(toast => {
+            this.makeToastSwipeable(toast);
+        });
+    }
+    
+    /**
+     * Make a single toast swipeable
+     */
+    makeToastSwipeable(toast) {
+        if (toast.dataset.swipeEnabled) return;
+        toast.dataset.swipeEnabled = 'true';
+        
+        let startX = 0;
+        let currentX = 0;
+        let isDragging = false;
+        
+        const handleTouchStart = (e) => {
+            startX = e.touches[0].clientX;
+            currentX = startX;
+            isDragging = true;
+            toast.classList.add('swiping');
+        };
+        
+        const handleTouchMove = (e) => {
+            if (!isDragging) return;
+            
+            currentX = e.touches[0].clientX;
+            const deltaX = currentX - startX;
+            
+            // Only allow swipe right (positive direction)
+            if (deltaX > 0) {
+                // Add resistance at the end
+                const resistance = Math.min(deltaX, 200);
+                const dampened = resistance * (1 - resistance / 400);
+                toast.style.transform = `translateX(${dampened}px)`;
+                toast.style.opacity = Math.max(0, 1 - deltaX / 150);
+            }
+        };
+        
+        const handleTouchEnd = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            toast.classList.remove('swiping');
+            
+            const deltaX = currentX - startX;
+            
+            // Dismiss if swiped more than 80px
+            if (deltaX > 80) {
+                toast.classList.add('dismissed');
+                this.vibrate('light');
+                
+                // Remove after animation
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            } else {
+                // Snap back
+                toast.style.transform = '';
+                toast.style.opacity = '';
+            }
+        };
+        
+        toast.addEventListener('touchstart', handleTouchStart, { passive: true });
+        toast.addEventListener('touchmove', handleTouchMove, { passive: true });
+        toast.addEventListener('touchend', handleTouchEnd);
+        toast.addEventListener('touchcancel', handleTouchEnd);
+    }
+    
+    // Haptic feedback aliases (for consistency across codebase)
+    hapticFeedback(pattern) {
+        this.vibrate(pattern);
+    }
+    
+    triggerHaptic(pattern) {
+        this.vibrate(pattern);
     }
     
     /**
@@ -3149,6 +3777,7 @@ class MobileManager {
     
     /**
      * Initialize pull-to-refresh functionality
+     * Requires deliberate pull-and-hold gesture to prevent accidental triggers
      */
     initPullToRefresh() {
         if (!this.isMobile || !this.state.pullToRefreshEnabled) return;
@@ -3156,21 +3785,44 @@ class MobileManager {
         let startY = 0;
         let pulling = false;
         let indicator = null;
+        let holdTimer = null;
+        let isReady = false;
+        const PULL_THRESHOLD = 120; // Increased threshold
+        const HOLD_TIME = 300; // Must hold for 300ms after reaching threshold
         
         const createIndicator = () => {
             if (indicator) return indicator;
             indicator = document.createElement('div');
             indicator.className = 'pull-refresh-indicator';
-            indicator.innerHTML = '<i class="fas fa-sync-alt"></i> Pull to refresh';
+            indicator.innerHTML = '<i class="fas fa-sync-alt"></i> Pull down to refresh';
             document.body.appendChild(indicator);
             return indicator;
         };
         
+        const resetState = () => {
+            pulling = false;
+            startY = 0;
+            isReady = false;
+            if (holdTimer) {
+                clearTimeout(holdTimer);
+                holdTimer = null;
+            }
+            if (indicator) {
+                indicator.style.transform = 'translateX(-50%) translateY(-100%)';
+                indicator.style.opacity = '0';
+                indicator.classList.remove('ready');
+            }
+        };
+        
         document.addEventListener('touchstart', (e) => {
-            // Only enable at top of page
-            if (window.scrollY === 0 && !this.state.keyboardOpen) {
+            // Only enable at absolute top of page and not in modals/editors with scroll
+            const target = e.target;
+            const isInScrollable = target.closest('.modal-body, .editor-content, .sidebar-content, .yaml-preview, .form-textarea, [contenteditable]');
+            
+            if (window.scrollY === 0 && !this.state.keyboardOpen && !isInScrollable) {
                 startY = e.touches[0].clientY;
                 pulling = true;
+                isReady = false;
             }
         }, { passive: true });
         
@@ -3180,24 +3832,43 @@ class MobileManager {
             const currentY = e.touches[0].clientY;
             const diff = currentY - startY;
             
-            if (diff > 0 && window.scrollY === 0) {
+            // Only trigger if pulling down significantly AND at top of page
+            if (diff > 30 && window.scrollY === 0) {
                 const ind = createIndicator();
-                const progress = Math.min(diff / 100, 1);
-                ind.style.transform = `translateX(-50%) translateY(${Math.min(diff * 0.5, 50)}px)`;
+                const progress = Math.min(diff / PULL_THRESHOLD, 1);
+                ind.style.transform = `translateX(-50%) translateY(${Math.min(diff * 0.4, 60)}px)`;
                 ind.style.opacity = progress;
                 
-                if (diff > 100) {
-                    ind.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Release to refresh';
-                    ind.classList.add('ready');
+                if (diff > PULL_THRESHOLD) {
+                    if (!holdTimer && !isReady) {
+                        // Start hold timer - user must hold for HOLD_TIME ms
+                        ind.innerHTML = '<i class="fas fa-sync-alt"></i> Hold to refresh...';
+                        holdTimer = setTimeout(() => {
+                            isReady = true;
+                            ind.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Release to refresh';
+                            ind.classList.add('ready');
+                            // Haptic feedback when ready
+                            if (navigator.vibrate) navigator.vibrate(50);
+                        }, HOLD_TIME);
+                    }
                 } else {
-                    ind.innerHTML = '<i class="fas fa-sync-alt"></i> Pull to refresh';
+                    // User pulled back up, cancel
+                    if (holdTimer) {
+                        clearTimeout(holdTimer);
+                        holdTimer = null;
+                    }
+                    isReady = false;
+                    ind.innerHTML = '<i class="fas fa-sync-alt"></i> Pull down to refresh';
                     ind.classList.remove('ready');
                 }
+            } else if (diff < 0) {
+                // User is scrolling up normally, cancel pull-to-refresh
+                resetState();
             }
         }, { passive: true });
         
         document.addEventListener('touchend', () => {
-            if (indicator && indicator.classList.contains('ready')) {
+            if (indicator && isReady) {
                 indicator.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Refreshing...';
                 indicator.classList.add('visible');
                 
@@ -3205,13 +3876,16 @@ class MobileManager {
                 setTimeout(() => {
                     window.location.reload();
                 }, 500);
-            } else if (indicator) {
-                indicator.style.transform = 'translateX(-50%) translateY(-100%)';
-                indicator.style.opacity = '0';
+            } else {
+                resetState();
             }
             
             pulling = false;
             startY = 0;
+            if (holdTimer) {
+                clearTimeout(holdTimer);
+                holdTimer = null;
+            }
         }, { passive: true });
     }
     
@@ -3452,6 +4126,19 @@ class MobileManager {
         this.initSmartFormValidation();
         this.enhanceFormLabels();
         
+        // NEW: Ultra-compact UI features
+        this.initCollapsibleFilters();
+        this.initAutoHidingHeaders();
+        this.initMobileActionOverflow();
+        this.initSwipeToRevealActions();
+        this.simplifyModalsForMobile();
+        
+        // NEW: Create floating editor action bar FIRST (before view tracking needs it)
+        this.initEditorActionBar();
+        
+        // NEW: Track current view for header hiding (after action bar exists)
+        this.initViewTracking();
+        
         // Convert all appropriate dropdowns to bottom sheets
         document.querySelectorAll('[data-dropdown-trigger]').forEach(trigger => {
             const dropdownId = trigger.dataset.dropdownTrigger;
@@ -3462,6 +4149,520 @@ class MobileManager {
         });
         
         console.log('📱 Smart mobile features initialized');
+    }
+    
+    /**
+     * Initialize collapsible filter panels
+     * Adds toggle buttons to hide/show filter toolbars
+     */
+    initCollapsibleFilters() {
+        // Template Selector filters
+        const templateToolbar = document.querySelector('#templateSelectorOverlay .template-toolbar');
+        if (templateToolbar && !templateToolbar.dataset.mobileInit) {
+            templateToolbar.dataset.mobileInit = 'true';
+            this.createFilterToggle(templateToolbar, 'templateSelectorOverlay');
+        }
+        
+        // Watch for dynamic modal creation
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) {
+                        // Check for template selector
+                        const toolbar = node.querySelector?.('.template-toolbar');
+                        if (toolbar && !toolbar.dataset.mobileInit) {
+                            toolbar.dataset.mobileInit = 'true';
+                            this.createFilterToggle(toolbar, 'dynamic');
+                        }
+                    }
+                });
+            });
+        });
+        
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+    
+    /**
+     * Create a filter toggle button for a toolbar
+     */
+    createFilterToggle(toolbar, containerId) {
+        const container = toolbar.parentElement;
+        if (!container) return;
+        
+        // Create toggle button
+        const toggle = document.createElement('button');
+        toggle.className = 'mobile-filter-toggle';
+        toggle.innerHTML = `
+            <i class="fas fa-sliders-h"></i>
+            <span>Filters & Sort</span>
+            <span class="filter-count" style="display: none;">0</span>
+            <i class="fas fa-chevron-down" style="margin-left: auto; opacity: 0.6; font-size: 0.75rem;"></i>
+        `;
+        
+        // Insert before toolbar
+        container.insertBefore(toggle, toolbar);
+        
+        // Toggle handler
+        toggle.addEventListener('click', () => {
+            const isExpanded = toolbar.classList.toggle('mobile-expanded');
+            toggle.querySelector('.fa-chevron-down').style.transform = isExpanded ? 'rotate(180deg)' : '';
+            this.hapticFeedback('selection');
+        });
+        
+        // Update filter count when filters change
+        this.updateFilterCount(toolbar, toggle);
+        toolbar.addEventListener('change', () => this.updateFilterCount(toolbar, toggle));
+    }
+    
+    /**
+     * Update the active filter count display
+     */
+    updateFilterCount(toolbar, toggle) {
+        const selects = toolbar.querySelectorAll('select');
+        let activeCount = 0;
+        
+        selects.forEach(select => {
+            if (select.value && select.value !== 'all' && select.value !== 'name') {
+                activeCount++;
+            }
+        });
+        
+        const countBadge = toggle.querySelector('.filter-count');
+        if (countBadge) {
+            if (activeCount > 0) {
+                countBadge.textContent = activeCount;
+                countBadge.style.display = 'inline-block';
+            } else {
+                countBadge.style.display = 'none';
+            }
+        }
+    }
+    
+    /**
+     * Initialize auto-hiding headers on scroll
+     */
+    initAutoHidingHeaders() {
+        let lastScrollY = 0;
+        let ticking = false;
+        
+        const updateHeaders = () => {
+            const scrollY = window.scrollY;
+            const delta = scrollY - lastScrollY;
+            
+            // Get all sticky headers in editors
+            const headers = document.querySelectorAll('.editor-header');
+            
+            headers.forEach(header => {
+                if (delta > 10 && scrollY > 100) {
+                    // Scrolling down - hide header
+                    header.classList.add('header-hidden');
+                } else if (delta < -10) {
+                    // Scrolling up - show header
+                    header.classList.remove('header-hidden');
+                }
+            });
+            
+            lastScrollY = scrollY;
+            ticking = false;
+        };
+        
+        window.addEventListener('scroll', () => {
+            if (!ticking) {
+                requestAnimationFrame(updateHeaders);
+                ticking = true;
+            }
+        }, { passive: true });
+        
+        // Also handle scrollable containers
+        document.querySelectorAll('.view-container, .editor-content, .modal-body').forEach(container => {
+            let containerLastScroll = 0;
+            
+            container.addEventListener('scroll', () => {
+                const scrollTop = container.scrollTop;
+                const delta = scrollTop - containerLastScroll;
+                
+                const header = container.querySelector('.editor-header') || 
+                               container.previousElementSibling?.classList?.contains('editor-header') 
+                               ? container.previousElementSibling : null;
+                
+                if (header) {
+                    if (delta > 10 && scrollTop > 50) {
+                        header.classList.add('header-hidden');
+                    } else if (delta < -10) {
+                        header.classList.remove('header-hidden');
+                    }
+                }
+                
+                containerLastScroll = scrollTop;
+            }, { passive: true });
+        });
+    }
+    
+    /**
+     * Initialize mobile action overflow menu
+     * Converts multiple action buttons to a "more" menu
+     */
+    initMobileActionOverflow() {
+        // Find all action containers with more than 3 buttons
+        document.querySelectorAll('.editor-actions, .editor-header .action-group').forEach(container => {
+            const buttons = container.querySelectorAll('.btn');
+            
+            if (buttons.length > 3 && !container.dataset.mobileOverflow) {
+                container.dataset.mobileOverflow = 'true';
+                
+                // Create overflow button
+                const moreBtn = document.createElement('button');
+                moreBtn.className = 'btn btn-secondary btn-icon mobile-more-btn';
+                moreBtn.innerHTML = '<i class="fas fa-ellipsis-v"></i>';
+                moreBtn.title = 'More actions';
+                container.appendChild(moreBtn);
+                
+                // Create overflow menu
+                const overflowMenu = document.createElement('div');
+                overflowMenu.className = 'mobile-overflow-menu';
+                overflowMenu.style.cssText = `
+                    display: none;
+                    position: fixed;
+                    bottom: calc(var(--mobile-nav-height, 64px) + env(safe-area-inset-bottom, 0px));
+                    left: 0;
+                    right: 0;
+                    background: var(--bg-secondary, #1a1d2e);
+                    border-top: 1px solid var(--border-color, #2a2d3e);
+                    padding: 12px;
+                    z-index: 1000;
+                    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+                    animation: slideUpSheet 0.25s ease;
+                `;
+                
+                // Clone buttons 4+ into overflow
+                buttons.forEach((btn, index) => {
+                    if (index >= 3) {
+                        const clone = btn.cloneNode(true);
+                        clone.style.cssText = `
+                            width: 100%;
+                            justify-content: flex-start;
+                            margin-bottom: 8px;
+                            min-height: 44px;
+                        `;
+                        // Show text for cloned buttons
+                        const icon = clone.querySelector('i');
+                        if (icon && !clone.textContent.trim().replace(icon.textContent, '')) {
+                            const label = btn.title || btn.getAttribute('aria-label') || 'Action';
+                            const span = document.createElement('span');
+                            span.textContent = label;
+                            span.style.marginLeft = '8px';
+                            clone.appendChild(span);
+                        }
+                        overflowMenu.appendChild(clone);
+                        
+                        // Copy click handler
+                        clone.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            btn.click();
+                            overflowMenu.style.display = 'none';
+                        });
+                    }
+                });
+                
+                document.body.appendChild(overflowMenu);
+                
+                // Toggle handler
+                moreBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = overflowMenu.style.display === 'block';
+                    overflowMenu.style.display = isOpen ? 'none' : 'block';
+                    this.hapticFeedback('selection');
+                });
+                
+                // Close on outside click
+                document.addEventListener('click', () => {
+                    overflowMenu.style.display = 'none';
+                });
+            }
+        });
+    }
+    
+    /**
+     * Initialize swipe-to-reveal actions on list items
+     */
+    initSwipeToRevealActions() {
+        const initSwipe = (item) => {
+            if (item.dataset.swipeInit) return;
+            item.dataset.swipeInit = 'true';
+            
+            let startX = 0;
+            let currentX = 0;
+            let isDragging = false;
+            
+            const content = item.querySelector('.swipe-content') || item;
+            const actions = item.querySelector('.swipe-actions');
+            if (!actions) return;
+            
+            const maxSwipe = actions.offsetWidth || 120;
+            
+            item.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                isDragging = true;
+                content.style.transition = 'none';
+            }, { passive: true });
+            
+            item.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                currentX = e.touches[0].clientX;
+                const diffX = startX - currentX;
+                
+                if (diffX > 0 && diffX < maxSwipe) {
+                    content.style.transform = `translateX(-${diffX}px)`;
+                }
+            }, { passive: true });
+            
+            item.addEventListener('touchend', () => {
+                isDragging = false;
+                content.style.transition = 'transform 0.2s ease';
+                
+                const diffX = startX - currentX;
+                if (diffX > maxSwipe / 2) {
+                    // Reveal actions
+                    content.style.transform = `translateX(-${maxSwipe}px)`;
+                    this.hapticFeedback('selection');
+                } else {
+                    // Snap back
+                    content.style.transform = 'translateX(0)';
+                }
+            });
+            
+            // Tap elsewhere to close
+            document.addEventListener('touchstart', (e) => {
+                if (!item.contains(e.target)) {
+                    content.style.transform = 'translateX(0)';
+                }
+            }, { passive: true });
+        };
+        
+        // Init existing items
+        document.querySelectorAll('.swipe-container, .skill-line-item, .skill-item').forEach(initSwipe);
+        
+        // Watch for new items
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) {
+                        if (node.classList?.contains('swipe-container') || 
+                            node.classList?.contains('skill-line-item')) {
+                            initSwipe(node);
+                        }
+                        node.querySelectorAll?.('.swipe-container, .skill-line-item').forEach(initSwipe);
+                    }
+                });
+            });
+        });
+        
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+    
+    /**
+     * Simplify modals for mobile
+     * Removes unnecessary elements and optimizes layout
+     */
+    simplifyModalsForMobile() {
+        // Hide comparison panels by default
+        const comparisonPanels = document.querySelectorAll('#comparisonPanel');
+        comparisonPanels.forEach(panel => {
+            panel.style.display = 'none';
+        });
+        
+        // Hide template card footers/stats for space
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) {
+                        // Auto-hide excessive content in templates
+                        const cards = node.querySelectorAll?.('.template-grid-card, .template-list-card');
+                        cards?.forEach(card => {
+                            const footer = card.querySelector('.template-card-footer');
+                            const stats = card.querySelector('.template-card-stats');
+                            if (footer) footer.style.display = 'none';
+                            if (stats) stats.style.display = 'none';
+                        });
+                        
+                        // Hide tooltips/tips in modals
+                        const tips = node.querySelectorAll?.('.alert-info, .quick-tips, .modal-tips');
+                        tips?.forEach(tip => {
+                            if (tip.closest('.modal') || tip.closest('.condition-modal')) {
+                                tip.style.display = 'none';
+                            }
+                        });
+                    }
+                });
+            });
+        });
+        
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+    
+    /**
+     * Track current view for conditional styling (hide header in editors)
+     */
+    initViewTracking() {
+        // Debounce timer to prevent excessive calls
+        let debounceTimer = null;
+        
+        const updateCurrentView = (viewName = null) => {
+            let currentView = viewName || 'home';
+            
+            // If no viewName provided, find visible view
+            if (!viewName) {
+                const views = document.querySelectorAll('.view-container.active, [id$="-view"].active');
+                views.forEach(view => {
+                    const id = view.id || '';
+                    if (id.includes('mob-editor')) currentView = 'mob-editor';
+                    else if (id.includes('skill-editor')) currentView = 'skill-editor';
+                    else if (id.includes('item-editor')) currentView = 'item-editor';
+                    else if (id.includes('droptable-editor')) currentView = 'droptable-editor';
+                    else if (id.includes('yaml-editor')) currentView = 'yaml-editor';
+                    else if (id.includes('randomspawn')) currentView = 'randomspawn-editor';
+                    else if (id.includes('spawner')) currentView = 'spawner';
+                    else if (id.includes('stats')) currentView = 'stats';
+                    else if (id.includes('files')) currentView = 'files';
+                    else if (id.includes('dashboard')) currentView = 'dashboard';
+                    else if (id.includes('home')) currentView = 'home';
+                });
+            }
+            
+            // Only update if changed
+            if (document.body.dataset.currentView !== currentView) {
+                document.body.dataset.currentView = currentView;
+                // Show/hide editor action bar based on view
+                this.updateEditorActionBar(currentView);
+            }
+        };
+        
+        // Debounced version for observer (prevents UI freezing)
+        const debouncedUpdate = () => {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => updateCurrentView(), 100);
+        };
+        
+        // Listen to viewchange events dispatched by app.js (primary method)
+        document.addEventListener('viewchange', (e) => {
+            const view = e.detail?.view || null;
+            // Cancel any pending debounced update since we have explicit view info
+            if (debounceTimer) clearTimeout(debounceTimer);
+            updateCurrentView(view);
+        });
+        
+        // Initial check
+        updateCurrentView();
+        
+        // Watch for view changes - ONLY watch .view-container class changes, not entire DOM
+        const observer = new MutationObserver((mutations) => {
+            // Only trigger if a view-container's class changed
+            const viewChanged = mutations.some(m => 
+                m.target.classList?.contains('view-container') && 
+                m.attributeName === 'class'
+            );
+            if (viewChanged) {
+                debouncedUpdate();
+            }
+        });
+        
+        // Only observe the editor-content container, not entire body
+        const editorContent = document.getElementById('editor-content');
+        if (editorContent) {
+            observer.observe(editorContent, { 
+                attributes: true,
+                attributeFilter: ['class'],
+                subtree: true
+            });
+        }
+        
+        // Also listen to custom navigation events (editoropen/close for legacy support)
+        document.addEventListener('editoropen', () => updateCurrentView());
+        document.addEventListener('editorclose', () => updateCurrentView());
+    }
+    
+    /**
+     * Initialize floating editor action bar
+     */
+    initEditorActionBar() {
+        // Create the action bar container
+        let actionBar = document.getElementById('mobile-editor-action-bar');
+        if (!actionBar) {
+            actionBar = document.createElement('div');
+            actionBar.id = 'mobile-editor-action-bar';
+            actionBar.className = 'mobile-editor-action-bar';
+            actionBar.style.display = 'none';
+            document.body.appendChild(actionBar);
+        }
+        this.dom.editorActionBar = actionBar;
+    }
+    
+    /**
+     * Update editor action bar based on current view
+     */
+    updateEditorActionBar(currentView) {
+        const actionBar = this.dom.editorActionBar || document.getElementById('mobile-editor-action-bar');
+        if (!actionBar) return;
+        
+        // Guard against null/undefined currentView
+        if (!currentView || typeof currentView !== 'string') {
+            actionBar.style.display = 'none';
+            return;
+        }
+        
+        const isEditorView = currentView.includes('editor') || currentView === 'spawner' || currentView === 'stats';
+        
+        if (isEditorView) {
+            // Find editor actions in the current view
+            const currentViewEl = document.querySelector(`#${currentView.replace('-editor', '-editor-view')}, #${currentView}-view`);
+            const editorActions = currentViewEl?.querySelector('.editor-actions, .card-actions, .card-actions-row');
+            
+            if (editorActions) {
+                // Clone action buttons to the floating bar
+                actionBar.innerHTML = '';
+                
+                // Find save button
+                const saveBtn = editorActions.querySelector('.btn-primary, [data-action="save"], .save-btn');
+                if (saveBtn) {
+                    const clonedSave = saveBtn.cloneNode(true);
+                    clonedSave.addEventListener('click', () => saveBtn.click());
+                    actionBar.appendChild(clonedSave);
+                }
+                
+                // Find other common buttons
+                const otherBtns = editorActions.querySelectorAll('.btn:not(.btn-primary):not(.btn-danger)');
+                otherBtns.forEach((btn, i) => {
+                    if (i < 2) { // Limit to 2 additional buttons
+                        const cloned = btn.cloneNode(true);
+                        cloned.addEventListener('click', () => btn.click());
+                        actionBar.appendChild(cloned);
+                    }
+                });
+                
+                // Find delete button
+                const deleteBtn = editorActions.querySelector('.btn-danger, [data-action="delete"], .delete-btn');
+                if (deleteBtn) {
+                    const clonedDelete = deleteBtn.cloneNode(true);
+                    clonedDelete.addEventListener('click', () => {
+                        if (confirm('Delete this item?')) {
+                            deleteBtn.click();
+                        }
+                    });
+                    actionBar.appendChild(clonedDelete);
+                }
+                
+                // Show action bar if we have buttons
+                if (actionBar.children.length > 0) {
+                    actionBar.style.display = 'flex';
+                } else {
+                    actionBar.style.display = 'none';
+                }
+            } else {
+                actionBar.style.display = 'none';
+            }
+        } else {
+            actionBar.style.display = 'none';
+        }
     }
 }
 
