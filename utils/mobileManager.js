@@ -166,29 +166,161 @@ class MobileManager {
     
     /**
      * ===================================
-     * UNIVERSAL TOUCH SYSTEM
+     * UNIVERSAL TOUCH & GESTURE TRACKING SYSTEM
      * ===================================
-     * Centralized touch handling for ALL interactive elements
-     * Fixes: double-firing, inconsistent feedback, title tooltips, touch targets
+     * Centralized tracking for ALL touch, scroll, and gesture interactions
+     * Features:
+     * - Global touch state accessible anywhere via window.touchTracker
+     * - Automatic scroll vs tap detection
+     * - Multi-touch gesture support
+     * - Velocity tracking for swipe detection
+     * - Long-press detection
+     * - Double-tap detection
+     * - Prevents accidental clicks during scroll
      */
     initUniversalTouchSystem() {
-        console.log('📱 Initializing Universal Touch System...');
+        console.log('📱 Initializing Universal Touch & Gesture Tracking System...');
         
-        // Track touch state to prevent click after touch
-        this.touchState = {
-            touchStartTime: 0,
-            touchTarget: null,
-            touchHandled: false,
-            lastTouchEnd: 0
+        // Create global touch tracker accessible from anywhere
+        this.touchTracker = {
+            // Current touch state
+            isTracking: false,
+            isTouching: false,
+            isScrolling: false,
+            isLongPress: false,
+            isPinching: false,
+            
+            // Touch position data
+            startX: 0,
+            startY: 0,
+            currentX: 0,
+            currentY: 0,
+            deltaX: 0,
+            deltaY: 0,
+            
+            // Touch timing
+            startTime: 0,
+            lastTapTime: 0,
+            lastTouchEnd: 0,
+            touchDuration: 0,
+            
+            // Velocity tracking (for swipe detection)
+            velocityX: 0,
+            velocityY: 0,
+            lastMoveTime: 0,
+            
+            // Multi-touch
+            touchCount: 0,
+            initialPinchDistance: 0,
+            currentPinchDistance: 0,
+            pinchScale: 1,
+            
+            // Target tracking
+            startTarget: null,
+            currentTarget: null,
+            interactiveTarget: null,
+            
+            // Gesture detection results
+            gesture: {
+                type: 'none', // 'tap', 'double-tap', 'long-press', 'swipe-left', 'swipe-right', 'swipe-up', 'swipe-down', 'scroll', 'pinch'
+                detected: false,
+                direction: null,
+                distance: 0,
+                velocity: 0
+            },
+            
+            // Configuration
+            config: {
+                scrollThreshold: 10,      // px movement to consider as scroll
+                swipeThreshold: 50,       // px movement to consider as swipe
+                swipeVelocityThreshold: 0.3, // px/ms velocity for swipe
+                longPressDelay: 500,      // ms to trigger long press
+                doubleTapDelay: 300,      // ms between taps for double-tap
+                tapMaxDuration: 300,      // max ms for a tap
+                clickBlockDelay: 350      // ms to block clicks after touch
+            },
+            
+            // Event callbacks (can be set externally)
+            onTouchStart: null,
+            onTouchMove: null,
+            onTouchEnd: null,
+            onGesture: null,
+            onScroll: null,
+            
+            // Helper methods
+            isValidTap() {
+                return !this.isScrolling && 
+                       this.touchDuration < this.config.tapMaxDuration &&
+                       Math.abs(this.deltaX) < this.config.scrollThreshold &&
+                       Math.abs(this.deltaY) < this.config.scrollThreshold;
+            },
+            
+            isSwipe() {
+                const distance = Math.sqrt(this.deltaX ** 2 + this.deltaY ** 2);
+                const velocity = Math.sqrt(this.velocityX ** 2 + this.velocityY ** 2);
+                return distance > this.config.swipeThreshold || velocity > this.config.swipeVelocityThreshold;
+            },
+            
+            getSwipeDirection() {
+                if (Math.abs(this.deltaX) > Math.abs(this.deltaY)) {
+                    return this.deltaX > 0 ? 'right' : 'left';
+                } else {
+                    return this.deltaY > 0 ? 'down' : 'up';
+                }
+            },
+            
+            shouldBlockClick() {
+                return Date.now() - this.lastTouchEnd < this.config.clickBlockDelay;
+            },
+            
+            reset() {
+                this.isTracking = false;
+                this.isTouching = false;
+                this.isScrolling = false;
+                this.isLongPress = false;
+                this.isPinching = false;
+                this.deltaX = 0;
+                this.deltaY = 0;
+                this.velocityX = 0;
+                this.velocityY = 0;
+                this.touchCount = 0;
+                this.startTarget = null;
+                this.currentTarget = null;
+                this.interactiveTarget = null;
+                this.gesture.type = 'none';
+                this.gesture.detected = false;
+            }
         };
+        
+        // Expose globally
+        window.touchTracker = this.touchTracker;
+        
+        // Legacy compatibility
+        this.touchState = {
+            get touchStartTime() { return window.touchTracker.startTime; },
+            get touchTarget() { return window.touchTracker.interactiveTarget; },
+            get touchHandled() { return window.touchTracker.gesture.detected; },
+            get lastTouchEnd() { return window.touchTracker.lastTouchEnd; },
+            get touchStartX() { return window.touchTracker.startX; },
+            get touchStartY() { return window.touchTracker.startY; },
+            get isTouchScrolling() { return window.touchTracker.isScrolling; }
+        };
+        
+        // Long press timer
+        this._longPressTimer = null;
         
         // Remove ALL title attributes on touch devices (prevents tooltips)
         this.removeAllTitles();
         
         // Global touch interceptor for all interactive elements
         document.addEventListener('touchstart', (e) => this.handleGlobalTouchStart(e), { passive: true, capture: true });
+        document.addEventListener('touchmove', (e) => this.handleGlobalTouchMove(e), { passive: true, capture: true });
         document.addEventListener('touchend', (e) => this.handleGlobalTouchEnd(e), { passive: false, capture: true });
+        document.addEventListener('touchcancel', (e) => this.handleGlobalTouchCancel(e), { passive: true, capture: true });
         document.addEventListener('click', (e) => this.handleGlobalClick(e), { capture: true });
+        
+        // Also track scroll events globally
+        document.addEventListener('scroll', (e) => this.handleGlobalScroll(e), { passive: true, capture: true });
         
         // Observe DOM for new elements
         this.observeForNewElements();
@@ -196,7 +328,8 @@ class MobileManager {
         // Setup header dropdowns for mobile (single-tap + click-outside-to-close)
         this.setupMobileHeaderDropdowns();
         
-        console.log('📱 Universal Touch System ready');
+        console.log('📱 Universal Touch & Gesture Tracking System ready');
+        console.log('📱 Access global state via: window.touchTracker');
     }
     
     /**
@@ -431,104 +564,376 @@ class MobileManager {
     }
     
     /**
-     * Global touch start handler
+     * Global touch start handler - comprehensive tracking
      */
     handleGlobalTouchStart(e) {
-        const target = e.target.closest('button, .btn, a, [role="button"], .clickable, .mobile-nav-item, .fab-main, .fab-menu-item, .icon-btn, .modal-close, .btn-close, [data-action]');
+        const tracker = this.touchTracker;
+        const touch = e.touches[0];
         
-        // Skip if this is a dropdown trigger that has its own handling
-        if (target?.classList.contains('user-account-btn') || 
-            target?.classList.contains('mode-btn') ||
-            target?.id === 'tools-btn' ||
-            target?.id === 'mobile-close-yaml' ||
-            target?.id === 'mobile-header-more-btn' ||
-            target?.closest('.mode-switcher')) {
-            console.log('📱 Touch START (has own handler - skipping):', target.id || target.className);
+        // Clear any pending long press timer
+        if (this._longPressTimer) {
+            clearTimeout(this._longPressTimer);
+            this._longPressTimer = null;
+        }
+        
+        // Reset tracker state
+        tracker.reset();
+        
+        // Set tracking state
+        tracker.isTracking = true;
+        tracker.isTouching = true;
+        tracker.touchCount = e.touches.length;
+        tracker.startTime = Date.now();
+        tracker.lastMoveTime = tracker.startTime;
+        
+        // Record position
+        if (touch) {
+            tracker.startX = touch.clientX;
+            tracker.startY = touch.clientY;
+            tracker.currentX = touch.clientX;
+            tracker.currentY = touch.clientY;
+        }
+        
+        // Record targets
+        tracker.startTarget = e.target;
+        tracker.currentTarget = e.target;
+        
+        // Find interactive target
+        const interactiveTarget = e.target.closest(
+            'button, .btn, a, [role="button"], .clickable, .mobile-nav-item, ' +
+            '.fab-main, .fab-menu-item, .icon-btn, .modal-close, .btn-close, ' +
+            '[data-action], .action-card, .file-item, .pack-item, .tree-item'
+        );
+        tracker.interactiveTarget = interactiveTarget;
+        
+        // Multi-touch / pinch detection
+        if (e.touches.length === 2) {
+            tracker.isPinching = true;
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            tracker.initialPinchDistance = Math.hypot(
+                touch2.clientX - touch1.clientX,
+                touch2.clientY - touch1.clientY
+            );
+        }
+        
+        // Check for double-tap
+        const timeSinceLastTap = tracker.startTime - tracker.lastTapTime;
+        const isDoubleTap = timeSinceLastTap < tracker.config.doubleTapDelay;
+        
+        // Skip visual feedback for elements with their own handling
+        if (interactiveTarget?.classList.contains('user-account-btn') || 
+            interactiveTarget?.classList.contains('mode-btn') ||
+            interactiveTarget?.id === 'tools-btn' ||
+            interactiveTarget?.id === 'mobile-close-yaml' ||
+            interactiveTarget?.id === 'mobile-header-more-btn' ||
+            interactiveTarget?.closest('.mode-switcher')) {
+            console.log('📱 Touch START (delegated handler):', interactiveTarget?.id || interactiveTarget?.className);
             return;
         }
         
-        if (target) {
-            this.touchState.touchStartTime = Date.now();
-            this.touchState.touchTarget = target;
-            this.touchState.touchHandled = false;
-            
-            // Debug logging
-            console.log('📱 Touch START:', target.id || target.className || target.tagName, target);
-            
-            // Visual feedback - pressed state
-            target.classList.add('touch-active');
-            target.style.transform = 'scale(0.96)';
-            target.style.opacity = '0.85';
+        // Visual feedback for interactive elements
+        if (interactiveTarget) {
+            console.log('📱 Touch START:', interactiveTarget.id || interactiveTarget.className || interactiveTarget.tagName);
+            interactiveTarget.classList.add('touch-active');
+            interactiveTarget.style.transform = 'scale(0.97)';
+            interactiveTarget.style.opacity = '0.9';
+        }
+        
+        // Setup long press detection
+        if (interactiveTarget) {
+            this._longPressTimer = setTimeout(() => {
+                if (tracker.isTouching && !tracker.isScrolling) {
+                    tracker.isLongPress = true;
+                    tracker.gesture.type = 'long-press';
+                    tracker.gesture.detected = true;
+                    this.vibrate('heavy');
+                    console.log('📱 Long press detected on:', interactiveTarget.id || interactiveTarget.className);
+                    
+                    // Dispatch custom event
+                    interactiveTarget.dispatchEvent(new CustomEvent('longpress', {
+                        bubbles: true,
+                        detail: { tracker }
+                    }));
+                    
+                    // Call callback if set
+                    if (tracker.onGesture) {
+                        tracker.onGesture('long-press', tracker);
+                    }
+                }
+            }, tracker.config.longPressDelay);
+        }
+        
+        // Call callback if set
+        if (tracker.onTouchStart) {
+            tracker.onTouchStart(e, tracker);
         }
     }
     
     /**
-     * Global touch end handler
+     * Global touch move handler - comprehensive tracking
      */
-    handleGlobalTouchEnd(e) {
-        const target = this.touchState.touchTarget;
+    handleGlobalTouchMove(e) {
+        const tracker = this.touchTracker;
+        if (!tracker.isTracking) return;
         
-        if (target) {
-            // Reset visual state
-            target.classList.remove('touch-active');
-            target.style.transform = '';
-            target.style.opacity = '';
+        const touch = e.touches[0];
+        if (!touch) return;
+        
+        const now = Date.now();
+        const timeDelta = now - tracker.lastMoveTime;
+        
+        // Update current position
+        const prevX = tracker.currentX;
+        const prevY = tracker.currentY;
+        tracker.currentX = touch.clientX;
+        tracker.currentY = touch.clientY;
+        
+        // Calculate delta from start
+        tracker.deltaX = tracker.currentX - tracker.startX;
+        tracker.deltaY = tracker.currentY - tracker.startY;
+        
+        // Calculate velocity (px/ms)
+        if (timeDelta > 0) {
+            tracker.velocityX = (tracker.currentX - prevX) / timeDelta;
+            tracker.velocityY = (tracker.currentY - prevY) / timeDelta;
+        }
+        tracker.lastMoveTime = now;
+        
+        // Update current target
+        tracker.currentTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+        
+        // Multi-touch / pinch tracking
+        if (e.touches.length === 2 && tracker.isPinching) {
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            tracker.currentPinchDistance = Math.hypot(
+                touch2.clientX - touch1.clientX,
+                touch2.clientY - touch1.clientY
+            );
+            tracker.pinchScale = tracker.currentPinchDistance / tracker.initialPinchDistance;
+        }
+        
+        // Detect scroll gesture
+        const totalDelta = Math.sqrt(tracker.deltaX ** 2 + tracker.deltaY ** 2);
+        if (totalDelta > tracker.config.scrollThreshold && !tracker.isScrolling) {
+            tracker.isScrolling = true;
+            tracker.gesture.type = 'scroll';
             
-            // Check if this was a valid tap (not a scroll)
-            const touchDuration = Date.now() - this.touchState.touchStartTime;
+            // Cancel long press
+            if (this._longPressTimer) {
+                clearTimeout(this._longPressTimer);
+                this._longPressTimer = null;
+            }
             
-            // Debug logging
-            console.log('📱 Touch END:', target.id || target.className || target.tagName, 'duration:', touchDuration + 'ms');
+            // Reset visual feedback on interactive element
+            if (tracker.interactiveTarget) {
+                tracker.interactiveTarget.classList.remove('touch-active');
+                tracker.interactiveTarget.style.transform = '';
+                tracker.interactiveTarget.style.opacity = '';
+            }
             
-            if (touchDuration < 500) {
-                // Mark as handled to prevent click from firing
-                this.touchState.touchHandled = true;
-                this.touchState.lastTouchEnd = Date.now();
-                
-                // Haptic feedback
-                this.vibrate('selection');
-                
-                // Execute the action
-                e.preventDefault();
-                
-                console.log('📱 Dispatching click to:', target.id || target.className);
-                
-                // Simulate click on the target
-                const clickEvent = new MouseEvent('click', {
-                    bubbles: true,
-                    cancelable: true,
-                    view: window
-                });
-                clickEvent._fromTouch = true;
-                target.dispatchEvent(clickEvent);
+            console.log('📱 Scrolling detected, delta:', totalDelta.toFixed(1) + 'px');
+            
+            // Call scroll callback
+            if (tracker.onScroll) {
+                tracker.onScroll(tracker);
             }
         }
         
-        this.touchState.touchTarget = null;
+        // Call callback if set
+        if (tracker.onTouchMove) {
+            tracker.onTouchMove(e, tracker);
+        }
+    }
+    
+    /**
+     * Global touch end handler - comprehensive tracking
+     */
+    handleGlobalTouchEnd(e) {
+        const tracker = this.touchTracker;
+        
+        // Clear long press timer
+        if (this._longPressTimer) {
+            clearTimeout(this._longPressTimer);
+            this._longPressTimer = null;
+        }
+        
+        // Calculate final values
+        tracker.isTouching = false;
+        tracker.touchDuration = Date.now() - tracker.startTime;
+        tracker.lastTouchEnd = Date.now();
+        
+        const interactiveTarget = tracker.interactiveTarget;
+        
+        // Reset visual state
+        if (interactiveTarget) {
+            interactiveTarget.classList.remove('touch-active');
+            interactiveTarget.style.transform = '';
+            interactiveTarget.style.opacity = '';
+        }
+        
+        // Determine gesture type
+        if (!tracker.gesture.detected) {
+            if (tracker.isScrolling) {
+                // Check if it was a swipe
+                if (tracker.isSwipe()) {
+                    const direction = tracker.getSwipeDirection();
+                    tracker.gesture.type = `swipe-${direction}`;
+                    tracker.gesture.direction = direction;
+                    tracker.gesture.distance = Math.sqrt(tracker.deltaX ** 2 + tracker.deltaY ** 2);
+                    tracker.gesture.velocity = Math.sqrt(tracker.velocityX ** 2 + tracker.velocityY ** 2);
+                    tracker.gesture.detected = true;
+                    console.log('📱 Swipe detected:', direction, 'distance:', tracker.gesture.distance.toFixed(0) + 'px');
+                } else {
+                    tracker.gesture.type = 'scroll';
+                }
+            } else if (tracker.isPinching) {
+                tracker.gesture.type = 'pinch';
+                tracker.gesture.detected = true;
+                console.log('📱 Pinch detected, scale:', tracker.pinchScale.toFixed(2));
+            } else if (tracker.isValidTap()) {
+                // Check for double-tap
+                const timeSinceLastTap = tracker.startTime - tracker.lastTapTime;
+                if (timeSinceLastTap < tracker.config.doubleTapDelay && timeSinceLastTap > 50) {
+                    tracker.gesture.type = 'double-tap';
+                    tracker.gesture.detected = true;
+                    console.log('📱 Double-tap detected');
+                } else {
+                    tracker.gesture.type = 'tap';
+                    tracker.gesture.detected = true;
+                }
+                tracker.lastTapTime = tracker.startTime;
+            }
+        }
+        
+        // Log gesture result
+        console.log('📱 Touch END:', 
+            interactiveTarget?.id || interactiveTarget?.className || 'no-target',
+            'gesture:', tracker.gesture.type,
+            'duration:', tracker.touchDuration + 'ms',
+            'scrolling:', tracker.isScrolling
+        );
+        
+        // Only trigger click if it was a valid tap on an interactive element
+        if (tracker.gesture.type === 'tap' && interactiveTarget && !tracker.isLongPress) {
+            // Skip elements with their own handlers
+            if (interactiveTarget?.classList.contains('user-account-btn') || 
+                interactiveTarget?.classList.contains('mode-btn') ||
+                interactiveTarget?.id === 'tools-btn' ||
+                interactiveTarget?.id === 'mobile-close-yaml' ||
+                interactiveTarget?.id === 'mobile-header-more-btn' ||
+                interactiveTarget?.closest('.mode-switcher')) {
+                // These have their own touch handlers
+                return;
+            }
+            
+            // Haptic feedback
+            this.vibrate('selection');
+            
+            // Prevent default and dispatch click
+            e.preventDefault();
+            
+            console.log('📱 Dispatching click to:', interactiveTarget.id || interactiveTarget.className);
+            
+            const clickEvent = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            });
+            clickEvent._fromTouch = true;
+            clickEvent._touchTracker = tracker;
+            interactiveTarget.dispatchEvent(clickEvent);
+        }
+        
+        // Call gesture callback
+        if (tracker.onGesture && tracker.gesture.detected) {
+            tracker.onGesture(tracker.gesture.type, tracker);
+        }
+        
+        // Call touch end callback
+        if (tracker.onTouchEnd) {
+            tracker.onTouchEnd(e, tracker);
+        }
+        
+        // Reset some state (keep lastTouchEnd and lastTapTime)
+        tracker.isTracking = false;
+        tracker.interactiveTarget = null;
+    }
+    
+    /**
+     * Global touch cancel handler
+     */
+    handleGlobalTouchCancel(e) {
+        console.log('📱 Touch CANCEL');
+        
+        // Clear long press timer
+        if (this._longPressTimer) {
+            clearTimeout(this._longPressTimer);
+            this._longPressTimer = null;
+        }
+        
+        const tracker = this.touchTracker;
+        
+        // Reset visual state
+        if (tracker.interactiveTarget) {
+            tracker.interactiveTarget.classList.remove('touch-active');
+            tracker.interactiveTarget.style.transform = '';
+            tracker.interactiveTarget.style.opacity = '';
+        }
+        
+        tracker.reset();
+        tracker.lastTouchEnd = Date.now();
+    }
+    
+    /**
+     * Global scroll handler
+     */
+    handleGlobalScroll(e) {
+        const tracker = this.touchTracker;
+        
+        // If we're touching while scrolling, mark as scrolling
+        if (tracker.isTouching && !tracker.isScrolling) {
+            tracker.isScrolling = true;
+            tracker.gesture.type = 'scroll';
+            
+            // Reset visual feedback
+            if (tracker.interactiveTarget) {
+                tracker.interactiveTarget.classList.remove('touch-active');
+                tracker.interactiveTarget.style.transform = '';
+                tracker.interactiveTarget.style.opacity = '';
+            }
+            
+            // Cancel long press
+            if (this._longPressTimer) {
+                clearTimeout(this._longPressTimer);
+                this._longPressTimer = null;
+            }
+        }
     }
     
     /**
      * Global click handler - prevents double-firing after touch
      */
     handleGlobalClick(e) {
+        const tracker = this.touchTracker;
+        
         // If this click came from our touch handler, let it through
         if (e._fromTouch) {
             console.log('📱 Click from touch - allowing:', e.target.id || e.target.className);
             return;
         }
         
-        // If we recently handled a touch, block the native click
-        const timeSinceTouch = Date.now() - this.touchState.lastTouchEnd;
-        
-        if (timeSinceTouch < 300 && this.touchState.touchHandled) {
-            console.log('📱 Blocking native click (too soon after touch):', e.target.id || e.target.className);
+        // Block clicks that happen too soon after a touch (prevents ghost clicks)
+        if (tracker.shouldBlockClick()) {
+            console.log('📱 Blocking ghost click (too soon after touch):', e.target.id || e.target.className);
             e.preventDefault();
             e.stopPropagation();
             return false;
         }
         
-        // Allow regular clicks
-        const target = e.target.closest('button, .btn, .icon-btn, .modal-close, .btn-close');
+        // Log native clicks for debugging
+        const target = e.target.closest('button, .btn, .icon-btn, .modal-close, .btn-close, .action-card');
         if (target) {
             console.log('📱 Native click on:', target.id || target.className);
         }
@@ -4102,16 +4507,27 @@ class MobileManager {
             const label = group.querySelector('label');
             
             if (input && label && !group.classList.contains('floating-label-group')) {
-                group.classList.add('floating-label-group');
+                // Check if the label contains the input (would cause HierarchyRequestError)
+                // This happens with structures like <label><input/></label>
+                const labelContainsInput = label.contains(input);
                 
-                // Move label after input for CSS targeting
-                if (input.nextElementSibling !== label) {
-                    input.after(label);
-                }
-                
-                // Add placeholder if missing
-                if (!input.placeholder) {
-                    input.placeholder = ' ';
+                if (!labelContainsInput) {
+                    group.classList.add('floating-label-group');
+                    
+                    // Move label after input for CSS targeting
+                    if (input.nextElementSibling !== label) {
+                        try {
+                            input.after(label);
+                        } catch (err) {
+                            // Silently ignore DOM manipulation errors
+                            console.debug('📱 Could not move label:', err.message);
+                        }
+                    }
+                    
+                    // Add placeholder if missing
+                    if (!input.placeholder) {
+                        input.placeholder = ' ';
+                    }
                 }
             }
         });
