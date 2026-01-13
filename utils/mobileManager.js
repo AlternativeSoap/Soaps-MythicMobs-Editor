@@ -231,14 +231,20 @@ class MobileManager {
             
             // Configuration
             config: {
-                scrollThreshold: 10,      // px movement to consider as scroll
+                scrollThreshold: 5,       // px movement to consider as scroll (reduced for earlier detection)
                 swipeThreshold: 50,       // px movement to consider as swipe
                 swipeVelocityThreshold: 0.3, // px/ms velocity for swipe
                 longPressDelay: 500,      // ms to trigger long press
                 doubleTapDelay: 300,      // ms between taps for double-tap
                 tapMaxDuration: 300,      // max ms for a tap
-                clickBlockDelay: 350      // ms to block clicks after touch
+                clickBlockDelay: 350,     // ms to block clicks after touch
+                scrollCooldown: 150       // ms cooldown after container scroll
             },
+            
+            // Scroll tracking
+            scrollableContainer: null,
+            containerScrolled: false,
+            lastContainerScroll: 0,
             
             // Event callbacks (can be set externally)
             onTouchStart: null,
@@ -250,6 +256,7 @@ class MobileManager {
             // Helper methods
             isValidTap() {
                 return !this.isScrolling && 
+                       !this.containerScrolled &&  // CRITICAL: Also check container scroll
                        this.touchDuration < this.config.tapMaxDuration &&
                        Math.abs(this.deltaX) < this.config.scrollThreshold &&
                        Math.abs(this.deltaY) < this.config.scrollThreshold;
@@ -270,7 +277,10 @@ class MobileManager {
             },
             
             shouldBlockClick() {
-                return Date.now() - this.lastTouchEnd < this.config.clickBlockDelay;
+                const now = Date.now();
+                // Block if recent touch OR recent container scroll
+                return (now - this.lastTouchEnd < this.config.clickBlockDelay) ||
+                       (now - this.lastContainerScroll < this.config.scrollCooldown);
             },
             
             reset() {
@@ -289,6 +299,9 @@ class MobileManager {
                 this.interactiveTarget = null;
                 this.gesture.type = 'none';
                 this.gesture.detected = false;
+                this.scrollableContainer = null;
+                this.containerScrolled = false;
+                // Don't reset lastContainerScroll - it's used for cooldown
             }
         };
         
@@ -503,6 +516,33 @@ class MobileManager {
     }
     
     /**
+     * Find the nearest scrollable ancestor container
+     * This is critical for detecting scroll vs tap on touch
+     */
+    findScrollableContainer(element) {
+        let current = element;
+        
+        while (current && current !== document.body) {
+            const style = window.getComputedStyle(current);
+            const overflowY = style.overflowY;
+            const overflowX = style.overflowX;
+            
+            // Check if element is scrollable
+            const isScrollableY = (overflowY === 'auto' || overflowY === 'scroll') && current.scrollHeight > current.clientHeight;
+            const isScrollableX = (overflowX === 'auto' || overflowX === 'scroll') && current.scrollWidth > current.clientWidth;
+            
+            if (isScrollableY || isScrollableX) {
+                console.log('📱 Found scrollable container:', current.className || current.id || current.tagName);
+                return current;
+            }
+            
+            current = current.parentElement;
+        }
+        
+        return null;
+    }
+    
+    /**
      * Setup mode switcher for single-tap on mobile
      */
     setupModeSwitcherTouch(closeAllDropdowns) {
@@ -597,6 +637,29 @@ class MobileManager {
         // Record targets
         tracker.startTarget = e.target;
         tracker.currentTarget = e.target;
+        
+        // Find scrollable container (critical for detecting scroll vs tap)
+        tracker.scrollableContainer = this.findScrollableContainer(e.target);
+        tracker.containerScrolled = false;
+        
+        // Store initial scroll positions
+        if (tracker.scrollableContainer) {
+            tracker._initialScrollTop = tracker.scrollableContainer.scrollTop;
+            tracker._initialScrollLeft = tracker.scrollableContainer.scrollLeft;
+        }
+        
+        // Setup scroll listener on container if found
+        if (tracker.scrollableContainer) {
+            const scrollHandler = () => {
+                tracker.containerScrolled = true;
+                tracker.isScrolling = true;
+                tracker.lastContainerScroll = Date.now();
+                console.log('📱 Container scrolled during touch');
+            };
+            tracker.scrollableContainer.addEventListener('scroll', scrollHandler, { passive: true, once: true });
+            // Store handler for cleanup
+            tracker._scrollHandler = scrollHandler;
+        }
         
         // Find interactive target
         const interactiveTarget = e.target.closest(
@@ -773,9 +836,34 @@ class MobileManager {
             interactiveTarget.style.opacity = '';
         }
         
+        // CRITICAL: Check if container scrolled during touch
+        // This catches cases where finger movement was small but container scrolled
+        if (tracker.containerScrolled) {
+            tracker.isScrolling = true;
+            console.log('📱 Container scroll detected - blocking click');
+        }
+        
+        // ADDITIONAL CHECK: Did scroll position actually change?
+        // Some mobile browsers are finicky about scroll events
+        if (tracker.scrollableContainer && !tracker.containerScrolled) {
+            const scrollTop = tracker.scrollableContainer.scrollTop;
+            const scrollLeft = tracker.scrollableContainer.scrollLeft;
+            const scrollChanged = scrollTop !== tracker._initialScrollTop || scrollLeft !== tracker._initialScrollLeft;
+            
+            if (scrollChanged) {
+                tracker.containerScrolled = true;
+                tracker.isScrolling = true;
+                tracker.lastContainerScroll = Date.now();
+                console.log('📱 Container scroll position changed - blocking click', {
+                    deltaY: Math.abs(scrollTop - tracker._initialScrollTop),
+                    deltaX: Math.abs(scrollLeft - tracker._initialScrollLeft)
+                });
+            }
+        }
+        
         // Determine gesture type
         if (!tracker.gesture.detected) {
-            if (tracker.isScrolling) {
+            if (tracker.isScrolling || tracker.containerScrolled) {
                 // Check if it was a swipe
                 if (tracker.isSwipe()) {
                     const direction = tracker.getSwipeDirection();
@@ -812,11 +900,13 @@ class MobileManager {
             interactiveTarget?.id || interactiveTarget?.className || 'no-target',
             'gesture:', tracker.gesture.type,
             'duration:', tracker.touchDuration + 'ms',
-            'scrolling:', tracker.isScrolling
+            'scrolling:', tracker.isScrolling,
+            'containerScrolled:', tracker.containerScrolled
         );
         
         // Only trigger click if it was a valid tap on an interactive element
-        if (tracker.gesture.type === 'tap' && interactiveTarget && !tracker.isLongPress) {
+        // CRITICAL: Block if container scrolled, even if gesture type is 'tap'
+        if (tracker.gesture.type === 'tap' && interactiveTarget && !tracker.isLongPress && !tracker.containerScrolled) {
             // Skip elements with their own handlers
             if (interactiveTarget?.classList.contains('user-account-btn') || 
                 interactiveTarget?.classList.contains('mode-btn') ||
