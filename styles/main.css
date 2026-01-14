@@ -14606,6 +14606,41 @@ input.inline-edit:focus {
     color: #93c5fd;
 }
 
+/* Unconfirmed Email Notice */
+.unconfirmed-email-notice {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    color: var(--text-primary);
+}
+
+.unconfirmed-email-notice strong {
+    color: #f59e0b;
+}
+
+.unconfirmed-email-notice .email-help-tips {
+    color: var(--text-secondary);
+}
+
+.unconfirmed-email-notice .email-help-tips ul {
+    list-style-type: disc;
+}
+
+.unconfirmed-email-notice .email-help-tips li {
+    margin-bottom: 2px;
+}
+
+.resend-verification-login-btn {
+    width: 100%;
+    margin-top: 8px;
+}
+
+.resend-verification-login-btn.btn-success {
+    background: var(--success) !important;
+    border-color: var(--success) !important;
+}
+
 /* Form Actions */
 .form-actions {
     display: flex;

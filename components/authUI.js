@@ -233,9 +233,124 @@ class AuthUI {
                 window.location.reload();
             }, 500);
         } else {
-            this.showError('login', result.error || 'Login failed');
+            // Check if error is due to unconfirmed email
+            const isUnconfirmedError = result.error?.toLowerCase().includes('email not confirmed') || 
+                                       result.error?.toLowerCase().includes('not confirmed') ||
+                                       result.error?.toLowerCase().includes('verify your email');
+            
+            if (isUnconfirmedError) {
+                this.showUnconfirmedEmailError('login', email);
+            } else {
+                this.showError('login', result.error || 'Login failed');
+            }
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+        }
+    }
+    
+    /**
+     * Show unconfirmed email error with resend option
+     */
+    showUnconfirmedEmailError(formType, email) {
+        const errorContainer = document.getElementById(`${formType}Error`);
+        if (!errorContainer) return;
+        
+        errorContainer.innerHTML = `
+            <div class="unconfirmed-email-notice">
+                <div style="margin-bottom: 10px;">
+                    <i class="fas fa-envelope-circle-exclamation" style="color: #f59e0b;"></i>
+                    <strong>Email not verified</strong>
+                </div>
+                <p style="margin: 0 0 10px; font-size: 13px;">
+                    Please check your inbox (and spam folder) for the verification email.
+                </p>
+                <button type="button" class="btn btn-sm btn-secondary resend-verification-login-btn" id="resendVerificationBtn">
+                    <i class="fas fa-paper-plane"></i> Resend Verification Email
+                </button>
+                <div class="email-help-tips" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px; color: var(--text-secondary);">
+                    <p style="margin: 0 0 4px;"><i class="fas fa-lightbulb"></i> <strong>Tips:</strong></p>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li>Check your spam/junk folder</li>
+                        <li>Add <code style="font-size: 10px;">noreply@mail.app.supabase.io</code> to contacts</li>
+                        <li>Wait a few minutes for the email to arrive</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+        errorContainer.style.display = 'block';
+        
+        // Add click handler for resend button
+        const resendBtn = document.getElementById('resendVerificationBtn');
+        resendBtn?.addEventListener('click', () => this.handleResendVerification(email, resendBtn));
+    }
+    
+    /**
+     * Handle resend verification email request
+     */
+    async handleResendVerification(email, btn) {
+        if (!email || !btn) return;
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        
+        try {
+            // Call the Edge Function
+            const response = await fetch(`${window.supabaseClient.supabaseUrl}/functions/v1/resend-verification`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                btn.innerHTML = '<i class="fas fa-check"></i> Email Sent!';
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-success');
+                
+                // Show success message
+                if (result.already_confirmed) {
+                    // Email already confirmed, allow login
+                    this.showSuccess('login', 'Your email is already verified. Please try signing in again.');
+                    btn.innerHTML = '<i class="fas fa-check"></i> Already Verified';
+                } else {
+                    // Re-enable after 15 seconds
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Resend Again';
+                        btn.classList.remove('btn-success');
+                        btn.classList.add('btn-secondary');
+                    }, 15000);
+                }
+            } else {
+                // Handle rate limiting
+                if (result.retry_after_seconds) {
+                    let countdown = result.retry_after_seconds;
+                    btn.innerHTML = `<i class="fas fa-clock"></i> Wait ${countdown}s`;
+                    
+                    const interval = setInterval(() => {
+                        countdown--;
+                        if (countdown <= 0) {
+                            clearInterval(interval);
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Resend Email';
+                        } else {
+                            btn.innerHTML = `<i class="fas fa-clock"></i> Wait ${countdown}s`;
+                        }
+                    }, 1000);
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Resend Email';
+                    this.showError('login', result.message || 'Failed to send email');
+                }
+            }
+        } catch (error) {
+            console.error('Error resending verification:', error);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Resend Email';
+            this.showError('login', 'Failed to send verification email. Please try again.');
         }
     }
     

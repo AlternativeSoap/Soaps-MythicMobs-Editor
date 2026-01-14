@@ -1536,6 +1536,158 @@
             window.editor = new MythicMobsEditor();
             window.editor.init();
             
+            // Flag to track if admin system is ready for initialization
+            window._adminSystemReady = false;
+            window._pendingAdminInit = false;
+            
+            // Define initializeAdminSystem globally so it can be called from auth listener
+            window.initializeAdminSystem = async () => {
+                // Only proceed if the template system is ready
+                if (!window._adminSystemReady || !window.authManager) {
+                    window._pendingAdminInit = true;
+                    return;
+                }
+                
+                // Wait for auth to be fully initialized
+                let user = window.authManager.getCurrentUser();
+                if (!user) {
+                    // Auth state may still be loading, wait a bit and check again
+                    user = await window.authManager.checkInitialAuth();
+                }
+                
+                if (!user) {
+                    console.log('ℹ️ No authenticated user, skipping admin initialization');
+                    return;
+                }
+                
+                // Don't reinitialize if already initialized for this user
+                if (window.adminManager?.currentUserId === user.id) {
+                    console.log('ℹ️ Admin system already initialized for this user');
+                    return;
+                }
+                
+                window.adminManager = new AdminManager(window.supabaseClient, window.authManager);
+                await window.adminManager.initialize();
+                window.adminManager.currentUserId = user.id; // Track which user we initialized for
+                
+                // Create admin panel if user is admin
+                if (window.adminManager.isAdmin) {
+                    window.adminPanel = new AdminPanel(window.adminManager, window.templateManager, window.authManager);
+                    
+                    // Initialize enhanced admin panel features
+                    window.adminPanelEnhanced = new AdminPanelEnhanced(window.adminPanel);
+                    
+                    // Add admin role label to user-type (replaces email badge to avoid duplication)
+                    const userType = document.getElementById('user-type');
+                    if (userType) {
+                        const role = window.adminManager.getCurrentRole();
+                        const roleDisplay = role ? role.replace('_', ' ').toUpperCase() : 'ADMIN';
+                        userType.innerHTML = `<i class="fas fa-shield-alt" style="color: #ffd700;"></i> ${roleDisplay}`;
+                    }
+                    
+                    // Add admin panel button to user dropdown
+                    const userDropdown = document.getElementById('user-dropdown');
+                    const loginBtn = document.getElementById('loginBtn');
+                    if (userDropdown && loginBtn && window.authManager?.isAuthenticated()) {
+                        // Check if buttons already exist (avoid duplicates)
+                        if (!userDropdown.querySelector('.profile-btn')) {
+                            // Add Profile button (only for authenticated users)
+                            const profileBtn = document.createElement('button');
+                            profileBtn.className = 'btn btn-secondary profile-btn';
+                            profileBtn.style.marginBottom = '10px';
+                            profileBtn.innerHTML = `<i class="fas fa-user"></i> Edit Profile`;
+                            profileBtn.onclick = () => window.userProfileManager?.showProfileEditor();
+                            userDropdown.insertBefore(profileBtn, loginBtn);
+                        }
+                        
+                        if (!userDropdown.querySelector('.admin-panel-btn')) {
+                            // Add Admin Panel button
+                            const adminBtn = document.createElement('button');
+                            adminBtn.className = 'btn btn-primary admin-panel-btn';
+                            adminBtn.style.marginBottom = '10px';
+                            adminBtn.innerHTML = `<i class="fas fa-shield-alt"></i> Admin Panel`;
+                            adminBtn.onclick = () => window.adminPanel.open();
+                            
+                            // Insert before login button
+                            userDropdown.insertBefore(adminBtn, loginBtn);
+                        }
+                    }
+                } else {
+                    // Add profile button for non-admin authenticated users
+                    const userDropdown = document.getElementById('user-dropdown');
+                    const loginBtn = document.getElementById('loginBtn');
+                    if (userDropdown && loginBtn && window.authManager?.isAuthenticated()) {
+                        // Check if button already exists
+                        if (!userDropdown.querySelector('.profile-btn')) {
+                            const profileBtn = document.createElement('button');
+                            profileBtn.className = 'btn btn-secondary profile-btn';
+                            profileBtn.style.marginBottom = '10px';
+                            profileBtn.innerHTML = `<i class="fas fa-user"></i> Edit Profile`;
+                            profileBtn.onclick = () => window.userProfileManager?.showProfileEditor();
+                            userDropdown.insertBefore(profileBtn, loginBtn);
+                        }
+                    }
+                }
+            };
+            
+            // Clean up admin UI function
+            window.cleanupAdminUI = () => {
+                // Remove admin panel button if it exists
+                const adminBtn = document.querySelector('.admin-panel-btn');
+                if (adminBtn) adminBtn.remove();
+                
+                // Remove profile button if it exists
+                const profileBtn = document.querySelector('.profile-btn');
+                if (profileBtn) profileBtn.remove();
+                
+                // Reset user type badge
+                const userType = document.getElementById('user-type');
+                if (userType) {
+                    userType.innerHTML = 'Anonymous';
+                }
+                
+                // Clear admin references
+                window.adminManager = null;
+                window.adminPanel = null;
+                window.adminPanelEnhanced = null;
+            };
+            
+            // Set up early auth listener (BEFORE setTimeout) to catch INITIAL_SESSION
+            // This listener will be active immediately when the auth manager is ready
+            const setupEarlyAuthListener = () => {
+                if (!window.editor?.authManager) {
+                    // authManager not ready yet, retry in 50ms
+                    setTimeout(setupEarlyAuthListener, 50);
+                    return;
+                }
+                
+                window.editor.authManager.onAuthChange((event, session) => {
+                    // Mask email for privacy in console (show only first 2 chars + domain)
+                    const maskedEmail = session?.user?.email 
+                        ? session.user.email.replace(/^(.{2})[^@]*(@.*)$/, '$1***$2')
+                        : 'no user';
+                    console.log(`🔐 Auth event: ${event}`, maskedEmail);
+                    
+                    // Initialize on any event that provides a valid session
+                    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session?.user) {
+                        // Small delay to ensure everything is ready
+                        setTimeout(() => {
+                            window.initializeAdminSystem().catch(error => {
+                                console.error('❌ Admin initialization failed:', error);
+                            });
+                        }, 100);
+                    }
+                    
+                    // Clean up admin UI when user signs out
+                    if (event === 'SIGNED_OUT') {
+                        window.cleanupAdminUI();
+                    }
+                });
+            };
+            
+            // Start the early auth listener setup immediately
+            setupEarlyAuthListener();
+            
             // Initialize template system AFTER editor (requires auth and supabase)
             setTimeout(() => {
                 if (window.supabaseClient && window.editor?.authManager) {
@@ -1563,98 +1715,21 @@
                         window.skillLineBuilder.templateEditor = window.templateEditor;
                     }
                     
-                    // Initialize admin system - ensure auth is fully ready first
-                    const initializeAdminSystem = async () => {
-                        // Wait for auth to be fully initialized
-                        let user = window.authManager.getCurrentUser();
-                        if (!user) {
-                            // Auth state may still be loading, wait a bit and check again
-                            user = await window.authManager.checkInitialAuth();
-                        }
-                        
-                        if (!user) {
-                            console.log('ℹ️ No authenticated user, skipping admin initialization');
-                            return;
-                        }
-                        
-                        window.adminManager = new AdminManager(window.supabaseClient, window.authManager);
-                        await window.adminManager.initialize();
-                        
-                        // Create admin panel if user is admin
-                        if (window.adminManager.isAdmin) {
-                            window.adminPanel = new AdminPanel(window.adminManager, window.templateManager, window.authManager);
-                            
-                            // Initialize enhanced admin panel features
-                            window.adminPanelEnhanced = new AdminPanelEnhanced(window.adminPanel);
-                            
-                            // Add admin role label to user-type (replaces email badge to avoid duplication)
-                            const userType = document.getElementById('user-type');
-                            if (userType) {
-                                const role = window.adminManager.getCurrentRole();
-                                const roleDisplay = role ? role.replace('_', ' ').toUpperCase() : 'ADMIN';
-                                userType.innerHTML = `<i class="fas fa-shield-alt" style="color: #ffd700;"></i> ${roleDisplay}`;
-                            }
-                            
-                            // Add admin panel button to user dropdown
-                            const userDropdown = document.getElementById('user-dropdown');
-                            const loginBtn = document.getElementById('loginBtn');
-                            if (userDropdown && loginBtn && window.authManager?.isAuthenticated()) {
-                                // Check if buttons already exist (avoid duplicates)
-                                if (!userDropdown.querySelector('.profile-btn')) {
-                                    // Add Profile button (only for authenticated users)
-                                    const profileBtn = document.createElement('button');
-                                    profileBtn.className = 'btn btn-secondary profile-btn';
-                                    profileBtn.style.marginBottom = '10px';
-                                    profileBtn.innerHTML = `<i class="fas fa-user"></i> Edit Profile`;
-                                    profileBtn.onclick = () => window.userProfileManager?.showProfileEditor();
-                                    userDropdown.insertBefore(profileBtn, loginBtn);
-                                }
-                                
-                                if (!userDropdown.querySelector('.admin-panel-btn')) {
-                                    // Add Admin Panel button
-                                    const adminBtn = document.createElement('button');
-                                    adminBtn.className = 'btn btn-primary admin-panel-btn';
-                                    adminBtn.style.marginBottom = '10px';
-                                    adminBtn.innerHTML = `<i class="fas fa-shield-alt"></i> Admin Panel`;
-                                    adminBtn.onclick = () => window.adminPanel.open();
-                                    
-                                    // Insert before login button
-                                    userDropdown.insertBefore(adminBtn, loginBtn);
-                                }
-                            }
-                        } else {
-                            // Add profile button for non-admin authenticated users
-                            const userDropdown = document.getElementById('user-dropdown');
-                            const loginBtn = document.getElementById('loginBtn');
-                            if (userDropdown && loginBtn && window.authManager?.isAuthenticated()) {
-                                // Check if button already exists
-                                if (!userDropdown.querySelector('.profile-btn')) {
-                                    const profileBtn = document.createElement('button');
-                                    profileBtn.className = 'btn btn-secondary profile-btn';
-                                    profileBtn.style.marginBottom = '10px';
-                                    profileBtn.innerHTML = `<i class="fas fa-user"></i> Edit Profile`;
-                                    profileBtn.onclick = () => window.userProfileManager?.showProfileEditor();
-                                    userDropdown.insertBefore(profileBtn, loginBtn);
-                                }
-                            }
-                        }
-                    };
+                    // Mark admin system as ready
+                    window._adminSystemReady = true;
                     
-                    initializeAdminSystem().catch(error => {
-                        console.error('❌ Admin system initialization failed:', error);
-                    });
-                    
-                    // Re-initialize admin system when user logs in (in case auth state changes)
-                    window.authManager.onAuthChange((event, session) => {
-                        if (event === 'SIGNED_IN' && session?.user) {
-                            // Small delay to ensure everything is ready
-                            setTimeout(() => {
-                                initializeAdminSystem().catch(error => {
-                                    console.error('❌ Admin re-initialization failed:', error);
-                                });
-                            }, 100);
-                        }
-                    });
+                    // If there was a pending admin init (from early auth event), run it now
+                    if (window._pendingAdminInit) {
+                        window._pendingAdminInit = false;
+                        window.initializeAdminSystem().catch(error => {
+                            console.error('❌ Admin system initialization failed:', error);
+                        });
+                    } else {
+                        // No pending init, but still try to initialize (user might already be logged in)
+                        window.initializeAdminSystem().catch(error => {
+                            console.error('❌ Admin system initialization failed:', error);
+                        });
+                    }
                     
                     // Update any existing SkillBuilderEditor instances with the new dependencies
                     if (window.editor.skillEditor?.skillBuilderEditor) {

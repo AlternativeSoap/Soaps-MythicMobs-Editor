@@ -265,6 +265,7 @@ class AdminPanel {
                                     <select id="usersViewFilter" class="form-select" style="width: 180px;">
                                         <option value="all">👥 All Users</option>
                                         <option value="admins">👑 Admin Users</option>
+                                        <option value="unverified">📧 Unverified Email</option>
                                     </select>
                                     <button class="btn btn-secondary" id="btnSyncProfiles" title="Sync missing user profiles from auth system">
                                         <i class="fas fa-sync-alt"></i> Sync Profiles
@@ -290,7 +291,7 @@ class AdminPanel {
                             </div>
                             
                             <!-- Users Stats Row -->
-                            <div class="users-stats-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
+                            <div class="users-stats-row" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 20px;">
                                 <div class="users-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
                                     <div style="font-size: 24px; font-weight: bold; color: #8b5cf6;" id="statTotalUsers">-</div>
                                     <div style="font-size: 12px; color: var(--text-secondary);">Total Users</div>
@@ -306,6 +307,10 @@ class AdminPanel {
                                 <div class="users-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
                                     <div style="font-size: 24px; font-weight: bold; color: #3b82f6;" id="statActiveUsers">-</div>
                                     <div style="font-size: 12px; color: var(--text-secondary);">Active Today</div>
+                                </div>
+                                <div class="users-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #ef4444;" id="statUnverifiedUsers">-</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Unverified</div>
                                 </div>
                             </div>
                             
@@ -1485,12 +1490,227 @@ class AdminPanel {
                 const admins = await this.adminManager.getAllAdmins();
                 this._allUsersData = admins.map(a => ({ ...a, isAdmin: true }));
                 this.renderAdminUsers(admins);
+            } else if (filter === 'unverified') {
+                await this.loadUnverifiedUsers();
             } else {
                 await this.loadAllUsers();
             }
         } catch (error) {
             console.error('Error loading users:', error);
             this.showError('Failed to load users');
+        }
+    }
+
+    /**
+     * Load unverified users from RPC function
+     */
+    async loadUnverifiedUsers() {
+        if (!window.supabaseClient) return;
+        
+        const container = document.getElementById('adminUsersList');
+        if (!container) return;
+        
+        container.innerHTML = '<div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading unverified users...</div>';
+        
+        try {
+            const { data, error } = await window.supabaseClient.rpc('get_unconfirmed_users', { p_limit: 100, p_offset: 0 });
+            
+            if (error) throw error;
+            
+            const users = data?.users || [];
+            this._allUsersData = users.map(u => ({ ...u, isUnverified: true }));
+            this.renderUnverifiedUsers(users);
+        } catch (error) {
+            console.error('Error loading unverified users:', error);
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-circle" style="font-size: 3rem; opacity: 0.3; color: #ef4444;"></i>
+                    <p>Failed to load unverified users</p>
+                    <small style="color: var(--text-secondary);">${error.message || 'Check if the RPC function exists'}</small>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Render unverified users list with resend button
+     */
+    renderUnverifiedUsers(users) {
+        const container = document.getElementById('adminUsersList');
+        if (!container) return;
+        
+        if (!users || users.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-check-circle" style="font-size: 3rem; opacity: 0.5; color: #10b981;"></i>
+                    <p>All users have verified emails!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = `
+            <div class="unverified-users-info" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 15px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-envelope-open-text" style="color: #ef4444; font-size: 18px;"></i>
+                    <div style="flex: 1;">
+                        <strong style="color: #ef4444;">Email Verification Pending</strong>
+                        <p style="margin: 4px 0 0; font-size: 12px; color: var(--text-secondary);">
+                            These users signed up but haven't verified their email address. You can resend the verification email.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            ${users.map(user => {
+                const displayName = user.display_name || user.email?.split('@')[0] || 'Unknown';
+                const createdDate = new Date(user.created_at);
+                const isNewUser = (Date.now() - createdDate.getTime()) < 7 * 24 * 60 * 60 * 1000;
+                
+                return `
+                    <div class="admin-user-card is-unverified" data-user-id="${user.id}" data-email="${user.email}">
+                        <div class="admin-user-info">
+                            <div class="admin-user-avatar" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+                                <i class="fas fa-envelope-circle-exclamation"></i>
+                            </div>
+                            <div>
+                                <h4>${displayName}</h4>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">${user.email || ''}</div>
+                                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                    <span class="unverified-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 2px 8px; border-radius: 4px; font-size: 11px;">
+                                        <i class="fas fa-exclamation-circle"></i> Unverified
+                                    </span>
+                                    ${isNewUser ? `
+                                        <span class="new-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 2px 8px; border-radius: 4px; font-size: 11px;">
+                                            <i class="fas fa-sparkles"></i> New
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="admin-user-meta">
+                            <div><small>User ID:</small> <code style="font-size: 10px; opacity: 0.7;">${user.id.substring(0, 8)}...</code></div>
+                            <div><small>Signed up:</small> ${this.formatDate(user.created_at)}</div>
+                        </div>
+                        <div class="user-actions" style="display: flex; gap: 8px;">
+                            <button class="btn btn-sm btn-primary resend-verification-btn" 
+                                    onclick="window.adminPanel.resendVerificationEmail('${user.email}')" 
+                                    title="Resend verification email">
+                                <i class="fas fa-paper-plane"></i> Resend Email
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        `;
+    }
+
+    /**
+     * Resend verification email to a user
+     */
+    async resendVerificationEmail(email) {
+        if (!email) {
+            this.showError('No email provided');
+            return;
+        }
+        
+        // Find the button and disable it
+        const btn = document.querySelector(`[data-email="${email}"] .resend-verification-btn`);
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        }
+        
+        try {
+            // Check rate limit via RPC first (optional - for logging)
+            const { data: rateLimitCheck } = await window.supabaseClient.rpc('check_verification_rate_limit', {
+                p_email: email.toLowerCase()
+            });
+            
+            if (rateLimitCheck && !rateLimitCheck.allowed) {
+                const retrySeconds = rateLimitCheck.retry_after_seconds || 15;
+                this.showError(rateLimitCheck.reason || 'Please wait before requesting another email');
+                if (btn) {
+                    let countdown = retrySeconds;
+                    btn.innerHTML = `<i class="fas fa-clock"></i> Wait ${countdown}s`;
+                    const interval = setInterval(() => {
+                        countdown--;
+                        if (countdown <= 0) {
+                            clearInterval(interval);
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Resend Email';
+                        } else {
+                            btn.innerHTML = `<i class="fas fa-clock"></i> Wait ${countdown}s`;
+                        }
+                    }, 1000);
+                }
+                return;
+            }
+            
+            // Use Supabase's built-in resend method
+            const { error } = await window.supabaseClient.auth.resend({
+                type: 'signup',
+                email: email,
+                options: {
+                    emailRedirectTo: window.location.origin
+                }
+            });
+            
+            if (error) {
+                // Handle specific error cases
+                if (error.message?.includes('rate limit') || error.status === 429) {
+                    this.showError('Too many requests. Please wait a moment before trying again.');
+                    if (btn) {
+                        let countdown = 60;
+                        btn.innerHTML = `<i class="fas fa-clock"></i> Wait ${countdown}s`;
+                        const interval = setInterval(() => {
+                            countdown--;
+                            if (countdown <= 0) {
+                                clearInterval(interval);
+                                btn.disabled = false;
+                                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Resend Email';
+                            } else {
+                                btn.innerHTML = `<i class="fas fa-clock"></i> Wait ${countdown}s`;
+                            }
+                        }, 1000);
+                    }
+                } else {
+                    throw error;
+                }
+                return;
+            }
+            
+            // Log the attempt to our tracking table
+            try {
+                await window.supabaseClient.from('email_verification_attempts').insert({
+                    email: email.toLowerCase(),
+                    requested_by: (await window.supabaseClient.auth.getUser()).data.user?.id,
+                    result: 'sent'
+                });
+            } catch (logError) {
+                // Don't fail if logging fails
+                console.warn('Failed to log verification attempt:', logError);
+            }
+            
+            this.showSuccess('Verification email sent! Please ask the user to check their inbox and spam folder.');
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-check"></i> Sent!';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-success');
+                // Re-enable after 15 seconds
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Resend Email';
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-primary');
+                }, 15000);
+            }
+        } catch (error) {
+            console.error('Error resending verification:', error);
+            this.showError(error.message || 'Failed to send verification email. Please try again.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Resend Email';
+            }
         }
     }
 
@@ -1553,13 +1773,23 @@ class AdminPanel {
             document.getElementById('statAdminUsers').textContent = this.formatNumber(uniqueAdmins || 0);
             document.getElementById('statNewUsers').textContent = this.formatNumber(newUsers || 0);
             document.getElementById('statActiveUsers').textContent = this.formatNumber(activeToday || 0);
+            
+            // Unverified users count (from RPC function)
+            try {
+                const { data: unverifiedData } = await window.supabaseClient.rpc('get_unconfirmed_users', { p_limit: 1, p_offset: 0 });
+                const unverifiedCount = unverifiedData?.total || 0;
+                document.getElementById('statUnverifiedUsers').textContent = this.formatNumber(unverifiedCount);
+            } catch (e) {
+                console.warn('Could not fetch unverified users count:', e);
+                document.getElementById('statUnverifiedUsers').textContent = '-';
+            }
         } catch (error) {
             console.error('Error loading user stats:', error);
         }
     }
 
     /**
-     * Load all users from user_profiles
+     * Load all users with verification status
      */
     async loadAllUsers() {
         if (!window.supabaseClient) return;
@@ -1570,13 +1800,48 @@ class AdminPanel {
         container.innerHTML = '<div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading users...</div>';
         
         try {
-            // Get all users
-            const { data: users, error } = await window.supabaseClient
-                .from('user_profiles')
-                .select('*')
-                .order('created_at', { ascending: false });
+            // Try to get users with verification status from RPC function
+            let users = [];
+            let hasVerificationData = false;
             
-            if (error) throw error;
+            try {
+                const { data: rpcData, error: rpcError } = await window.supabaseClient.rpc('get_all_users_with_verification', { p_limit: 200 });
+                console.log('🔍 RPC get_all_users_with_verification result:', { rpcData, rpcError });
+                
+                if (rpcError) {
+                    console.warn('RPC error:', rpcError);
+                } else if (rpcData?.error) {
+                    console.warn('RPC returned error:', rpcData.error);
+                } else if (rpcData?.users && Array.isArray(rpcData.users)) {
+                    users = rpcData.users;
+                    hasVerificationData = true;
+                    console.log(`✅ Loaded ${users.length} users with verification data`);
+                    
+                    // Update unverified count in stats
+                    const statUnverified = document.getElementById('statUnverifiedUsers');
+                    if (statUnverified) {
+                        statUnverified.textContent = this.formatNumber(rpcData.unverified_count || 0);
+                    }
+                }
+            } catch (rpcErr) {
+                console.warn('RPC get_all_users_with_verification exception:', rpcErr);
+            }
+            
+            // Fallback to user_profiles if RPC not available
+            if (users.length === 0) {
+                console.log('📋 Falling back to user_profiles table');
+                const { data: profileUsers, error } = await window.supabaseClient
+                    .from('user_profiles')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                users = (profileUsers || []).map(u => ({
+                    ...u,
+                    id: u.user_id,
+                    email_confirmed: null // Unknown
+                }));
+            }
             
             // Get admin roles
             const { data: adminRoles } = await window.supabaseClient
@@ -1593,10 +1858,17 @@ class AdminPanel {
             // Combine data
             this._allUsersData = users.map(user => ({
                 ...user,
-                id: user.user_id, // Normalize to 'id' for consistency
-                isAdmin: !!adminMap[user.user_id],
-                adminRoles: adminMap[user.user_id] || []
+                id: user.id || user.user_id, // Normalize to 'id' for consistency
+                isAdmin: !!adminMap[user.id || user.user_id],
+                adminRoles: adminMap[user.id || user.user_id] || [],
+                hasVerificationData
             }));
+            
+            console.log('👥 Final user data:', this._allUsersData.map(u => ({ 
+                email: u.email, 
+                email_confirmed: u.email_confirmed, 
+                hasVerificationData: u.hasVerificationData 
+            })));
             
             this.renderAllUsers(this._allUsersData);
         } catch (error) {
@@ -1606,7 +1878,7 @@ class AdminPanel {
     }
 
     /**
-     * Render all users list
+     * Render all users list with verification status
      */
     renderAllUsers(users) {
         const container = document.getElementById('adminUsersList');
@@ -1629,9 +1901,12 @@ class AdminPanel {
             const createdDate = new Date(user.created_at);
             const isNewUser = (Date.now() - createdDate.getTime()) < 7 * 24 * 60 * 60 * 1000; // 7 days
             const displayName = user.display_name || user.email?.split('@')[0] || 'Unknown';
+            const isVerified = user.email_confirmed === true;
+            const isUnverified = user.email_confirmed === false;
+            const hasVerificationData = user.hasVerificationData;
             
             return `
-                <div class="admin-user-card ${isAdmin ? 'is-admin' : ''}" data-user-id="${user.id}">
+                <div class="admin-user-card ${isAdmin ? 'is-admin' : ''} ${isUnverified ? 'is-unverified' : ''}" data-user-id="${user.id}" data-email="${user.email || ''}">
                     <div class="admin-user-info">
                         <div class="admin-user-avatar" style="${isAdmin ? `background: ${roleInfo?.color || '#8b5cf6'}22; color: ${roleInfo?.color || '#8b5cf6'};` : ''}">
                             ${isAdmin ? (roleInfo?.icon || '👤') : '<i class="fas fa-user"></i>'}
@@ -1639,7 +1914,7 @@ class AdminPanel {
                         <div>
                             <h4>${displayName}</h4>
                             <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">${user.email || ''}</div>
-                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
                                 ${isAdmin ? `
                                     <span class="admin-role-badge" style="background: ${roleInfo?.color || '#8b5cf6'}22; color: ${roleInfo?.color || '#8b5cf6'};">
                                         ${roleInfo?.label || highestRole}
@@ -1654,6 +1929,15 @@ class AdminPanel {
                                         <i class="fas fa-sparkles"></i> New
                                     </span>
                                 ` : ''}
+                                ${hasVerificationData ? (isVerified ? `
+                                    <span class="verified-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 2px 8px; border-radius: 4px; font-size: 11px;" title="Email verified">
+                                        <i class="fas fa-check-circle"></i> Verified
+                                    </span>
+                                ` : `
+                                    <span class="unverified-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 2px 8px; border-radius: 4px; font-size: 11px;" title="Email not verified">
+                                        <i class="fas fa-exclamation-circle"></i> Unverified
+                                    </span>
+                                `) : ''}
                             </div>
                         </div>
                     </div>
@@ -1661,7 +1945,15 @@ class AdminPanel {
                         <div><small>User ID:</small> <code style="font-size: 10px; opacity: 0.7;">${user.id.substring(0, 8)}...</code></div>
                         <div><small>Joined:</small> ${this.formatDate(user.created_at)}</div>
                     </div>
-                    <div class="user-actions" style="display: flex; gap: 8px;">
+                    <div class="user-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        ${isUnverified ? `
+                            <button class="btn btn-sm btn-warning resend-verification-btn" 
+                                    onclick="window.adminPanel.resendVerificationEmail('${user.email}')" 
+                                    title="Resend verification email"
+                                    style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);">
+                                <i class="fas fa-envelope"></i> Resend
+                            </button>
+                        ` : ''}
                         ${isAdmin ? `
                             <button class="btn btn-sm btn-danger" onclick="window.adminPanel.revokeRole('${user.id}', '${highestRole}', '${user.email}')" title="Revoke admin role">
                                 <i class="fas fa-user-minus"></i>

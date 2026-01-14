@@ -2744,3 +2744,514 @@ $$ LANGUAGE plpgsql;
 -- - daily_stats (pre-aggregated statistics)
 -- =============================================
 ```
+
+---
+
+## 18. `email_verification_attempts`
+
+**Purpose:** Track email verification resend attempts for rate limiting and audit logging.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY DEFAULT gen_random_uuid() | Unique identifier |
+| `email` | VARCHAR(255) | NOT NULL | Email address attempted |
+| `ip_address` | VARCHAR(45) | | IP address of requester (for rate limiting) |
+| `user_agent` | TEXT | | Browser user agent string |
+| `requested_by` | UUID | REFERENCES auth.users(id) | Admin who requested (null for self-request) |
+| `result` | VARCHAR(20) | NOT NULL | 'sent', 'rate_limited', 'not_found', 'already_confirmed', 'error' |
+| `error_message` | TEXT | | Error details if failed |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | When attempt was made |
+
+**Used by:** `adminPanelEnhanced.js`, `authUI.js`, RPC function `resend_verification_email`
+
+```sql
+-- =============================================
+-- TABLE: email_verification_attempts
+-- Purpose: Rate limiting and audit logging for verification email resends
+-- =============================================
+CREATE TABLE email_verification_attempts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    requested_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    result VARCHAR(20) NOT NULL CHECK (result IN ('sent', 'rate_limited', 'not_found', 'already_confirmed', 'error')),
+    error_message TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for efficient rate limiting queries
+CREATE INDEX idx_email_verification_email_time ON email_verification_attempts(email, created_at DESC);
+CREATE INDEX idx_email_verification_ip_time ON email_verification_attempts(ip_address, created_at DESC) WHERE ip_address IS NOT NULL;
+CREATE INDEX idx_email_verification_result ON email_verification_attempts(result);
+
+-- RLS Policies
+ALTER TABLE email_verification_attempts ENABLE ROW LEVEL SECURITY;
+
+-- Only admins can view verification attempts (for audit)
+CREATE POLICY "Admins can view verification attempts"
+    ON email_verification_attempts FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM admin_roles ar 
+            WHERE ar.user_id = auth.uid() 
+            AND ar.role IN ('super_admin', 'admin')
+        )
+    );
+
+-- Service role can insert (used by RPC function)
+-- Note: RPC function uses SECURITY DEFINER so it bypasses RLS
+CREATE POLICY "Service can insert verification attempts"
+    ON email_verification_attempts FOR INSERT
+    WITH CHECK (true);
+
+-- =============================================
+-- RPC FUNCTION: check_verification_rate_limit
+-- Purpose: Check if email/IP is rate limited for resending verification
+-- Returns: { allowed: boolean, retry_after_seconds: number, reason: string }
+-- =============================================
+CREATE OR REPLACE FUNCTION check_verification_rate_limit(
+    p_email VARCHAR(255),
+    p_ip_address VARCHAR(45) DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    last_attempt TIMESTAMPTZ;
+    attempts_last_hour INTEGER;
+    seconds_since_last INTEGER;
+    rate_limit_seconds INTEGER := 15;
+    max_per_hour INTEGER := 5;
+BEGIN
+    -- Check last attempt for this email
+    SELECT created_at INTO last_attempt
+    FROM email_verification_attempts
+    WHERE email = LOWER(p_email)
+      AND result = 'sent'
+    ORDER BY created_at DESC
+    LIMIT 1;
+    
+    -- Calculate seconds since last attempt
+    IF last_attempt IS NOT NULL THEN
+        seconds_since_last := EXTRACT(EPOCH FROM (NOW() - last_attempt))::INTEGER;
+        
+        IF seconds_since_last < rate_limit_seconds THEN
+            RETURN jsonb_build_object(
+                'allowed', false,
+                'retry_after_seconds', rate_limit_seconds - seconds_since_last,
+                'reason', 'Please wait before requesting another email'
+            );
+        END IF;
+    END IF;
+    
+    -- Check hourly limit for this email
+    SELECT COUNT(*) INTO attempts_last_hour
+    FROM email_verification_attempts
+    WHERE email = LOWER(p_email)
+      AND result = 'sent'
+      AND created_at > NOW() - INTERVAL '1 hour';
+    
+    IF attempts_last_hour >= max_per_hour THEN
+        RETURN jsonb_build_object(
+            'allowed', false,
+            'retry_after_seconds', 3600, -- 1 hour
+            'reason', 'Too many attempts. Please try again later or check your spam folder.'
+        );
+    END IF;
+    
+    -- Check hourly limit for this IP (if provided)
+    IF p_ip_address IS NOT NULL THEN
+        SELECT COUNT(*) INTO attempts_last_hour
+        FROM email_verification_attempts
+        WHERE ip_address = p_ip_address
+          AND result = 'sent'
+          AND created_at > NOW() - INTERVAL '1 hour';
+        
+        IF attempts_last_hour >= max_per_hour * 2 THEN -- IP gets 2x the limit
+            RETURN jsonb_build_object(
+                'allowed', false,
+                'retry_after_seconds', 3600,
+                'reason', 'Too many requests from your location. Please try again later.'
+            );
+        END IF;
+    END IF;
+    
+    RETURN jsonb_build_object(
+        'allowed', true,
+        'retry_after_seconds', 0,
+        'reason', NULL
+    );
+END;
+$$;
+
+-- =============================================
+-- RPC FUNCTION: request_verification_resend
+-- Purpose: Request a verification email resend with rate limiting
+-- NOTE: This function validates and logs the request. 
+--       Actual email sending must be done via Edge Function with SERVICE_ROLE_KEY
+-- Returns: { success: boolean, message: string, retry_after_seconds?: number }
+-- =============================================
+CREATE OR REPLACE FUNCTION request_verification_resend(
+    p_email VARCHAR(255),
+    p_ip_address VARCHAR(45) DEFAULT NULL,
+    p_user_agent TEXT DEFAULT NULL,
+    p_requested_by UUID DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    rate_check JSONB;
+    user_record RECORD;
+BEGIN
+    -- Normalize email
+    p_email := LOWER(TRIM(p_email));
+    
+    -- Validate email format
+    IF p_email !~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' THEN
+        INSERT INTO email_verification_attempts (email, ip_address, user_agent, requested_by, result, error_message)
+        VALUES (p_email, p_ip_address, p_user_agent, p_requested_by, 'error', 'Invalid email format');
+        
+        RETURN jsonb_build_object(
+            'success', false,
+            'message', 'Please enter a valid email address'
+        );
+    END IF;
+    
+    -- Check rate limit
+    rate_check := check_verification_rate_limit(p_email, p_ip_address);
+    
+    IF NOT (rate_check->>'allowed')::boolean THEN
+        INSERT INTO email_verification_attempts (email, ip_address, user_agent, requested_by, result, error_message)
+        VALUES (p_email, p_ip_address, p_user_agent, p_requested_by, 'rate_limited', rate_check->>'reason');
+        
+        RETURN jsonb_build_object(
+            'success', false,
+            'message', rate_check->>'reason',
+            'retry_after_seconds', (rate_check->>'retry_after_seconds')::integer
+        );
+    END IF;
+    
+    -- Check if user exists and email confirmation status
+    -- NOTE: This query requires service_role access or must be in a SECURITY DEFINER context
+    SELECT id, email_confirmed_at, email INTO user_record
+    FROM auth.users
+    WHERE email = p_email
+    LIMIT 1;
+    
+    -- Generic response to prevent user enumeration
+    IF user_record.id IS NULL THEN
+        INSERT INTO email_verification_attempts (email, ip_address, user_agent, requested_by, result)
+        VALUES (p_email, p_ip_address, p_user_agent, p_requested_by, 'not_found');
+        
+        -- Return success message even if user not found (security)
+        RETURN jsonb_build_object(
+            'success', true,
+            'message', 'If an account exists with this email, a verification link has been sent. Please check your inbox and spam folder.'
+        );
+    END IF;
+    
+    -- Check if already confirmed
+    IF user_record.email_confirmed_at IS NOT NULL THEN
+        INSERT INTO email_verification_attempts (email, ip_address, user_agent, requested_by, result)
+        VALUES (p_email, p_ip_address, p_user_agent, p_requested_by, 'already_confirmed');
+        
+        RETURN jsonb_build_object(
+            'success', true,
+            'message', 'Your email has already been verified. You can sign in now.',
+            'already_confirmed', true
+        );
+    END IF;
+    
+    -- Log successful attempt (actual email will be sent by Edge Function)
+    INSERT INTO email_verification_attempts (email, ip_address, user_agent, requested_by, result)
+    VALUES (p_email, p_ip_address, p_user_agent, p_requested_by, 'sent');
+    
+    RETURN jsonb_build_object(
+        'success', true,
+        'message', 'Verification email sent! Please check your inbox and spam folder.',
+        'should_send', true,
+        'user_id', user_record.id
+    );
+END;
+$$;
+
+-- =============================================
+-- RPC FUNCTION: get_user_verification_status
+-- Purpose: Check if a user's email is verified (admin only)
+-- =============================================
+CREATE OR REPLACE FUNCTION get_user_verification_status(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    user_record RECORD;
+    is_admin BOOLEAN;
+BEGIN
+    -- Check if caller is admin
+    SELECT EXISTS (
+        SELECT 1 FROM admin_roles 
+        WHERE user_id = auth.uid() 
+        AND role IN ('super_admin', 'admin')
+    ) INTO is_admin;
+    
+    IF NOT is_admin THEN
+        RETURN jsonb_build_object('error', 'Unauthorized');
+    END IF;
+    
+    SELECT id, email, email_confirmed_at, created_at, last_sign_in_at
+    INTO user_record
+    FROM auth.users
+    WHERE id = p_user_id;
+    
+    IF user_record.id IS NULL THEN
+        RETURN jsonb_build_object('error', 'User not found');
+    END IF;
+    
+    RETURN jsonb_build_object(
+        'user_id', user_record.id,
+        'email', user_record.email,
+        'email_confirmed', user_record.email_confirmed_at IS NOT NULL,
+        'email_confirmed_at', user_record.email_confirmed_at,
+        'created_at', user_record.created_at,
+        'last_sign_in_at', user_record.last_sign_in_at
+    );
+END;
+$$;
+
+-- =============================================
+-- RPC FUNCTION: get_all_users_with_verification
+-- Purpose: Get all users with email verification status (admin only)
+-- Used by: Admin Panel to show verification badges
+-- =============================================
+CREATE OR REPLACE FUNCTION get_all_users_with_verification(
+    p_limit INTEGER DEFAULT 100,
+    p_offset INTEGER DEFAULT 0
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    is_admin BOOLEAN;
+    result JSONB;
+BEGIN
+    -- Check if caller is admin
+    SELECT EXISTS (
+        SELECT 1 FROM admin_roles 
+        WHERE user_id = auth.uid() 
+        AND role IN ('super_admin', 'admin')
+    ) INTO is_admin;
+    
+    IF NOT is_admin THEN
+        RETURN jsonb_build_object('error', 'Unauthorized');
+    END IF;
+    
+    SELECT jsonb_build_object(
+        'users', COALESCE((
+            SELECT jsonb_agg(
+                jsonb_build_object(
+                    'id', u.id,
+                    'email', u.email,
+                    'email_confirmed', u.email_confirmed_at IS NOT NULL,
+                    'email_confirmed_at', u.email_confirmed_at,
+                    'created_at', u.created_at,
+                    'last_sign_in_at', u.last_sign_in_at,
+                    'display_name', COALESCE(up.display_name, split_part(u.email, '@', 1))
+                )
+                ORDER BY u.created_at DESC
+            )
+            FROM auth.users u
+            LEFT JOIN user_profiles up ON u.id = up.user_id
+            ORDER BY u.created_at DESC
+            LIMIT p_limit OFFSET p_offset
+        ), '[]'::jsonb),
+        'total', (SELECT COUNT(*) FROM auth.users),
+        'unverified_count', (SELECT COUNT(*) FROM auth.users WHERE email_confirmed_at IS NULL)
+    ) INTO result;
+    
+    RETURN result;
+END;
+$$;
+
+-- =============================================
+-- RPC FUNCTION: get_unconfirmed_users
+-- Purpose: Get list of users with unconfirmed emails (admin only)
+-- =============================================
+CREATE OR REPLACE FUNCTION get_unconfirmed_users(
+    p_limit INTEGER DEFAULT 50,
+    p_offset INTEGER DEFAULT 0
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    is_admin BOOLEAN;
+    result JSONB;
+BEGIN
+    -- Check if caller is admin
+    SELECT EXISTS (
+        SELECT 1 FROM admin_roles 
+        WHERE user_id = auth.uid() 
+        AND role IN ('super_admin', 'admin')
+    ) INTO is_admin;
+    
+    IF NOT is_admin THEN
+        RETURN jsonb_build_object('error', 'Unauthorized');
+    END IF;
+    
+    SELECT jsonb_build_object(
+        'users', COALESCE((
+            SELECT jsonb_agg(
+                jsonb_build_object(
+                    'id', u.id,
+                    'email', u.email,
+                    'created_at', u.created_at,
+                    'last_sign_in_at', u.last_sign_in_at,
+                    'display_name', up.display_name
+                )
+            )
+            FROM auth.users u
+            LEFT JOIN user_profiles up ON u.id = up.user_id
+            WHERE u.email_confirmed_at IS NULL
+            ORDER BY u.created_at DESC
+            LIMIT p_limit OFFSET p_offset
+        ), '[]'::jsonb),
+        'total', (
+            SELECT COUNT(*)
+            FROM auth.users
+            WHERE email_confirmed_at IS NULL
+        )
+    ) INTO result;
+    
+    RETURN result;
+END;
+$$;
+```
+
+---
+
+## 🔧 Edge Function: Resend Verification Email
+
+**IMPORTANT:** The actual email sending must be done via a Supabase Edge Function because it requires the `SERVICE_ROLE_KEY` which should never be exposed to the client.
+
+Create a new Edge Function at `supabase/functions/resend-verification/index.ts`:
+
+```typescript
+// supabase/functions/resend-verification/index.ts
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const { email } = await req.json()
+    
+    if (!email) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'Email is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Create admin client with service role key
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+    
+    // Create regular client to get caller info
+    const authHeader = req.headers.get('Authorization')
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader ?? '' } } }
+    )
+    
+    // Get caller user ID (if authenticated)
+    const { data: { user } } = await supabaseClient.auth.getUser()
+    
+    // Get client IP
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 
+               req.headers.get('cf-connecting-ip') || 
+               'unknown'
+    
+    // Call the rate limiting RPC
+    const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
+      'request_verification_resend',
+      {
+        p_email: email.toLowerCase().trim(),
+        p_ip_address: ip,
+        p_user_agent: req.headers.get('user-agent'),
+        p_requested_by: user?.id || null
+      }
+    )
+    
+    if (rpcError) {
+      console.error('RPC error:', rpcError)
+      return new Response(
+        JSON.stringify({ success: false, message: 'An error occurred. Please try again.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    // If RPC says we should send the email
+    if (rpcResult.should_send) {
+      // Use Supabase Admin API to resend verification
+      const { error: resendError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'signup',
+        email: email.toLowerCase().trim(),
+      })
+      
+      if (resendError) {
+        console.error('Resend error:', resendError)
+        // Still return success to prevent enumeration
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: 'If an account exists with this email, a verification link has been sent.' 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+    
+    return new Response(
+      JSON.stringify(rpcResult),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+    
+  } catch (error) {
+    console.error('Error:', error)
+    return new Response(
+      JSON.stringify({ success: false, message: 'An error occurred. Please try again.' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+})
+```
+
+**Deploy the Edge Function:**
+```bash
+supabase functions deploy resend-verification --no-verify-jwt
+```
