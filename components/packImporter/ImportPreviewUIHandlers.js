@@ -340,6 +340,70 @@ Object.assign(ImportPreviewUI.prototype, {
         this.modal.querySelector('#start-import')?.addEventListener('click', () => {
             this.startImport();
         });
+        
+        // Attach details panel listeners
+        this.attachDetailsPanelListeners();
+    }
+    
+    /**
+     * Attach event listeners for details panel (files, entries, etc.)
+     */
+    attachDetailsPanelListeners() {
+        // File checkboxes
+        this.modal.querySelectorAll('.file-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const packName = e.target.dataset.pack;
+                const filePath = e.target.dataset.file;
+                this.toggleFileSelection(packName, filePath);
+            });
+        });
+        
+        // Entry checkboxes
+        this.modal.querySelectorAll('.entry-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const packName = e.target.dataset.pack;
+                const filePath = e.target.dataset.file;
+                const entryName = e.target.dataset.entry;
+                this.toggleEntrySelection(packName, filePath, entryName);
+            });
+        });
+        
+        // File expand buttons
+        this.modal.querySelectorAll('.pack-import-file-expand').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const filePath = btn.dataset.file;
+                this.toggleFileExpansion(filePath);
+            });
+        });
+        
+        // Entry edit buttons
+        this.modal.querySelectorAll('.pack-import-entry-edit').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const packName = btn.dataset.pack;
+                const filePath = btn.dataset.file;
+                const entryName = btn.dataset.entry;
+                
+                // Find the error issue
+                const validation = this.validationResults.get(packName);
+                let errorIssue = null;
+                
+                if (validation && validation.validationResults) {
+                    const fileValidation = validation.validationResults.find(
+                        fv => fv.relativePath === filePath
+                    );
+                    if (fileValidation) {
+                        const entryValidation = fileValidation.entries.find(e => e.name === entryName);
+                        if (entryValidation && entryValidation.issues) {
+                            errorIssue = entryValidation.issues.find(i => i.severity === 'critical');
+                        }
+                    }
+                }
+                
+                this.showErrorEditor(packName, filePath, entryName, errorIssue);
+            });
+        });
     },
 
     /**
@@ -386,7 +450,12 @@ Object.assign(ImportPreviewUI.prototype, {
 
         // Store references before closing modal
         const selectedPacksArray = Array.from(this.selectedPacks);
-        const optionsCopy = { ...this.importOptions };
+        const optionsCopy = { 
+            ...this.importOptions,
+            // Include file and entry selections
+            selectedFiles: this.selectedFiles,
+            selectedEntries: this.selectedEntries
+        };
         const importCallback = this.onImport;
 
         // Close the modal first

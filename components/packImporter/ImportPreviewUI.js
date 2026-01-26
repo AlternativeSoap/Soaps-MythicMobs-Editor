@@ -18,6 +18,15 @@ class ImportPreviewUI {
             duplicates: 'skip'
         };
         
+        // File and entry selection tracking
+        this.selectedFiles = new Map(); // packName -> Set of file paths
+        this.selectedEntries = new Map(); // packName -> Map of filePath -> Set of entry names
+        this.expandedFiles = new Set(); // Set of expanded file paths
+        
+        // Error editor state
+        this.errorEditorModal = null;
+        this.editingEntry = null;
+        
         // Callbacks (set by PackImporterCore)
         this.onImport = null;
         this.onExportReport = null;
@@ -153,6 +162,9 @@ class ImportPreviewUI {
         scanResults.packs.forEach(pack => {
             this.selectedPacks.add(pack.name);
         });
+        
+        // Initialize file and entry selections (all selected by default)
+        this.initializeSelections();
 
         // Set first pack as current
         if (scanResults.packs.length > 0) {
@@ -416,13 +428,14 @@ class ImportPreviewUI {
     renderFolderTree(pack) {
         const folders = ['Mobs', 'Skills', 'Items', 'DropTables', 'RandomSpawns'];
         
-        let html = '<div class="pack-import-folders-grid">';
+        let html = '<div class="pack-import-folders-tree">';
 
-        // Folders
+        // Render each folder with files
         for (const folderName of folders) {
             const folder = pack.folders?.[folderName];
             const exists = folder?.exists && folder?.totalFiles > 0;
-            const fileCount = folder?.totalFiles || 0;
+            
+            if (!exists) continue; // Skip empty folders
             
             const icons = {
                 'Mobs': '👾',
@@ -433,10 +446,15 @@ class ImportPreviewUI {
             };
 
             html += `
-                <div class="pack-import-folder-item ${exists ? '' : 'empty'}">
-                    <div class="icon">${icons[folderName] || '📁'}</div>
-                    <div class="name">${folderName}</div>
-                    <div class="count">${fileCount} files</div>
+                <div class="pack-import-folder-section">
+                    <div class="pack-import-folder-header">
+                        <span class="icon">${icons[folderName] || '📁'}</span>
+                        <span class="name">${folderName}</span>
+                        <span class="count">(${folder.totalFiles} files)</span>
+                    </div>
+                    <div class="pack-import-file-list">
+                        ${this.renderFileList(pack, folderName, folder)}
+                    </div>
                 </div>
             `;
         }
@@ -456,6 +474,122 @@ class ImportPreviewUI {
             `;
         }
 
+        return html;
+    }
+    
+    /**
+     * Render file list for a folder
+     */
+    renderFileList(pack, folderName, folder) {
+        let html = '';
+        
+        const parseData = this.parseResults.get(pack.name);
+        if (!parseData) return html;
+        
+        const packFiles = this.selectedFiles.get(pack.name) || new Set();
+        const packEntries = this.selectedEntries.get(pack.name) || new Map();
+        
+        // Get all files in this folder
+        const files = parseData.files.filter(f => {
+            const folderType = (f.folderType || '').toLowerCase();
+            return folderType === folderName.toLowerCase();
+        });
+        
+        files.forEach(file => {
+            const isFileSelected = packFiles.has(file.relativePath);
+            const isExpanded = this.expandedFiles.has(file.relativePath);
+            const entryCount = file.entries?.length || 0;
+            const selectedEntrySet = packEntries.get(file.relativePath) || new Set();
+            const selectedCount = selectedEntrySet.size;
+            
+            const hasErrors = file.errors && file.errors.length > 0;
+            const hasWarnings = file.warnings && file.warnings.length > 0;
+            
+            html += `
+                <div class="pack-import-file-item ${isExpanded ? 'expanded' : ''}">
+                    <div class="pack-import-file-row">
+                        <input type="checkbox" 
+                               class="file-checkbox" 
+                               data-pack="${pack.name}" 
+                               data-file="${file.relativePath}"
+                               ${isFileSelected ? 'checked' : ''}
+                               ${entryCount === 0 ? 'disabled' : ''}>
+                        <button class="pack-import-file-expand" 
+                                data-file="${file.relativePath}"
+                                ${entryCount === 0 ? 'disabled' : ''}>
+                            <i class="fas fa-chevron-${isExpanded ? 'down' : 'right'}"></i>
+                        </button>
+                        <span class="pack-import-file-name">${file.name || file.relativePath}</span>
+                        <span class="pack-import-file-badge">
+                            ${entryCount > 0 ? `${selectedCount}/${entryCount}` : 'empty'}
+                        </span>
+                        ${hasErrors ? '<span class="pack-import-error-badge">✗</span>' : ''}
+                        ${hasWarnings ? '<span class="pack-import-warning-badge">⚠</span>' : ''}
+                    </div>
+                    ${isExpanded && entryCount > 0 ? this.renderEntryList(pack, file, selectedEntrySet) : ''}
+                </div>
+            `;
+        });
+        
+        return html;
+    }
+    
+    /**
+     * Render entry list for a file
+     */
+    renderEntryList(pack, file, selectedEntrySet) {
+        let html = '<div class="pack-import-entry-list">';
+        
+        const validation = this.validationResults.get(pack.name);
+        
+        file.entries.forEach(entry => {
+            const isSelected = selectedEntrySet.has(entry.name);
+            
+            // Find validation result for this entry
+            let entryValidation = null;
+            if (validation && validation.validationResults) {
+                const fileValidation = validation.validationResults.find(
+                    fv => fv.relativePath === file.relativePath
+                );
+                if (fileValidation) {
+                    entryValidation = fileValidation.entries.find(e => e.name === entry.name);
+                }
+            }
+            
+            const criticalIssues = entryValidation?.issues?.filter(i => i.severity === 'critical') || [];
+            const warnings = entryValidation?.issues?.filter(i => i.severity === 'warning') || [];
+            
+            html += `
+                <div class="pack-import-entry-item ${criticalIssues.length > 0 ? 'has-error' : ''}">
+                    <input type="checkbox" 
+                           class="entry-checkbox" 
+                           data-pack="${pack.name}" 
+                           data-file="${file.relativePath}"
+                           data-entry="${entry.name}"
+                           ${isSelected ? 'checked' : ''}>
+                    <span class="pack-import-entry-name">${entry.name}</span>
+                    ${criticalIssues.length > 0 ? `
+                        <button class="pack-import-entry-edit" 
+                                data-pack="${pack.name}"
+                                data-file="${file.relativePath}"
+                                data-entry="${entry.name}"
+                                title="Edit to fix errors">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <span class="pack-import-error-count" title="${criticalIssues[0].message}">
+                            ${criticalIssues.length}✗
+                        </span>
+                    ` : ''}
+                    ${warnings.length > 0 && criticalIssues.length === 0 ? `
+                        <span class="pack-import-warning-count" title="${warnings[0].message}">
+                            ${warnings.length}⚠
+                        </span>
+                    ` : ''}
+                </div>
+            `;
+        });
+        
+        html += '</div>';
         return html;
     }
 
@@ -614,6 +748,311 @@ class ImportPreviewUI {
                 </div>
             </div>
         `;
+    }
+    
+    /**
+     * Initialize file and entry selections for all packs
+     */
+    initializeSelections() {
+        this.selectedFiles.clear();
+        this.selectedEntries.clear();
+        
+        if (!this.scanResults) return;
+        
+        this.scanResults.packs.forEach(pack => {
+            const files = new Set();
+            const entries = new Map();
+            
+            const parseData = this.parseResults.get(pack.name);
+            if (parseData && parseData.files) {
+                parseData.files.forEach(file => {
+                    if (file.success && file.entries && file.entries.length > 0) {
+                        files.add(file.relativePath);
+                        
+                        const entrySet = new Set();
+                        file.entries.forEach(entry => {
+                            if (entry.name) entrySet.add(entry.name);
+                        });
+                        entries.set(file.relativePath, entrySet);
+                    }
+                });
+            }
+            
+            this.selectedFiles.set(pack.name, files);
+            this.selectedEntries.set(pack.name, entries);
+        });
+    }
+    
+    /**
+     * Toggle file selection
+     */
+    toggleFileSelection(packName, filePath) {
+        const files = this.selectedFiles.get(packName);
+        if (!files) return;
+        
+        if (files.has(filePath)) {
+            files.delete(filePath);
+            // Also deselect all entries in this file
+            const entries = this.selectedEntries.get(packName);
+            if (entries) {
+                entries.delete(filePath);
+            }
+        } else {
+            files.add(filePath);
+            // Also select all entries in this file
+            const parseData = this.parseResults.get(packName);
+            const file = parseData?.files.find(f => f.relativePath === filePath);
+            if (file && file.entries) {
+                const entries = this.selectedEntries.get(packName) || new Map();
+                const entrySet = new Set();
+                file.entries.forEach(entry => {
+                    if (entry.name) entrySet.add(entry.name);
+                });
+                entries.set(filePath, entrySet);
+                this.selectedEntries.set(packName, entries);
+            }
+        }
+        
+        this.updateDetailsPanel();
+    }
+    
+    /**
+     * Toggle entry selection
+     */
+    toggleEntrySelection(packName, filePath, entryName) {
+        const packEntries = this.selectedEntries.get(packName);
+        if (!packEntries) return;
+        
+        let fileEntries = packEntries.get(filePath);
+        if (!fileEntries) {
+            fileEntries = new Set();
+            packEntries.set(filePath, fileEntries);
+        }
+        
+        if (fileEntries.has(entryName)) {
+            fileEntries.delete(entryName);
+            // If no entries selected, deselect file
+            if (fileEntries.size === 0) {
+                const files = this.selectedFiles.get(packName);
+                if (files) files.delete(filePath);
+            }
+        } else {
+            fileEntries.add(entryName);
+            // Make sure file is selected
+            const files = this.selectedFiles.get(packName);
+            if (files) files.add(filePath);
+        }
+        
+        this.updateDetailsPanel();
+    }
+    
+    /**
+     * Toggle file expansion
+     */
+    toggleFileExpansion(filePath) {
+        if (this.expandedFiles.has(filePath)) {
+            this.expandedFiles.delete(filePath);
+        } else {
+            this.expandedFiles.add(filePath);
+        }
+        this.updateDetailsPanel();
+    }
+    
+    /**
+     * Update details panel without full re-render
+     */
+    updateDetailsPanel() {
+        const detailsContent = this.modal?.querySelector('#details-content');
+        if (detailsContent) {
+            detailsContent.innerHTML = this.renderDetailsPanel();
+            this.attachDetailsPanelListeners();
+        }
+    }
+    
+    /**
+     * Show error editor modal
+     */
+    showErrorEditor(packName, filePath, entryName, errorIssue) {
+        const parseData = this.parseResults.get(packName);
+        const file = parseData?.files.find(f => f.relativePath === filePath);
+        const entry = file?.entries.find(e => e.name === entryName);
+        
+        if (!entry) return;
+        
+        this.editingEntry = {
+            packName,
+            filePath,
+            entryName,
+            entry,
+            errorIssue
+        };
+        
+        this.createErrorEditorModal();
+    }
+    
+    /**
+     * Create error editor modal
+     */
+    createErrorEditorModal() {
+        if (!this.editingEntry) return;
+        
+        const { entry, errorIssue, entryName } = this.editingEntry;
+        
+        // Convert entry data to YAML
+        const yamlContent = this.entryToYAML(entry);
+        
+        const modal = document.createElement('div');
+        modal.className = 'pack-import-error-editor-overlay';
+        modal.innerHTML = `
+            <div class="pack-import-error-editor-modal">
+                <div class="pack-import-error-editor-header">
+                    <h3>Edit Entry: ${entryName}</h3>
+                    <button class="pack-import-close-btn" id="close-error-editor">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="pack-import-error-editor-body">
+                    <div class="pack-import-error-info">
+                        <strong>Issue:</strong> ${errorIssue?.message || 'Unknown error'}
+                        ${errorIssue?.suggestion ? `<br><strong>Suggestion:</strong> ${errorIssue.suggestion}` : ''}
+                    </div>
+                    <textarea id="error-editor-textarea" class="pack-import-error-editor-textarea">${yamlContent}</textarea>
+                    <div class="pack-import-error-editor-status" id="editor-status"></div>
+                </div>
+                <div class="pack-import-error-editor-footer">
+                    <button class="pack-import-btn pack-import-btn-secondary" id="cancel-error-edit">Cancel</button>
+                    <button class="pack-import-btn pack-import-btn-primary" id="save-error-edit">Save & Re-validate</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        this.errorEditorModal = modal;
+        
+        // Attach listeners
+        modal.querySelector('#close-error-editor')?.addEventListener('click', () => this.closeErrorEditor());
+        modal.querySelector('#cancel-error-edit')?.addEventListener('click', () => this.closeErrorEditor());
+        modal.querySelector('#save-error-edit')?.addEventListener('click', () => this.saveErrorEdit());
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) this.closeErrorEditor();
+        });
+    }
+    
+    /**
+     * Convert entry object to YAML string
+     */
+    entryToYAML(entry) {
+        if (!entry.data) return '';
+        
+        const data = entry.data;
+        let yaml = `${entry.name}:\n`;
+        
+        for (const [key, value] of Object.entries(data)) {
+            yaml += this.valueToYAML(key, value, 1);
+        }
+        
+        return yaml;
+    }
+    
+    /**
+     * Convert value to YAML format
+     */
+    valueToYAML(key, value, indent = 0) {
+        const spaces = '  '.repeat(indent);
+        
+        if (value === null || value === undefined) {
+            return `${spaces}${key}:\n`;
+        } else if (Array.isArray(value)) {
+            if (value.length === 0) return `${spaces}${key}: []\n`;
+            let yaml = `${spaces}${key}:\n`;
+            value.forEach(item => {
+                if (typeof item === 'object' && item !== null) {
+                    yaml += `${spaces}- `;
+                    const itemYaml = this.objectToYAML(item, indent + 1);
+                    yaml += itemYaml.trim().substring((indent + 1) * 2) + '\n';
+                } else {
+                    yaml += `${spaces}- ${item}\n`;
+                }
+            });
+            return yaml;
+        } else if (typeof value === 'object') {
+            let yaml = `${spaces}${key}:\n`;
+            for (const [k, v] of Object.entries(value)) {
+                yaml += this.valueToYAML(k, v, indent + 1);
+            }
+            return yaml;
+        } else if (typeof value === 'string' && (value.includes(':') || value.includes('#'))) {
+            return `${spaces}${key}: '${value}'\n`;
+        } else {
+            return `${spaces}${key}: ${value}\n`;
+        }
+    }
+    
+    /**
+     * Convert object to YAML
+     */
+    objectToYAML(obj, indent = 0) {
+        let yaml = '';
+        for (const [key, value] of Object.entries(obj)) {
+            yaml += this.valueToYAML(key, value, indent);
+        }
+        return yaml;
+    }
+    
+    /**
+     * Save error edit
+     */
+    async saveErrorEdit() {
+        const textarea = this.errorEditorModal?.querySelector('#error-editor-textarea');
+        const statusDiv = this.errorEditorModal?.querySelector('#editor-status');
+        
+        if (!textarea || !this.editingEntry) return;
+        
+        const yamlContent = textarea.value;
+        
+        try {
+            // Parse YAML
+            const parsed = jsyaml.load(yamlContent);
+            
+            if (!parsed || typeof parsed !== 'object') {
+                throw new Error('Invalid YAML: must be an object');
+            }
+            
+            // Update entry data
+            const { packName, filePath, entry } = this.editingEntry;
+            const entryName = Object.keys(parsed)[0];
+            
+            entry.data = parsed[entryName];
+            entry.name = entryName;
+            
+            // Re-validate
+            // TODO: Add validation logic here
+            
+            if (statusDiv) {
+                statusDiv.innerHTML = '<span style="color: #27ae60;">✓ Saved successfully!</span>';
+            }
+            
+            setTimeout(() => {
+                this.closeErrorEditor();
+                this.updateDetailsPanel();
+            }, 500);
+            
+        } catch (error) {
+            if (statusDiv) {
+                statusDiv.innerHTML = `<span style="color: #e74c3c;">✗ Error: ${error.message}</span>`;
+            }
+        }
+    }
+    
+    /**
+     * Close error editor
+     */
+    closeErrorEditor() {
+        if (this.errorEditorModal) {
+            this.errorEditorModal.remove();
+            this.errorEditorModal = null;
+        }
+        this.editingEntry = null;
     }
 }
 

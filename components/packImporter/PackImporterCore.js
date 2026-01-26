@@ -404,8 +404,20 @@ Note: Folder names are case-insensitive (skills = Skills, mobs = Mobs)`;
         
         if (window.DEBUG_MODE) {
             console.log('Detecting folder type:');
+            console.log('   Root name:', structure.name);
             console.log('   Available folders:', folderNames);
+            console.log('   Files in root:', structure.files?.length || 0);
             console.log('   Looking for:', mythicFolders);
+        }
+        
+        // NEW: Check if the selected folder itself IS a MythicMobs folder (e.g., user selected just "Skills" folder)
+        const rootNameLower = structure.name?.toLowerCase() || '';
+        const isSingleMythicFolder = mythicFoldersLower.includes(rootNameLower);
+        
+        if (isSingleMythicFolder && structure.files && structure.files.length > 0) {
+            // User selected a single MythicMobs folder (e.g., "Skills" folder with YAML files)
+            if (window.DEBUG_MODE) console.log(`Detected: single-folder import (selected "${structure.name}" folder directly)`);
+            return 'single-folder';
         }
         
         // Check if this is directly a pack (has Mobs/Skills/Items) - case insensitive
@@ -464,7 +476,53 @@ Note: Folder names are case-insensitive (skills = Skills, mobs = Mobs)`;
 
         const mythicFolders = ['Mobs', 'Skills', 'Items', 'DropTables', 'RandomSpawns'];
 
-        if (folderType === 'single-pack') {
+        if (folderType === 'single-folder') {
+            // User selected a single MythicMobs folder (e.g., just the "Skills" folder)
+            // Create a temporary pack structure with only that folder
+            const folderName = virtualStructure.name;
+            const packName = `Imported ${folderName}`;
+            
+            const pack = {
+                name: packName,
+                folders: {},
+                configFiles: {
+                    packinfo: { exists: false },
+                    tooltips: { exists: false }
+                },
+                stats: {
+                    totalFiles: 0,
+                    totalSize: 0,
+                    filesByType: {}
+                }
+            };
+            
+            // Initialize all folders
+            mythicFolders.forEach(folder => {
+                pack.folders[folder] = {
+                    exists: false,
+                    files: [],
+                    subfolders: [],
+                    totalFiles: 0,
+                    totalSize: 0
+                };
+            });
+            
+            // Add the selected folder's content
+            const folderData = this.buildFolderDataFromStructure(virtualStructure);
+            pack.folders[folderName] = {
+                exists: true,
+                ...folderData
+            };
+            
+            // Update pack stats
+            pack.stats.totalFiles = folderData.totalFiles;
+            pack.stats.totalSize = folderData.totalSize;
+            const typeKey = folderName.toLowerCase().replace('s', '');
+            pack.stats.filesByType[typeKey] = folderData.totalFiles;
+            
+            results.packs.push(pack);
+            
+        } else if (folderType === 'single-pack') {
             // Single pack - the selected folder IS the pack
             const pack = this.buildPackFromStructure(virtualStructure.name, virtualStructure, mythicFolders);
             if (pack) {
@@ -507,6 +565,25 @@ Note: Folder names are case-insensitive (skills = Skills, mobs = Mobs)`;
         }
 
         return results;
+    }
+
+    /**
+     * Build folder data from structure (for single-folder imports)
+     */
+    buildFolderDataFromStructure(structure) {
+        const files = this.collectYamlFiles(structure);
+        
+        let totalSize = 0;
+        for (const file of files) {
+            totalSize += file.size || 0;
+        }
+        
+        return {
+            files: files,
+            subfolders: [], // Subfolders collapsed into flat file list
+            totalFiles: files.length,
+            totalSize: totalSize
+        };
     }
 
     /**

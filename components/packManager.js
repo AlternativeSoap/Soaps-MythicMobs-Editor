@@ -3321,9 +3321,196 @@ class PackManager {
         this.editor.showToast(`Pack duplicated: ${newPack.name}`, 'success');
     }
     
+    /**
+     * Validate pack before export - check for critical errors
+     */
+    validatePackForExport(pack) {
+        const validation = {
+            criticalErrors: [],
+            warnings: []
+        };
+        
+        // Track defined entities for cross-reference validation
+        const definedSkills = new Set();
+        const definedMobs = new Set();
+        const definedItems = new Set();
+        const definedDropTables = new Set();
+        
+        // Collect all defined entities
+        if (pack.skills && Array.isArray(pack.skills)) {
+            pack.skills.forEach(file => {
+                if (file.entries && Array.isArray(file.entries)) {
+                    file.entries.forEach(skill => {
+                        if (skill.name) definedSkills.add(skill.name.toLowerCase());
+                    });
+                }
+            });
+        }
+        
+        if (pack.mobs && Array.isArray(pack.mobs)) {
+            pack.mobs.forEach(file => {
+                if (file.entries && Array.isArray(file.entries)) {
+                    file.entries.forEach(mob => {
+                        if (mob.name) definedMobs.add(mob.name.toLowerCase());
+                    });
+                }
+            });
+        }
+        
+        if (pack.items && Array.isArray(pack.items)) {
+            pack.items.forEach(file => {
+                if (file.entries && Array.isArray(file.entries)) {
+                    file.entries.forEach(item => {
+                        if (item.name) definedItems.add(item.name.toLowerCase());
+                    });
+                }
+            });
+        }
+        
+        if (pack.droptables && Array.isArray(pack.droptables)) {
+            pack.droptables.forEach(file => {
+                if (file.entries && Array.isArray(file.entries)) {
+                    file.entries.forEach(dt => {
+                        if (dt.name) definedDropTables.add(dt.name.toLowerCase());
+                    });
+                }
+            });
+        }
+        
+        // Validate mobs
+        if (pack.mobs && Array.isArray(pack.mobs)) {
+            pack.mobs.forEach(file => {
+                if (!file.entries || !Array.isArray(file.entries)) return;
+                
+                file.entries.forEach(mob => {
+                    const mobName = mob.name || 'unnamed';
+                    
+                    // Critical: Missing MobType/Type and Template
+                    if (!mob.MobType && !mob.Type && !mob.Template) {
+                        validation.criticalErrors.push({
+                            type: 'mob',
+                            name: mobName,
+                            file: file.fileName,
+                            message: `Mob '${mobName}' (${file.fileName}): Missing required MobType/Type or Template`
+                        });
+                    }
+                    
+                    // Critical: Invalid YAML structure (if we can detect it)
+                    if (!mob.name || typeof mob !== 'object') {
+                        validation.criticalErrors.push({
+                            type: 'mob',
+                            name: mobName,
+                            file: file.fileName,
+                            message: `Mob '${mobName}' (${file.fileName}): Invalid YAML structure`
+                        });
+                    }
+                });
+            });
+        }
+        
+        // Validate skills
+        if (pack.skills && Array.isArray(pack.skills)) {
+            pack.skills.forEach(file => {
+                if (!file.entries || !Array.isArray(file.entries)) return;
+                
+                file.entries.forEach(skill => {
+                    const skillName = skill.name || 'unnamed';
+                    
+                    // Critical: Missing Skills array
+                    if (!skill.Skills || !Array.isArray(skill.Skills)) {
+                        validation.criticalErrors.push({
+                            type: 'skill',
+                            name: skillName,
+                            file: file.fileName,
+                            message: `Skill '${skillName}' (${file.fileName}): Missing or invalid Skills array`
+                        });
+                    }
+                    
+                    // Critical: Invalid YAML structure
+                    if (!skill.name || typeof skill !== 'object') {
+                        validation.criticalErrors.push({
+                            type: 'skill',
+                            name: skillName,
+                            file: file.fileName,
+                            message: `Skill '${skillName}' (${file.fileName}): Invalid YAML structure`
+                        });
+                    }
+                });
+            });
+        }
+        
+        // Validate items
+        if (pack.items && Array.isArray(pack.items)) {
+            pack.items.forEach(file => {
+                if (!file.entries || !Array.isArray(file.entries)) return;
+                
+                file.entries.forEach(item => {
+                    const itemName = item.name || 'unnamed';
+                    
+                    // Critical: Missing Material
+                    if (!item.Material && !item.Id) {
+                        validation.criticalErrors.push({
+                            type: 'item',
+                            name: itemName,
+                            file: file.fileName,
+                            message: `Item '${itemName}' (${file.fileName}): Missing required Material or Id`
+                        });
+                    }
+                    
+                    // Critical: Invalid YAML structure
+                    if (!item.name || typeof item !== 'object') {
+                        validation.criticalErrors.push({
+                            type: 'item',
+                            name: itemName,
+                            file: file.fileName,
+                            message: `Item '${itemName}' (${file.fileName}): Invalid YAML structure`
+                        });
+                    }
+                });
+            });
+        }
+        
+        return validation;
+    }
+    
     async exportPack(packId) {
         const pack = this.packs.find(p => p.id === packId);
         if (!pack) return;
+        
+        // Validate pack before exporting
+        const validation = this.validatePackForExport(pack);
+        
+        if (validation.criticalErrors.length > 0) {
+            // Show critical errors dialog
+            const errorList = validation.criticalErrors.map(e => `• ${e.message}`).join('\n');
+            const errorMessage = `Cannot export pack '${pack.name}' due to ${validation.criticalErrors.length} critical error(s):\n\n${errorList}\n\nPlease fix these errors before exporting.`;
+            
+            await this.editor.showConfirmDialog(
+                '❌ Critical Errors Found',
+                errorMessage,
+                'OK',
+                null // No cancel button
+            );
+            return;
+        }
+        
+        if (validation.warnings.length > 0) {
+            // Show warnings dialog with option to continue
+            const warningList = validation.warnings.slice(0, 10).map(w => `• ${w.message}`).join('\n');
+            const moreWarnings = validation.warnings.length > 10 ? `\n... and ${validation.warnings.length - 10} more warning(s)` : '';
+            const warningMessage = `Pack '${pack.name}' has ${validation.warnings.length} warning(s):\n\n${warningList}${moreWarnings}\n\nThese are non-critical issues (like unused skills/mobs or missing references).\n\nDo you want to continue with the export?`;
+            
+            const confirmed = await this.editor.showConfirmDialog(
+                '⚠️ Warnings Found',
+                warningMessage,
+                'Export Anyway',
+                'Cancel'
+            );
+            
+            if (!confirmed) {
+                return;
+            }
+        }
         
         try {
             const JSZip = window.JSZip;

@@ -38,7 +38,70 @@ class PackFolderScanner {
             const folderType = await this.detectFolderType(dirHandle);
             result.type = folderType;
 
-            if (folderType === 'packs-folder') {
+            if (folderType === 'single-folder') {
+                // User selected a single MythicMobs folder (e.g., just "Skills" folder)
+                const folderName = dirHandle.name;
+                const packName = `Imported ${folderName}`;
+                
+                // Create a pack structure with only this folder
+                const pack = {
+                    name: packName,
+                    handle: null, // We don't store the handle as it references the folder itself
+                    folders: {},
+                    configFiles: {
+                        packinfo: { exists: false, handle: null, size: 0 },
+                        tooltips: { exists: false, handle: null, size: 0 }
+                    },
+                    unknownFolders: [],
+                    unknownFiles: [],
+                    stats: {
+                        totalFiles: 0,
+                        totalSize: 0,
+                        totalSizeFormatted: '0 B',
+                        filesByType: {
+                            mobs: 0,
+                            skills: 0,
+                            items: 0,
+                            droptables: 0,
+                            randomspawns: 0,
+                            assets: 0
+                        }
+                    }
+                };
+                
+                // Initialize all folder structures
+                this.MYTHICMOBS_FOLDERS.forEach(folder => {
+                    pack.folders[folder] = {
+                        exists: false,
+                        handle: null,
+                        files: [],
+                        subfolders: [],
+                        totalFiles: 0,
+                        totalSize: 0
+                    };
+                });
+                
+                // Scan the selected folder and add its content
+                const folderData = await this.scanFolder(dirHandle, folderName);
+                pack.folders[folderName] = {
+                    exists: true,
+                    handle: dirHandle,
+                    ...folderData
+                };
+                
+                // Update pack stats
+                pack.stats.totalFiles = folderData.totalFiles;
+                pack.stats.totalSize = folderData.totalSize;
+                pack.stats.totalSizeFormatted = this.formatFileSize(folderData.totalSize);
+                
+                const typeKey = folderName.toLowerCase().replace('s', '');
+                if (pack.stats.filesByType[typeKey] !== undefined) {
+                    pack.stats.filesByType[typeKey] = folderData.totalFiles;
+                }
+                
+                result.packs.push(pack);
+                
+            } else if (folderType === 'packs-folder') {
                 // Scan all subfolders as individual packs
                 result.packs = await this.scanPacksFolder(dirHandle);
             } else if (folderType === 'single-pack') {
@@ -82,6 +145,22 @@ class PackFolderScanner {
                 name: entry.name,
                 kind: entry.kind
             });
+        }
+
+        // NEW: Check if the selected folder itself IS a MythicMobs folder
+        const folderName = dirHandle.name || '';
+        const isSingleMythicFolder = this.MYTHICMOBS_FOLDERS.some(
+            f => f.toLowerCase() === folderName.toLowerCase()
+        );
+        
+        if (isSingleMythicFolder) {
+            // Check if it has YAML files
+            const hasYamlFiles = entries.some(e => 
+                e.kind === 'file' && this.YAML_EXTENSIONS.includes(this.getFileExtension(e.name))
+            );
+            if (hasYamlFiles) {
+                return 'single-folder';
+            }
         }
 
         // Check if this folder directly contains MythicMobs folders (case-insensitive)

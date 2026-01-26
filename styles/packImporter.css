@@ -1188,3 +1188,307 @@
 .vstat-item.error {
     color: #ef4444;
 }
+
+/* File and Entry Selection Styles */
+.pack-import-folders-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pack-import-folder-section {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.pack-import-folder-header {
+    padding: 12px 16px;
+    background: rgba(99, 102, 241, 0.1);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.pack-import-folder-header .icon {
+    font-size: 1.2rem;
+}
+
+.pack-import-folder-header .count {
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    font-weight: normal;
+}
+
+.pack-import-file-list {
+    padding: 8px;
+}
+
+.pack-import-file-item {
+    margin-bottom: 4px;
+}
+
+.pack-import-file-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.pack-import-file-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.pack-import-file-item.expanded .pack-import-file-row {
+    background: rgba(99, 102, 241, 0.15);
+}
+
+.file-checkbox {
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.pack-import-file-expand {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.pack-import-file-expand:hover {
+    color: #fff;
+}
+
+.pack-import-file-expand:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.pack-import-file-name {
+    flex: 1;
+    font-size: 0.9rem;
+    color: #e2e8f0;
+}
+
+.pack-import-file-badge {
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    background: rgba(99, 102, 241, 0.2);
+    border-radius: 12px;
+    color: #a5b4fc;
+}
+
+.pack-import-error-badge {
+    color: #ef4444;
+    font-size: 0.9rem;
+}
+
+.pack-import-warning-badge {
+    color: #f59e0b;
+    font-size: 0.9rem;
+}
+
+.pack-import-entry-list {
+    padding-left: 48px;
+    margin-top: 4px;
+}
+
+.pack-import-entry-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    margin-bottom: 2px;
+    transition: background 0.2s;
+}
+
+.pack-import-entry-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.pack-import-entry-item.has-error {
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 2px solid #ef4444;
+}
+
+.entry-checkbox {
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.pack-import-entry-name {
+    flex: 1;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+}
+
+.pack-import-entry-edit {
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #60a5fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+}
+
+.pack-import-entry-edit:hover {
+    background: rgba(59, 130, 246, 0.3);
+    transform: scale(1.05);
+}
+
+.pack-import-error-count {
+    font-size: 0.8rem;
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.pack-import-warning-count {
+    font-size: 0.8rem;
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+/* Error Editor Modal */
+.pack-import-error-editor-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 11000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pack-import-fade-in 0.2s ease-out;
+}
+
+.pack-import-error-editor-modal {
+    background: linear-gradient(145deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.pack-import-error-editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.pack-import-error-editor-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #fff;
+}
+
+.pack-import-error-editor-body {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pack-import-error-info {
+    padding: 12px;
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 3px solid #ef4444;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #fecaca;
+}
+
+.pack-import-error-info strong {
+    color: #fff;
+}
+
+.pack-import-error-editor-textarea {
+    flex: 1;
+    min-height: 300px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    color: #e2e8f0;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.pack-import-error-editor-textarea:focus {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.6);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.pack-import-error-editor-status {
+    min-height: 24px;
+    font-size: 0.85rem;
+}
+
+.pack-import-error-editor-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid rgba(99, 102, 241, 0.2);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.pack-import-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.pack-import-btn-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+}
+
+.pack-import-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.pack-import-btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.pack-import-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+}

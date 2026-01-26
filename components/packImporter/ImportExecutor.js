@@ -115,6 +115,10 @@ class ImportExecutor {
             }
         };
 
+        // Get file and entry selections
+        const selectedFiles = options?.selectedFiles?.get(pack.name) || null;
+        const selectedEntries = options?.selectedEntries?.get(pack.name) || null;
+
         // Create pack in editor
         if (!this.editor?.packManager) {
             throw new Error('Pack manager not available');
@@ -168,6 +172,13 @@ class ImportExecutor {
             for (const file of files) {
                 if (this.cancelled) break;
                 
+                // Check if file is selected (if selections are active)
+                if (selectedFiles && !selectedFiles.has(file.relativePath)) {
+                    if (window.DEBUG_MODE) console.log(`Skipping ${file.relativePath} - not selected`);
+                    fileIndexInFolder++;
+                    continue;
+                }
+                
                 const currentFileIndex = startFileIndex + fileIndexInFolder;
                 const progressPercentage = totalFiles > 0 ? Math.round((currentFileIndex / totalFiles) * 100) : 0;
 
@@ -217,9 +228,19 @@ class ImportExecutor {
                     }
                 };
 
+                // Get selected entries for this file (if selections are active)
+                const fileSelectedEntries = selectedEntries?.get(file.relativePath) || null;
+
                 // Import each entry in the file
                 for (const entry of file.entries || []) {
                     try {
+                        // Check if entry is selected (if selections are active)
+                        if (fileSelectedEntries && !fileSelectedEntries.has(entry.name)) {
+                            if (window.DEBUG_MODE) console.log(`Skipping ${entry.name} - not selected`);
+                            result.skipped++;
+                            continue;
+                        }
+                        
                         // Check validation results
                         const entryValidation = this.getEntryValidation(validation, file.relativePath, entry.name);
                         
