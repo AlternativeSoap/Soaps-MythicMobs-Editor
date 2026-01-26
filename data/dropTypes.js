@@ -118,14 +118,24 @@ const DROP_TYPES = [
     {
         id: 'itemvariable',
         name: 'Item Variable',
-        description: 'Drop an item from a stored variable',
+        description: 'Drop an item stored in an ITEM type variable. The variable must contain a valid ItemStack.',
         icon: 'box-archive',
         attributes: [
-            { name: 'variable', label: 'Variable Name', type: 'text', required: true, description: 'Scope and name (e.g., caster.stolenitem)' }
+            { name: 'var', alias: ['variable', 'v'], label: 'Variable Name', type: 'text', required: true, description: 'Variable in scope.name format (e.g., caster.stolenitem)', placeholder: 'caster.storeditem' }
         ],
         fields: [
-            { name: 'amount', label: 'Amount', type: 'text', default: '1', placeholder: '1' },
-            { name: 'chance', label: 'Drop Chance', type: 'number', default: '1.0', min: 0, max: 1, step: 0.01 }
+            { name: 'amount', label: 'Amount', type: 'text', default: '1', placeholder: '1', description: 'Amount to drop (overrides variable amount)' },
+            { name: 'chance', label: 'Drop Chance', type: 'number', default: '1.0', min: 0, max: 1, step: 0.01, description: 'Probability of this drop (0.0 to 1.0)' }
+        ],
+        examples: [
+            '- itemvariable{var=caster.stolenitem} 1 1',
+            '- itemvariable{var=target.equipped_weapon} 1 0.5',
+            '- itemvariable{var=skill.loot_item} 1 1'
+        ],
+        tips: [
+            'Variable must be ITEM type containing a valid ItemStack',
+            'Use setvariable with type=ITEM and value like "slot:HAND" to store items',
+            'Supports all variable scopes: SKILL, CASTER, TARGET, WORLD, GLOBAL'
         ]
     },
     {

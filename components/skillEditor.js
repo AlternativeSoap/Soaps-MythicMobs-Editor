@@ -1167,6 +1167,9 @@ class SkillEditor {
             // Render with the loaded skills
             this.skillBuilderEditor.render();
             
+            // Scan for variables in loaded skill
+            this.scanSkillForVariables();
+            
             // Listen for changes
             this.skillBuilderEditor.onChange((skillLines) => {
                 if (window.DEBUG_MODE) {
@@ -1192,6 +1195,9 @@ class SkillEditor {
                         });
                     }
                 }
+                
+                // Scan for variable changes
+                this.scanSkillForVariables();
                 
                 this.syncToFile();
                 this.editor.markDirty();
@@ -1803,6 +1809,65 @@ class SkillEditor {
                 saveBtn.disabled = false;
                 saveBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Save Template';
             }
+        }
+    }
+    
+    /**
+     * Scan current skill for variable definitions and usages
+     * Registers found variables with VariableManager
+     */
+    scanSkillForVariables() {
+        if (!this.currentSkill || !this.currentSkill.skills) return;
+        if (!window.variableManager) return;
+        
+        try {
+            // Patterns for variable detection
+            const setVarPattern = /setvariable\s*\{[^}]*var\s*=\s*([^;}\s]+)/gi;
+            const varNamePattern = /var\s*=\s*(\w+)\.(\w+)/gi;
+            const typePattern = /type\s*=\s*(\w+)/i;
+            const valuePattern = /value\s*=\s*([^;}\s]+)/i;
+            
+            // Scan all skill lines
+            Object.entries(this.currentSkill.skills).forEach(([skillName, skillData]) => {
+                const lines = skillData.lines || [];
+                
+                lines.forEach((line, lineIndex) => {
+                    // Look for setVariable mechanics
+                    let match;
+                    while ((match = setVarPattern.exec(line)) !== null) {
+                        const varRef = match[1];
+                        
+                        // Parse scope.name format
+                        const scopeMatch = varRef.match(/^(\w+)\.(.+)$/);
+                        if (scopeMatch) {
+                            const scope = scopeMatch[1].toUpperCase();
+                            const name = scopeMatch[2];
+                            
+                            // Extract type if present
+                            const typeMatch = line.match(typePattern);
+                            const type = typeMatch ? typeMatch[1].toUpperCase() : 'INTEGER';
+                            
+                            // Extract value if present
+                            const valueMatch = line.match(valuePattern);
+                            const value = valueMatch ? valueMatch[1] : null;
+                            
+                            // Register with variable manager
+                            window.variableManager.registerVariable({
+                                name: name,
+                                scope: scope,
+                                type: type,
+                                value: value,
+                                source: 'skill',
+                                sourceId: this.currentSkill.name || this.currentSkill.id,
+                                sourceName: skillName,
+                                lineIndex: lineIndex
+                            });
+                        }
+                    }
+                });
+            });
+        } catch (error) {
+            console.warn('[SkillEditor] Error scanning for variables:', error);
         }
     }
 }

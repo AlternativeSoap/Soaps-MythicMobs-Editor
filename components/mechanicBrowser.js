@@ -157,7 +157,8 @@ class MechanicBrowser {
             'control': dataOptimizer.getCategoryCount('mechanics', 'control'),
             'utility': dataOptimizer.getCategoryCount('mechanics', 'utility'),
             'aura': dataOptimizer.getCategoryCount('mechanics', 'aura'),
-            'projectile': dataOptimizer.getCategoryCount('mechanics', 'projectile')
+            'projectile': dataOptimizer.getCategoryCount('mechanics', 'projectile'),
+            'variables': dataOptimizer.getCategoryCount('mechanics', 'variables')
         };
         
         if (window.DEBUG_MODE) console.log('[COUNT] Category counts calculated:', this.categoryCountCache);
@@ -366,6 +367,9 @@ class MechanicBrowser {
                                 </button>
                                 <button class="category-tab" data-category="projectile">
                                     🎯 Projectile (0)
+                                </button>
+                                <button class="category-tab" data-category="variables">
+                                    📊 Variables (0)
                                 </button>
                             </div>
                             
@@ -1411,16 +1415,13 @@ class MechanicBrowser {
         const requiredMark = attr.required ? '<span class="required">*</span>' : '';
         const defaultText = attr.default !== undefined && attr.default !== '' ? ` [default: ${attr.default}]` : '';
         
-        // Build tooltip content
-        const tooltipContent = `
-            <div class="attribute-tooltip-content">
-                <strong>${attr.name}</strong>
-                ${aliases && aliases.length > 0 ? `<div class="tooltip-aliases">Aliases: ${aliases.join(', ')}</div>` : ''}
-                <div class="tooltip-type">Type: ${attr.type || 'string'}</div>
-                ${attr.default !== undefined ? `<div class="tooltip-default">Default: ${attr.default}</div>` : ''}
-                <div class="tooltip-description">${attr.description}</div>
-            </div>
-        `.trim();
+        // Build tooltip content as plain text (CSS attr() doesn't render HTML)
+        const tooltipParts = [attr.name];
+        if (aliases && aliases.length > 0) tooltipParts.push(`Aliases: ${aliases.join(', ')}`);
+        tooltipParts.push(`Type: ${attr.type || 'string'}`);
+        if (attr.default !== undefined) tooltipParts.push(`Default: ${attr.default}`);
+        tooltipParts.push(attr.description);
+        const tooltipContent = tooltipParts.join(' | ');
         
         let inputHTML = '';
         // Check if this attribute should use entity picker
@@ -1532,6 +1533,29 @@ class MechanicBrowser {
                         <i class="fas fa-plus"></i>
                     </button>
                     <div class="skillref-status" id="${inputId}-status"></div>
+                </div>
+            `;
+        } else if (attr.name === 'var' || attr.name === 'variable' || attr.type === 'variableref') {
+            // Variable reference input with browse button - for variable mechanics
+            const inputId = `varref-${attr.name}-${Math.random().toString(36).substr(2, 9)}`;
+            inputHTML = `
+                <div class="variableref-input-wrapper" data-attr="${attr.name}">
+                    <div class="variableref-input-container">
+                        <i class="fas fa-database variableref-icon"></i>
+                        <input type="text" 
+                               id="${inputId}"
+                               class="mechanic-attribute-input variableref-input" 
+                               data-attr="${attr.name}"
+                               data-modified="false"
+                               placeholder="scope.variable_name (e.g., caster.damage)"
+                               autocomplete="off">
+                    </div>
+                    <button type="button" class="variableref-browse-btn" data-input-id="${inputId}" title="Browse Variables">
+                        <i class="fas fa-folder-open"></i>
+                    </button>
+                    <button type="button" class="variableref-create-btn" data-input-id="${inputId}" title="Create New Variable">
+                        <i class="fas fa-plus"></i>
+                    </button>
                 </div>
             `;
         } else {
@@ -2955,15 +2979,13 @@ class MechanicBrowser {
             const aliasText = aliases && aliases.length > 0 ? ` (${aliases.join(', ')})` : '';
             const defaultText = attr.default !== undefined && attr.default !== '' ? ` [default: ${attr.default}]` : '';
             
-            const tooltipContent = `
-                <div class="attribute-tooltip-content">
-                    <strong>${attr.name}</strong>
-                    ${aliases && aliases.length > 0 ? `<div class="tooltip-aliases">Aliases: ${aliases.join(', ')}</div>` : ''}
-                    <div class="tooltip-type">Type: ${attr.type || 'string'}</div>
-                    ${attr.default !== undefined ? `<div class="tooltip-default">Default: ${attr.default}</div>` : ''}
-                    <div class="tooltip-description">${attr.description}</div>
-                </div>
-            `.trim();
+            // Build tooltip content as plain text (CSS attr() doesn't render HTML)
+            const tooltipParts = [attr.name];
+            if (aliases && aliases.length > 0) tooltipParts.push(`Aliases: ${aliases.join(', ')}`);
+            tooltipParts.push(`Type: ${attr.type || 'string'}`);
+            if (attr.default !== undefined) tooltipParts.push(`Default: ${attr.default}`);
+            tooltipParts.push(attr.description);
+            const tooltipContent = tooltipParts.join(' | ');
             
             let inputHTML = '';
             if (attr.type === 'boolean') {
@@ -3281,6 +3303,70 @@ class MechanicBrowser {
                     e.target.dataset.modified = 'true';
                     this.updateSkillLinePreview();
                 }
+            });
+        });
+
+        // Setup variable reference inputs (browse button)
+        formContainer.querySelectorAll('.variableref-browse-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const inputId = btn.dataset.inputId;
+                const input = document.getElementById(inputId);
+                
+                if (window.variableBrowser) {
+                    window.variableBrowser.open({
+                        mode: 'select',
+                        insertMode: 'reference',
+                        onSelect: (result) => {
+                            if (result && result.variable) {
+                                // Format: scope.variableName
+                                const scopePrefix = result.variable.scope ? result.variable.scope.toLowerCase() : 'caster';
+                                input.value = `<${scopePrefix}.var.${result.variable.name}>`;
+                                input.dataset.modified = 'true';
+                                this.updateSkillLinePreview();
+                            }
+                        }
+                    });
+                } else {
+                    console.warn('Variable Browser not available');
+                    notificationModal.show('Variable Browser is not initialized', 'warning');
+                }
+            });
+        });
+
+        // Setup variable reference inputs (create button)
+        formContainer.querySelectorAll('.variableref-create-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const inputId = btn.dataset.inputId;
+                const input = document.getElementById(inputId);
+                
+                if (window.VariableBuilder) {
+                    window.VariableBuilder.open({
+                        onSave: (variable) => {
+                            if (variable) {
+                                // Format the variable reference
+                                const scopePrefix = variable.scope ? variable.scope.toLowerCase() : 'caster';
+                                input.value = `<${scopePrefix}.var.${variable.name}>`;
+                                input.dataset.modified = 'true';
+                                this.updateSkillLinePreview();
+                            }
+                        }
+                    });
+                } else {
+                    console.warn('Variable Builder not available');
+                    notificationModal.show('Variable Builder is not initialized', 'warning');
+                }
+            });
+        });
+
+        // Setup variable reference input changes
+        formContainer.querySelectorAll('.variableref-input').forEach(input => {
+            input.addEventListener('input', (e) => {
+                e.target.dataset.modified = 'true';
+                this.updateSkillLinePreview();
             });
         });
 

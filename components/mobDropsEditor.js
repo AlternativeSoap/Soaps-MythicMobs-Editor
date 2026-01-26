@@ -460,6 +460,9 @@ class MobDropsEditor {
             `;
         }
         
+        // Special handling for variable fields - add Browse button
+        const isVariableField = attr.name === 'var' || attr.name === 'variable';
+        
         let inputHtml;
         if (attr.type === 'textarea') {
             inputHtml = `<textarea class="option-input" id="${fieldId}" rows="1" 
@@ -469,13 +472,23 @@ class MobDropsEditor {
                         value="${value || ''}" placeholder="${attr.placeholder || ''}"
                         ${attr.min !== undefined ? `min="${attr.min}"` : ''}
                         ${attr.max !== undefined ? `max="${attr.max}"` : ''}>`;
+        } else if (isVariableField) {
+            // Variable field with browse button
+            inputHtml = `
+                <div class="variable-input-group">
+                    <input type="text" class="option-input" id="${fieldId}" 
+                        value="${value || ''}" placeholder="${attr.placeholder || 'caster.variablename'}">
+                    <button type="button" class="btn btn-sm btn-browse-variable" data-input-id="${fieldId}" title="Browse Variables">
+                        <i class="fas fa-database"></i>
+                    </button>
+                </div>`;
         } else {
             inputHtml = `<input type="text" class="option-input" id="${fieldId}" 
                         value="${value || ''}" placeholder="${attr.placeholder || ''}">`;
         }
         
         return `
-            <div class="option-item" data-namespace="${namespace}" data-field="${attr.name}">
+            <div class="option-item${isVariableField ? ' variable-field' : ''}" data-namespace="${namespace}" data-field="${attr.name}">
                 <label>${attr.label}${attr.required ? '<span class="req">*</span>' : ''}</label>
                 ${inputHtml}
             </div>
@@ -961,6 +974,43 @@ class MobDropsEditor {
     }
     
     attachFieldListeners(modal) {
+        // Variable Browser buttons
+        modal.querySelectorAll('.btn-browse-variable').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const inputId = btn.dataset.inputId;
+                const input = modal.querySelector(`#${inputId}`);
+                if (!input) return;
+                
+                // Initialize Variable Browser if needed
+                if (!window.variableBrowser && typeof VariableBrowser !== 'undefined') {
+                    window.variableBrowser = new VariableBrowser();
+                }
+                
+                if (window.variableBrowser) {
+                    window.variableBrowser.open({
+                        mode: 'placeholder', // Return placeholder format
+                        filter: { type: 'ITEM' }, // Only show ITEM type variables
+                        onSelect: (result) => {
+                            if (result && result.placeholder) {
+                                // Extract scope.name from placeholder <scope.var.name>
+                                const match = result.placeholder.match(/<(\w+)\.var\.([^>|]+)/);
+                                if (match) {
+                                    input.value = `${match[1]}.${match[2]}`;
+                                } else {
+                                    // Fallback: just use the variable name with scope
+                                    const scope = result.variable?.scope?.toLowerCase() || 'caster';
+                                    input.value = `${scope}.${result.variable?.name || 'variablename'}`;
+                                }
+                                input.dispatchEvent(new Event('input', { bubbles: true }));
+                            }
+                        }
+                    });
+                } else {
+                    this.editor?.showToast?.('Variable Browser not available', 'warning');
+                }
+            });
+        });
+        
         // Glow color preview update
         const glowColorSelect = modal.querySelector('#drop-fancyAttributes-itemglowcolor');
         const glowColorPreview = modal.querySelector('#drop-fancyAttributes-itemglowcolor-preview');

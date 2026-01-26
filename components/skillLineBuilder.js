@@ -338,6 +338,19 @@ class SkillLineBuilder {
                             ${this.createConditionCard()}
                             ${this.createModifiers()}
                         </div>
+                        
+                        <div class="quick-tools-bar">
+                            <span class="tools-label"><i class="fas fa-toolbox"></i> Quick Tools</span>
+                            <button class="btn btn-sm btn-tool btn-variable" id="btnOpenVariableBrowser" title="Browse Variables (Alt+V)">
+                                <i class="fas fa-database"></i> Variables
+                            </button>
+                            <button class="btn btn-sm btn-tool btn-create-var" id="btnCreateVariable" title="Create New Variable (Alt+N)">
+                                <i class="fas fa-plus-circle"></i> New Variable
+                            </button>
+                            <button class="btn btn-sm btn-tool btn-placeholder" id="btnOpenPlaceholderBrowser" title="Browse Placeholders (Alt+P)">
+                                <i class="fas fa-code"></i> Placeholders
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="preview-panel">
@@ -353,13 +366,13 @@ class SkillLineBuilder {
                                 <span class="preview-placeholder">
                                     <i class="fas fa-hammer"></i>
                                     <p>Your skill line will appear here</p>
-                                    <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(124, 58, 237, 0.1); border-radius: 6px; font-size: 0.75rem; color: var(--text-tertiary);">
-                                        <strong style="color: var(--accent-primary); display: block; margin-bottom: 0.5rem;">💡 Quick Tips:</strong>
-                                        <div style="text-align: left; line-height: 1.6;">
-                                            • Start by selecting a <strong>Mechanic</strong><br>
-                                            • Use <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px; font-size: 0.7rem;">Alt+M</kbd> for mechanics browser<br>
-                                            • Use <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px; font-size: 0.7rem;">Alt+T</kbd> for targeters<br>
-                                            • Press <kbd style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px; font-size: 0.7rem;">Ctrl+Enter</kbd> to add to queue
+                                    <div class="preview-tips">
+                                        <strong>💡 Quick Tips:</strong>
+                                        <div class="tips-content">
+                                            • Start by selecting a&nbsp;<strong>Mechanic</strong><br>
+                                            • Use <kbd>Alt+M</kbd> for mechanics<br>
+                                            • Use <kbd>Alt+T</kbd> for targeters<br>
+                                            • Press <kbd>Ctrl+Enter</kbd> to add
                                         </div>
                                     </div>
                                 </span>
@@ -683,6 +696,11 @@ class SkillLineBuilder {
             'btnClearTrigger': () => this.clearTrigger(),
             'btnAddCondition': () => this.openConditionEditor(),
             
+            // Quick Tools
+            'btnOpenVariableBrowser': () => this.openVariableBrowser(),
+            'btnCreateVariable': () => this.openVariableBuilder(),
+            'btnOpenPlaceholderBrowser': () => this.openPlaceholderBrowser(),
+            
             // Preview
             'btnCopyPreview': () => this.copyPreview(),
             'btnReset': () => this.resetCurrentLine(),
@@ -788,6 +806,27 @@ class SkillLineBuilder {
             return;
         }
         
+        // Variable Browser (Alt+V)
+        if (e.altKey && e.key === 'v') {
+            e.preventDefault();
+            this.openVariableBrowser();
+            return;
+        }
+        
+        // Create Variable (Alt+B for Build)
+        if (e.altKey && e.key === 'b') {
+            e.preventDefault();
+            this.openVariableBuilder();
+            return;
+        }
+        
+        // Placeholder Browser (Alt+H for Helper/placeholders)
+        if (e.altKey && e.key === 'h') {
+            e.preventDefault();
+            this.openPlaceholderBrowser();
+            return;
+        }
+        
         // Show Keyboard Shortcuts (F1)
         if (e.key === 'F1') {
             e.preventDefault();
@@ -810,6 +849,9 @@ class SkillLineBuilder {
             { keys: 'Alt+M', description: 'Open mechanic browser' },
             { keys: 'Alt+T', description: 'Open targeter browser' },
             { keys: 'Alt+C', description: 'Open condition editor' },
+            { keys: 'Alt+V', description: 'Open variable browser' },
+            { keys: 'Alt+B', description: 'Build new variable' },
+            { keys: 'Alt+H', description: 'Open placeholder helper' },
             { keys: 'Ctrl+Q', description: 'Toggle queue panel' },
             { keys: 'F1', description: 'Show this help' }
         ];
@@ -1317,7 +1359,7 @@ class SkillLineBuilder {
             const line = this.generateSkillLine();
             
             if (line) {
-                // Show skill line with "- " prefix for visual accuracy (matches YAML output)
+                // Show skill line - the CSS adds the bullet emoji via ::before
                 this.dom.preview.innerHTML = `<code>- ${this.escapeHtml(line)}</code>`;
                 
                 // Context-aware button state validation
@@ -1330,25 +1372,25 @@ class SkillLineBuilder {
                 this.dom.btnAddToQueue.disabled = !canAddToQueue;
                 this.dom.btnCopyPreview.disabled = false;
                 
-                // Add highlight animation for new content
-                this.dom.preview.parentElement.classList.add('new-content');
+                // Add highlight animation for new content (on the preview-code element itself)
+                this.dom.preview.classList.add('new-content');
                 setTimeout(() => {
-                    this.dom.preview.parentElement.classList.remove('new-content');
-                }, 600);
-                
-                // Auto-scroll to show new content (smooth)
-                const previewContainer = this.dom.preview.closest('.preview-container');
-                if (previewContainer && previewContainer.scrollHeight > previewContainer.clientHeight) {
-                    previewContainer.scrollTo({
-                        top: previewContainer.scrollHeight,
-                        behavior: 'smooth'
-                    });
-                }
+                    this.dom.preview.classList.remove('new-content');
+                }, 500);
             } else {
                 this.dom.preview.innerHTML = `
                     <span class="preview-placeholder">
                         <i class="fas fa-hammer"></i>
                         <p>Your skill line will appear here</p>
+                        <div class="preview-tips">
+                            <strong>💡 Quick Tips:</strong>
+                            <div class="tips-content">
+                                • Start by selecting a&nbsp;<strong>Mechanic</strong><br>
+                                • Use <kbd>Alt+M</kbd> for mechanics<br>
+                                • Use <kbd>Alt+T</kbd> for targeters<br>
+                                • Press <kbd>Ctrl+Enter</kbd> to add
+                            </div>
+                        </div>
                     </span>
                 `;
                 this.dom.btnAddToQueue.disabled = true;
@@ -2089,6 +2131,149 @@ class SkillLineBuilder {
                 }
             }
         });
+    }
+    
+    /**
+     * Open Variable Browser
+     * Opens the variable browser for browsing/selecting pack variables
+     * Context-aware: filters and suggests based on mob/skill context
+     */
+    openVariableBrowser() {
+        // Check if VariableBrowser is available
+        if (typeof VariableBrowser === 'undefined') {
+            console.warn('VariableBrowser not available');
+            return;
+        }
+        
+        const context = this.state.context; // 'mob' or 'skill'
+        const currentMechanic = this.state.currentLine?.mechanic?.name?.toLowerCase() || '';
+        
+        // Determine if we're in a variable mechanic context
+        const isVariableMechanic = ['setvariable', 'setvar', 'var', 'variableadd', 'variablesubtract', 
+            'variablemath', 'setvariablelocation', 'variableunset', 'variablemove'].includes(currentMechanic);
+        
+        // Use the global instance (class-based singleton)
+        if (!window.variableBrowser) {
+            console.warn('Variable Browser not initialized');
+            return;
+        }
+        
+        window.variableBrowser.open({
+            mode: 'select',
+            insertMode: isVariableMechanic ? 'reference' : 'placeholder', // Reference mode for var mechanics
+            context: context, // Pass context for filtering
+            suggestScope: context === 'mob' ? 'CASTER' : 'SKILL', // Default scope suggestion
+            parentZIndex: (this.currentZIndex || 10000) + 20,
+            onSelect: (result) => {
+                if (result) {
+                    if (isVariableMechanic && result.variable) {
+                        // For variable mechanics, insert as scope.name format
+                        const varRef = `${result.variable.scope.toLowerCase()}.${result.variable.name}`;
+                        this.insertTextAtCursor(varRef);
+                    } else if (result.placeholder) {
+                        // Insert the placeholder
+                        this.insertTextAtCursor(result.placeholder);
+                    }
+                }
+            }
+        });
+    }
+    
+    /**
+     * Open Variable Builder
+     * Opens the variable builder wizard for creating new variables
+     */
+    openVariableBuilder() {
+        // Check if VariableBuilder is available
+        if (typeof VariableBuilder === 'undefined') {
+            console.warn('VariableBuilder not available');
+            return;
+        }
+        
+        const context = this.state.context;
+        
+        VariableBuilder.open({
+            mode: 'create',
+            scope: context === 'mob' ? 'CASTER' : 'SKILL', // Use 'scope' not 'defaultScope'
+            parentZIndex: (this.currentZIndex || 10000) + 25,
+            onSave: (result) => {
+                if (result) {
+                    // Optionally insert the created variable
+                    if (result.placeholder) {
+                        this.insertTextAtCursor(result.placeholder);
+                    }
+                    
+                    // Show success message
+                    if (this.editor && this.editor.showToast) {
+                        this.editor.showToast(`Variable "${result.name}" created!`, 'success');
+                    }
+                    
+                    // Register with VariableManager
+                    if (window.variableManager) {
+                        window.variableManager.registerVariable(result);
+                    }
+                }
+            }
+        });
+    }
+    
+    /**
+     * Open Placeholder Browser
+     * Opens the placeholder browser for browsing/selecting placeholders
+     */
+    openPlaceholderBrowser() {
+        // Use the global instance (class-based singleton)
+        if (!window.placeholderBrowser) {
+            console.warn('PlaceholderBrowser not initialized');
+            return;
+        }
+        
+        window.placeholderBrowser.open({
+            parentZIndex: (this.currentZIndex || 10000) + 20,
+            onSelect: (placeholder) => {
+                if (placeholder) {
+                    // Insert the placeholder at cursor
+                    this.insertTextAtCursor(placeholder);
+                }
+            }
+        });
+    }
+    
+    /**
+     * Insert text at the cursor position in the current focused input
+     * or append to the mechanic/current component
+     * @param {string} text - Text to insert
+     */
+    insertTextAtCursor(text) {
+        if (!text) return;
+        
+        // Find the currently focused input
+        const focusedInput = document.activeElement;
+        
+        if (focusedInput && (focusedInput.tagName === 'INPUT' || focusedInput.tagName === 'TEXTAREA')) {
+            // Insert at cursor position
+            const start = focusedInput.selectionStart || 0;
+            const end = focusedInput.selectionEnd || 0;
+            const value = focusedInput.value;
+            
+            focusedInput.value = value.substring(0, start) + text + value.substring(end);
+            focusedInput.selectionStart = focusedInput.selectionEnd = start + text.length;
+            focusedInput.focus();
+            
+            // Trigger input event to update state
+            focusedInput.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+            // Copy to clipboard as fallback
+            navigator.clipboard.writeText(text).then(() => {
+                console.log('Copied to clipboard:', text);
+                // Show a toast notification if available
+                if (this.editor && this.editor.showToast) {
+                    this.editor.showToast('Copied to clipboard!', 'success');
+                }
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
     }
     
     /**

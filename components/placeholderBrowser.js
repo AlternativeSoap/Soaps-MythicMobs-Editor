@@ -221,10 +221,17 @@ class PlaceholderBrowser {
         }
     }
     
-    show(callback) {
+    show(callback, options = {}) {
         this.onSelectCallback = callback;
         const overlay = document.getElementById('placeholderBrowserOverlay');
         if (overlay) {
+            // Handle z-index to ensure modal appears above parent
+            if (options.parentZIndex) {
+                overlay.style.zIndex = options.parentZIndex + 100;
+            } else {
+                overlay.style.zIndex = '10200';
+            }
+            
             overlay.classList.remove('hidden');
             this.isOpen = true;
             this.renderPlaceholders();
@@ -234,6 +241,16 @@ class PlaceholderBrowser {
                 document.getElementById('placeholderSearchInput')?.focus();
             }, 100);
         }
+    }
+    
+    /**
+     * Alias for show() for compatibility with other browsers
+     * @param {Object} options - Configuration options
+     * @param {Function} options.onSelect - Callback when placeholder is selected
+     * @param {number} options.parentZIndex - Z-index of parent modal
+     */
+    open(options = {}) {
+        this.show(options.onSelect, options);
     }
     
     hide() {

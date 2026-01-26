@@ -159,7 +159,8 @@ const PLACEHOLDERS_DATA = {
         { placeholder: '<utils.epoch.millis>', description: 'Returns current epoch milliseconds', example: 'setvariable{var=millis;val=<utils.epoch.millis>}' },
         { placeholder: '<utils.epoch.ticks>', description: 'Returns current epoch in ticks', example: 'setvariable{var=ticks;val=<utils.epoch.ticks>}' },
         { placeholder: '<skill.power>', description: 'Returns the power of the current metaskill', example: 'damage{a=<skill.power>*10}' },
-        { placeholder: '<skill.targets>', description: 'Returns the amount of inherited targets', example: 'message{m="Targets: <skill.targets>"}' }
+        { placeholder: '<skill.targets>', description: 'Returns the amount of inherited targets', example: 'message{m="Targets: <skill.targets>"}' },
+        { placeholder: '<centertext>', description: 'NEW 5.11.0: Experimental placeholder for centering text in chat/messages', example: 'message{m="<centertext>Centered!"}', experimental: true }
     ],
 
     // Item Placeholders
@@ -346,6 +347,27 @@ const PLACEHOLDERS_DATA = {
             { keyword: '.union.{bool}', description: 'Logical OR', example: '<var.flag.union.true>' },
             { keyword: '.intersection.{bool}', description: 'Logical AND', example: '<var.flag.intersection.true>' },
             { keyword: '.difference.{bool}', description: 'True if A and not B', example: '<var.flag.difference.false>' }
+        ],
+        long: [
+            { keyword: '.add.{n}', description: 'Add value', example: '<var.epoch.add.1000>' },
+            { keyword: '.sub.{n}', description: 'Subtract value', example: '<var.epoch.sub.500>' },
+            { keyword: '.mul.{n}', description: 'Multiply value', example: '<var.epoch.mul.2>' },
+            { keyword: '.div.{n}', description: 'Divide value', example: '<var.epoch.div.2>' },
+            { keyword: '.abs', description: 'Absolute value', example: '<var.epoch.abs>' }
+        ],
+        double: [
+            { keyword: '.add.{n}', description: 'Add value', example: '<var.precise.add.0.001>' },
+            { keyword: '.sub.{n}', description: 'Subtract value', example: '<var.precise.sub.0.001>' },
+            { keyword: '.mul.{n}', description: 'Multiply value', example: '<var.precise.mul.1.5>' },
+            { keyword: '.div.{n}', description: 'Divide value', example: '<var.precise.div.2>' },
+            { keyword: '.abs', description: 'Absolute value', example: '<var.precise.abs>' },
+            { keyword: '.round', description: 'Round to long', example: '<var.precise.round>' },
+            { keyword: '.precision.{n}', description: 'Set decimal precision', example: '<var.precise.precision.4>' }
+        ],
+        set: [
+            { keyword: '.size', description: 'Number of elements', example: '<var.tags.size>' },
+            { keyword: '.join.{delimiter}', description: 'Join elements with delimiter', example: '<var.tags.join.,>' },
+            { keyword: '.contains.{element}', description: 'Check if set contains element', example: '<var.tags.contains.fire>' }
         ],
         list: [
             { keyword: '.size', description: 'Number of elements', example: '<var.items.size>' },

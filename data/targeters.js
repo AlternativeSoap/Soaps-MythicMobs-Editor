@@ -186,6 +186,44 @@ const TARGETERS_DATA = {
             requirements: []
         },
 
+        // NEW 5.11.0 TARGETERS
+        {
+            id: 'EscapeLocation',
+            name: 'EscapeLocation',
+            aliases: ['escape', 'endermanescape'],
+            category: 'location_single',
+            description: 'NEW 5.11.0: Targets a nearby Enderman-like escape location. Finds a safe location to teleport to, similar to how Endermen escape.',
+            attributes: [
+                { name: 'radius', alias: 'r', type: 'number', default: 16, required: false, description: 'Maximum radius to search for escape location' },
+                { name: 'minRadius', alias: 'mr', type: 'number', default: 4, required: false, description: 'Minimum radius for escape location' }
+            ],
+            examples: ['@EscapeLocation', '@EscapeLocation{r=20;mr=8}'],
+            requirements: []
+        },
+        {
+            id: 'EntitiesNearPin',
+            name: 'EntitiesNearPin',
+            aliases: ['livingNearPin', 'LENP'],
+            category: 'multi_entity',
+            description: 'NEW 5.11.0: Targets all entities around a pin location. Use with forEachPin mechanic.',
+            attributes: [
+                { name: 'pin', alias: 'p', type: 'string', default: '', required: true, description: 'The pin variable name' },
+                { name: 'radius', alias: 'r', type: 'number', default: 5, required: false, description: 'Search radius around pin' }
+            ],
+            examples: ['@EntitiesNearPin{pin=savedLoc;r=10}', '@LENP{p=waypoint;r=5}'],
+            requirements: []
+        },
+        {
+            id: 'Pin',
+            name: 'Pin',
+            aliases: ['pinLocation', 'activePin'],
+            category: 'location_single',
+            description: 'NEW 5.11.0: Targets the active pin location exposed by forEachPin mechanic. Use inside skill called by forEachPin.',
+            attributes: [],
+            examples: ['@Pin'],
+            requirements: []
+        },
+
         // MULTI ENTITY TARGETERS
         {
             id: 'LivingInCone',
@@ -669,9 +707,11 @@ const TARGETERS_DATA = {
             description: 'Target points to form a ring of locations',
             attributes: [
                 { name: 'radius', alias: 'r', type: 'number', default: 5, required: false, description: 'The radius of the ring' },
-                { name: 'points', alias: 'p', type: 'number', default: 8, required: false, description: 'Number of points in the ring' }
+                { name: 'points', alias: 'p', type: 'number', default: 8, required: false, description: 'Number of points in the ring' },
+                { name: 'surface', alias: 'surf', type: 'boolean', default: false, required: false, description: 'NEW 5.11.0: Only target locations on surfaces' },
+                { name: 'surfaceTolerance', alias: 'st', type: 'number', default: 1, required: false, description: 'NEW 5.11.0: Tolerance for surface detection' }
             ],
-            examples: ['@Ring{r=5;p=12}'],
+            examples: ['@Ring{r=5;p=12}', '@Ring{r=10;p=20;surface=true}'],
             requirements: []
         },
         {
@@ -683,7 +723,9 @@ const TARGETERS_DATA = {
             attributes: [
                 { name: 'angle', alias: 'a', type: 'number', default: 90, required: false, description: 'The angle of the cone' },
                 { name: 'range', alias: 'r', type: 'number', default: 10, required: false, description: 'The range of the cone' },
-                { name: 'points', alias: 'p', type: 'number', default: 10, required: false, description: 'Number of points' }
+                { name: 'points', alias: 'p', type: 'number', default: 10, required: false, description: 'Number of points' },
+                { name: 'surface', alias: 'surf', type: 'boolean', default: false, required: false, description: 'NEW 5.11.0: Only target locations on surfaces' },
+                { name: 'surfaceTolerance', alias: 'st', type: 'number', default: 1, required: false, description: 'NEW 5.11.0: Tolerance for surface detection' }
             ],
             examples: ['@Cone{a=45;r=10;p=20}'],
             requirements: []
@@ -696,7 +738,9 @@ const TARGETERS_DATA = {
             description: 'Targets points in a sphere around the caster',
             attributes: [
                 { name: 'radius', alias: 'r', type: 'number', default: 5, required: false, description: 'The radius of the sphere' },
-                { name: 'points', alias: 'p', type: 'number', default: 20, required: false, description: 'Number of points' }
+                { name: 'points', alias: 'p', type: 'number', default: 20, required: false, description: 'Number of points' },
+                { name: 'surface', alias: 'surf', type: 'boolean', default: false, required: false, description: 'NEW 5.11.0: Only target locations on surfaces' },
+                { name: 'surfaceTolerance', alias: 'st', type: 'number', default: 1, required: false, description: 'NEW 5.11.0: Tolerance for surface detection' }
             ],
             examples: ['@Sphere{r=5;p=30}'],
             requirements: []
@@ -711,7 +755,9 @@ const TARGETERS_DATA = {
                 { name: 'x', alias: '', type: 'number', default: 5, required: false, description: 'X size' },
                 { name: 'y', alias: '', type: 'number', default: 5, required: false, description: 'Y size' },
                 { name: 'z', alias: '', type: 'number', default: 5, required: false, description: 'Z size' },
-                { name: 'points', alias: 'p', type: 'number', default: 20, required: false, description: 'Number of points' }
+                { name: 'points', alias: 'p', type: 'number', default: 20, required: false, description: 'Number of points' },
+                { name: 'surface', alias: 'surf', type: 'boolean', default: false, required: false, description: 'NEW 5.11.0: Only target locations on surfaces' },
+                { name: 'surfaceTolerance', alias: 'st', type: 'number', default: 1, required: false, description: 'NEW 5.11.0: Tolerance for surface detection' }
             ],
             examples: ['@Rectangle{x=10;y=5;z=10;p=30}'],
             requirements: []
@@ -727,7 +773,9 @@ const TARGETERS_DATA = {
                 { name: 'radius', alias: 'r,maxradius,maxr', type: 'number', default: 5, required: false, description: 'The radius in which target points will be generated' },
                 { name: 'minradius', alias: 'minr', type: 'number', default: 0, required: false, description: 'The minimum radius in which target points will be generated' },
                 { name: 'spacing', alias: 's', type: 'number', default: 0, required: false, description: 'The minimum amount of space between selected targets' },
-                { name: 'onSurface', alias: 'onsurf,os', type: 'boolean', default: false, required: false, description: 'Only target locations above solid blocks' }
+                { name: 'onSurface', alias: 'onsurf,os', type: 'boolean', default: false, required: false, description: 'Only target locations above solid blocks' },
+                { name: 'surface', alias: 'surf', type: 'boolean', default: false, required: false, description: 'NEW 5.11.0: Only target locations on surfaces' },
+                { name: 'surfaceTolerance', alias: 'st', type: 'number', default: 1, required: false, description: 'NEW 5.11.0: Tolerance for surface detection' }
             ],
             examples: ['@RandomLocationsNearCaster{a=5;r=2}'],
             requirements: []

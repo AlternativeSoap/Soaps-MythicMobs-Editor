@@ -197,6 +197,11 @@ class YAMLExporter {
             }
         }
         
+        // Variables - if any set
+        if (mob.variables && Object.keys(mob.variables).length > 0) {
+            yaml += this.exportVariablesSection(mob.variables);
+        }
+        
         // DamageModifiers - if any set
         if (mob.damageModifiers) {
             const hasModifiers = Array.isArray(mob.damageModifiers) ? 
@@ -1165,6 +1170,42 @@ class YAMLExporter {
                 yaml += `  - ${item} ${slot}\n`;
             }
         });
+        return yaml;
+    }
+    
+    /**
+     * Export Variables section
+     * Handles different value types (int/, float/, string/)
+     */
+    exportVariablesSection(variables) {
+        if (!variables || Object.keys(variables).length === 0) return '';
+        
+        let yaml = `  Variables:\n`;
+        Object.entries(variables).forEach(([name, value]) => {
+            // Format value appropriately
+            let formattedValue;
+            
+            if (typeof value === 'number') {
+                formattedValue = value;
+            } else if (typeof value === 'boolean') {
+                formattedValue = value;
+            } else if (typeof value === 'string') {
+                // Check if it has a type prefix already
+                if (value.startsWith('int/') || value.startsWith('float/') || value.startsWith('string/')) {
+                    formattedValue = value;
+                } else if (value.includes(' ') || value.includes(':') || value.includes('#')) {
+                    // Quote strings that need it
+                    formattedValue = `"${value.replace(/"/g, '\\"')}"`;
+                } else {
+                    formattedValue = value;
+                }
+            } else {
+                formattedValue = String(value);
+            }
+            
+            yaml += `    ${name}: ${formattedValue}\n`;
+        });
+        
         return yaml;
     }
     

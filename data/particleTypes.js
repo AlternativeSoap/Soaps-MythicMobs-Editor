@@ -275,7 +275,16 @@ const PARTICLE_TYPES = {
         'sweep_attack': { dataType: null, description: 'Sweep attack particle' },
         'tinted_leaves': { dataType: null, description: 'Tinted leaves particle' },
         'totem_of_undying': { dataType: null, description: 'Totem activation particle' },
-        'trail': { dataType: null, description: 'Trail particle' },
+        'trail': { 
+            dataType: 'Trail', 
+            description: 'NEW 5.11.0: Trail particle with customizable color, duration, and source targeter',
+            requiresColor: true,
+            attributes: {
+                color: { type: 'color', default: '#FFFFFF', description: 'Trail color (hex format)' },
+                duration: { type: 'number', default: 20, description: 'Duration of the trail in ticks' },
+                source: { type: 'targeter', default: '@Self', description: 'Source targeter for the trail origin' }
+            }
+        },
         'trial_omen': { dataType: null, description: 'Trial omen particle' },
         'trial_spawner_detection': { dataType: null, description: 'Trial spawner detection' },
         'trial_spawner_detection_ominous': { dataType: null, description: 'Ominous trial spawner detection' },

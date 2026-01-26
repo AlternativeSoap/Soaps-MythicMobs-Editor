@@ -78,6 +78,9 @@
     <link rel="stylesheet" href="styles/skillLineBuilder.css">
     <link rel="stylesheet" href="styles/mechanicBrowser.css">
     <link rel="stylesheet" href="styles/placeholderBrowser.css">
+    <link rel="stylesheet" href="styles/variableBrowser.css">
+    <link rel="stylesheet" href="styles/variableBuilder.css">
+    <link rel="stylesheet" href="styles/mobVariablesEditor.css">
     <link rel="stylesheet" href="styles/spawnerEditor.css">
     <link rel="stylesheet" href="styles/statsEditor.css">
     <link rel="stylesheet" href="styles/adminPanel.css">
@@ -1318,6 +1321,11 @@
     <script src="components/mechanicBrowser.js"></script>
     <script src="components/skillBrowser.js"></script>
     <script src="data/placeholders.js"></script>
+    <script src="data/variableData.js"></script>
+    <script src="components/variableManager.js"></script>
+    <script src="components/variableBrowser.js"></script>
+    <script src="components/variableBuilder.js"></script>
+    <script src="components/mobVariablesEditor.js"></script>
     <script src="components/placeholderBrowser.js"></script>
     <script src="components/spawnerEditor.js"></script>
     <script src="components/statsEditor.js"></script>
@@ -1545,6 +1553,7 @@
                 // Only proceed if the template system is ready
                 if (!window._adminSystemReady || !window.authManager) {
                     window._pendingAdminInit = true;
+                    console.log('⏳ Template system not ready, deferring admin initialization...');
                     return;
                 }
                 
@@ -1561,21 +1570,24 @@
                 }
                 
                 // Don't reinitialize if already initialized for this user
-                if (window.adminManager?.currentUserId === user.id) {
+                if (window.adminManager?.currentUserId === user.id && window.adminManager._uiInitialized) {
                     console.log('ℹ️ Admin system already initialized for this user');
                     return;
                 }
                 
-                window.adminManager = new AdminManager(window.supabaseClient, window.authManager);
-                await window.adminManager.initialize();
-                window.adminManager.currentUserId = user.id; // Track which user we initialized for
+                // Initialize AdminManager if not already done or for new user
+                if (!window.adminManager || window.adminManager.currentUserId !== user.id) {
+                    window.adminManager = new AdminManager(window.supabaseClient, window.authManager);
+                    await window.adminManager.initialize();
+                    window.adminManager.currentUserId = user.id; // Track which user we initialized for
+                }
                 
                 // Create admin panel if user is admin
                 if (window.adminManager.isAdmin) {
-                    window.adminPanel = new AdminPanel(window.adminManager, window.templateManager, window.authManager);
-                    
-                    // Initialize enhanced admin panel features
-                    window.adminPanelEnhanced = new AdminPanelEnhanced(window.adminPanel);
+                    if (!window.adminPanel) {
+                        window.adminPanel = new AdminPanel(window.adminManager, window.templateManager, window.authManager);
+                        window.adminPanelEnhanced = new AdminPanelEnhanced(window.adminPanel);
+                    }
                     
                     // Add admin role label to user-type (replaces email badge to avoid duplication)
                     const userType = document.getElementById('user-type');
@@ -1610,8 +1622,12 @@
                             
                             // Insert before login button
                             userDropdown.insertBefore(adminBtn, loginBtn);
+                            console.log('✅ Admin Panel button added to dropdown');
                         }
                     }
+                    
+                    // Mark UI as initialized
+                    window.adminManager._uiInitialized = true;
                 } else {
                     // Add profile button for non-admin authenticated users
                     const userDropdown = document.getElementById('user-dropdown');
@@ -1670,12 +1686,30 @@
                     
                     // Initialize on any event that provides a valid session
                     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session?.user) {
-                        // Small delay to ensure everything is ready
+                        // Use progressive delays: quick retry for INITIAL_SESSION, longer for others
+                        const delay = event === 'INITIAL_SESSION' ? 200 : 100;
+                        
                         setTimeout(() => {
                             window.initializeAdminSystem().catch(error => {
                                 console.error('❌ Admin initialization failed:', error);
                             });
-                        }, 100);
+                        }, delay);
+                        
+                        // Add additional retry for INITIAL_SESSION to handle edge cases
+                        if (event === 'INITIAL_SESSION') {
+                            setTimeout(() => {
+                                if (window.authManager?.isAuthenticated() && window.adminManager?.isAdmin) {
+                                    const adminBtn = document.querySelector('.admin-panel-btn');
+                                    if (!adminBtn) {
+                                        console.log('⚠️ INITIAL_SESSION: Admin Panel button still missing, forcing retry...');
+                                        window.adminManager._uiInitialized = false;
+                                        window.initializeAdminSystem().catch(error => {
+                                            console.error('❌ INITIAL_SESSION retry failed:', error);
+                                        });
+                                    }
+                                }
+                            }, 800);
+                        }
                     }
                     
                     // Clean up admin UI when user signs out
@@ -1717,19 +1751,28 @@
                     
                     // Mark admin system as ready
                     window._adminSystemReady = true;
+                    console.log('✅ Template system ready, initializing admin system...');
                     
-                    // If there was a pending admin init (from early auth event), run it now
-                    if (window._pendingAdminInit) {
-                        window._pendingAdminInit = false;
-                        window.initializeAdminSystem().catch(error => {
-                            console.error('❌ Admin system initialization failed:', error);
-                        });
-                    } else {
-                        // No pending init, but still try to initialize (user might already be logged in)
-                        window.initializeAdminSystem().catch(error => {
-                            console.error('❌ Admin system initialization failed:', error);
-                        });
-                    }
+                    // Always try to initialize, regardless of pending flag
+                    // This ensures the admin panel appears on first load
+                    window._pendingAdminInit = false;
+                    window.initializeAdminSystem().catch(error => {
+                        console.error('❌ Admin system initialization failed:', error);
+                    });
+                    
+                    // Add a retry mechanism to ensure UI is added even if there's a timing issue
+                    setTimeout(() => {
+                        if (window.authManager?.isAuthenticated() && window.adminManager?.isAdmin) {
+                            const adminBtn = document.querySelector('.admin-panel-btn');
+                            if (!adminBtn) {
+                                console.log('⚠️ Admin Panel button missing, retrying initialization...');
+                                window.adminManager._uiInitialized = false;
+                                window.initializeAdminSystem().catch(error => {
+                                    console.error('❌ Retry admin system initialization failed:', error);
+                                });
+                            }
+                        }
+                    }, 500);
                     
                     // Update any existing SkillBuilderEditor instances with the new dependencies
                     if (window.editor.skillEditor?.skillBuilderEditor) {

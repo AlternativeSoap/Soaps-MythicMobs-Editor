@@ -85,6 +85,7 @@ class MobEditor {
                 ${isAdvanced ? this.renderHearingSection(mob) : ''}
                 ${isAdvanced ? this.renderDisguiseSection(mob) : ''}
                 ${isAdvanced ? this.renderEquipmentSection(mob) : ''}
+                ${isAdvanced ? this.renderVariablesSection(mob) : ''}
                 ${isAdvanced ? this.renderDamageModifiersSection(mob) : ''}
                 ${isAdvanced ? this.renderKillMessagesSection(mob) : ''}
                 ${isAdvanced ? this.renderAIGoalSelectorsSection(mob) : ''}
@@ -2741,6 +2742,31 @@ class MobEditor {
         `;
     }
     
+    /**
+     * Render the Variables section for mob-level variables
+     * @param {Object} mob - The mob data
+     * @returns {string} - HTML for the variables section
+     */
+    renderVariablesSection(mob) {
+        const isCollapsed = this.editor.state.justSwitchedToAdvanced !== false;
+        const variableCount = mob.variables ? Object.keys(mob.variables).length : 0;
+        
+        return `
+            <div class="card collapsible-card ${isCollapsed ? 'collapsed' : ''}">
+                <div class="card-header collapsible-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-database"></i> Variables
+                        <span class="count-badge">${variableCount}</span>
+                        <i class="fas fa-chevron-down collapse-icon"></i>
+                    </h3>
+                </div>
+                <div class="card-body collapsible-card-body">
+                    <div id="mob-variables-editor-container"></div>
+                </div>
+            </div>
+        `;
+    }
+    
     renderDamageModifiersSection(mob) {
         const isCollapsed = this.editor.state.justSwitchedToAdvanced !== false;
         return `
@@ -5220,6 +5246,26 @@ class MobEditor {
                 });
             }
             this.equipmentEditor.render();
+        }
+        
+        // Initialize Mob Variables Editor
+        const variablesContainer = document.getElementById('mob-variables-editor-container');
+        if (variablesContainer && typeof MobVariablesEditor !== 'undefined') {
+            // Ensure mob has Variables object
+            if (!this.currentMob.variables) {
+                this.currentMob.variables = {};
+            }
+            
+            MobVariablesEditor.init(variablesContainer, {
+                internalName: this.currentMob.name || 'Unknown',
+                Variables: this.currentMob.variables
+            }, (variables) => {
+                this.currentMob.variables = variables;
+                this.editor.markDirty();
+                // Update count badge
+                const badge = document.querySelector('.card-title .fas.fa-database')?.parentElement.querySelector('.count-badge');
+                if (badge) badge.textContent = variables ? Object.keys(variables).length : 0;
+            });
         }
         
         // Initialize Damage Modifiers Editor

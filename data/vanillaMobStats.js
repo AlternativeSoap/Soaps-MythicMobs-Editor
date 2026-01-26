@@ -365,6 +365,17 @@ const VANILLA_MOB_STATS = {
     "ILLUSIONER": {
         health: 32,
         damage: { min: 2, max: 5 }
+    },
+    
+    // ==================== NEW 1.21.10 MOBS ====================
+    
+    "COPPER_GOLEM": {
+        health: 20,
+        damage: { min: 0, max: 0 } // Non-combat mob, presses buttons
+    },
+    "MANNEQUIN": {
+        health: 20,
+        damage: { min: 0, max: 0 } // Display entity, no combat
     }
 };
 

@@ -5842,6 +5842,47 @@ body[data-mode="advanced"] .advanced-only {
     font-size: 0.8rem;
 }
 
+/* Variable Input Group (with browse button) */
+.variable-input-group {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+}
+
+.variable-input-group .option-input {
+    flex: 1;
+    border-radius: 6px 0 0 6px;
+}
+
+.variable-input-group .btn-browse-variable {
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 0 6px 6px 0;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+}
+
+.variable-input-group .btn-browse-variable:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.variable-input-group .btn-browse-variable:active {
+    transform: translateY(0);
+}
+
+.option-item.variable-field {
+    flex: 0 0 calc(50% - 8px);
+    min-width: 200px;
+}
+
 /* Toggle in Options */
 .option-toggle {
     display: flex;

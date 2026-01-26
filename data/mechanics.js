@@ -73,6 +73,7 @@ const MECHANICS_DATA = {
         utility: { name: 'Utility', color: '#06b6d4', icon: '🔧' },
         aura: { name: 'Auras', color: '#8b5cf6', icon: '🔮' },
         projectile: { name: 'Projectiles', color: '#ec4899', icon: '🎯' },
+        variables: { name: 'Variables', color: '#14b8a6', icon: '📊' },
         meta: { name: 'Meta Mechanics', color: '#9333ea', icon: '⚡' }
     },
 
@@ -92,10 +93,11 @@ const MECHANICS_DATA = {
                 { name: 'ignorearmor', alias: ['ia', 'i'], type: 'boolean', default: false, description: 'Whether to ignore armor' },
                 { name: 'preventknockback', alias: ['pkb', 'pk'], type: 'boolean', default: false, description: 'Whether to prevent knockback' },
                 { name: 'preventimmunity', alias: ['pi'], type: 'boolean', default: false, description: 'Whether to prevent immunity frames' },
-                { name: 'damagecause', alias: ['cause', 'type', 't'], type: 'string', default: 'ENTITY_ATTACK', description: 'The damage cause type' }
+                { name: 'damagecause', alias: ['cause', 'type', 't'], type: 'string', default: 'ENTITY_ATTACK', description: 'The damage cause type' },
+                { name: 'bonusdamagemodifiers', alias: ['bdm', 'bonusdamage'], type: 'string', default: '', description: 'NEW 5.11.0: Bonus damage modifiers (e.g., "FIRE 0.5, MAGIC 0.3")' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- damage{a=10} ', '- damage{amount=20;ia=true} ', '- damage{a=5;pkb=true;pi=true} ']
+            examples: ['- damage{a=10} ', '- damage{amount=20;ia=true} ', '- damage{a=5;pkb=true;pi=true} ', '- damage{a=10;bdm=FIRE 1.5} ']
         },
         {
             id: 'basedamage',
@@ -104,7 +106,8 @@ const MECHANICS_DATA = {
             category: 'damage',
             description: 'Deals damage based on the mob\'s configured damage value.',
             attributes: [
-                { name: 'multiplier', alias: ['m'], type: 'number', default: 1, description: 'Damage multiplier' }
+                { name: 'multiplier', alias: ['m'], type: 'number', default: 1, description: 'Damage multiplier' },
+                { name: 'bonusdamagemodifiers', alias: ['bdm', 'bonusdamage'], type: 'string', default: '', description: 'NEW 5.11.0: Bonus damage modifiers' }
             ],
             defaultTargeter: '@Target',
             examples: ['- basedamage{m=1.5} ']
@@ -116,7 +119,8 @@ const MECHANICS_DATA = {
             category: 'damage',
             description: 'Deals damage as a percentage of the target\'s max health.',
             attributes: [
-                { name: 'percent', alias: ['p', 'amount', 'a'], type: 'number', default: 0.1, description: 'Percentage of max health (0.1 = 10%)' }
+                { name: 'percent', alias: ['p', 'amount', 'a'], type: 'number', default: 0.1, description: 'Percentage of max health (0.1 = 10%)' },
+                { name: 'bonusdamagemodifiers', alias: ['bdm', 'bonusdamage'], type: 'string', default: '', description: 'NEW 5.11.0: Bonus damage modifiers' }
             ],
             defaultTargeter: '@Target',
             examples: ['- percentdamage{p=0.25} ', '- percentdamage{a=0.5} ']
@@ -607,6 +611,47 @@ const MECHANICS_DATA = {
         // ═══════════════════════════════════════════════════════════
         // AURA MECHANICS
         // ═══════════════════════════════════════════════════════════
+        {
+            id: 'fear',
+            name: 'fear',
+            aliases: ['fearaura'],
+            category: 'aura',
+            description: 'NEW in 5.11.0: Fear aura mechanic that causes targets (including players) to run around uncontrollably. Makes entities flee in random directions.',
+            attributes: [
+                { name: 'auraname', alias: ['aura', 'n', 'name'], type: 'string', default: 'fear', description: 'Name of the fear aura' },
+                { name: 'duration', alias: ['d', 't', 'ticks'], type: 'number', default: 100, description: 'Duration in ticks (20 ticks = 1 second)' },
+                { name: 'interval', alias: ['i'], type: 'number', default: 1, description: 'Tick interval for fear behavior' },
+                { name: 'onstartskill', alias: ['onstart', 'os'], type: 'skillref', default: '', description: 'Metaskill executed when fear starts' },
+                { name: 'ontickskill', alias: ['ontick', 'ot'], type: 'skillref', default: '', description: 'Metaskill executed every interval' },
+                { name: 'onendskill', alias: ['onend', 'oe'], type: 'skillref', default: '', description: 'Metaskill executed when fear ends' },
+                { name: 'charges', alias: ['c'], type: 'number', default: 0, description: 'Charges before fade' },
+                { name: 'maxstacks', alias: ['ms'], type: 'number', default: 1, description: 'Max times aura stacks on same entity' },
+                { name: 'refreshduration', alias: ['rd'], type: 'boolean', default: true, description: 'Refresh duration when reapplied' },
+                { name: 'cancelondeath', alias: ['cod'], type: 'boolean', default: true, description: 'Cancel if entity dies' }
+            ],
+            defaultTargeter: '@Target',
+            examples: [
+                '- fear{duration=100} @PlayersInRadius{r=10}',
+                '- fear{d=200;onTick=FearParticles} @Target',
+                '- fear{auraName=terrorAura;duration=60;interval=5} @LivingInRadius{r=8}'
+            ]
+        },
+        {
+            id: 'foreachpin',
+            name: 'forEachPin',
+            aliases: ['pinforeach', 'pinloop'],
+            category: 'meta',
+            description: 'NEW in 5.11.0: Executes a mechanic once per pin location stored in the specified pin variable. The active pin location is exposed via @Pin targeter.',
+            attributes: [
+                { name: 'pin', alias: ['p'], type: 'string', default: '', required: true, description: 'The pin variable name containing locations' },
+                { name: 'skill', alias: ['s', 'meta', 'm'], type: 'skillref', default: '', required: true, description: 'The metaskill to execute at each pin location' }
+            ],
+            defaultTargeter: '@Self',
+            examples: [
+                '- forEachPin{pin=savedLocations;skill=SpawnMobAtPin}',
+                '- forEachPin{p=waypoints;s=CreateParticle} @self'
+            ]
+        },
         {
             id: 'aura',
             name: 'aura',
@@ -1208,15 +1253,20 @@ const MECHANICS_DATA = {
         },
         {
             id: 'variableskill',
-            name: 'variableskill',
-            aliases: ['varskill'],
-            category: 'meta',
-            description: 'Executes a skill stored in a variable.',
+            name: 'VariableSkill',
+            aliases: ['varskill', 'vskill', 'skillvar'],
+            category: 'variables',
+            description: 'Executes a skill stored in a METASKILL type variable. The variable must contain a valid skill definition.',
             attributes: [
-                { name: 'var', alias: ['v', 'variable'], type: 'string', default: '', required: true, description: 'Variable containing skill name' }
+                { name: 'var', alias: ['v', 'variable', 'skill', 's'], type: 'string', default: '', required: true, description: 'Variable containing the skill (scope.name format)' },
+                { name: 'scope', alias: [], type: 'string', default: '', description: 'Variable scope if not in var name (SKILL, CASTER, TARGET, WORLD, GLOBAL)' }
             ],
             defaultTargeter: '@Target',
-            examples: ['- variableSkill{var=caster.skilltouse} ']
+            examples: [
+                '- variableskill{var=caster.stored_skill} @target',
+                '- variableskill{var=skill.dynamic_attack} @self',
+                '- variableskill{var=caster.phase_skill} @PIR{r=10}'
+            ]
         },
         {
             id: 'sudoskill',
@@ -4062,84 +4112,121 @@ const MECHANICS_DATA = {
         {
             id: 'variableadd',
             name: 'VariableAdd',
-            aliases: ['varadd'],
-            category: 'meta',
-            description: 'Adds to variable value.',
+            aliases: ['varadd', 'addvar'],
+            category: 'variables',
+            description: 'Adds a value to an existing numeric variable. The variable must already exist.',
             attributes: [
-                { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' },
-                { name: 'amount', alias: ['a'], type: 'number', default: 1, description: 'Amount to add' }
+                { name: 'var', alias: ['variable', 'v', 'name', 'n'], type: 'string', default: '', required: true, description: 'Variable name in scope.name format (e.g., caster.counter)' },
+                { name: 'amount', alias: ['a', 'value', 'val'], type: 'number', default: 1, description: 'Amount to add (supports placeholders)' },
+                { name: 'scope', alias: ['s'], type: 'string', default: '', description: 'Variable scope if not in var name (SKILL, CASTER, TARGET, WORLD, GLOBAL)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- variableadd{var=counter;amount=1} ']
+            examples: [
+                '- variableadd{var=caster.combo;amount=1} @self',
+                '- variableadd{var=caster.rage;amount=<damage>} @self',
+                '- variableadd{var=global.kills;amount=1} @self'
+            ]
         },
         {
             id: 'variablesubtract',
             name: 'VariableSubtract',
-            aliases: ['varsub'],
-            category: 'meta',
-            description: 'Subtracts from variable value.',
+            aliases: ['varsub', 'subvar'],
+            category: 'variables',
+            description: 'Subtracts a value from an existing numeric variable. The variable must already exist.',
             attributes: [
-                { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' },
-                { name: 'amount', alias: ['a'], type: 'number', default: 1, description: 'Amount to subtract' }
+                { name: 'var', alias: ['variable', 'v', 'name', 'n'], type: 'string', default: '', required: true, description: 'Variable name in scope.name format (e.g., caster.counter)' },
+                { name: 'amount', alias: ['a', 'value', 'val'], type: 'number', default: 1, description: 'Amount to subtract (supports placeholders)' },
+                { name: 'scope', alias: ['s'], type: 'string', default: '', description: 'Variable scope if not in var name (SKILL, CASTER, TARGET, WORLD, GLOBAL)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- variablesubtract{var=counter;amount=1} ']
+            examples: [
+                '- variablesubtract{var=caster.stacks;amount=1} @self',
+                '- variablesubtract{var=caster.mana;amount=25} @self',
+                '- variablesubtract{var=target.debuff_stacks;amount=1} @target'
+            ]
         },
         {
             id: 'variablemath',
             name: 'VariableMath',
-            aliases: ['varmath'],
-            category: 'meta',
-            description: 'Performs math on variable.',
+            aliases: ['varmath', 'mathvar'],
+            category: 'variables',
+            description: 'Performs a math equation and stores the result in a variable. Supports complex expressions with placeholders.',
             attributes: [
-                { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' },
-                { name: 'equation', alias: ['eq'], type: 'string', default: '', description: 'Math equation' }
+                { name: 'var', alias: ['variable', 'v', 'name', 'n'], type: 'string', default: '', required: true, description: 'Variable name to store result' },
+                { name: 'equation', alias: ['eq', 'e'], type: 'string', default: '', required: true, description: 'Math equation to evaluate (wrap in quotes if using placeholders)' },
+                { name: 'scope', alias: ['s'], type: 'string', default: '', description: 'Variable scope if not in var name (SKILL, CASTER, TARGET, WORLD, GLOBAL)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- variablemath{var=health;equation="<caster.var.health> * 2"} ']
+            examples: [
+                '- variablemath{var=caster.damage;equation="<caster.var.base_damage> * 1.5"} @self',
+                '- variablemath{var=caster.hp_percent;equation="(<caster.hp> / <caster.mhp>) * 100"} @self',
+                '- variablemath{var=skill.total;equation="<skill.var.a> + <skill.var.b>"} @self'
+            ]
         },
         {
             id: 'setvariable',
             name: 'SetVariable',
-            aliases: ['var'],
-            category: 'meta',
-            description: 'Sets variable value.',
+            aliases: ['var', 'setvar'],
+            category: 'variables',
+            description: 'Creates or updates a variable with the specified value. The most common variable operation in MythicMobs.',
             attributes: [
-                { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' },
-                { name: 'value', alias: ['val'], type: 'string', default: '', description: 'Value to set' }
+                { name: 'var', alias: ['variable', 'v', 'name', 'n'], type: 'string', default: '', required: true, description: 'Variable name in scope.name format (e.g., caster.phase)' },
+                { name: 'value', alias: ['val'], type: 'string', default: '', required: true, description: 'Value to set (supports placeholders and math expressions)' },
+                { name: 'type', alias: ['t'], type: 'string', default: 'INTEGER', description: 'Variable type: INTEGER, FLOAT, LONG, DOUBLE, STRING, BOOLEAN, SET, LIST, MAP, LOCATION, VECTOR, TIME, METASKILL, ITEM' },
+                { name: 'scope', alias: ['s'], type: 'string', default: '', description: 'Variable scope if not in var name (SKILL, CASTER, TARGET, WORLD, GLOBAL)' },
+                { name: 'save', alias: [], type: 'boolean', default: false, description: 'Persist variable across server restarts' },
+                { name: 'duration', alias: ['d'], type: 'number', default: 0, description: 'Auto-remove after this many ticks (0 = never expires)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- setvariable{var=phase;value=2} ']
+            examples: [
+                '- setvariable{var=caster.phase;value=1;type=INTEGER} @self',
+                '- setvariable{var=caster.damage;value=<random.5to15>;type=INTEGER} @self',
+                '- setvariable{var=target.marked;value=yes;type=STRING;duration=100} @target',
+                '- setvariable{var=caster.hp_pct;value="<caster.hp> / <caster.mhp>";type=FLOAT} @self',
+                '- setvariable{var=global.boss_kills;value=0;type=INTEGER;save=true} @self'
+            ]
         },
         {
             id: 'setvariablelocation',
             name: 'SetVariableLocation',
-            aliases: ['varloc'],
-            category: 'meta',
-            description: 'Sets variable to location.',
+            aliases: ['varloc', 'setloc', 'setLocVar'],
+            category: 'variables',
+            description: 'Stores the target location in a LOCATION type variable. Automatically sets type to LOCATION.',
             attributes: [
-                { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' }
+                { name: 'var', alias: ['variable', 'v', 'name', 'n'], type: 'string', default: '', required: true, description: 'Variable name to store location' },
+                { name: 'scope', alias: ['s'], type: 'string', default: '', description: 'Variable scope if not in var name (SKILL, CASTER, TARGET, WORLD, GLOBAL)' },
+                { name: 'save', alias: [], type: 'boolean', default: false, description: 'Persist location across server restarts' },
+                { name: 'duration', alias: ['d'], type: 'number', default: 0, description: 'Auto-remove after ticks (0 = never)' }
             ],
             defaultTargeter: '@TargetLocation',
-            examples: ['- setvariablelocation{var=spawnpoint} ']
+            examples: [
+                '- setvariablelocation{var=caster.spawn_point} @self',
+                '- setvariablelocation{var=caster.target_pos} @target',
+                '- setvariablelocation{var=world.boss_arena;save=true} @origin'
+            ]
         },
         {
             id: 'variableunset',
             name: 'VariableUnset',
-            aliases: ['varunset'],
-            category: 'meta',
-            description: 'Removes/unsets variable.',
+            aliases: ['varunset', 'unsetvar', 'delvar', 'removevar'],
+            category: 'variables',
+            description: 'Removes/deletes a variable completely. Useful for cleaning up temporary variables or phase transitions.',
             attributes: [
-                { name: 'var', alias: ['variable', 'v'], type: 'string', default: '', description: 'Variable name' }
+                { name: 'var', alias: ['variable', 'v', 'name', 'n'], type: 'string', default: '', required: true, description: 'Variable name to remove' },
+                { name: 'scope', alias: ['s'], type: 'string', default: '', description: 'Variable scope if not in var name (SKILL, CASTER, TARGET, WORLD, GLOBAL)' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- variableunset{var=tempdata} ']
+            examples: [
+                '- variableunset{var=caster.phase_1} @self',
+                '- variableunset{var=target.marked} @target',
+                '- variableunset{var=caster.temp_data} @self'
+            ]
         },
         {
             id: 'variablemove',
             name: 'VariableMove',
             aliases: ['moveVariable', 'moveVar', 'varMove'],
-            category: 'meta',
+            category: 'variables',
             description: 'Moves an already created variable across names and/or registries. Can make two registries reference the same variable.',
             attributes: [
                 { name: 'from', alias: [], type: 'string', default: '', required: true, description: 'Variable to move (scope.name format)' },

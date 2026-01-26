@@ -1,6 +1,7 @@
 /**
- * Minecraft 1.21.1 Item List
+ * Minecraft 1.21.4+ Item List (Updated for 1.21.10)
  * Complete list of all items for ITEM_DISPLAY entities
+ * Includes Pale Garden, Resin, and Copper Golem/Mannequin content
  */
 const MINECRAFT_ITEMS = [
     'acacia_boat',
@@ -1334,7 +1335,71 @@ const MINECRAFT_ITEMS = [
     'zombie_horse_spawn_egg',
     'zombie_spawn_egg',
     'zombie_villager_spawn_egg',
-    'zombified_piglin_spawn_egg'
+    'zombified_piglin_spawn_egg',
+    
+    // ==================== 1.21.2+ NEW ITEMS ====================
+    // Pale Garden / Pale Oak items
+    'pale_oak_boat',
+    'pale_oak_button',
+    'pale_oak_chest_boat',
+    'pale_oak_door',
+    'pale_oak_fence',
+    'pale_oak_fence_gate',
+    'pale_oak_hanging_sign',
+    'pale_oak_leaves',
+    'pale_oak_log',
+    'pale_oak_planks',
+    'pale_oak_pressure_plate',
+    'pale_oak_sapling',
+    'pale_oak_sign',
+    'pale_oak_slab',
+    'pale_oak_stairs',
+    'pale_oak_trapdoor',
+    'pale_oak_wood',
+    'stripped_pale_oak_log',
+    'stripped_pale_oak_wood',
+    'pale_hanging_moss',
+    'pale_moss_block',
+    'pale_moss_carpet',
+    
+    // Creaking mob items
+    'creaking_heart',
+    'creaking_spawn_egg',
+    
+    // Resin items
+    'resin_block',
+    'resin_bricks',
+    'resin_brick_slab',
+    'resin_brick_stairs',
+    'resin_brick_wall',
+    'chiseled_resin_bricks',
+    'resin_clump',
+    
+    // New spawn eggs
+    'copper_golem_spawn_egg',
+    'mannequin_spawn_egg',
+    
+    // Eyeblossom items
+    'closed_eyeblossom',
+    'open_eyeblossom',
+    
+    // Bundle variants (1.21.2+)
+    'black_bundle',
+    'blue_bundle',
+    'brown_bundle',
+    'cyan_bundle',
+    'gray_bundle',
+    'green_bundle',
+    'light_blue_bundle',
+    'light_gray_bundle',
+    'lime_bundle',
+    'magenta_bundle',
+    'orange_bundle',
+    'pink_bundle',
+    'purple_bundle',
+    'red_bundle',
+    'white_bundle',
+    'yellow_bundle'
 ];
 
 // Expose globally

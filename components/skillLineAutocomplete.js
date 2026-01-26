@@ -226,6 +226,16 @@ class SkillLineAutocomplete {
             return context;
         }
         
+        // Check if typing variable placeholder (inside <>)
+        const placeholderMatch = currentLine.match(/<([^>]*)$/);
+        if (placeholderMatch) {
+            context.shouldAutocomplete = true;
+            context.type = 'placeholder';
+            context.query = placeholderMatch[1] || '';
+            context.prefix = '<';
+            return context;
+        }
+        
         // Check if typing attribute inside braces
         const inBracesMatch = currentLine.match(/(\w+)\{([^}]*?)(\w*)$/);
         if (inBracesMatch) {
@@ -265,6 +275,9 @@ class SkillLineAutocomplete {
                 break;
             case 'attribute':
                 suggestions = this.getAttributeSuggestions(context.componentName, context.query, context.existingArgs);
+                break;
+            case 'placeholder':
+                suggestions = this.getPlaceholderSuggestions(context.query);
                 break;
         }
         
@@ -422,6 +435,103 @@ class SkillLineAutocomplete {
                     }
                 };
             });
+    }
+
+    /**
+     * Get placeholder suggestions (variables and common placeholders)
+     */
+    getPlaceholderSuggestions(query) {
+        const suggestions = [];
+        const lowerQuery = query.toLowerCase();
+        
+        // Common placeholder categories
+        const placeholderCategories = [
+            // Variable placeholders
+            { prefix: 'caster.var.', desc: 'Caster variable', icon: '🎯', examples: ['caster.var.damage', 'caster.var.phase', 'caster.var.combo'] },
+            { prefix: 'target.var.', desc: 'Target variable', icon: '🎯', examples: ['target.var.stacks', 'target.var.mark'] },
+            { prefix: 'world.var.', desc: 'World variable', icon: '🌍', examples: ['world.var.daycount', 'world.var.event'] },
+            { prefix: 'global.var.', desc: 'Global variable', icon: '🌐', examples: ['global.var.totalkills'] },
+            { prefix: 'skill.var.', desc: 'Skill variable', icon: '⚡', examples: ['skill.var.temp', 'skill.var.counter'] },
+            
+            // Caster placeholders
+            { prefix: 'caster.hp', desc: 'Caster health', icon: '❤️' },
+            { prefix: 'caster.mhp', desc: 'Caster max health', icon: '❤️' },
+            { prefix: 'caster.php', desc: 'Caster health percent', icon: '❤️' },
+            { prefix: 'caster.name', desc: 'Caster display name', icon: '📛' },
+            { prefix: 'caster.level', desc: 'Caster level', icon: '📊' },
+            { prefix: 'caster.stance', desc: 'Caster stance', icon: '🎭' },
+            { prefix: 'caster.l.x', desc: 'Caster X coordinate', icon: '📍' },
+            { prefix: 'caster.l.y', desc: 'Caster Y coordinate', icon: '📍' },
+            { prefix: 'caster.l.z', desc: 'Caster Z coordinate', icon: '📍' },
+            { prefix: 'caster.l.world', desc: 'Caster world name', icon: '🌎' },
+            
+            // Target placeholders
+            { prefix: 'target.hp', desc: 'Target health', icon: '❤️' },
+            { prefix: 'target.php', desc: 'Target health percent', icon: '❤️' },
+            { prefix: 'target.name', desc: 'Target display name', icon: '📛' },
+            { prefix: 'target.uuid', desc: 'Target UUID', icon: '🔑' },
+            { prefix: 'target.l.x', desc: 'Target X coordinate', icon: '📍' },
+            { prefix: 'target.l.y', desc: 'Target Y coordinate', icon: '📍' },
+            { prefix: 'target.l.z', desc: 'Target Z coordinate', icon: '📍' },
+            
+            // Trigger placeholders  
+            { prefix: 'trigger.name', desc: 'Trigger entity name', icon: '⚡' },
+            { prefix: 'trigger.hp', desc: 'Trigger entity health', icon: '❤️' },
+            { prefix: 'trigger.uuid', desc: 'Trigger entity UUID', icon: '🔑' },
+            
+            // Skill placeholders
+            { prefix: 'skill.damage', desc: 'Skill parameter: damage', icon: '💢' },
+            { prefix: 'skill.amount', desc: 'Skill parameter: amount', icon: '🔢' },
+            { prefix: 'skill.targets', desc: 'Number of targets', icon: '🎯' },
+            { prefix: 'skill.var.', desc: 'Skill-scoped variable', icon: '📋' },
+            
+            // Math & utility
+            { prefix: 'random.1to10', desc: 'Random number 1-10', icon: '🎲' },
+            { prefix: 'random.float', desc: 'Random float 0-1', icon: '🎲' }
+        ];
+        
+        // Filter and match
+        for (const ph of placeholderCategories) {
+            if (ph.prefix.toLowerCase().includes(lowerQuery) || lowerQuery === '') {
+                suggestions.push({
+                    text: ph.prefix,
+                    display: ph.prefix,
+                    description: ph.desc,
+                    icon: ph.icon,
+                    insertText: ph.prefix.endsWith('.') ? ph.prefix : ph.prefix + '>',
+                    category: 'placeholder'
+                });
+            }
+        }
+        
+        // Add registered variables from VariableManager
+        if (window.variableManager) {
+            const variables = window.variableManager.getAllVariables();
+            for (const variable of variables) {
+                const placeholder = `${variable.scope.toLowerCase()}.var.${variable.name}`;
+                if (placeholder.toLowerCase().includes(lowerQuery) || lowerQuery === '') {
+                    suggestions.push({
+                        text: placeholder,
+                        display: placeholder,
+                        description: `${variable.type} variable - ${variable.source || 'pack'}`,
+                        icon: '📦',
+                        insertText: placeholder + '>',
+                        category: 'variable',
+                        _variable: variable
+                    });
+                }
+            }
+        }
+        
+        // Sort: exact matches first, then by length
+        suggestions.sort((a, b) => {
+            const aExact = a.text.toLowerCase().startsWith(lowerQuery) ? 1 : 0;
+            const bExact = b.text.toLowerCase().startsWith(lowerQuery) ? 1 : 0;
+            if (aExact !== bExact) return bExact - aExact;
+            return a.text.length - b.text.length;
+        });
+        
+        return suggestions.slice(0, 15);
     }
 
     /**
