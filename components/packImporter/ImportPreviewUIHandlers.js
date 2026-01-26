@@ -343,7 +343,7 @@ Object.assign(ImportPreviewUI.prototype, {
         
         // Attach details panel listeners
         this.attachDetailsPanelListeners();
-    }
+    },
     
     /**
      * Attach event listeners for details panel (files, entries, etc.)
