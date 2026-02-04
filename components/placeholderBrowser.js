@@ -554,7 +554,8 @@ class PlaceholderBrowser {
                 setTimeout(() => card.classList.remove('copied'), 300);
             });
             
-            // Double-click to insert and close
+            // Double-click to insert and close (desktop)
+            // On mobile: single tap on 'Insert' button instead
             card.addEventListener('dblclick', (e) => {
                 if (e.target.closest('.favorite-btn')) return;
                 

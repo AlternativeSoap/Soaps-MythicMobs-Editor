@@ -115,13 +115,29 @@ class CreationModeSelector {
         // Close button
         const closeBtn = document.getElementById('creationModeClose');
         if (closeBtn) {
-            closeBtn.addEventListener('click', () => this.close());
+            let touchHandled = false;
+            closeBtn.addEventListener('touchstart', (e) => {
+                touchHandled = true;
+                setTimeout(() => touchHandled = false, 500);
+            }, { passive: false });
+            closeBtn.addEventListener('click', () => {
+                if (touchHandled) return;
+                this.close();
+            });
         }
 
         // Cancel button
         const cancelBtn = document.getElementById('creationModeCancel');
         if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => this.close());
+            let touchHandled = false;
+            cancelBtn.addEventListener('touchstart', (e) => {
+                touchHandled = true;
+                setTimeout(() => touchHandled = false, 500);
+            }, { passive: false });
+            cancelBtn.addEventListener('click', () => {
+                if (touchHandled) return;
+                this.close();
+            });
         }
 
         // Click outside to close

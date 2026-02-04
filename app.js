@@ -311,7 +311,18 @@ class MythicMobsEditor {
         });
         document.getElementById('save-status')?.addEventListener('click', (e) => { e._saveStatusHandled = true; this.toggleRecentChanges(e); });
         document.getElementById('view-all-changes-btn')?.addEventListener('click', () => this.showChangeHistory());
-        document.getElementById('close-history-modal')?.addEventListener('click', () => this.closeChangeHistory());
+        const closeHistoryBtn = document.getElementById('close-history-modal');
+        if (closeHistoryBtn) {
+            let touchHandled = false;
+            closeHistoryBtn.addEventListener('touchstart', (e) => {
+                touchHandled = true;
+                setTimeout(() => touchHandled = false, 500);
+            }, { passive: false });
+            closeHistoryBtn.addEventListener('click', () => {
+                if (touchHandled) return;
+                this.closeChangeHistory();
+            });
+        }
         document.getElementById('clear-history-btn')?.addEventListener('click', () => this.clearChangeHistory());
         document.getElementById('history-search')?.addEventListener('input', (e) => this.filterChangeHistory(e.target.value));
         
@@ -344,8 +355,31 @@ class MythicMobsEditor {
         
         // Settings
         document.getElementById('settings-btn')?.addEventListener('click', () => this.showSettings());
-        document.getElementById('close-settings-modal')?.addEventListener('click', () => this.closeSettings());
-        document.getElementById('save-settings-btn')?.addEventListener('click', () => this.saveSettingsFromModal());
+        const closeSettingsBtn = document.getElementById('close-settings-modal');
+        if (closeSettingsBtn) {
+            let settingsTouchHandled = false;
+            closeSettingsBtn.addEventListener('touchstart', (e) => {
+                settingsTouchHandled = true;
+                setTimeout(() => settingsTouchHandled = false, 500);
+            }, { passive: false });
+            closeSettingsBtn.addEventListener('click', () => {
+                if (settingsTouchHandled) return;
+                this.closeSettings();
+            });
+        }
+        
+        const saveSettingsBtn = document.getElementById('save-settings-btn');
+        if (saveSettingsBtn) {
+            let settingsTouchHandled = false;
+            saveSettingsBtn.addEventListener('touchstart', (e) => {
+                settingsTouchHandled = true;
+                setTimeout(() => settingsTouchHandled = false, 500);
+            }, { passive: false });
+            saveSettingsBtn.addEventListener('click', () => {
+                if (settingsTouchHandled) return;
+                this.saveSettingsFromModal();
+            });
+        }
         document.getElementById('reset-settings-btn')?.addEventListener('click', () => this.resetSettings());
         document.getElementById('help-btn')?.addEventListener('click', () => this.showHelp());
         
@@ -374,7 +408,14 @@ class MythicMobsEditor {
         
         // Settings tabs
         document.querySelectorAll('.settings-tab').forEach(tab => {
+            let touchHandled = false;
+            tab.addEventListener('touchstart', (e) => {
+                touchHandled = true;
+                setTimeout(() => touchHandled = false, 500);
+            }, { passive: false });
+            
             tab.addEventListener('click', (e) => {
+                if (touchHandled) return;
                 const tabName = e.target.dataset.tab;
                 this.switchSettingsTab(tabName);
             });

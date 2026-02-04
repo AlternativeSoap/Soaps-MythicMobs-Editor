@@ -15,13 +15,16 @@ class CollapsibleManager {
         // Attach click handlers to all collapsible headers
         // DON'T clone - it breaks event handler timing!
         document.querySelectorAll('.collapsible-header').forEach(header => {
-            // Remove old listener if exists
+            // Remove old listeners if exist
             if (header._collapsibleListener) {
                 header.removeEventListener('click', header._collapsibleListener);
             }
+            if (header._collapsibleTouchListener) {
+                header.removeEventListener('touchstart', header._collapsibleTouchListener);
+            }
             
-            // Create new listener and store reference
-            header._collapsibleListener = (e) => {
+            // Create shared toggle function
+            const toggleCollapsible = (e) => {
                 const target = e.target;
                 
                 // Check if ANY element in the click path has data-interactive attribute
@@ -63,6 +66,23 @@ class CollapsibleManager {
                 }
             };
             
+            // Track touch for mobile
+            let touchHandled = false;
+            
+            // Touch handler for mobile
+            header._collapsibleTouchListener = (e) => {
+                touchHandled = true;
+                toggleCollapsible(e);
+                setTimeout(() => { touchHandled = false; }, 500);
+            };
+            
+            // Click handler (skips if touch was handled)
+            header._collapsibleListener = (e) => {
+                if (touchHandled) return;
+                toggleCollapsible(e);
+            };
+            
+            header.addEventListener('touchstart', header._collapsibleTouchListener, { passive: true });
             header.addEventListener('click', header._collapsibleListener);
         });
     }

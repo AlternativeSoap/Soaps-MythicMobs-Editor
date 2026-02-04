@@ -12,7 +12,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Soaps MythicMobs Editor - Create Custom Mobs & Skills</title>
     
     <!-- SEO Meta Tags -->
@@ -1819,7 +1819,22 @@
             
             // Modal close handlers - close buttons
             document.querySelectorAll('.legal-modal-close, .legal-modal-close-btn').forEach(btn => {
+                let touchHandled = false;
+                
+                // Touch handler for mobile
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    touchHandled = true;
+                    const modalId = btn.getAttribute('data-modal');
+                    if (modalId) {
+                        document.getElementById(modalId).classList.add('hidden');
+                    }
+                    setTimeout(() => { touchHandled = false; }, 500);
+                }, { passive: false });
+                
+                // Click handler (skips if touch was handled)
                 btn.addEventListener('click', () => {
+                    if (touchHandled) return;
                     const modalId = btn.getAttribute('data-modal');
                     if (modalId) {
                         document.getElementById(modalId).classList.add('hidden');
@@ -1827,9 +1842,22 @@
                 });
             });
             
-            // Modal close handlers - click on overlay background
+            // Modal close handlers - click/touch on overlay background
             document.querySelectorAll('.legal-modal-overlay').forEach(overlay => {
+                let touchHandled = false;
+                
+                // Touch handler for mobile
+                overlay.addEventListener('touchstart', (e) => {
+                    if (e.target === overlay) {
+                        touchHandled = true;
+                        overlay.classList.add('hidden');
+                        setTimeout(() => { touchHandled = false; }, 500);
+                    }
+                }, { passive: true });
+                
+                // Click handler (skips if touch was handled)
                 overlay.addEventListener('click', (e) => {
+                    if (touchHandled) return;
                     if (e.target === overlay) {
                         overlay.classList.add('hidden');
                     }

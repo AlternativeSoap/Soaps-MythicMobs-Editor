@@ -3769,8 +3769,31 @@ class TemplateSelector {
         this.loadAndRenderComments(templateId, modal);
         
         // Event handlers
-        modal.querySelector('.preview-close').addEventListener('click', () => modal.remove());
-        modal.querySelector('.preview-cancel').addEventListener('click', () => modal.remove());
+        let previewTouchHandled = false;
+        const previewClose = modal.querySelector('.preview-close');
+        const previewCancel = modal.querySelector('.preview-cancel');
+        
+        if (previewClose) {
+            previewClose.addEventListener('touchstart', (e) => {
+                previewTouchHandled = true;
+                setTimeout(() => previewTouchHandled = false, 500);
+            }, { passive: false });
+            previewClose.addEventListener('click', () => {
+                if (previewTouchHandled) return;
+                modal.remove();
+            });
+        }
+        
+        if (previewCancel) {
+            previewCancel.addEventListener('touchstart', (e) => {
+                previewTouchHandled = true;
+                setTimeout(() => previewTouchHandled = false, 500);
+            }, { passive: false });
+            previewCancel.addEventListener('click', () => {
+                if (previewTouchHandled) return;
+                modal.remove();
+            });
+        }
         modal.querySelector('.preview-use').addEventListener('click', () => {
             modal.remove();
             this.selectTemplate(templateId);

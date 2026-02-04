@@ -375,8 +375,30 @@ class VariableBrowser {
         
         // Bind click events
         container.querySelectorAll('.variable-item').forEach(item => {
+            let tapCount = 0;
+            let tapTimer = null;
+            
             item.addEventListener('click', () => {
-                this.selectVariable(item.dataset.scope, item.dataset.name);
+                const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+                
+                if (isMobile) {
+                    // Mobile: Double-tap to insert
+                    tapCount++;
+                    if (tapCount === 1) {
+                        this.selectVariable(item.dataset.scope, item.dataset.name);
+                        tapTimer = setTimeout(() => {
+                            tapCount = 0;
+                        }, 300);
+                    } else if (tapCount === 2) {
+                        clearTimeout(tapTimer);
+                        tapCount = 0;
+                        this.selectVariable(item.dataset.scope, item.dataset.name);
+                        this.insertSelected('placeholder');
+                    }
+                } else {
+                    // Desktop: Single click to select
+                    this.selectVariable(item.dataset.scope, item.dataset.name);
+                }
             });
             
             item.addEventListener('dblclick', () => {

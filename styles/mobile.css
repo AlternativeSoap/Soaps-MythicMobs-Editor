@@ -252,10 +252,12 @@ body[data-device="mobile"] .mode-switcher .mode-btn.active {
     z-index: 200;
     overflow: hidden;
     display: none;
+    pointer-events: auto !important;
 }
 
 .mode-dropdown.visible {
     display: block;
+    pointer-events: auto !important;
 }
 
 .mode-dropdown .mode-option {
@@ -266,10 +268,21 @@ body[data-device="mobile"] .mode-switcher .mode-btn.active {
     color: var(--text-primary, #e2e8f0);
     cursor: pointer;
     transition: background 0.12s ease;
+    pointer-events: auto !important;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .mode-dropdown .mode-option:hover {
     background: var(--bg-elevated, #252a3f);
+}
+
+.mode-dropdown .mode-option:active,
+.mode-dropdown .mode-option.touch-active {
+    background: var(--bg-elevated, #252a3f);
+    transform: scale(0.98);
 }
 
 .mode-dropdown .mode-option .mode-badge {
@@ -406,10 +419,18 @@ body[data-device="mobile"] .user-dropdown {
     text-align: left;
     cursor: pointer;
     transition: background 0.15s ease;
+    pointer-events: auto !important;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 44px;
 }
 
-.mobile-header-dropdown-item:active {
+.mobile-header-dropdown-item:active,
+.mobile-header-dropdown-item.touch-active {
     background: var(--bg-elevated, #252a3f);
+    transform: scale(0.98);
 }
 
 .mobile-header-dropdown-item i {

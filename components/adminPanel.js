@@ -420,7 +420,18 @@ class AdminPanel {
      */
     attachEventListeners() {
         // Close button
-        document.getElementById('adminPanelClose')?.addEventListener('click', () => this.close());
+        const adminCloseBtn = document.getElementById('adminPanelClose');
+        if (adminCloseBtn) {
+            let adminTouchHandled = false;
+            adminCloseBtn.addEventListener('touchstart', (e) => {
+                adminTouchHandled = true;
+                setTimeout(() => adminTouchHandled = false, 500);
+            }, { passive: false });
+            adminCloseBtn.addEventListener('click', () => {
+                if (adminTouchHandled) return;
+                this.close();
+            });
+        }
         
         // Overlay click to close
         document.getElementById('adminPanelOverlay')?.addEventListener('click', (e) => {
@@ -429,7 +440,15 @@ class AdminPanel {
         
         // Tab switching
         document.querySelectorAll('.admin-tab').forEach(tab => {
-            tab.addEventListener('click', () => this.switchTab(tab.dataset.tab));
+            let tabTouchHandled = false;
+            tab.addEventListener('touchstart', (e) => {
+                tabTouchHandled = true;
+                setTimeout(() => tabTouchHandled = false, 500);
+            }, { passive: false });
+            tab.addEventListener('click', () => {
+                if (tabTouchHandled) return;
+                this.switchTab(tab.dataset.tab);
+            });
         });
         
         // Create official template

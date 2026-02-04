@@ -969,8 +969,73 @@ class PackManager {
             });
         }
         
+        // === TOUCHSTART EVENTS FOR MOBILE (delegated) ===
+        let touchHandled = false;
+        container.addEventListener('touchstart', (e) => {
+            // Prevent handling if the element is inside an input (inline editing)
+            if (e.target.closest('input')) return;
+            
+            // Pack header touch (toggle collapse or activate)
+            const packHeader = e.target.closest('.pack-header');
+            if (packHeader) {
+                // Don't handle if drag handle was touched
+                if (e.target.closest('.pack-drag-handle')) return;
+                
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📱 Pack header TOUCHED');
+                touchHandled = true;
+                
+                const packId = packHeader.dataset.packId;
+                const pack = this.packs.find(p => p.id === packId);
+                
+                if (this.activePack && this.activePack.id === packId) {
+                    // Same pack - toggle collapse
+                    this.togglePackCollapse(packId);
+                } else if (pack) {
+                    // Different pack - activate (which also expands it)
+                    this.setActivePack(pack);
+                }
+                
+                // Haptic feedback if available
+                if (window.mobileManager?.vibrate) {
+                    window.mobileManager.vibrate('light');
+                }
+                
+                // Reset flag
+                setTimeout(() => { touchHandled = false; }, 500);
+                return;
+            }
+            
+            // YAML file header touch (expand/collapse entries)
+            const yamlHeader = e.target.closest('.yaml-file-header');
+            if (yamlHeader) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📱 YAML header TOUCHED');
+                touchHandled = true;
+                
+                const fileId = yamlHeader.dataset.fileId;
+                this.toggleYamlFile(fileId);
+                
+                // Haptic feedback
+                if (window.mobileManager?.vibrate) {
+                    window.mobileManager.vibrate('light');
+                }
+                
+                setTimeout(() => { touchHandled = false; }, 500);
+                return;
+            }
+        }, { passive: false });
+        
         // === CLICK EVENTS (delegated) ===
         container.addEventListener('click', (e) => {
+            // Skip if touch was recently handled
+            if (touchHandled) {
+                console.log('📱 Click skipped (touch handled)');
+                return;
+            }
+            
             // Prevent handling if the element is inside an input (inline editing)
             if (e.target.closest('input')) return;
             
@@ -1173,6 +1238,42 @@ class PackManager {
         });
         
         // === DOUBLE-CLICK EVENTS (delegated) ===
+        // Mobile: Also support long-press for rename
+        let longPressTimer = null;
+        let longPressTarget = null;
+        
+        container.addEventListener('touchstart', (e) => {
+            const entryItem = e.target.closest('.entry-item');
+            if (entryItem) {
+                longPressTarget = entryItem;
+                longPressTimer = setTimeout(() => {
+                    if (longPressTarget) {
+                        const entryId = entryItem.dataset.entryId;
+                        const fileType = entryItem.dataset.fileType;
+                        const parentFileId = entryItem.dataset.parentFileId;
+                        this.startInlineEdit(entryItem, 'entry', { entryId, fileType, parentFileId });
+                        longPressTarget = null;
+                    }
+                }, 600);
+            }
+        }, { passive: true });
+        
+        container.addEventListener('touchend', () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+                longPressTarget = null;
+            }
+        }, { passive: true });
+        
+        container.addEventListener('touchmove', () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+                longPressTarget = null;
+            }
+        }, { passive: true });
+        
         container.addEventListener('dblclick', (e) => {
             // Entry item double-click (rename)
             const entryItem = e.target.closest('.entry-item');

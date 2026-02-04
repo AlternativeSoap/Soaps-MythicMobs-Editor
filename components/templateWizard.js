@@ -388,8 +388,28 @@ class TemplateWizard {
         }
         
         // Close buttons
-        this.refs.close?.addEventListener('click', () => this.close());
-        this.refs.cancel?.addEventListener('click', () => this.close());
+        let wizardTouchHandled = false;
+        if (this.refs.close) {
+            this.refs.close.addEventListener('touchstart', (e) => {
+                wizardTouchHandled = true;
+                setTimeout(() => wizardTouchHandled = false, 500);
+            }, { passive: false });
+            this.refs.close.addEventListener('click', () => {
+                if (wizardTouchHandled) return;
+                this.close();
+            });
+        }
+        
+        if (this.refs.cancel) {
+            this.refs.cancel.addEventListener('touchstart', (e) => {
+                wizardTouchHandled = true;
+                setTimeout(() => wizardTouchHandled = false, 500);
+            }, { passive: false });
+            this.refs.cancel.addEventListener('click', () => {
+                if (wizardTouchHandled) return;
+                this.close();
+            });
+        }
         
         // Navigation
         this.refs.next?.addEventListener('click', () => this.nextStep());

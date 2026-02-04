@@ -411,58 +411,20 @@ class MobileManager {
         };
         
         // User Account Button - single tap toggle
-        const userAccountBtn = document.getElementById('user-account-btn');
-        if (userAccountBtn) {
-            // Remove existing handlers by cloning
-            const newUserBtn = userAccountBtn.cloneNode(true);
-            userAccountBtn.parentNode.replaceChild(newUserBtn, userAccountBtn);
-            
-            newUserBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                console.log('📱 User account button touched');
-                
-                // Close other dropdowns first
-                closeAllDropdowns(newUserBtn);
-                
-                // Toggle user dropdown
-                const userDropdown = document.getElementById('user-dropdown');
-                if (userDropdown) {
-                    userDropdown.classList.toggle('show');
-                    this.vibrate('selection');
-                }
-            }, { passive: false });
-            
-            // Also support regular click for desktop
-            newUserBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Don't toggle if already handled by touch
-                if (this.touchState.lastTouchEnd && Date.now() - this.touchState.lastTouchEnd < 300) {
-                    return;
-                }
-                
-                closeAllDropdowns(newUserBtn);
-                const userDropdown = document.getElementById('user-dropdown');
-                userDropdown?.classList.toggle('show');
-            });
-        }
+        this.setupUserAccountButton(closeAllDropdowns);
         
         // Tools Button - single tap toggle (only on mobile, desktop has hover)
         const toolsBtn = document.getElementById('tools-btn');
-        if (toolsBtn) {
-            const newToolsBtn = toolsBtn.cloneNode(true);
-            toolsBtn.parentNode.replaceChild(newToolsBtn, toolsBtn);
+        if (toolsBtn && !toolsBtn._mobileHandlerAttached) {
+            toolsBtn._mobileHandlerAttached = true;
             
-            newToolsBtn.addEventListener('touchstart', (e) => {
+            toolsBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 
                 console.log('📱 Tools button touched');
                 
-                closeAllDropdowns(newToolsBtn);
+                closeAllDropdowns(toolsBtn);
                 
                 const toolsDropdown = document.getElementById('tools-dropdown');
                 if (toolsDropdown) {
@@ -471,12 +433,12 @@ class MobileManager {
                 }
             }, { passive: false });
             
-            newToolsBtn.addEventListener('click', (e) => {
+            toolsBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (this.touchState.lastTouchEnd && Date.now() - this.touchState.lastTouchEnd < 300) {
                     return;
                 }
-                closeAllDropdowns(newToolsBtn);
+                closeAllDropdowns(toolsBtn);
                 document.getElementById('tools-dropdown')?.classList.toggle('show');
             });
         }
@@ -485,34 +447,100 @@ class MobileManager {
         this.setupModeSwitcherTouch(closeAllDropdowns);
         
         // Global tap handler to close dropdowns when tapping outside
-        document.addEventListener('touchstart', (e) => {
-            // Don't close if tapping on a dropdown trigger or inside a dropdown
-            const target = e.target;
-            if (target.closest('.user-account') || 
-                target.closest('.tools-menu') || 
-                target.closest('.mode-switcher') ||
-                target.closest('.user-dropdown') ||
-                target.closest('.tools-dropdown') ||
-                target.closest('.mode-dropdown')) {
-                return;
-            }
+        if (!this._globalDropdownCloseAttached) {
+            this._globalDropdownCloseAttached = true;
             
-            closeAllDropdowns();
-        }, { passive: true });
-        
-        // Also handle regular clicks for desktop
-        document.addEventListener('click', (e) => {
-            const target = e.target;
-            if (target.closest('.user-account') || 
-                target.closest('.tools-menu') || 
-                target.closest('.mode-switcher')) {
-                return;
-            }
+            document.addEventListener('touchstart', (e) => {
+                // Don't close if tapping on a dropdown trigger or inside a dropdown
+                const target = e.target;
+                if (target.closest('.user-account') || 
+                    target.closest('.tools-menu') || 
+                    target.closest('.mode-switcher') ||
+                    target.closest('.user-dropdown') ||
+                    target.closest('.tools-dropdown') ||
+                    target.closest('.mode-dropdown')) {
+                    return;
+                }
+                
+                closeAllDropdowns();
+            }, { passive: true });
             
-            closeAllDropdowns();
-        });
+            // Also handle regular clicks for desktop
+            document.addEventListener('click', (e) => {
+                const target = e.target;
+                if (target.closest('.user-account') || 
+                    target.closest('.tools-menu') || 
+                    target.closest('.mode-switcher')) {
+                    return;
+                }
+                
+                closeAllDropdowns();
+            });
+        }
         
         console.log('📱 Mobile header dropdowns ready');
+    }
+    
+    /**
+     * Setup user account button touch handlers (can be called multiple times safely)
+     */
+    setupUserAccountButton(closeAllDropdowns) {
+        const userAccountBtn = document.getElementById('user-account-btn');
+        if (!userAccountBtn) {
+            console.warn('📱 User account button not found');
+            return;
+        }
+        
+        // Only attach handlers once
+        if (userAccountBtn._mobileHandlerAttached) {
+            console.log('📱 User account button handlers already attached');
+            return;
+        }
+        
+        console.log('📱 Attaching touch handlers to user account button');
+        userAccountBtn._mobileHandlerAttached = true;
+        
+        userAccountBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('📱 User account button TOUCHED');
+            
+            // Close other dropdowns first
+            if (closeAllDropdowns) {
+                closeAllDropdowns(userAccountBtn);
+            }
+            
+            // Toggle user dropdown
+            const userDropdown = document.getElementById('user-dropdown');
+            if (userDropdown) {
+                const isVisible = userDropdown.classList.contains('show');
+                console.log('📱 User dropdown toggle:', !isVisible);
+                userDropdown.classList.toggle('show');
+                this.vibrate('selection');
+            } else {
+                console.warn('📱 User dropdown element not found!');
+            }
+        }, { passive: false });
+        
+        // Also support regular click for desktop
+        userAccountBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Don't toggle if already handled by touch
+            if (this.touchState.lastTouchEnd && Date.now() - this.touchState.lastTouchEnd < 300) {
+                console.log('📱 User account button click skipped (touch handled)');
+                return;
+            }
+            
+            console.log('🖱️ User account button CLICKED');
+            if (closeAllDropdowns) {
+                closeAllDropdowns(userAccountBtn);
+            }
+            const userDropdown = document.getElementById('user-dropdown');
+            userDropdown?.classList.toggle('show');
+        });
     }
     
     /**
@@ -1595,8 +1623,44 @@ class MobileManager {
                 <div class="mode-option" data-mode="advanced"><i class="fas fa-user-cog"></i><span>Advanced</span></div>
             `;
             anchor.parentElement.appendChild(dropdown);
+            
+            console.log('📱 Mode dropdown created and attached');
+            
+            // Add both touch and click handlers for mobile compatibility
             dropdown.querySelectorAll('.mode-option').forEach(opt => {
+                let touchHandled = false;
+                
+                // Primary: touchstart for instant mobile response
+                opt.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation(); // Prevent other handlers
+                    console.log('📱 Mode option TOUCHSTART:', opt.dataset.mode);
+                    touchHandled = true;
+                    const mode = opt.dataset.mode;
+                    this.setEditorMode(mode);
+                    this.closeModeDropdown();
+                    this.vibrate('selection');
+                    
+                    // Reset flag
+                    setTimeout(() => { touchHandled = false; }, 500);
+                }, { passive: false, capture: true }); // Use capture phase
+                
+                // Also add touchend for better mobile compatibility
+                opt.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, { passive: false });
+                
+                // Fallback: click for desktop
                 opt.addEventListener('click', (e) => {
+                    if (touchHandled) {
+                        console.log('📱 Mode option click skipped (touch handled)');
+                        return;
+                    }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🖱️ Mode option CLICK:', opt.dataset.mode);
                     const mode = opt.dataset.mode;
                     this.setEditorMode(mode);
                     this.closeModeDropdown();
@@ -1609,7 +1673,17 @@ class MobileManager {
                     this.closeModeDropdown();
                 }
             });
+            
+            // Also close on touch outside
+            document.addEventListener('touchstart', (ev) => {
+                if (!anchor.contains(ev.target) && !dropdown.contains(ev.target)) {
+                    this.closeModeDropdown();
+                }
+            }, { passive: true });
         }
+        
+        const isVisible = dropdown.classList.contains('visible');
+        console.log('📱 Toggling mode dropdown:', !isVisible);
         dropdown.classList.toggle('visible');
     }
 
@@ -2348,7 +2422,38 @@ class MobileManager {
         });
         
         dropdown.querySelectorAll('.mobile-header-dropdown-item').forEach(item => {
+            let touchHandled = false;
+            
+            // Primary: touchstart for instant mobile response
+            item.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation(); // Prevent other handlers
+                console.log('📱 Header dropdown item TOUCHSTART:', item.dataset.action);
+                touchHandled = true;
+                const action = item.dataset.action;
+                this.handleMobileHeaderAction(action);
+                this.closeMobileHeaderDropdown();
+                
+                // Reset flag
+                setTimeout(() => { touchHandled = false; }, 500);
+            }, { passive: false, capture: true }); // Use capture phase
+            
+            // Also add touchend for better mobile compatibility
+            item.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, { passive: false });
+            
+            // Fallback: click for desktop
             item.addEventListener('click', (e) => {
+                if (touchHandled) {
+                    console.log('📱 Header dropdown item click skipped (touch handled)');
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🖱️ Header dropdown item CLICK:', item.dataset.action);
                 const action = item.dataset.action;
                 this.handleMobileHeaderAction(action);
                 this.closeMobileHeaderDropdown();

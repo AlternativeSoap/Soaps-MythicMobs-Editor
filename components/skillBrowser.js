@@ -97,8 +97,28 @@ class SkillBrowser {
         const closeFooterBtn = document.getElementById('skillBrowserCloseBtn');
         const searchInput = document.getElementById('skillBrowserSearch');
 
-        closeBtn?.addEventListener('click', () => this.close());
-        closeFooterBtn?.addEventListener('click', () => this.close());
+        let skillBrowserTouchHandled = false;
+        if (closeBtn) {
+            closeBtn.addEventListener('touchstart', (e) => {
+                skillBrowserTouchHandled = true;
+                setTimeout(() => skillBrowserTouchHandled = false, 500);
+            }, { passive: false });
+            closeBtn.addEventListener('click', () => {
+                if (skillBrowserTouchHandled) return;
+                this.close();
+            });
+        }
+        
+        if (closeFooterBtn) {
+            closeFooterBtn.addEventListener('touchstart', (e) => {
+                skillBrowserTouchHandled = true;
+                setTimeout(() => skillBrowserTouchHandled = false, 500);
+            }, { passive: false });
+            closeFooterBtn.addEventListener('click', () => {
+                if (skillBrowserTouchHandled) return;
+                this.close();
+            });
+        }
         
         // Close on escape
         document.addEventListener('keydown', (e) => {

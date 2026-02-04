@@ -150,11 +150,30 @@ class MechanicReference {
         
         // Done button
         const doneBtn = this.overlay.querySelector('.mechanic-reference-done');
-        doneBtn.addEventListener('click', () => this.close());
+        let mechanicRefTouchHandled = false;
+        if (doneBtn) {
+            doneBtn.addEventListener('touchstart', (e) => {
+                mechanicRefTouchHandled = true;
+                setTimeout(() => mechanicRefTouchHandled = false, 500);
+            }, { passive: false });
+            doneBtn.addEventListener('click', () => {
+                if (mechanicRefTouchHandled) return;
+                this.close();
+            });
+        }
         
         // Close button
         const closeBtn = this.overlay.querySelector('.mechanic-reference-close');
-        closeBtn.addEventListener('click', () => this.close());
+        if (closeBtn) {
+            closeBtn.addEventListener('touchstart', (e) => {
+                mechanicRefTouchHandled = true;
+                setTimeout(() => mechanicRefTouchHandled = false, 500);
+            }, { passive: false });
+            closeBtn.addEventListener('click', () => {
+                if (mechanicRefTouchHandled) return;
+                this.close();
+            });
+        }
         
         // Click outside to close
         this.overlay.addEventListener('click', (e) => {

@@ -184,6 +184,20 @@ class ImportPreviewUI {
     hide() {
         this.close();
     }
+    
+    /**
+     * Close the modal
+     */
+    close() {
+        if (this.modal) {
+            this.modal.remove();
+            this.modal = null;
+        }
+        if (this.errorEditorModal) {
+            this.errorEditorModal.remove();
+            this.errorEditorModal = null;
+        }
+    }
 
     /**
      * Render the complete modal content
@@ -865,7 +879,10 @@ class ImportPreviewUI {
         const detailsContent = this.modal?.querySelector('#details-content');
         if (detailsContent) {
             detailsContent.innerHTML = this.renderDetailsPanel();
-            this.attachDetailsPanelListeners();
+            // attachDetailsPanelListeners is defined in ImportPreviewUIHandlers.js
+            if (this.attachDetailsPanelListeners) {
+                this.attachDetailsPanelListeners();
+            }
         }
     }
     

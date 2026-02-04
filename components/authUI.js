@@ -548,6 +548,12 @@ class AuthUI {
             if (this.logoutBtn) this.logoutBtn.style.display = 'none';
             if (this.syncToCloudBtn) this.syncToCloudBtn.style.display = 'none';
         }
+        
+        // Re-setup mobile touch handlers after UI update (ensures dropdown content is ready)
+        if (window.mobileManager && typeof window.mobileManager.setupUserAccountButton === 'function') {
+            console.log('📱 Re-attaching mobile handlers to user dropdown after UI update');
+            window.mobileManager.setupUserAccountButton();
+        }
     }
     
     openModal(tab = 'login') {

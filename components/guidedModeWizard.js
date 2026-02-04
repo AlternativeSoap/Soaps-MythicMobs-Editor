@@ -975,7 +975,18 @@ class GuidedModeWizard {
      */
     attachEventListeners() {
         // Close button
-        document.getElementById('wizard-close')?.addEventListener('click', () => this.close());
+        const wizardClose = document.getElementById('wizard-close');
+        if (wizardClose) {
+            let touchHandled = false;
+            wizardClose.addEventListener('touchstart', (e) => {
+                touchHandled = true;
+                setTimeout(() => touchHandled = false, 500);
+            }, { passive: false });
+            wizardClose.addEventListener('click', () => {
+                if (touchHandled) return;
+                this.close();
+            });
+        }
 
         // NOTE: Overlay click to close is intentionally DISABLED for guided mode
         // Users must use the X button or complete the wizard
