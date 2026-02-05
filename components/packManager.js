@@ -969,11 +969,38 @@ class PackManager {
             });
         }
         
-        // === TOUCHSTART EVENTS FOR MOBILE (delegated) ===
+        // === TOUCH EVENTS FOR MOBILE (delegated) ===
         let touchHandled = false;
+        let touchStartY = 0;
+        let touchMoved = false;
+        
         container.addEventListener('touchstart', (e) => {
             // Prevent handling if the element is inside an input (inline editing)
             if (e.target.closest('input')) return;
+            
+            // Track initial touch position for scroll detection
+            touchStartY = e.touches[0].clientY;
+            touchMoved = false;
+            touchHandled = false;
+        }, { passive: true });
+        
+        container.addEventListener('touchmove', (e) => {
+            // Detect if user is scrolling
+            const moveY = Math.abs(e.touches[0].clientY - touchStartY);
+            if (moveY > 10) {
+                touchMoved = true;
+            }
+        }, { passive: true });
+        
+        container.addEventListener('touchend', (e) => {
+            // Prevent handling if the element is inside an input (inline editing)
+            if (e.target.closest('input')) return;
+            
+            // Ignore if user was scrolling
+            if (touchMoved) {
+                console.log('📱 Pack tree touch moved, ignoring');
+                return;
+            }
             
             // Pack header touch (toggle collapse or activate)
             const packHeader = e.target.closest('.pack-header');
@@ -983,7 +1010,7 @@ class PackManager {
                 
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('📱 Pack header TOUCHED');
+                console.log('📱 Pack header TOUCHED:', packHeader.dataset.packId);
                 touchHandled = true;
                 
                 const packId = packHeader.dataset.packId;
@@ -991,9 +1018,11 @@ class PackManager {
                 
                 if (this.activePack && this.activePack.id === packId) {
                     // Same pack - toggle collapse
+                    console.log('📱 Toggling pack collapse:', packId);
                     this.togglePackCollapse(packId);
                 } else if (pack) {
                     // Different pack - activate (which also expands it)
+                    console.log('📱 Activating pack:', packId);
                     this.setActivePack(pack);
                 }
                 
@@ -1239,38 +1268,38 @@ class PackManager {
         
         // === DOUBLE-CLICK EVENTS (delegated) ===
         // Mobile: Also support long-press for rename
-        let longPressTimer = null;
-        let longPressTarget = null;
+        let renameTimer = null;
+        let renameTarget = null;
         
         container.addEventListener('touchstart', (e) => {
             const entryItem = e.target.closest('.entry-item');
             if (entryItem) {
-                longPressTarget = entryItem;
-                longPressTimer = setTimeout(() => {
-                    if (longPressTarget) {
+                renameTarget = entryItem;
+                renameTimer = setTimeout(() => {
+                    if (renameTarget) {
                         const entryId = entryItem.dataset.entryId;
                         const fileType = entryItem.dataset.fileType;
                         const parentFileId = entryItem.dataset.parentFileId;
                         this.startInlineEdit(entryItem, 'entry', { entryId, fileType, parentFileId });
-                        longPressTarget = null;
+                        renameTarget = null;
                     }
                 }, 600);
             }
         }, { passive: true });
         
         container.addEventListener('touchend', () => {
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-                longPressTarget = null;
+            if (renameTimer) {
+                clearTimeout(renameTimer);
+                renameTimer = null;
+                renameTarget = null;
             }
         }, { passive: true });
         
         container.addEventListener('touchmove', () => {
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-                longPressTarget = null;
+            if (renameTimer) {
+                clearTimeout(renameTimer);
+                renameTimer = null;
+                renameTarget = null;
             }
         }, { passive: true });
         

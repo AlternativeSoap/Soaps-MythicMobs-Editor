@@ -358,14 +358,36 @@ class MythicMobsEditor {
         const closeSettingsBtn = document.getElementById('close-settings-modal');
         if (closeSettingsBtn) {
             let settingsTouchHandled = false;
+            let touchStartY = 0;
+            let touchMoved = false;
+            
             closeSettingsBtn.addEventListener('touchstart', (e) => {
-                settingsTouchHandled = true;
-                setTimeout(() => settingsTouchHandled = false, 500);
-            }, { passive: false });
-            closeSettingsBtn.addEventListener('click', () => {
-                if (settingsTouchHandled) return;
+                touchStartY = e.touches[0].clientY;
+                touchMoved = false;
+                settingsTouchHandled = false;
+            }, { passive: true });
+            
+            closeSettingsBtn.addEventListener('touchmove', (e) => {
+                const moveY = Math.abs(e.touches[0].clientY - touchStartY);
+                if (moveY > 10) {
+                    touchMoved = true;
+                }
+            }, { passive: true });
+            
+            closeSettingsBtn.addEventListener('touchend', (e) => {
+                if (touchMoved) {
+                    console.log('📱 Settings close touch moved, ignoring');
+                    return;
+                }
+                
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📱 Settings close TOUCHED');
                 this.closeSettings();
-            });
+            }, { passive: false });
+            
+            // No click handler needed on mobile - touchend handles it
+            // Desktop uses mouse click which will still work
         }
         
         const saveSettingsBtn = document.getElementById('save-settings-btn');

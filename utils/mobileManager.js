@@ -500,27 +500,64 @@ class MobileManager {
         console.log('📱 Attaching touch handlers to user account button');
         userAccountBtn._mobileHandlerAttached = true;
         
+        let touchStartTime = 0;
+        let touchMoved = false;
+        let touchStartY = 0;
+        
         userAccountBtn.addEventListener('touchstart', (e) => {
+            touchStartTime = Date.now();
+            touchStartY = e.touches[0].clientY;
+            touchMoved = false;
+        }, { passive: true });
+        
+        userAccountBtn.addEventListener('touchmove', (e) => {
+            const moveY = Math.abs(e.touches[0].clientY - touchStartY);
+            if (moveY > 10) {
+                touchMoved = true;
+            }
+        }, { passive: true });
+        
+        userAccountBtn.addEventListener('touchend', (e) => {
+            // Only trigger if touch was short and didn't move much
+            if (touchMoved || Date.now() - touchStartTime > 500) {
+                console.log('📱 User account touch ignored (moved or long press)');
+                return;
+            }
+            
             e.preventDefault();
             e.stopPropagation();
             
-            console.log('📱 User account button TOUCHED');
+            const userDropdown = document.getElementById('user-dropdown');
+            if (!userDropdown) {
+                console.error('❌ User dropdown element not found!');
+                return;
+            }
+            
+            // Simple toggle logic - just check current state and flip it
+            const isCurrentlyVisible = userDropdown.classList.contains('show');
+            
+            console.log('📱 User account TOUCHED - currently visible:', isCurrentlyVisible);
             
             // Close other dropdowns first
-            if (closeAllDropdowns) {
-                closeAllDropdowns(userAccountBtn);
-            }
+            const modeDropdown = document.getElementById('mode-dropdown');
+            if (modeDropdown) modeDropdown.classList.remove('visible');
+            
+            const toolsDropdown = document.getElementById('tools-dropdown');
+            if (toolsDropdown) toolsDropdown.classList.remove('show');
+            
+            const headerDropdown = this.dom.headerDropdown;
+            if (headerDropdown) headerDropdown.classList.remove('visible');
             
             // Toggle user dropdown
-            const userDropdown = document.getElementById('user-dropdown');
-            if (userDropdown) {
-                const isVisible = userDropdown.classList.contains('show');
-                console.log('📱 User dropdown toggle:', !isVisible);
-                userDropdown.classList.toggle('show');
-                this.vibrate('selection');
+            if (isCurrentlyVisible) {
+                userDropdown.classList.remove('show');
+                console.log('✅ Closed user dropdown');
             } else {
-                console.warn('📱 User dropdown element not found!');
+                userDropdown.classList.add('show');
+                console.log('✅ Opened user dropdown');
             }
+            
+            this.vibrate('selection');
         }, { passive: false });
         
         // Also support regular click for desktop
@@ -535,11 +572,31 @@ class MobileManager {
             }
             
             console.log('🖱️ User account button CLICKED');
-            if (closeAllDropdowns) {
-                closeAllDropdowns(userAccountBtn);
-            }
+            
             const userDropdown = document.getElementById('user-dropdown');
-            userDropdown?.classList.toggle('show');
+            if (!userDropdown) return;
+            
+            // Simple toggle logic
+            const isCurrentlyVisible = userDropdown.classList.contains('show');
+            
+            // Close other dropdowns
+            const modeDropdown = document.getElementById('mode-dropdown');
+            if (modeDropdown) modeDropdown.classList.remove('visible');
+            
+            const toolsDropdown = document.getElementById('tools-dropdown');
+            if (toolsDropdown) toolsDropdown.classList.remove('show');
+            
+            const headerDropdown = this.dom.headerDropdown;
+            if (headerDropdown) headerDropdown.classList.remove('visible');
+            
+            // Toggle user dropdown
+            if (isCurrentlyVisible) {
+                userDropdown.classList.remove('show');
+                console.log('✅ Closed user dropdown');
+            } else {
+                userDropdown.classList.add('show');
+                console.log('✅ Opened user dropdown');
+            }
         });
     }
     
@@ -935,14 +992,19 @@ class MobileManager {
         // Only trigger click if it was a valid tap on an interactive element
         // CRITICAL: Block if container scrolled, even if gesture type is 'tap'
         if (tracker.gesture.type === 'tap' && interactiveTarget && !tracker.isLongPress && !tracker.containerScrolled) {
-            // Skip elements with their own handlers
+            // Skip elements with their own touch handlers
             if (interactiveTarget?.classList.contains('user-account-btn') || 
                 interactiveTarget?.classList.contains('mode-btn') ||
+                interactiveTarget?.classList.contains('mobile-header-dropdown-item') ||
+                interactiveTarget?.classList.contains('modal-close') ||
+                interactiveTarget?.classList.contains('icon-btn') ||
                 interactiveTarget?.id === 'tools-btn' ||
                 interactiveTarget?.id === 'mobile-close-yaml' ||
                 interactiveTarget?.id === 'mobile-header-more-btn' ||
-                interactiveTarget?.closest('.mode-switcher')) {
-                // These have their own touch handlers
+                interactiveTarget?.id === 'close-settings-modal' ||
+                interactiveTarget?.closest('.mode-switcher') ||
+                interactiveTarget?.closest('[id^="close-"]')) {
+                // These have their own touch handlers or are close buttons
                 return;
             }
             
@@ -2342,6 +2404,12 @@ class MobileManager {
     createMobileHeaderMoreButton() {
         if (document.getElementById('mobile-header-more-btn')) return;
         
+        // Only create on mobile/tablet, never on desktop
+        if (this.deviceType === 'desktop') {
+            console.log('📱 Skipping mobile header button creation on desktop');
+            return;
+        }
+        
         const headerRight = document.querySelector('.header-right');
         if (!headerRight) return;
         
@@ -2423,49 +2491,79 @@ class MobileManager {
         
         dropdown.querySelectorAll('.mobile-header-dropdown-item').forEach(item => {
             let touchHandled = false;
+            let touchStartY = 0;
+            let touchMoved = false;
             
-            // Primary: touchstart for instant mobile response
+            // Track touch start position
             item.addEventListener('touchstart', (e) => {
+                touchStartY = e.touches[0].clientY;
+                touchMoved = false;
+                touchHandled = false;
+                
+                const action = item.dataset.action;
+                console.log('📱 Header dropdown item TOUCHSTART:', action);
+                
+                // Add visual feedback
+                item.classList.add('touch-active');
+            }, { passive: true });
+            
+            // Track if user is scrolling/moving
+            item.addEventListener('touchmove', (e) => {
+                const moveY = Math.abs(e.touches[0].clientY - touchStartY);
+                if (moveY > 10) {
+                    touchMoved = true;
+                    // Remove visual feedback if moved
+                    item.classList.remove('touch-active');
+                }
+            }, { passive: true });
+            
+            // Handle touch end (actual action trigger)
+            item.addEventListener('touchend', (e) => {
+                // Remove visual feedback
+                item.classList.remove('touch-active');
+                
+                // Ignore if user was scrolling/moving
+                if (touchMoved) {
+                    console.log('📱 Header dropdown item touch moved, ignoring');
+                    return;
+                }
+                
                 e.preventDefault();
                 e.stopPropagation();
-                e.stopImmediatePropagation(); // Prevent other handlers
-                console.log('📱 Header dropdown item TOUCHSTART:', item.dataset.action);
-                touchHandled = true;
+                e.stopImmediatePropagation();
+                
                 const action = item.dataset.action;
+                console.log('📱 Header dropdown item TOUCHEND:', action);
+                touchHandled = true;
+                
+                // Execute action
                 this.handleMobileHeaderAction(action);
                 this.closeMobileHeaderDropdown();
                 
                 // Reset flag
                 setTimeout(() => { touchHandled = false; }, 500);
-            }, { passive: false, capture: true }); // Use capture phase
+            }, { passive: false, capture: true });
             
-            // Also add touchend for better mobile compatibility
-            item.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            }, { passive: false });
+            // Handle touch cancel (cleanup visual state)
+            item.addEventListener('touchcancel', (e) => {
+                item.classList.remove('touch-active');
+                touchMoved = false;
+            }, { passive: true });
             
-            // Fallback: click for desktop
-            item.addEventListener('click', (e) => {
-                if (touchHandled) {
-                    console.log('📱 Header dropdown item click skipped (touch handled)');
-                    return;
-                }
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🖱️ Header dropdown item CLICK:', item.dataset.action);
-                const action = item.dataset.action;
-                this.handleMobileHeaderAction(action);
-                this.closeMobileHeaderDropdown();
-            });
+            // No click handler needed - mobile only, touchend handles everything
         });
         
-        // Close on outside click
-        document.addEventListener('click', (e) => {
-            if (!moreBtn.contains(e.target) && !dropdown.contains(e.target)) {
-                this.closeMobileHeaderDropdown();
+        // Close on outside click/touch
+        const closeOnOutside = (e) => {
+            // Don't close if touching the button or dropdown
+            if (moreBtn.contains(e.target) || dropdown.contains(e.target)) {
+                return;
             }
-        });
+            this.closeMobileHeaderDropdown();
+        };
+        
+        document.addEventListener('click', closeOnOutside);
+        document.addEventListener('touchend', closeOnOutside, { passive: true });
         
         // Listen for save status changes
         this.setupSaveStatusListener();
@@ -2500,20 +2598,70 @@ class MobileManager {
     handleMobileHeaderAction(action) {
         this.vibrate('light');
         
+        console.log('📱 Mobile header action:', action);
+        
         switch (action) {
             case 'save-all':
-                document.getElementById('save-all-btn')?.click();
-                this.showToast('Saving all changes...', 'info');
+                // Save All button is visible, can click it
+                const saveBtn = document.getElementById('save-all-btn');
+                if (saveBtn) {
+                    console.log('📱 Clicking save-all button');
+                    saveBtn.click();
+                    this.showToast('Saving all changes...', 'info');
+                } else {
+                    console.error('❌ Save all button not found');
+                }
                 break;
             case 'settings':
-                document.getElementById('settings-btn')?.click();
+                // Settings button is hidden on mobile, call the method directly
+                console.log('📱 Calling showSettings()');
+                if (window.editor && typeof window.editor.showSettings === 'function') {
+                    window.editor.showSettings();
+                } else {
+                    console.warn('⚠️ window.editor.showSettings not available, trying direct button click');
+                    // Fallback: try to click the hidden button (might work if CSS loads late)
+                    const settingsBtn = document.getElementById('settings-btn');
+                    if (settingsBtn) {
+                        settingsBtn.click();
+                    } else {
+                        console.error('❌ Settings button not found and editor.showSettings not available');
+                    }
+                }
                 break;
             case 'help':
-                document.getElementById('help-btn')?.click();
+                // Help button is hidden on mobile, call the method directly
+                console.log('📱 Calling showHelp()');
+                if (window.editor && typeof window.editor.showHelp === 'function') {
+                    window.editor.showHelp();
+                } else {
+                    console.warn('⚠️ window.editor.showHelp not available, trying direct button click');
+                    // Fallback: try to click the hidden button
+                    const helpBtn = document.getElementById('help-btn');
+                    if (helpBtn) {
+                        helpBtn.click();
+                    } else {
+                        console.error('❌ Help button not found and editor.showHelp not available');
+                    }
+                }
                 break;
             case 'mode-info':
-                document.getElementById('mode-difference-btn')?.click();
+                // Mode comparison button may be hidden on mobile, call the method directly
+                console.log('📱 Calling showModeComparison()');
+                if (window.editor && typeof window.editor.showModeComparison === 'function') {
+                    window.editor.showModeComparison();
+                } else {
+                    console.warn('⚠️ window.editor.showModeComparison not available, trying direct button click');
+                    // Fallback: try to click the button
+                    const modeBtn = document.getElementById('mode-difference-btn');
+                    if (modeBtn) {
+                        modeBtn.click();
+                    } else {
+                        console.error('❌ Mode comparison button not found and editor.showModeComparison not available');
+                    }
+                }
                 break;
+            default:
+                console.warn('⚠️ Unknown mobile header action:', action);
         }
     }
     

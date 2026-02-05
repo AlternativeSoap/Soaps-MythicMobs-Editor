@@ -55,12 +55,7 @@ class AuthUI {
             }
         });
         
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (this.userDropdown && !e.target.closest('.user-account')) {
-                this.userDropdown.classList.remove('show');
-            }
-        });
+        // Don't add global close handler - mobileManager handles this
     }
     
     setupTabSwitching() {
@@ -137,29 +132,8 @@ class AuthUI {
     }
     
     setupUserDropdown() {
-        // Handle both click and touch events for mobile support
-        let touchHandled = false;
-        
-        const toggleDropdown = (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            this.userDropdown?.classList.toggle('show');
-        };
-        
-        // Handle touch events
-        this.userAccountBtn?.addEventListener('touchend', (e) => {
-            touchHandled = true;
-            toggleDropdown(e);
-            // Reset flag after a short delay
-            setTimeout(() => { touchHandled = false; }, 300);
-        });
-        
-        // Handle click events (but skip if touch was already handled)
-        this.userAccountBtn?.addEventListener('click', (e) => {
-            if (!touchHandled) {
-                toggleDropdown(e);
-            }
-        });
+        // MobileManager handles ALL user account button interactions (touch + click)
+        // We only set up the dropdown content buttons here
         
         this.loginBtn?.addEventListener('click', () => {
             this.openModal('login');

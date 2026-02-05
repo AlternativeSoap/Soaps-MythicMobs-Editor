@@ -1723,74 +1723,92 @@
             setupEarlyAuthListener();
             
             // Initialize template system AFTER editor (requires auth and supabase)
-            setTimeout(() => {
-                if (window.supabaseClient && window.editor?.authManager) {
-                    // Expose authManager globally for template system
-                    window.authManager = window.editor.authManager;
-                    
-                    window.templateManager = new TemplateManager(window.supabaseClient, window.authManager);
-                    window.templateImportExport = new TemplateImportExport(window.templateManager);
-                    window.templateMigration = new TemplateMigration(window.supabaseClient, window.authManager, window.templateManager);
-                    window.yamlPreviewModal = new YamlPreviewModal();
-                    window.templateEditor = new TemplateEditor(window.templateManager, window.authManager, window.templateImportExport);
-                    window.templateWizard = new TemplateWizard(window.templateManager, window.authManager, window.templateImportExport);
-                    
-                    // Initialize activity tracker for user activity logging
-                    window.activityTracker = new ActivityTracker(window.supabaseClient, window.authManager);
-                    
-                    // Track login if user is authenticated
-                    if (window.authManager?.isAuthenticated()) {
-                        window.activityTracker.trackLogin('session_init');
-                    }
-                    
-                    // Update global SkillLineBuilder with template dependencies
-                    if (window.skillLineBuilder) {
-                        window.skillLineBuilder.templateManager = window.templateManager;
-                        window.skillLineBuilder.templateEditor = window.templateEditor;
-                    }
-                    
-                    // Mark admin system as ready
-                    window._adminSystemReady = true;
-                    console.log('✅ Template system ready, initializing admin system...');
-                    
-                    // Always try to initialize, regardless of pending flag
-                    // This ensures the admin panel appears on first load
-                    window._pendingAdminInit = false;
-                    window.initializeAdminSystem().catch(error => {
-                        console.error('❌ Admin system initialization failed:', error);
-                    });
-                    
-                    // Add a retry mechanism to ensure UI is added even if there's a timing issue
-                    setTimeout(() => {
-                        if (window.authManager?.isAuthenticated() && window.adminManager?.isAdmin) {
-                            const adminBtn = document.querySelector('.admin-panel-btn');
-                            if (!adminBtn) {
-                                console.log('⚠️ Admin Panel button missing, retrying initialization...');
-                                window.adminManager._uiInitialized = false;
-                                window.initializeAdminSystem().catch(error => {
-                                    console.error('❌ Retry admin system initialization failed:', error);
-                                });
-                            }
-                        }
-                    }, 500);
-                    
-                    // Update any existing SkillBuilderEditor instances with the new dependencies
-                    if (window.editor.skillEditor?.skillBuilderEditor) {
-                        window.editor.skillEditor.skillBuilderEditor.updateTemplateDependencies(
-                            window.templateManager, 
-                            window.templateEditor
-                        );
-                    }
-                    if (window.editor.mobEditor?.skillsEditor) {
-                        window.editor.mobEditor.skillsEditor.updateTemplateDependencies(
-                            window.templateManager,
-                            window.templateEditor
-                        );
-                    }
-                } else {
-                    console.warn('⚠️ Template system not initialized: supabaseClient or authManager missing');
+            const initTemplateSystem = () => {
+                if (window._templateSystemInitialized) return;
+                if (!window.supabaseClient || !window.editor?.authManager) return;
+
+                window._templateSystemInitialized = true;
+
+                // Expose authManager globally for template system
+                window.authManager = window.editor.authManager;
+                
+                window.templateManager = new TemplateManager(window.supabaseClient, window.authManager);
+                window.templateImportExport = new TemplateImportExport(window.templateManager);
+                window.templateMigration = new TemplateMigration(window.supabaseClient, window.authManager, window.templateManager);
+                window.yamlPreviewModal = new YamlPreviewModal();
+                window.templateEditor = new TemplateEditor(window.templateManager, window.authManager, window.templateImportExport);
+                window.templateWizard = new TemplateWizard(window.templateManager, window.authManager, window.templateImportExport);
+                
+                // Initialize activity tracker for user activity logging
+                window.activityTracker = new ActivityTracker(window.supabaseClient, window.authManager);
+                
+                // Track login if user is authenticated
+                if (window.authManager?.isAuthenticated()) {
+                    window.activityTracker.trackLogin('session_init');
                 }
-            }, 500);
+                
+                // Update global SkillLineBuilder with template dependencies
+                if (window.skillLineBuilder) {
+                    window.skillLineBuilder.templateManager = window.templateManager;
+                    window.skillLineBuilder.templateEditor = window.templateEditor;
+                }
+                
+                // Mark admin system as ready
+                window._adminSystemReady = true;
+                console.log('✅ Template system ready, initializing admin system...');
+                
+                // Always try to initialize, regardless of pending flag
+                // This ensures the admin panel appears on first load
+                window._pendingAdminInit = false;
+                window.initializeAdminSystem().catch(error => {
+                    console.error('❌ Admin system initialization failed:', error);
+                });
+                
+                // Add a retry mechanism to ensure UI is added even if there's a timing issue
+                setTimeout(() => {
+                    if (window.authManager?.isAuthenticated() && window.adminManager?.isAdmin) {
+                        const adminBtn = document.querySelector('.admin-panel-btn');
+                        if (!adminBtn) {
+                            console.log('⚠️ Admin Panel button missing, retrying initialization...');
+                            window.adminManager._uiInitialized = false;
+                            window.initializeAdminSystem().catch(error => {
+                                console.error('❌ Retry admin system initialization failed:', error);
+                            });
+                        }
+                    }
+                }, 500);
+                
+                // Update any existing SkillBuilderEditor instances with the new dependencies
+                if (window.editor.skillEditor?.skillBuilderEditor) {
+                    window.editor.skillEditor.skillBuilderEditor.updateTemplateDependencies(
+                        window.templateManager, 
+                        window.templateEditor
+                    );
+                }
+                if (window.editor.mobEditor?.skillsEditor) {
+                    window.editor.mobEditor.skillsEditor.updateTemplateDependencies(
+                        window.templateManager,
+                        window.templateEditor
+                    );
+                }
+            };
+
+            const waitForTemplateSystemDeps = (attempt = 0) => {
+                const maxAttempts = 40; // ~10s with 250ms delay
+                if (window.supabaseClient && window.editor?.authManager) {
+                    initTemplateSystem();
+                    return;
+                }
+
+                if (attempt >= maxAttempts) {
+                    console.warn('⚠️ Template system not initialized: supabaseClient or authManager missing');
+                    return;
+                }
+
+                setTimeout(() => waitForTemplateSystemDeps(attempt + 1), 250);
+            };
+
+            waitForTemplateSystemDeps();
             
             // ==========================================
             // Legal Modal System
