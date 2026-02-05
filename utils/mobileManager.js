@@ -56,170 +56,6 @@ class MobileManager {
             pullToRefreshEnabled: true,
             voiceSearchActive: false,
             recentActions: [], // For quick action suggestions
-            splitViewEnabled: false // Tablet feature
-        };
-        
-        // Touch tracking with enhanced gesture support
-        this.touch = {
-            startX: 0,
-            startY: 0,
-            startTime: 0,
-            longPressTimer: null,
-            longPressThreshold: 500, // ms
-            swipeThreshold: 50, // px
-            currentElement: null,
-            velocityX: 0,
-            velocityY: 0,
-            lastMoveTime: 0,
-            lastMoveX: 0,
-            lastMoveY: 0,
-            isPinching: false,
-            pinchStartDistance: 0,
-            doubleTapTimer: null,
-            lastTapTime: 0,
-            tapCount: 0
-        };
-        
-        // Haptic feedback patterns
-        this.hapticPatterns = {
-            light: [10],
-            medium: [20],
-            heavy: [30],
-            success: [10, 50, 10],
-            error: [50, 100, 50],
-            warning: [30, 50, 30],
-            selection: [5],
-            impact: [15, 30]
-        };
-        
-        // DOM cache
-        this.dom = {};
-        
-        // Editor reference (set by init)
-        this.editor = null;
-        
-        // Quick action history for smart suggestions
-        this.actionHistory = [];
-        
-        // Don't auto-init - wait for explicit init() call with editor reference
-    }
-    
-    /**
-     * Initialize mobile manager
-     * @param {object} editor - Reference to the main editor instance
-     */
-    init(editor) {
-        // Store editor reference
-        this.editor = editor || window.editor;
-        
-        // Re-detect after DOM is ready (more accurate detection)
-        // This catches cases where constructor detection was too early
-        this.isTouchDevice = this.detectTouchSupport();
-        this.deviceType = this.detectDeviceType();
-        this.isMobile = this.deviceType === 'mobile';
-        this.isTablet = this.deviceType === 'tablet';
-        this.isDesktop = this.deviceType === 'desktop';
-        
-        // Set device attribute on body
-        this.updateDeviceAttribute();
-        
-        // CRITICAL: Initialize Universal Touch System FIRST (before any UI)
-        if (this.isTouchDevice) {
-            this.initUniversalTouchSystem();
-        }
-        
-        // Activate mobile mode for mobile/tablet OR touch devices with medium screens
-        // This covers cases where UA detection fails but touch is detected
-        const shouldActivateMobile = this.deviceType !== 'desktop' || 
-                                     (this.isTouchDevice && window.innerWidth < this.breakpoints.tablet);
-        
-        if (shouldActivateMobile) {
-            this.activateMobileMode();
-            // Setup swipeable toasts for mobile
-            this.setupSwipeableToasts();
-        }
-        
-        // Listen for resize/orientation changes
-        this.attachResizeListeners();
-        
-        // Attach touch listeners if touch device
-        if (this.isTouchDevice) {
-            this.attachTouchListeners();
-        }
-        
-        // Setup online/offline detection
-        this.setupConnectivityListeners();
-        
-        // Setup keyboard detection (for virtual keyboards)
-        this.setupKeyboardDetection();
-        
-        // Setup pull-to-refresh (disabled - too many issues)
-        // if (this.deviceType !== 'desktop') {
-        //     this.setupPullToRefresh();
-        // }
-        
-        // Load action history for smart suggestions
-        this.loadActionHistory();
-        
-        console.log(`📱 MobileManager initialized: ${this.deviceType}, touch: ${this.isTouchDevice}, mobileMode: ${this.state.mobileMode}`);
-    }
-    
-    /**
-     * ===================================
-     * UNIVERSAL TOUCH & GESTURE TRACKING SYSTEM
-     * ===================================
-     * Centralized tracking for ALL touch, scroll, and gesture interactions
-     * Features:
-     * - Global touch state accessible anywhere via window.touchTracker
-     * - Automatic scroll vs tap detection
-     * - Multi-touch gesture support
-     * - Velocity tracking for swipe detection
-     * - Long-press detection
-     * - Double-tap detection
-     * - Prevents accidental clicks during scroll
-     */
-    initUniversalTouchSystem() {
-        console.log('📱 Initializing Universal Touch & Gesture Tracking System...');
-        
-        // Create global touch tracker accessible from anywhere
-        this.touchTracker = {
-            // Current touch state
-            isTracking: false,
-            isTouching: false,
-            isScrolling: false,
-            isLongPress: false,
-            isPinching: false,
-            
-            // Touch position data
-            startX: 0,
-            startY: 0,
-            currentX: 0,
-            currentY: 0,
-            deltaX: 0,
-            deltaY: 0,
-            
-            // Touch timing
-            startTime: 0,
-            lastTapTime: 0,
-            lastTouchEnd: 0,
-            touchDuration: 0,
-            
-            // Velocity tracking (for swipe detection)
-            velocityX: 0,
-            velocityY: 0,
-            lastMoveTime: 0,
-            
-            // Multi-touch
-            touchCount: 0,
-            initialPinchDistance: 0,
-            currentPinchDistance: 0,
-            pinchScale: 1,
-            
-            // Target tracking
-            startTarget: null,
-            currentTarget: null,
-            interactiveTarget: null,
-            
             // Gesture detection results
             gesture: {
                 type: 'none', // 'tap', 'double-tap', 'long-press', 'swipe-left', 'swipe-right', 'swipe-up', 'swipe-down', 'scroll', 'pinch'
@@ -305,6 +141,33 @@ class MobileManager {
             }
         };
         
+        // DOM element references for mobile UI
+        this.dom = {
+            bottomNav: null,
+            sidebarOverlay: null,
+            yamlSheet: null,
+            fab: null,
+            searchBar: null,
+            accountSheet: null,
+            moreMenu: null,
+            packTreePlaceholder: null  // Placeholder for pack-tree when moved to mobile sidebar
+        };
+        
+        // Haptic feedback patterns
+        this.hapticPatterns = {
+            light: [10],
+            medium: [20],
+            heavy: [30],
+            success: [10, 50, 10],
+            error: [30, 50, 30, 50, 30],
+            warning: [20, 50, 20],
+            selection: [5],
+            impact: [15]
+        };
+        
+        // Main tracker reference (this.state contains all touch tracking data)
+        this.touchTracker = this.state;
+        
         // Expose globally
         window.touchTracker = this.touchTracker;
         
@@ -338,11 +201,29 @@ class MobileManager {
         // Observe DOM for new elements
         this.observeForNewElements();
         
-        // Setup header dropdowns for mobile (single-tap + click-outside-to-close)
-        this.setupMobileHeaderDropdowns();
-        
         console.log('📱 Universal Touch & Gesture Tracking System ready');
         console.log('📱 Access global state via: window.touchTracker');
+    }
+
+    /**
+     * Initialize with editor reference (called from app.js)
+     */
+    init(editor) {
+        this.editor = editor;
+        this.updateDeviceAttribute();
+        this.setupMobileHeaderDropdowns();
+        
+        // Attach resize/orientation listeners for responsive switching
+        this.attachResizeListeners();
+        
+        // CRITICAL: Activate mobile mode on load if we're on a mobile/tablet device
+        // This was missing - activateMobileMode was only called from resize handler
+        if ((this.isMobile || this.isTablet) && !this.state.mobileMode) {
+            console.log('📱 Activating mobile mode on init (device:', this.deviceType + ')');
+            this.activateMobileMode();
+        }
+        
+        return this;
     }
     
     /**
@@ -692,6 +573,12 @@ class MobileManager {
      * Global touch start handler - comprehensive tracking
      */
     handleGlobalTouchStart(e) {
+        // Skip pack tree - has own touch handlers in packManager
+        // Include ALL pack tree elements to let packManager handle them
+        if (e.target.closest('#pack-tree, #mobile-pack-tree, .pack-item, .pack-header, .pack-chevron, .folder-header, .folder-chevron, .folder-item, .root-folder-header, .root-chevron, .subfolder-header, .subfolder-chevron, .yaml-file-header, .yaml-file-item, .entry-item, .file-item, .add-item-btn')) {
+            return;
+        }
+        
         const tracker = this.touchTracker;
         const touch = e.touches[0];
         
@@ -750,8 +637,15 @@ class MobileManager {
         const interactiveTarget = e.target.closest(
             'button, .btn, a, [role="button"], .clickable, .mobile-nav-item, ' +
             '.fab-main, .fab-menu-item, .icon-btn, .modal-close, .btn-close, ' +
-            '[data-action], .action-card, .file-item, .pack-item, .tree-item'
+            '[data-action], .action-card, .file-item, .tree-item'
         );
+        
+        // Skip pack tree items - they have their own touch handlers in packManager
+        // Skip pack tree elements
+        if (e.target.closest('#pack-tree, #mobile-pack-tree, .pack-item, .pack-header, .pack-chevron, .folder-header, .folder-chevron, .folder-item, .root-folder-header, .root-chevron, .subfolder-header, .subfolder-chevron, .yaml-file-header, .yaml-file-item, .entry-item, .file-item, .add-item-btn')) {
+            return;
+        }
+        
         tracker.interactiveTarget = interactiveTarget;
         
         // Multi-touch / pinch detection
@@ -822,6 +716,11 @@ class MobileManager {
      * Global touch move handler - comprehensive tracking
      */
     handleGlobalTouchMove(e) {
+        // Skip pack tree - packManager handles these
+        if (e.target.closest('#pack-tree, #mobile-pack-tree, .pack-item, .pack-header, .pack-chevron, .folder-header, .folder-chevron, .folder-item, .root-folder-header, .root-chevron, .subfolder-header, .subfolder-chevron, .yaml-file-header, .yaml-file-item, .entry-item, .file-item, .add-item-btn')) {
+            return;
+        }
+        
         const tracker = this.touchTracker;
         if (!tracker.isTracking) return;
         
@@ -899,6 +798,11 @@ class MobileManager {
      * Global touch end handler - comprehensive tracking
      */
     handleGlobalTouchEnd(e) {
+        // Skip pack tree - packManager handles these
+        if (e.target.closest('#pack-tree, #mobile-pack-tree, .pack-item, .pack-header, .pack-chevron, .folder-header, .folder-chevron, .folder-item, .root-folder-header, .root-chevron, .subfolder-header, .subfolder-chevron, .yaml-file-header, .yaml-file-item, .entry-item, .file-item, .add-item-btn')) {
+            return;
+        }
+        
         const tracker = this.touchTracker;
         
         // Clear long press timer
@@ -939,10 +843,6 @@ class MobileManager {
                 tracker.containerScrolled = true;
                 tracker.isScrolling = true;
                 tracker.lastContainerScroll = Date.now();
-                console.log('📱 Container scroll position changed - blocking click', {
-                    deltaY: Math.abs(scrollTop - tracker._initialScrollTop),
-                    deltaX: Math.abs(scrollLeft - tracker._initialScrollLeft)
-                });
             }
         }
         
@@ -957,21 +857,18 @@ class MobileManager {
                     tracker.gesture.distance = Math.sqrt(tracker.deltaX ** 2 + tracker.deltaY ** 2);
                     tracker.gesture.velocity = Math.sqrt(tracker.velocityX ** 2 + tracker.velocityY ** 2);
                     tracker.gesture.detected = true;
-                    console.log('📱 Swipe detected:', direction, 'distance:', tracker.gesture.distance.toFixed(0) + 'px');
                 } else {
                     tracker.gesture.type = 'scroll';
                 }
             } else if (tracker.isPinching) {
                 tracker.gesture.type = 'pinch';
                 tracker.gesture.detected = true;
-                console.log('📱 Pinch detected, scale:', tracker.pinchScale.toFixed(2));
             } else if (tracker.isValidTap()) {
                 // Check for double-tap
                 const timeSinceLastTap = tracker.startTime - tracker.lastTapTime;
                 if (timeSinceLastTap < tracker.config.doubleTapDelay && timeSinceLastTap > 50) {
                     tracker.gesture.type = 'double-tap';
                     tracker.gesture.detected = true;
-                    console.log('📱 Double-tap detected');
                 } else {
                     tracker.gesture.type = 'tap';
                     tracker.gesture.detected = true;
@@ -979,15 +876,6 @@ class MobileManager {
                 tracker.lastTapTime = tracker.startTime;
             }
         }
-        
-        // Log gesture result
-        console.log('📱 Touch END:', 
-            interactiveTarget?.id || interactiveTarget?.className || 'no-target',
-            'gesture:', tracker.gesture.type,
-            'duration:', tracker.touchDuration + 'ms',
-            'scrolling:', tracker.isScrolling,
-            'containerScrolled:', tracker.containerScrolled
-        );
         
         // Only trigger click if it was a valid tap on an interactive element
         // CRITICAL: Block if container scrolled, even if gesture type is 'tap'
@@ -1014,8 +902,6 @@ class MobileManager {
             // Prevent default and dispatch click
             e.preventDefault();
             
-            console.log('📱 Dispatching click to:', interactiveTarget.id || interactiveTarget.className);
-            
             const clickEvent = new MouseEvent('click', {
                 bubbles: true,
                 cancelable: true,
@@ -1024,6 +910,13 @@ class MobileManager {
             clickEvent._fromTouch = true;
             clickEvent._touchTracker = tracker;
             interactiveTarget.dispatchEvent(clickEvent);
+            
+            // Reset gesture after dispatching click to allow subsequent browser events
+            // This prevents the click blocker from blocking unrelated clicks
+            setTimeout(() => {
+                tracker.gesture.detected = false;
+                tracker.gesture.type = 'none';
+            }, 50);
         }
         
         // Call gesture callback
@@ -1045,8 +938,6 @@ class MobileManager {
      * Global touch cancel handler
      */
     handleGlobalTouchCancel(e) {
-        console.log('📱 Touch CANCEL');
-        
         // Clear long press timer
         if (this._longPressTimer) {
             clearTimeout(this._longPressTimer);
@@ -1094,29 +985,32 @@ class MobileManager {
     
     /**
      * Global click handler - prevents double-firing after touch
+     * SIMPLIFIED: Only block truly duplicate clicks, not legitimate touch->click sequences
      */
     handleGlobalClick(e) {
-        const tracker = this.touchTracker;
-        
-        // If this click came from our touch handler, let it through
-        if (e._fromTouch) {
-            console.log('📱 Click from touch - allowing:', e.target.id || e.target.className);
+        // Skip pack tree - has own click handlers in packManager
+        if (e.target.closest('#pack-tree, #mobile-pack-tree, .pack-item, .pack-header, .pack-chevron, .folder-header, .folder-chevron, .folder-item, .root-folder-header, .root-chevron, .subfolder-header, .subfolder-chevron, .yaml-file-header, .yaml-file-item, .entry-item, .file-item, .add-item-btn')) {
             return;
         }
         
-        // Block clicks that happen too soon after a touch (prevents ghost clicks)
-        if (tracker.shouldBlockClick()) {
-            console.log('📱 Blocking ghost click (too soon after touch):', e.target.id || e.target.className);
+        // If this click came from our touch handler, let it through
+        if (e._fromTouch) {
+            return;
+        }
+        
+        const tracker = this.touchTracker;
+        
+        // ONLY block if we already dispatched a click via touch handler for this gesture
+        // This prevents the browser's automatic touch->click from firing AFTER our manual click
+        if (tracker.gesture.detected && tracker.gesture.type === 'tap') {
+            // We already handled this tap, block the browser's synthetic click
             e.preventDefault();
             e.stopPropagation();
             return false;
         }
         
-        // Log native clicks for debugging
-        const target = e.target.closest('button, .btn, .icon-btn, .modal-close, .btn-close, .action-card');
-        if (target) {
-            console.log('📱 Native click on:', target.id || target.className);
-        }
+        // Allow all other clicks through - don't be overly aggressive
+        // The old logic was blocking legitimate interactions
     }
     
     /**
@@ -1462,28 +1356,29 @@ class MobileManager {
         // CSS media query check for hover capability (desktop usually has this)
         const canHover = window.matchMedia?.('(hover: hover)')?.matches || false;
         
+        const hasTouchSignals = isMobileUA || isTabletUA || hasTouch || hasCoarsePointer;
+        
         // Determine device type with multiple signals
-        // Mobile: small screen OR mobile UA
-        if (isMobileUA || width < this.breakpoints.mobile) {
+        // Mobile: small screen WITH touch signals, or mobile UA
+        if (isMobileUA || (width < this.breakpoints.mobile && hasTouchSignals)) {
             return 'mobile';
         }
         
-        // Tablet: tablet UA OR (medium screen with touch/coarse pointer and no hover)
+        // Tablet: tablet UA
         if (isTabletUA) {
             return 'tablet';
         }
         
-        // Medium-sized touch device without hover = probably tablet
+        // Medium-sized device requires touch signals to be treated as tablet
         if (width >= this.breakpoints.mobile && width < this.breakpoints.tablet) {
-            if (hasTouch || hasCoarsePointer) {
+            if (hasTouchSignals && !canHover) {
                 return 'tablet';
             }
-            // Medium screen but has hover = could be small laptop, treat as tablet for safety
-            return 'tablet';
+            return 'desktop';
         }
         
         // Large screen with touch but no hover = probably large tablet (like iPad Pro)
-        if (width >= this.breakpoints.tablet && (hasTouch || hasCoarsePointer) && !canHover) {
+        if (width >= this.breakpoints.tablet && hasTouchSignals && !canHover) {
             return 'tablet';
         }
         
@@ -3201,174 +3096,32 @@ class MobileManager {
     
     /**
      * Open mobile sidebar
+     * IMPORTANT: We MOVE the pack-tree DOM instead of copying it
+     * This preserves all packManager event handlers attached to the elements
      */
     openSidebar() {
         if (!this.dom.sidebarOverlay) return;
         
-        // Clone pack tree content
         const desktopPackTree = document.getElementById('pack-tree');
         const mobilePackTree = document.getElementById('mobile-pack-tree');
         
         if (desktopPackTree && mobilePackTree) {
-            mobilePackTree.innerHTML = desktopPackTree.innerHTML;
+            // Create placeholder to remember where pack-tree was
+            if (!this.dom.packTreePlaceholder) {
+                this.dom.packTreePlaceholder = document.createElement('div');
+                this.dom.packTreePlaceholder.id = 'pack-tree-placeholder';
+                this.dom.packTreePlaceholder.style.display = 'none';
+            }
             
-            // Style for mobile-friendly file tree
+            // Insert placeholder where pack-tree currently is
+            desktopPackTree.parentNode.insertBefore(this.dom.packTreePlaceholder, desktopPackTree);
+            
+            // MOVE the actual pack-tree into mobile sidebar (preserves all event handlers!)
+            mobilePackTree.innerHTML = ''; // Clear any old content
+            mobilePackTree.appendChild(desktopPackTree);
+            
+            // Apply mobile-friendly styles
             this.styleMobileFileTree(mobilePackTree);
-            
-            // Attach touch-friendly click handlers for pack headers (expand/collapse)
-            mobilePackTree.querySelectorAll('.pack-header, .yaml-file-header').forEach(header => {
-                header.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const pack = header.closest('.pack-item') || header.closest('.yaml-file-item');
-                    if (pack) {
-                        pack.classList.toggle('expanded');
-                    }
-                });
-                // Touch support
-                header.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    header.click();
-                }, { passive: false });
-            });
-            
-            // Attach handlers for folder headers (expand/collapse)
-            mobilePackTree.querySelectorAll('.folder-header').forEach(header => {
-                header.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const folder = header.closest('.folder-item');
-                    if (folder) {
-                        const folderFiles = folder.querySelector('.folder-files');
-                        const chevron = header.querySelector('.folder-chevron');
-                        if (folderFiles && chevron) {
-                            folderFiles.classList.toggle('collapsed');
-                            chevron.classList.toggle('fa-chevron-right');
-                            chevron.classList.toggle('fa-chevron-down');
-                        }
-                    }
-                });
-                header.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    header.click();
-                }, { passive: false });
-            });
-            
-            // Reattach "Add Item" button handlers
-            mobilePackTree.querySelectorAll('.add-item-btn').forEach(btn => {
-                const clickHandler = (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    
-                    const type = btn.dataset.type;
-                    const packId = btn.dataset.packId;
-                    const editor = this.getEditor();
-                    
-                    if (!editor) return;
-                    
-                    // Auto-switch to the pack where the button was clicked
-                    if (packId && editor.packManager) {
-                        const targetPack = editor.packManager.getPackById(packId);
-                        if (targetPack && targetPack !== editor.packManager.activePack) {
-                            editor.packManager.setActivePack(targetPack);
-                        }
-                    }
-                    
-                    // Call the appropriate create function
-                    switch (type) {
-                        case 'mob': editor.createNewMob(); break;
-                        case 'skill': editor.createNewSkill(); break;
-                        case 'item': editor.createNewItem(); break;
-                        case 'droptable': editor.createNewDropTable(); break;
-                        case 'randomspawn': editor.createNewRandomSpawn(); break;
-                        case 'spawner': editor.createNewSpawner?.(); break;
-                        case 'stat': editor.createNewStat?.(); break;
-                    }
-                    
-                    this.closeSidebar();
-                };
-                
-                btn.addEventListener('click', clickHandler);
-                btn.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    clickHandler(e);
-                }, { passive: false });
-            });
-            
-            // Attach click handlers for pack tree items (file entries)
-            mobilePackTree.querySelectorAll('[data-file-id], .entry-item, .file-item').forEach(item => {
-                const clickHandler = (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    
-                    const editor = this.getEditor();
-                    if (!editor?.packManager) return;
-                    
-                    // Handle entry items (individual entries within YAML files)
-                    if (item.classList.contains('entry-item')) {
-                        const entryId = item.dataset.entryId;
-                        const fileType = item.dataset.fileType;
-                        const parentFileId = item.dataset.parentFileId;
-                        
-                        let entry = editor.packManager.findEntryById(entryId, fileType, parentFileId);
-                        
-                        if (!entry) {
-                            const result = editor.packManager.findEntryInAllPacks(entryId, fileType, parentFileId);
-                            if (result) {
-                                editor.packManager.setActivePack(result.pack);
-                                entry = result.entry;
-                            }
-                        }
-                        
-                        if (entry) {
-                            editor.openFile(entry, fileType);
-                        }
-                    }
-                    // Handle file items
-                    else if (item.classList.contains('file-item') || item.dataset.fileId) {
-                        const fileId = item.dataset.fileId;
-                        const fileType = item.dataset.fileType;
-                        
-                        // Special handling for config files
-                        if (item.classList.contains('config-file')) {
-                            if (fileType === 'packinfo') {
-                                editor.packManager.openPackInfo();
-                            } else if (fileType === 'tooltips') {
-                                editor.packManager.openTooltips();
-                            }
-                        }
-                        // Special handling for stats
-                        else if (fileType === 'stat') {
-                            editor.showStatsEditor();
-                        }
-                        // Regular files
-                        else {
-                            let file = editor.packManager.findFile(fileId, fileType);
-                            
-                            if (!file) {
-                                const result = editor.packManager.findFileInAllPacks(fileId, fileType);
-                                if (result) {
-                                    editor.packManager.setActivePack(result.pack);
-                                    file = result.file;
-                                }
-                            }
-                            
-                            if (file) {
-                                editor.openFile(file, fileType);
-                            }
-                        }
-                    }
-                    
-                    this.closeSidebar();
-                };
-                
-                item.addEventListener('click', clickHandler);
-                item.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    clickHandler(e);
-                }, { passive: false });
-            });
         }
         
         this.dom.sidebarOverlay.classList.add('open');
@@ -3429,6 +3182,12 @@ class MobileManager {
      */
     closeSidebar() {
         if (!this.dom.sidebarOverlay) return;
+        
+        // Restore pack tree to its original location
+        const desktopPackTree = document.getElementById('pack-tree');
+        if (desktopPackTree && this.dom.packTreePlaceholder?.parentNode) {
+            this.dom.packTreePlaceholder.parentNode.insertBefore(desktopPackTree, this.dom.packTreePlaceholder);
+        }
         
         this.dom.sidebarOverlay.classList.remove('open');
         this.state.sidebarOpen = false;

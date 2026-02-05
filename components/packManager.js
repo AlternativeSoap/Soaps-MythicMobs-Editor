@@ -623,12 +623,14 @@ class PackManager {
         const fileStates = this.getFileStates();
         
         const getFolderClasses = (folderName) => {
-            const isExpanded = folderStates[folderName];
+            // Default to expanded (undefined or true = expanded, false = collapsed)
+            const isExpanded = folderStates[folderName] !== false;
             return isExpanded ? '' : 'collapsed';
         };
         
         const getChevronClass = (folderName) => {
-            const isExpanded = folderStates[folderName];
+            // Default to expanded (undefined or true = expanded, false = collapsed)
+            const isExpanded = folderStates[folderName] !== false;
             return isExpanded ? 'fa-chevron-down' : 'fa-chevron-right';
         };
         
@@ -1002,6 +1004,102 @@ class PackManager {
                 return;
             }
             
+            // === CHEVRON ICON TOUCH (highest priority) ===
+            const chevron = e.target.closest('.pack-chevron');
+            if (chevron) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📱 Pack chevron TOUCHED');
+                touchHandled = true;
+                
+                const packHeader = chevron.closest('.pack-header');
+                if (packHeader) {
+                    const packId = packHeader.dataset.packId;
+                    console.log('📱 Toggling pack via chevron:', packId);
+                    this.togglePackCollapse(packId);
+                    
+                    // Haptic feedback
+                    if (window.mobileManager?.vibrate) {
+                        window.mobileManager.vibrate('light');
+                    }
+                }
+                
+                setTimeout(() => { touchHandled = false; }, 500);
+                return;
+            }
+            
+            // === FOLDER CHEVRON TOUCH ===
+            const folderChevron = e.target.closest('.folder-chevron');
+            if (folderChevron) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📱 Folder chevron TOUCHED');
+                touchHandled = true;
+                
+                const folderHeader = folderChevron.closest('.folder-header');
+                if (folderHeader) {
+                    const folderName = folderHeader.dataset.folder;
+                    console.log('📱 Toggling folder via chevron:', folderName);
+                    this.toggleFolderCollapse(folderName);
+                    
+                    // Haptic feedback
+                    if (window.mobileManager?.vibrate) {
+                        window.mobileManager.vibrate('light');
+                    }
+                }
+                
+                setTimeout(() => { touchHandled = false; }, 500);
+                return;
+            }
+            
+            // === ROOT CHEVRON TOUCH ===
+            const rootChevron = e.target.closest('.root-chevron');
+            if (rootChevron) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📱 Root chevron TOUCHED');
+                touchHandled = true;
+                
+                const rootHeader = rootChevron.closest('.root-folder-header');
+                if (rootHeader) {
+                    const rootName = rootHeader.dataset.root;
+                    console.log('📱 Toggling root via chevron:', rootName);
+                    this.toggleRootFolder(rootName);
+                    
+                    // Haptic feedback
+                    if (window.mobileManager?.vibrate) {
+                        window.mobileManager.vibrate('light');
+                    }
+                }
+                
+                setTimeout(() => { touchHandled = false; }, 500);
+                return;
+            }
+            
+            // === SUBFOLDER CHEVRON TOUCH ===
+            const subfolderChevron = e.target.closest('.subfolder-chevron');
+            if (subfolderChevron) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📱 Subfolder chevron TOUCHED');
+                touchHandled = true;
+                
+                const subfolderHeader = subfolderChevron.closest('.subfolder-header');
+                if (subfolderHeader) {
+                    const subfolderName = subfolderHeader.dataset.subfolder;
+                    console.log('📱 Toggling subfolder via chevron:', subfolderName);
+                    this.toggleSubfolder(subfolderName);
+                    
+                    // Haptic feedback
+                    if (window.mobileManager?.vibrate) {
+                        window.mobileManager.vibrate('light');
+                    }
+                }
+                
+                setTimeout(() => { touchHandled = false; }, 500);
+                return;
+            }
+            
             // Pack header touch (toggle collapse or activate)
             const packHeader = e.target.closest('.pack-header');
             if (packHeader) {
@@ -1067,6 +1165,54 @@ class PackManager {
             
             // Prevent handling if the element is inside an input (inline editing)
             if (e.target.closest('input')) return;
+            
+            // === CHEVRON CLICK (highest priority for desktop) ===
+            const chevron = e.target.closest('.pack-chevron');
+            if (chevron) {
+                e.stopPropagation();
+                const packHeader = chevron.closest('.pack-header');
+                if (packHeader) {
+                    const packId = packHeader.dataset.packId;
+                    this.togglePackCollapse(packId);
+                }
+                return;
+            }
+            
+            // === FOLDER CHEVRON CLICK ===
+            const folderChevron = e.target.closest('.folder-chevron');
+            if (folderChevron) {
+                e.stopPropagation();
+                const folderHeader = folderChevron.closest('.folder-header');
+                if (folderHeader) {
+                    const folderName = folderHeader.dataset.folder;
+                    this.toggleFolderCollapse(folderName);
+                }
+                return;
+            }
+            
+            // === ROOT CHEVRON CLICK ===
+            const rootChevron = e.target.closest('.root-chevron');
+            if (rootChevron) {
+                e.stopPropagation();
+                const rootHeader = rootChevron.closest('.root-folder-header');
+                if (rootHeader) {
+                    const rootName = rootHeader.dataset.root;
+                    this.toggleRootFolder(rootName);
+                }
+                return;
+            }
+            
+            // === SUBFOLDER CHEVRON CLICK ===
+            const subfolderChevron = e.target.closest('.subfolder-chevron');
+            if (subfolderChevron) {
+                e.stopPropagation();
+                const subfolderHeader = subfolderChevron.closest('.subfolder-header');
+                if (subfolderHeader) {
+                    const subfolderName = subfolderHeader.dataset.subfolder;
+                    this.toggleSubfolder(subfolderName);
+                }
+                return;
+            }
             
             // === NEW: Root folder header toggle ===
             const rootFolderHeader = e.target.closest('.root-folder-header');
@@ -1675,15 +1821,35 @@ class PackManager {
         }
     }
     
+    /**
+     * Toggle folder collapse state via folder name
+     * Used by chevron click handlers
+     */
+    toggleFolderCollapse(folderName) {
+        const folderItem = document.querySelector(`.folder-item[data-folder-name="${folderName}"]`);
+        if (!folderItem) return;
+        
+        const folderHeader = folderItem.querySelector('.folder-header');
+        if (folderHeader) {
+            this.toggleFolder(folderHeader);
+        }
+    }
+    
     saveFolderState(folderName, isExpanded) {
         const states = this.getFolderStates();
-        states[folderName] = isExpanded;
+        // Store false when collapsed, true/undefined when expanded (default)
+        // This optimizes storage - we only store collapsed states
+        if (isExpanded) {
+            states[folderName] = true;
+        } else {
+            states[folderName] = false;
+        }
         localStorage.setItem('folderStates', JSON.stringify(states));
     }
     
     getFolderStates() {
         const saved = localStorage.getItem('folderStates');
-        // Return empty object - folders are collapsed by default (no state = collapsed)
+        // Folders are expanded by default (undefined/true = expanded, false = collapsed)
         return saved ? JSON.parse(saved) : {};
     }
     

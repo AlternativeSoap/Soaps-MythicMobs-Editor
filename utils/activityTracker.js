@@ -84,11 +84,16 @@ class ActivityTracker {
             const { data: { user } } = await this.supabase.auth.getUser();
             
             // Check if session exists
-            const { data: existingSession } = await this.supabase
+            const { data: existingSession, error: sessionLookupError } = await this.supabase
                 .from('user_sessions')
                 .select('id')
                 .eq('session_token', this.sessionToken)
-                .single();
+                .maybeSingle();
+            
+            // If lookup failed for reasons other than no rows, log and continue
+            if (sessionLookupError && window.DEBUG_MODE) {
+                console.warn('Session lookup error:', sessionLookupError);
+            }
             
             if (existingSession) {
                 // Update existing session

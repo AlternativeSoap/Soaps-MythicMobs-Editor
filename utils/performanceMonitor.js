@@ -53,7 +53,12 @@ class PerformanceMonitor {
         
         // Sample metrics every 5 seconds
         this.monitoringInterval = setInterval(() => {
-            this.sample();
+            if (document.hidden) return;
+            if (typeof window.requestIdleCallback === 'function') {
+                window.requestIdleCallback(() => this.sample(), { timeout: 1000 });
+            } else {
+                setTimeout(() => this.sample(), 0);
+            }
         }, 5000);
         
         // Initial sample
@@ -75,9 +80,10 @@ class PerformanceMonitor {
      * Take a snapshot of current metrics
      */
     sample() {
+        const shouldCountDom = window.DEBUG_MODE || localStorage.getItem('perf_monitor_count_dom') === 'true';
         const snapshot = {
             timestamp: Date.now(),
-            domNodes: this.countDOMNodes(),
+            domNodes: shouldCountDom ? this.countDOMNodes() : this.metrics.domNodes,
             eventListeners: this.listenerCount,
             modalsOpen: this.modalRegistry.size,
             memory: this.getMemoryUsage()

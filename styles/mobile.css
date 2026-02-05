@@ -748,156 +748,7 @@ body[data-device="mobile"] .editor-content {
     -webkit-overflow-scrolling: touch;
 }
 
-/* Mobile file tree comprehensive styles */
-.mobile-sidebar-content .mobile-file-tree {
-    font-size: 0.9375rem;
-}
-
-.mobile-sidebar-content .pack-tree,
-.mobile-sidebar-content .mobile-file-tree {
-    padding: 0;
-    margin: 0;
-}
-
-.mobile-sidebar-content .pack-item {
-    margin-bottom: 8px;
-    background: var(--bg-tertiary, #1e2235);
-    border-radius: var(--mobile-radius);
-    overflow: hidden;
-}
-
-.mobile-sidebar-content .pack-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-height: 52px;
-    padding: 14px 16px;
-    background: var(--bg-elevated, #252a3f);
-    border-radius: var(--mobile-radius);
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    transition: background 0.15s ease;
-}
-
-.mobile-sidebar-content .pack-header:active {
-    background: var(--accent-primary, #8b5cf6);
-}
-
-.mobile-sidebar-content .pack-header i {
-    font-size: 1.125rem;
-    color: var(--accent-primary, #8b5cf6);
-    flex-shrink: 0;
-}
-
-.mobile-sidebar-content .pack-title {
-    font-size: 1rem;
-    font-weight: 600;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.mobile-sidebar-content .pack-actions {
-    display: none; /* Hide on mobile - use context menu instead */
-}
-
-.mobile-sidebar-content .pack-content {
-    display: none;
-    padding: 8px 0;
-}
-
-.mobile-sidebar-content .pack-item.expanded .pack-content {
-    display: block;
-}
-
-.mobile-sidebar-content .pack-item.expanded .pack-header i:first-child {
-    transform: rotate(90deg);
-}
-
-/* File type folders */
-.mobile-sidebar-content .yaml-file-item {
-    margin: 4px 8px;
-}
-
-.mobile-sidebar-content .yaml-file-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 48px;
-    padding: 12px 16px;
-    padding-left: 20px;
-    background: var(--bg-secondary, #1a1d2e);
-    border-radius: 8px;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-}
-
-.mobile-sidebar-content .yaml-file-header:active {
-    background: var(--accent-secondary, #6366f1);
-}
-
-.mobile-sidebar-content .yaml-file-header i {
-    color: var(--text-secondary, #94a3b8);
-    font-size: 0.875rem;
-}
-
-.mobile-sidebar-content .yaml-file-item.expanded .yaml-file-header i:first-child {
-    transform: rotate(90deg);
-}
-
-.mobile-sidebar-content .yaml-file-entries {
-    display: none;
-    padding: 4px 0;
-}
-
-.mobile-sidebar-content .yaml-file-item.expanded .yaml-file-entries {
-    display: block;
-}
-
-/* Individual file entries */
-.mobile-sidebar-content .entry-item,
-.mobile-sidebar-content .file-item,
-.mobile-sidebar-content [data-file-id] {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 48px;
-    padding: 12px 16px;
-    padding-left: 40px;
-    font-size: 0.875rem;
-    color: var(--text-secondary, #94a3b8);
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    border-radius: 6px;
-    margin: 2px 8px;
-    transition: background 0.15s ease, color 0.15s ease;
-}
-
-.mobile-sidebar-content .entry-item:active,
-.mobile-sidebar-content .file-item:active,
-.mobile-sidebar-content [data-file-id]:active {
-    background: var(--accent-primary, #8b5cf6);
-    color: white;
-}
-
-.mobile-sidebar-content .entry-item i,
-.mobile-sidebar-content .file-item i {
-    font-size: 0.8125rem;
-    color: inherit;
-    opacity: 0.7;
-}
-
-/* Empty states */
-.mobile-sidebar-content .empty-message {
-    padding: 20px;
-    text-align: center;
-    color: var(--text-tertiary, #64748b);
-    font-size: 0.875rem;
-}
+/* Legacy mobile file tree styles removed - replaced by the Pack Manager Mobile Overhaul */
 
 .mobile-sidebar-footer {
     padding: var(--mobile-spacing-lg);
@@ -3294,7 +3145,29 @@ body[data-device="mobile"] .template-card {
 }
 
 /* ============================================
-   PACK MANAGER - MOBILE
+   PACK MANAGER - MOBILE (COMPLETE OVERHAUL)
+   ============================================ 
+   
+   HIERARCHY:
+   #pack-tree
+     └── .mythicmobs-root
+           └── .root-folder-item
+                 ├── .root-folder-header (MythicMobs header)
+                 └── .root-folder-content
+                       ├── .pack-item (each pack)
+                       │     ├── .pack-header
+                       │     └── .pack-content
+                       │           ├── .config-files
+                       │           │     └── .file-item.config-file
+                       │           └── .folder-item (Mobs, Skills, Items, etc.)
+                       │                 ├── .folder-header
+                       │                 └── .folder-files
+                       │                       └── .yaml-file-container
+                       │                             ├── .yaml-file-header
+                       │                             └── .yaml-file-entries
+                       │                                   └── .entry-item
+                       └── .subfolder-item (Spawners - advanced mode)
+   
    ============================================ */
 
 body[data-device="mobile"] .pack-manager-overlay {
@@ -3313,9 +3186,524 @@ body[data-device="mobile"] .pack-list {
     gap: var(--mobile-spacing-sm);
 }
 
+/* ============================================
+   PACK TREE CONTAINER
+   ============================================ */
+
+body[data-device="mobile"] #pack-tree {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+body[data-device="mobile"] .mythicmobs-root {
+    display: block !important;
+}
+
+body[data-device="mobile"] .root-folder-item {
+    display: block !important;
+}
+
+/* ============================================
+   ROOT FOLDER (MythicMobs)
+   ============================================ */
+
+body[data-device="mobile"] .root-folder-header {
+    display: flex !important;
+    align-items: center !important;
+    min-height: 50px !important;
+    padding: 12px 14px !important;
+    gap: 10px !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+    user-select: none !important;
+}
+
+body[data-device="mobile"] .root-folder-header:active {
+    background: rgba(139, 92, 246, 0.12) !important;
+}
+
+body[data-device="mobile"] .root-folder-content {
+    display: block !important;
+    padding-left: 8px !important;
+}
+
+body[data-device="mobile"] .root-folder-content.collapsed {
+    display: none !important;
+}
+
+/* ============================================
+   PACK ITEMS
+   ============================================ */
+
 body[data-device="mobile"] .pack-item {
-    padding: var(--mobile-spacing-lg);
-    min-height: var(--mobile-touch-target-lg);
+    display: block !important;
+    margin-bottom: 4px !important;
+}
+
+body[data-device="mobile"] .pack-header {
+    display: flex !important;
+    align-items: center !important;
+    min-height: 56px !important;
+    padding: 12px 14px !important;
+    gap: 10px !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+    user-select: none !important;
+    border-radius: 8px !important;
+    background: rgba(139, 92, 246, 0.08) !important;
+}
+
+body[data-device="mobile"] .pack-header.active {
+    background: rgba(139, 92, 246, 0.2) !important;
+    border-left: 3px solid var(--primary) !important;
+}
+
+body[data-device="mobile"] .pack-header:active {
+    background: rgba(139, 92, 246, 0.25) !important;
+    transform: scale(0.99) !important;
+}
+
+body[data-device="mobile"] .pack-drag-handle {
+    display: none !important;
+}
+
+body[data-device="mobile"] .pack-chevron {
+    font-size: 14px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+    border-radius: 6px !important;
+    flex-shrink: 0 !important;
+}
+
+body[data-device="mobile"] .pack-chevron:active {
+    background: rgba(139, 92, 246, 0.3) !important;
+}
+
+body[data-device="mobile"] .pack-chevron.rotated {
+    transform: rotate(90deg) !important;
+}
+
+body[data-device="mobile"] .pack-title {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+}
+
+body[data-device="mobile"] .pack-title span {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+/* ============================================
+   PACK CONTENT - THE CRITICAL PART
+   ============================================ */
+
+body[data-device="mobile"] .pack-content {
+    display: block !important;
+    padding-left: 16px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+}
+
+body[data-device="mobile"] .pack-content.collapsed {
+    display: none !important;
+}
+
+/* Note: .pack-content.expanded is NOT needed because 
+   display:block is the default. Only hide when collapsed. */
+
+/* ============================================
+   CONFIG FILES (packinfo.yml, tooltips.yml)
+   ============================================ */
+
+body[data-device="mobile"] .config-files {
+    display: block !important;
+    margin-bottom: 8px !important;
+}
+
+body[data-device="mobile"] .config-files .file-item,
+body[data-device="mobile"] .config-file {
+    display: flex !important;
+    align-items: center !important;
+    min-height: 44px !important;
+    padding: 10px 12px !important;
+    gap: 10px !important;
+    cursor: pointer !important;
+    border-radius: 6px !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+body[data-device="mobile"] .config-file:active {
+    background: rgba(139, 92, 246, 0.1) !important;
+}
+
+/* ============================================
+   FOLDER ITEMS (Mobs, Skills, Items, etc.)
+   ============================================ */
+
+body[data-device="mobile"] .folder-item {
+    display: block !important;
+    margin-bottom: 4px !important;
+}
+
+body[data-device="mobile"] .folder-header {
+    display: flex !important;
+    align-items: center !important;
+    min-height: 48px !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    border-radius: 6px !important;
+    -webkit-tap-highlight-color: transparent !important;
+    user-select: none !important;
+}
+
+body[data-device="mobile"] .folder-header:active {
+    background: rgba(139, 92, 246, 0.12) !important;
+}
+
+body[data-device="mobile"] .folder-chevron {
+    font-size: 12px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    border-radius: 6px !important;
+    flex-shrink: 0 !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+body[data-device="mobile"] .folder-chevron:active {
+    background: rgba(139, 92, 246, 0.2) !important;
+}
+
+body[data-device="mobile"] .folder-icon {
+    font-size: 14px !important;
+    color: var(--text-secondary) !important;
+}
+
+body[data-device="mobile"] .folder-header .badge {
+    margin-left: auto !important;
+    font-size: 11px !important;
+    padding: 2px 8px !important;
+    border-radius: 10px !important;
+    background: rgba(139, 92, 246, 0.2) !important;
+}
+
+/* ============================================
+   FOLDER FILES (content inside folders)
+   ============================================ */
+
+body[data-device="mobile"] .folder-files {
+    display: block !important;
+    padding-left: 20px !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+}
+
+body[data-device="mobile"] .folder-files.collapsed {
+    display: none !important;
+}
+
+/* ============================================
+   YAML FILE CONTAINERS
+   ============================================ */
+
+body[data-device="mobile"] .yaml-file-container {
+    display: block !important;
+    margin-bottom: 4px !important;
+}
+
+body[data-device="mobile"] .yaml-file-header {
+    display: flex !important;
+    align-items: center !important;
+    min-height: 44px !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    border-radius: 6px !important;
+    -webkit-tap-highlight-color: transparent !important;
+    user-select: none !important;
+}
+
+body[data-device="mobile"] .yaml-file-header:active {
+    background: rgba(139, 92, 246, 0.1) !important;
+}
+
+body[data-device="mobile"] .file-chevron {
+    font-size: 10px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+}
+
+body[data-device="mobile"] .yaml-file-icon {
+    font-size: 13px !important;
+    color: var(--primary) !important;
+}
+
+body[data-device="mobile"] .yaml-file-name {
+    flex: 1 !important;
+    font-size: 13px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+body[data-device="mobile"] .yaml-file-header .badge,
+body[data-device="mobile"] .yaml-file-header .entry-count {
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+    border-radius: 8px !important;
+    background: rgba(139, 92, 246, 0.15) !important;
+}
+
+/* ============================================
+   YAML FILE ENTRIES (content inside YAML files)
+   ============================================ */
+
+body[data-device="mobile"] .yaml-file-entries {
+    display: block !important;
+    padding-left: 24px !important;
+    padding-top: 4px !important;
+}
+
+body[data-device="mobile"] .yaml-file-entries.collapsed {
+    display: none !important;
+}
+
+/* Expanded state uses display:block, which is the default above */
+body[data-device="mobile"] .yaml-file-entries.expanded {
+    display: block !important;
+}
+
+/* ============================================
+   ENTRY ITEMS (individual mobs, skills, etc.)
+   ============================================ */
+
+body[data-device="mobile"] .entry-item {
+    display: flex !important;
+    align-items: center !important;
+    min-height: 42px !important;
+    padding: 9px 12px !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    border-radius: 6px !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+body[data-device="mobile"] .entry-item:active {
+    background: rgba(139, 92, 246, 0.08) !important;
+}
+
+body[data-device="mobile"] .entry-item.active {
+    background: rgba(139, 92, 246, 0.15) !important;
+    border-left: 2px solid var(--primary) !important;
+}
+
+body[data-device="mobile"] .entry-icon {
+    font-size: 12px !important;
+    min-width: 20px !important;
+    text-align: center !important;
+    color: var(--text-secondary) !important;
+}
+
+body[data-device="mobile"] .entry-item span {
+    flex: 1 !important;
+    font-size: 13px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+body[data-device="mobile"] .favorite-star-btn {
+    min-width: 32px !important;
+    min-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 14px !important;
+    opacity: 0.3 !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+body[data-device="mobile"] .favorite-star-btn.favorited {
+    opacity: 1 !important;
+    color: gold !important;
+}
+
+body[data-device="mobile"] .favorite-star-btn:active {
+    transform: scale(1.2) !important;
+}
+
+/* ============================================
+   SUBFOLDERS (Spawners in advanced mode)
+   ============================================ */
+
+body[data-device="mobile"] .subfolder-item {
+    display: block !important;
+    margin-top: 8px !important;
+}
+
+body[data-device="mobile"] .subfolder-header {
+    display: flex !important;
+    align-items: center !important;
+    min-height: 48px !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    border-radius: 6px !important;
+    -webkit-tap-highlight-color: transparent !important;
+    user-select: none !important;
+}
+
+body[data-device="mobile"] .subfolder-header:active {
+    background: rgba(139, 92, 246, 0.12) !important;
+}
+
+body[data-device="mobile"] .subfolder-chevron {
+    font-size: 12px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+}
+
+body[data-device="mobile"] .subfolder-content {
+    display: block !important;
+    padding-left: 20px !important;
+    padding-top: 4px !important;
+}
+
+body[data-device="mobile"] .subfolder-content.collapsed {
+    display: none !important;
+}
+
+/* ============================================
+   ROOT CHEVRONS
+   ============================================ */
+
+body[data-device="mobile"] .root-chevron {
+    font-size: 14px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+}
+
+body[data-device="mobile"] .root-chevron:active {
+    background: rgba(139, 92, 246, 0.2) !important;
+    border-radius: 6px !important;
+}
+
+/* ============================================
+   ADD ITEM BUTTONS
+   ============================================ */
+
+body[data-device="mobile"] .add-item-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 44px !important;
+    padding: 10px 16px !important;
+    gap: 8px !important;
+    margin: 8px 0 !important;
+    font-size: 13px !important;
+    border-radius: 8px !important;
+    background: rgba(139, 92, 246, 0.1) !important;
+    border: 1px dashed rgba(139, 92, 246, 0.3) !important;
+    color: var(--primary) !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+body[data-device="mobile"] .add-item-btn:active {
+    background: rgba(139, 92, 246, 0.2) !important;
+    transform: scale(0.98) !important;
+}
+
+/* ============================================
+   FOLDER INFO TEXT
+   ============================================ */
+
+body[data-device="mobile"] .folder-info {
+    padding: 8px 12px !important;
+    font-size: 11px !important;
+    color: var(--text-tertiary) !important;
+    font-style: italic !important;
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+
+body[data-device="mobile"] .empty-state {
+    display: block !important;
+    padding: 20px !important;
+    text-align: center !important;
+    color: var(--text-secondary) !important;
+}
+
+body[data-device="mobile"] .empty-spawners {
+    display: block !important;
+    padding: 16px !important;
+    text-align: center !important;
+    color: var(--text-tertiary) !important;
+    font-size: 12px !important;
+}
+
+/* ============================================
+   SPAWNER FILE ITEMS
+   ============================================ */
+
+body[data-device="mobile"] .spawner-file-item {
+    display: flex !important;
+    align-items: center !important;
+    min-height: 44px !important;
+    padding: 10px 12px !important;
+    gap: 10px !important;
+    cursor: pointer !important;
+    border-radius: 6px !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+body[data-device="mobile"] .spawner-file-item:active {
+    background: rgba(139, 92, 246, 0.1) !important;
+}
+
+body[data-device="mobile"] .spawner-file-item.active {
+    background: rgba(139, 92, 246, 0.15) !important;
+}
+
+body[data-device="mobile"] .delete-spawner-btn {
+    min-width: 36px !important;
+    min-height: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-left: auto !important;
 }
 
 /* ============================================
@@ -6169,6 +6557,7 @@ body[data-device="mobile"] .disclaimer-warning i {
 
 body[data-device="mobile"] #settings-modal {
     padding: 0 !important;
+    z-index: 9999 !important;
 }
 
 body[data-device="mobile"] .settings-modal {
@@ -6178,6 +6567,9 @@ body[data-device="mobile"] .settings-modal {
     height: 100vh !important;
     margin: 0 !important;
     border-radius: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
 }
 
 body[data-device="mobile"] .settings-modal .modal-header {
@@ -6198,6 +6590,13 @@ body[data-device="mobile"] .settings-modal .modal-header .icon-btn {
     height: 44px !important;
 }
 
+body[data-device="mobile"] .settings-modal .modal-body {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 0 !important;
+}
+
 /* Settings tabs - horizontal scroll */
 body[data-device="mobile"] .settings-tabs {
     display: flex !important;
@@ -6216,18 +6615,37 @@ body[data-device="mobile"] .settings-tabs::-webkit-scrollbar {
 
 body[data-device="mobile"] .settings-tab {
     flex-shrink: 0 !important;
-    padding: 10px 20px !important;
-    min-height: 44px !important;
-    font-size: 14px !important;
-    border-radius: 8px !important;
+    padding: 12px 24px !important;
+    min-height: 48px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    border-radius: 10px !important;
     white-space: nowrap !important;
+    transition: all 0.2s ease !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+body[data-device="mobile"] .settings-tab.active {
+    background: var(--accent-primary) !important;
+    color: white !important;
+    border-bottom-color: transparent !important;
+}
+
+body[data-device="mobile"] .settings-tab:not(.active) {
+    background: rgba(139, 92, 246, 0.1) !important;
+    color: var(--text-secondary) !important;
+}
+
+body[data-device="mobile"] .settings-tab:active {
+    transform: scale(0.98) !important;
 }
 
 body[data-device="mobile"] .settings-content {
     padding: 16px !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    max-height: calc(100vh - 180px) !important;
+    overflow-y: visible !important;
+    min-height: auto !important;
+    max-height: none !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
 }
 
 body[data-device="mobile"] .settings-panel {
@@ -6241,12 +6659,16 @@ body[data-device="mobile"] .settings-panel.active {
 /* Setting items - touch friendly */
 body[data-device="mobile"] .setting-item {
     display: flex !important;
-    flex-direction: column !important;
-    gap: 12px !important;
-    padding: 16px !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 16px !important;
+    padding: 18px !important;
     background: var(--bg-secondary) !important;
-    border-radius: 12px !important;
+    border-radius: 14px !important;
     margin-bottom: 12px !important;
+    min-height: 72px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
 }
 
 body[data-device="mobile"] .setting-info {
@@ -6267,24 +6689,32 @@ body[data-device="mobile"] .setting-description {
 
 /* Toggle switches - larger for touch */
 body[data-device="mobile"] .toggle-switch {
-    width: 60px !important;
-    height: 34px !important;
+    width: 64px !important;
+    height: 36px !important;
     align-self: flex-end !important;
+    min-width: 64px !important;
+    -webkit-tap-highlight-color: transparent !important;
 }
 
 body[data-device="mobile"] .toggle-slider {
-    border-radius: 34px !important;
+    border-radius: 36px !important;
+    transition: all 0.3s ease !important;
 }
 
 body[data-device="mobile"] .toggle-slider:before {
-    width: 26px !important;
-    height: 26px !important;
+    width: 28px !important;
+    height: 28px !important;
     left: 4px !important;
     bottom: 4px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 body[data-device="mobile"] .toggle-switch input:checked + .toggle-slider:before {
-    transform: translateX(26px) !important;
+    transform: translateX(28px) !important;
+}
+
+body[data-device="mobile"] .toggle-switch:active .toggle-slider {
+    box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.15) !important;
 }
 
 /* Range inputs - larger thumb for touch */
@@ -6292,7 +6722,8 @@ body[data-device="mobile"] .setting-control {
     display: flex !important;
     align-items: center !important;
     gap: 12px !important;
-    width: 100% !important;
+    flex: 1 !important;
+    min-width: 0 !important;
 }
 
 body[data-device="mobile"] input[type="range"] {
@@ -6306,56 +6737,117 @@ body[data-device="mobile"] input[type="range"] {
 
 body[data-device="mobile"] input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none !important;
-    width: 28px !important;
-    height: 28px !important;
+    width: 32px !important;
+    height: 32px !important;
     border-radius: 50% !important;
     background: var(--accent-primary) !important;
     cursor: pointer !important;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4) !important;
+    transition: all 0.2s ease !important;
+}
+
+body[data-device="mobile"] input[type="range"]::-webkit-slider-thumb:active {
+    width: 36px !important;
+    height: 36px !important;
+    box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.15), 0 2px 8px rgba(139, 92, 246, 0.4) !important;
 }
 
 body[data-device="mobile"] input[type="range"]::-moz-range-thumb {
-    width: 28px !important;
-    height: 28px !important;
+    width: 32px !important;
+    height: 32px !important;
     border-radius: 50% !important;
     background: var(--accent-primary) !important;
     cursor: pointer !important;
     border: none !important;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4) !important;
+    transition: all 0.2s ease !important;
+}
+
+body[data-device="mobile"] input[type="range"]::-moz-range-thumb:active {
+    width: 36px !important;
+    height: 36px !important;
 }
 
 body[data-device="mobile"] .range-value {
-    min-width: 50px !important;
+    min-width: 55px !important;
     text-align: center !important;
-    font-size: 14px !important;
-    font-weight: 600 !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
     color: var(--accent-primary) !important;
+    background: rgba(139, 92, 246, 0.1) !important;
+    padding: 6px 10px !important;
+    border-radius: 8px !important;
 }
 
 /* Select dropdowns in settings */
 body[data-device="mobile"] .settings-panel .form-select {
-    width: 100% !important;
-    height: 50px !important;
-    font-size: 16px !important;
-    padding: 0 16px !important;
+    width: auto !important;
+    min-width: 140px !important;
+    height: 44px !important;
+    font-size: 15px !important;
+    padding: 0 14px !important;
     border-radius: 10px !important;
+    background: var(--bg-tertiary) !important;
+    border: 1px solid var(--border-color) !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+body[data-device="mobile"] .setting-item .setting-control {
+    flex-shrink: 0 !important;
+}
+
+/* Items with range inputs need full width */
+body[data-device="mobile"] .setting-item:has(input[type="range"]) {
+    flex-direction: column !important;
+    align-items: stretch !important;
+}
+
+body[data-device="mobile"] .setting-item:has(input[type="range"]) .setting-control {
+    width: 100% !important;
+}
+
+/* Items with selects should keep them on the right */
+body[data-device="mobile"] .setting-item:has(.form-select) {
+    flex-direction: row !important;
 }
 
 /* Settings modal footer */
 body[data-device="mobile"] .settings-modal .modal-footer {
     position: sticky !important;
     bottom: 0 !important;
+    flex-shrink: 0 !important;
     background: var(--bg-secondary) !important;
     padding: 16px !important;
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
     border-top: 1px solid var(--border-color) !important;
     display: flex !important;
     gap: 12px !important;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1) !important;
+    z-index: 10 !important;
 }
 
 body[data-device="mobile"] .settings-modal .modal-footer .btn {
     flex: 1 !important;
-    height: 50px !important;
+    height: 52px !important;
+    min-height: 52px !important;
     font-size: 16px !important;
+    font-weight: 600 !important;
+    border-radius: 12px !important;
+    transition: all 0.2s ease !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+body[data-device="mobile"] .settings-modal .modal-footer .btn:active {
+    transform: scale(0.98) !important;
+}
+
+body[data-device="mobile"] .settings-modal .modal-footer .btn-primary {
+    background: var(--accent-primary) !important;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3) !important;
+}
+
+body[data-device="mobile"] .settings-modal .modal-footer .btn-primary:active {
+    box-shadow: 0 1px 4px rgba(139, 92, 246, 0.3) !important;
 }
 
 /* ============================================
