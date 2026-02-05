@@ -383,11 +383,18 @@ class MythicMobsEditor {
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('📱 Settings close TOUCHED');
+                settingsTouchHandled = true;
                 this.closeSettings();
+                setTimeout(() => settingsTouchHandled = false, 500);
             }, { passive: false });
             
-            // No click handler needed on mobile - touchend handles it
-            // Desktop uses mouse click which will still work
+            // Click handler for desktop (mouse clicks)
+            closeSettingsBtn.addEventListener('click', (e) => {
+                // Skip if already handled by touch
+                if (settingsTouchHandled) return;
+                e.stopPropagation();
+                this.closeSettings();
+            });
         }
         
         const saveSettingsBtn = document.getElementById('save-settings-btn');

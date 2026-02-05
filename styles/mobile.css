@@ -387,9 +387,18 @@ body[data-device="tablet"] .mobile-header-more-btn.has-unsaved .unsaved-dot {
     50% { transform: scale(1.2); opacity: 0.8; }
 }
 
-/* More dropdown menu (mobile only) */
+/* More dropdown menu - HIDDEN by default on ALL devices */
+.mobile-header-dropdown {
+    display: none;
+    pointer-events: none;
+    visibility: hidden;
+}
+
+/* Show structure on mobile/tablet but keep invisible until .visible class */
 body[data-device="mobile"] .mobile-header-dropdown,
 body[data-device="tablet"] .mobile-header-dropdown {
+    display: block;
+    visibility: hidden;
     position: fixed;
     top: var(--mobile-header-height);
     right: 12px;
@@ -406,8 +415,10 @@ body[data-device="tablet"] .mobile-header-dropdown {
     transition: all 0.2s ease;
 }
 
+/* Only when .visible is added: show and make interactive */
 body[data-device="mobile"] .mobile-header-dropdown.visible,
 body[data-device="tablet"] .mobile-header-dropdown.visible {
+    visibility: visible;
     opacity: 1;
     transform: translateY(0) scale(1);
     pointer-events: auto;
@@ -690,8 +701,8 @@ body[data-device="mobile"] .editor-content {
     top: 0;
     left: 0;
     bottom: 0;
-    width: 85%;
-    max-width: 320px;
+    width: 92%;
+    max-width: 380px;
     background: var(--bg-secondary, #1a1d2e);
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -3291,19 +3302,29 @@ body[data-device="mobile"] .pack-chevron.rotated {
 
 body[data-device="mobile"] .pack-title {
     display: flex !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     gap: 8px !important;
-    font-size: 15px !important;
+    font-size: 14px !important;
     font-weight: 600 !important;
     flex: 1 !important;
     min-width: 0 !important;
     overflow: hidden !important;
 }
 
+body[data-device="mobile"] .pack-title i {
+    flex-shrink: 0 !important;
+    margin-top: 2px !important;
+}
+
 body[data-device="mobile"] .pack-title span {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    white-space: nowrap !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    line-height: 1.3 !important;
 }
 
 /* ============================================
@@ -3312,7 +3333,7 @@ body[data-device="mobile"] .pack-title span {
 
 body[data-device="mobile"] .pack-content {
     display: block !important;
-    padding-left: 16px !important;
+    padding-left: 8px !important;
     padding-top: 8px !important;
     padding-bottom: 8px !important;
 }
@@ -3360,7 +3381,7 @@ body[data-device="mobile"] .folder-item {
 
 body[data-device="mobile"] .folder-header {
     display: flex !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     min-height: 48px !important;
     padding: 10px 12px !important;
     gap: 8px !important;
@@ -3368,6 +3389,19 @@ body[data-device="mobile"] .folder-header {
     border-radius: 6px !important;
     -webkit-tap-highlight-color: transparent !important;
     user-select: none !important;
+}
+
+body[data-device="mobile"] .folder-header > span:first-of-type {
+    flex: 1 !important;
+    font-size: 13px !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    line-height: 1.3 !important;
 }
 
 body[data-device="mobile"] .folder-header:active {
@@ -3430,10 +3464,11 @@ body[data-device="mobile"] .yaml-file-container {
 
 body[data-device="mobile"] .yaml-file-header {
     display: flex !important;
+    flex-wrap: wrap !important;
     align-items: center !important;
     min-height: 44px !important;
     padding: 10px 12px !important;
-    gap: 8px !important;
+    gap: 6px 8px !important;
     cursor: pointer !important;
     border-radius: 6px !important;
     -webkit-tap-highlight-color: transparent !important;
@@ -3460,19 +3495,27 @@ body[data-device="mobile"] .yaml-file-icon {
 }
 
 body[data-device="mobile"] .yaml-file-name {
-    flex: 1 !important;
+    flex: 1 1 60% !important;
+    min-width: 0 !important;
     font-size: 13px !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    white-space: nowrap !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    line-height: 1.3 !important;
 }
 
 body[data-device="mobile"] .yaml-file-header .badge,
 body[data-device="mobile"] .yaml-file-header .entry-count {
-    font-size: 10px !important;
-    padding: 2px 6px !important;
-    border-radius: 8px !important;
+    font-size: 9px !important;
+    padding: 2px 5px !important;
+    border-radius: 6px !important;
     background: rgba(139, 92, 246, 0.15) !important;
+    margin-left: auto !important;
+    flex-shrink: 0 !important;
 }
 
 /* ============================================
@@ -3481,7 +3524,7 @@ body[data-device="mobile"] .yaml-file-header .entry-count {
 
 body[data-device="mobile"] .yaml-file-entries {
     display: block !important;
-    padding-left: 24px !important;
+    padding-left: 12px !important;
     padding-top: 4px !important;
 }
 
@@ -3528,9 +3571,14 @@ body[data-device="mobile"] .entry-icon {
 body[data-device="mobile"] .entry-item span {
     flex: 1 !important;
     font-size: 13px !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    white-space: nowrap !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    line-height: 1.3 !important;
 }
 
 body[data-device="mobile"] .favorite-star-btn {
@@ -3591,7 +3639,7 @@ body[data-device="mobile"] .subfolder-chevron {
 
 body[data-device="mobile"] .subfolder-content {
     display: block !important;
-    padding-left: 20px !important;
+    padding-left: 10px !important;
     padding-top: 4px !important;
 }
 
@@ -5667,21 +5715,24 @@ body[data-device="mobile"] [data-tooltip]::before {
     display: none !important;
 }
 
-/* Mobile tooltip sheet style */
+/* Mobile tooltip sheet style - MUST be above sidebar overlay (z-index: 10000) */
 body[data-device="mobile"] .mobile-tooltip {
     position: fixed;
     bottom: calc(var(--mobile-nav-height) + var(--safe-area-bottom) + 16px);
     left: 16px;
     right: 16px;
-    background: var(--bg-tertiary, #1e2235);
+    background: var(--bg-elevated, #252a3f);
     color: var(--text-primary, #e2e8f0);
-    padding: 12px 16px;
-    border-radius: var(--mobile-radius);
-    font-size: 0.875rem;
+    padding: 16px 20px;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 500;
     line-height: 1.5;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-    z-index: 10002;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(139, 92, 246, 0.3);
+    z-index: 999999;
     animation: fadeInUp 0.2s ease-out;
+    text-align: center;
+    border: 1px solid rgba(139, 92, 246, 0.4);
 }
 
 /* --------------------------------------------

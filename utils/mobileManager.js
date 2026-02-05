@@ -1462,6 +1462,9 @@ class MobileManager {
         // Initialize touch tooltip support
         this.initTooltipTouchSupport();
         
+        // Initialize pack tree long-press for full name reveal
+        this.initPackTreeLongPress();
+        
         // Initialize touch drag for sortable lists
         this.initTouchDragLists();
         
@@ -1469,6 +1472,82 @@ class MobileManager {
         this.initAllSmartFeatures();
         
         console.log('📱 Mobile mode activated');
+    }
+    
+    /**
+     * Initialize long-press handler for pack tree items to reveal full names
+     * Since pack tree is excluded from global touch handlers, we need separate handling
+     */
+    initPackTreeLongPress() {
+        if (!this.isTouchDevice) return;
+        
+        let longPressTimer = null;
+        let longPressTarget = null;
+        let touchStartY = 0;
+        let isScrolling = false;
+        
+        const getFullName = (target) => {
+            // Try to find the name element and get its full text
+            const nameElement = target.querySelector('.pack-title span, .yaml-file-name, .entry-item span, .folder-header > span, .subfolder-header > span, .root-folder-header span');
+            if (nameElement) {
+                return nameElement.textContent.trim();
+            }
+            // For entry items, check for span directly
+            if (target.classList.contains('entry-item')) {
+                const span = target.querySelector('span');
+                return span ? span.textContent.trim() : null;
+            }
+            return null;
+        };
+        
+        const handleTouchStart = (e) => {
+            const packTreeItem = e.target.closest('.pack-header, .yaml-file-header, .entry-item, .folder-header, .subfolder-header, .root-folder-header');
+            if (!packTreeItem) return;
+            
+            longPressTarget = packTreeItem;
+            touchStartY = e.touches[0].clientY;
+            isScrolling = false;
+            
+            // Start long press timer
+            longPressTimer = setTimeout(() => {
+                if (!isScrolling) {
+                    const fullName = getFullName(packTreeItem);
+                    if (fullName && fullName.length > 15) {
+                        // Vibrate feedback
+                        this.vibrate('medium');
+                        // Show full name in tooltip
+                        this.showMobileTooltip(fullName, 3000);
+                    }
+                }
+            }, 500); // 500ms long press threshold
+        };
+        
+        const handleTouchMove = (e) => {
+            if (!longPressTimer) return;
+            
+            // If scrolling, cancel long press
+            const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
+            if (deltaY > 10) {
+                isScrolling = true;
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        };
+        
+        const handleTouchEnd = () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            longPressTarget = null;
+            isScrolling = false;
+        };
+        
+        // Attach to document but only act on pack tree items
+        document.addEventListener('touchstart', handleTouchStart, { passive: true });
+        document.addEventListener('touchmove', handleTouchMove, { passive: true });
+        document.addEventListener('touchend', handleTouchEnd, { passive: true });
+        document.addEventListener('touchcancel', handleTouchEnd, { passive: true });
     }
     
     /**
