@@ -3493,7 +3493,7 @@ class MobileManager {
             <div class="mobile-tools-overlay"></div>
             <div class="mobile-tools-content">
                 <div class="mobile-tools-header">
-                    <h3><i class="fas fa-wrench"></i> Tools & Settings</h3>
+                    <h3><i class="fas fa-wrench"></i> Tools</h3>
                     <button class="mobile-tools-close"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="mobile-tools-grid">
@@ -3522,21 +3522,7 @@ class MobileManager {
                         <span>Backups</span>
                     </button>
                 </div>
-                <div class="mobile-tools-divider"></div>
-                <div class="mobile-tools-grid">
-                    <button class="mobile-tool-item" data-tool="settings">
-                        <i class="fas fa-cog"></i>
-                        <span>Settings</span>
-                    </button>
-                    <button class="mobile-tool-item" data-tool="help">
-                        <i class="fas fa-question-circle"></i>
-                        <span>Help</span>
-                    </button>
-                    <button class="mobile-tool-item" data-tool="about">
-                        <i class="fas fa-info-circle"></i>
-                        <span>About</span>
-                    </button>
-                </div>
+                <!-- Settings, Help & About accessible via header ⋮ menu -->
             </div>
         `;
         
