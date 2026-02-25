@@ -36,7 +36,7 @@ class DatabaseStorageManager {
         this.userId = null; // Will be set after authentication
         
         // Check if user is already logged in
-        this.checkAuth();
+        this._authReady = this.checkAuth();
     }
     
     /**

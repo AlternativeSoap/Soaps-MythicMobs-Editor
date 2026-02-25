@@ -43,6 +43,7 @@ class MobileManager {
         this.isDesktop = this.deviceType === 'desktop';
         
         // State
+        this.actionHistory = [];
         this.state = {
             mobileMode: false,
             activePanel: 'home', // 'home', 'files', 'edit', 'tools', 'user'
@@ -1602,12 +1603,15 @@ class MobileManager {
      * Prevent Guided mode on mobile - switch to Beginner if needed
      */
     preventGuidedModeOnMobile() {
-        const currentMode = document.body.dataset.mode || localStorage.getItem('editorMode');
+        const currentMode = this.editor?.state?.currentMode || document.body.dataset.mode || 'beginner';
         
         if (currentMode === 'guided') {
-            // Switch to beginner mode
-            document.body.dataset.mode = 'beginner';
-            localStorage.setItem('editorMode', 'beginner');
+            // Use app's switchMode to properly sync state and persist
+            if (this.editor && typeof this.editor.switchMode === 'function') {
+                this.editor.switchMode('beginner', { showToast: false });
+            } else {
+                document.body.dataset.mode = 'beginner';
+            }
             
             // Update mode buttons
             document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -1729,25 +1733,33 @@ class MobileManager {
     }
 
     /**
-     * Set editor mode helper
+     * Set editor mode helper — delegates to app.switchMode() for proper
+     * state management, persistence, and editor re-rendering.
      */
     setEditorMode(mode) {
-        const current = document.body.dataset.mode || localStorage.getItem('editorMode') || 'beginner';
+        const current = this.editor?.state?.currentMode || document.body.dataset.mode || 'beginner';
         // If selecting the same mode, just close the dropdown silently
         if (mode === current) {
             this.closeModeDropdown();
             return;
         }
 
-        document.body.dataset.mode = mode;
-        localStorage.setItem('editorMode', mode);
+        // Delegate to the main app's switchMode for proper state management and persistence
+        if (this.editor && typeof this.editor.switchMode === 'function') {
+            this.editor.switchMode(mode);
+        } else {
+            // Fallback: directly update DOM if app not available
+            document.body.dataset.mode = mode;
+            this.showToast(`${mode.charAt(0).toUpperCase() + mode.slice(1)} mode selected`, 'success');
+        }
+
+        // Update mode button UI (needed because setupModeSwitcherTouch clones buttons)
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.mode === mode);
             btn.setAttribute('aria-pressed', btn.dataset.mode === mode ? 'true' : 'false');
             // remove dropdown attribute from all, will set only on the active pill
             btn.removeAttribute('data-mode-dropdown');
         });
-        this.showToast(`${mode.charAt(0).toUpperCase() + mode.slice(1)} mode selected`, 'success');
 
         // Ensure active pill has dropdown listener (attach once)
         const activeBtn = document.querySelector('.mode-switcher .mode-btn.active');
@@ -2841,7 +2853,7 @@ class MobileManager {
                 break;
                 
             case 'logout':
-                window.authManager?.signOut?.();
+                window.authManager?.logout?.();
                 this.showToast('Signed out successfully', 'success');
                 break;
                 

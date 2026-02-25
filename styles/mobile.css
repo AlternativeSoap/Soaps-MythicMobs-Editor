@@ -6668,18 +6668,30 @@ body[data-device="mobile"] .settings-tab {
     flex-shrink: 0 !important;
     padding: 12px 24px !important;
     min-height: 48px !important;
-    font-size: 15px !important;
+    font-size: 14px !important;
     font-weight: 600 !important;
     border-radius: 10px !important;
     white-space: nowrap !important;
     transition: all 0.2s ease !important;
     -webkit-tap-highlight-color: transparent !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+body[data-device="mobile"] .settings-tab i {
+    font-size: 13px !important;
+    opacity: 0.8 !important;
 }
 
 body[data-device="mobile"] .settings-tab.active {
     background: var(--accent-primary) !important;
     color: white !important;
     border-bottom-color: transparent !important;
+}
+
+body[data-device="mobile"] .settings-tab.active i {
+    opacity: 1 !important;
 }
 
 body[data-device="mobile"] .settings-tab:not(.active) {
@@ -6704,7 +6716,30 @@ body[data-device="mobile"] .settings-panel {
 }
 
 body[data-device="mobile"] .settings-panel.active {
-    display: block !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 20px !important;
+}
+
+/* Settings groups */
+body[data-device="mobile"] .settings-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+}
+
+body[data-device="mobile"] .settings-group-header {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    color: var(--text-tertiary) !important;
+    padding: 0 6px !important;
+    margin-bottom: 2px !important;
+}
+
+body[data-device="mobile"] .settings-group-header i {
+    color: var(--accent-primary) !important;
 }
 
 /* Setting items - touch friendly */
@@ -6714,12 +6749,17 @@ body[data-device="mobile"] .setting-item {
     justify-content: space-between !important;
     align-items: center !important;
     gap: 16px !important;
-    padding: 18px !important;
-    background: var(--bg-secondary) !important;
-    border-radius: 14px !important;
-    margin-bottom: 12px !important;
-    min-height: 72px !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+    padding: 16px 8px !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    margin-bottom: 0 !important;
+    min-height: 64px !important;
+    box-shadow: none !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-primary) 50%, transparent) !important;
+}
+
+body[data-device="mobile"] .setting-item:last-child {
+    border-bottom: none !important;
 }
 
 body[data-device="mobile"] .setting-info {
@@ -6836,11 +6876,20 @@ body[data-device="mobile"] .settings-panel .form-select {
     min-width: 140px !important;
     height: 44px !important;
     font-size: 15px !important;
-    padding: 0 14px !important;
+    padding: 0 36px 0 14px !important;
     border-radius: 10px !important;
-    background: var(--bg-tertiary) !important;
-    border: 1px solid var(--border-color) !important;
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
     -webkit-tap-highlight-color: transparent !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    font-weight: 500 !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    background-size: 12px !important;
 }
 
 body[data-device="mobile"] .setting-item .setting-control {

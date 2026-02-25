@@ -473,9 +473,10 @@ class SkillEditor {
         const confirmed = await this.editor.showConfirmDialog('Remove Condition', 'Remove this condition?', 'Remove', 'Cancel');
         if (!confirmed) return;
         
-        if (!this.currentSkill[sectionType]) return;
+        const targetObj = this.getConditionStorageObject();
+        if (!targetObj[sectionType]) return;
         
-        this.currentSkill[sectionType].splice(index, 1);
+        targetObj[sectionType].splice(index, 1);
         this.refreshConditionList(sectionType);
         this.syncToFile();
         this.editor.markDirty();

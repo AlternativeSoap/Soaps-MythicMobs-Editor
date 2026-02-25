@@ -17,6 +17,21 @@ class ActivityTracker {
         this.flushDelay = 30000; // 30 seconds
         this.heartbeatDelay = 60000; // 1 minute heartbeat
         
+        // Offline / backoff state
+        this._offline = !navigator.onLine;
+        this._consecutiveFailures = 0;
+        this._maxBackoffDelay = 5 * 60 * 1000; // 5 min max
+        this._cachedUserId = null;
+        
+        // Listen for online/offline events
+        window.addEventListener('online', () => {
+            this._offline = false;
+            this._consecutiveFailures = 0;
+        });
+        window.addEventListener('offline', () => {
+            this._offline = true;
+        });
+        
         // Session tracking
         this.sessionToken = null;
         this.sessionId = null;
@@ -49,6 +64,77 @@ class ActivityTracker {
     }
     
     /**
+     * Check whether network calls should be skipped (offline or in backoff)
+     */
+    _shouldSkipNetwork() {
+        if (this._offline || !navigator.onLine) return true;
+        if (!this.supabase) return true;
+        // Exponential backoff after consecutive failures
+        if (this._consecutiveFailures >= 3) {
+            return true; // Will be reset when we come back online
+        }
+        return false;
+    }
+    
+    /**
+     * Record a network failure and apply backoff
+     */
+    _recordNetworkFailure() {
+        this._consecutiveFailures++;
+        if (this._consecutiveFailures >= 3) {
+            // Pause intervals and retry after backoff
+            const backoff = Math.min(
+                this._maxBackoffDelay,
+                (2 ** this._consecutiveFailures) * 1000
+            );
+            console.warn(`[ActivityTracker] ${this._consecutiveFailures} consecutive failures, pausing for ${backoff / 1000}s`);
+            this.stopIntervals();
+            setTimeout(() => {
+                if (navigator.onLine) {
+                    this._consecutiveFailures = 0;
+                    this.startFlushInterval();
+                    this.startHeartbeat();
+                }
+            }, backoff);
+        }
+    }
+    
+    /**
+     * Reset failure counter on success
+     */
+    _recordNetworkSuccess() {
+        this._consecutiveFailures = 0;
+    }
+    
+    /**
+     * Get user ID with caching to avoid repeated auth.getUser() calls
+     */
+    async _getCachedUserId() {
+        if (this._cachedUserId) return this._cachedUserId;
+        try {
+            const { data: { user } } = await this.supabase.auth.getUser();
+            this._cachedUserId = user?.id || null;
+            return this._cachedUserId;
+        } catch {
+            return null;
+        }
+    }
+    
+    /**
+     * Stop all periodic intervals
+     */
+    stopIntervals() {
+        if (this.flushInterval) {
+            clearInterval(this.flushInterval);
+            this.flushInterval = null;
+        }
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
+    }
+    
+    /**
      * Initialize or restore session
      */
     async initSession() {
@@ -78,10 +164,10 @@ class ActivityTracker {
      * Create or update session in database
      */
     async createOrUpdateSession() {
-        if (!this.supabase || !this.sessionToken) return;
+        if (!this.supabase || !this.sessionToken || this._shouldSkipNetwork()) return;
         
         try {
-            const { data: { user } } = await this.supabase.auth.getUser();
+            const userId = await this._getCachedUserId();
             
             // Check if session exists
             const { data: existingSession, error: sessionLookupError } = await this.supabase
@@ -104,7 +190,7 @@ class ActivityTracker {
                 const { data: newSession, error } = await this.supabase
                     .from('user_sessions')
                     .insert({
-                        user_id: user?.id || null,
+                        user_id: userId || null,
                         session_token: this.sessionToken,
                         user_agent: navigator.userAgent,
                         current_page: window.location.pathname,
@@ -121,8 +207,10 @@ class ActivityTracker {
                     this.trackPageView();
                 }
             }
+            this._recordNetworkSuccess();
         } catch (error) {
-            console.warn('Failed to create/update session:', error);
+            this._recordNetworkFailure();
+            if (window.DEBUG_MODE) console.warn('Failed to create/update session:', error);
         }
     }
     
@@ -130,7 +218,7 @@ class ActivityTracker {
      * Update session heartbeat (called every minute)
      */
     async updateSessionHeartbeat() {
-        if (!this.supabase || !this.sessionToken) return;
+        if (!this.supabase || !this.sessionToken || this._shouldSkipNetwork()) return;
         
         try {
             await this.supabase
@@ -141,8 +229,10 @@ class ActivityTracker {
                     is_active: true
                 })
                 .eq('session_token', this.sessionToken);
+            this._recordNetworkSuccess();
         } catch (error) {
-            console.warn('Failed to update session heartbeat:', error);
+            this._recordNetworkFailure();
+            if (window.DEBUG_MODE) console.warn('Failed to update session heartbeat:', error);
         }
     }
     
@@ -195,15 +285,15 @@ class ActivityTracker {
      * Track page view
      */
     async trackPageView() {
-        if (!this.supabase) return;
+        if (!this.supabase || this._shouldSkipNetwork()) return;
         
         try {
-            const { data: { user } } = await this.supabase.auth.getUser();
+            const userId = await this._getCachedUserId();
             
             const { data, error } = await this.supabase
                 .from('page_views')
                 .insert({
-                    user_id: user?.id || null,
+                    user_id: userId || null,
                     session_id: this.sessionId,
                     page_path: window.location.pathname,
                     page_title: document.title,
@@ -222,8 +312,10 @@ class ActivityTracker {
             // Update page load time for duration tracking
             this.pageLoadTime = Date.now();
             this.currentPage = window.location.pathname;
+            this._recordNetworkSuccess();
         } catch (error) {
-            console.warn('Failed to track page view:', error);
+            this._recordNetworkFailure();
+            if (window.DEBUG_MODE) console.warn('Failed to track page view:', error);
         }
     }
     
@@ -302,19 +394,19 @@ class ActivityTracker {
      * @param {boolean} sync - Use synchronous beacon API
      */
     async flush(sync = false) {
-        if (!this.supabase || this.queue.length === 0) return;
+        if (!this.supabase || this.queue.length === 0 || this._shouldSkipNetwork()) return;
         
         const activities = [...this.queue];
         this.queue = [];
         
         try {
-            // Get current user ID
-            const { data: { user } } = await this.supabase.auth.getUser();
+            // Get cached user ID (avoids repeated auth.getUser() calls)
+            const userId = await this._getCachedUserId();
             
             // Add user_id to all activities
             const withUserId = activities.map(a => ({
                 ...a,
-                user_id: user?.id || null
+                user_id: userId || null
             }));
             
             // Insert batch
@@ -323,14 +415,21 @@ class ActivityTracker {
                 .insert(withUserId);
             
             if (error) {
-                console.warn('Failed to log activities:', error);
+                if (window.DEBUG_MODE) console.warn('Failed to log activities:', error);
                 // Re-queue on failure (limit to prevent infinite growth)
                 if (this.queue.length < 100) {
                     this.queue.push(...activities);
                 }
+            } else {
+                this._recordNetworkSuccess();
             }
         } catch (error) {
-            console.warn('Activity tracking error:', error);
+            this._recordNetworkFailure();
+            // Re-queue on network failure
+            if (this.queue.length < 100) {
+                this.queue.push(...activities);
+            }
+            if (window.DEBUG_MODE) console.warn('Activity tracking error:', error);
         }
         
         // Also flush detailed queue
@@ -341,17 +440,17 @@ class ActivityTracker {
      * Flush detailed activity queue to user_activity_detailed
      */
     async flushDetailed() {
-        if (!this.supabase || this.detailedQueue.length === 0) return;
+        if (!this.supabase || this.detailedQueue.length === 0 || this._shouldSkipNetwork()) return;
         
         const activities = [...this.detailedQueue];
         this.detailedQueue = [];
         
         try {
-            const { data: { user } } = await this.supabase.auth.getUser();
+            const userId = await this._getCachedUserId();
             
             const withUserId = activities.map(a => ({
                 ...a,
-                user_id: user?.id || null,
+                user_id: userId || null,
                 session_id: this.sessionId
             }));
             
@@ -360,13 +459,19 @@ class ActivityTracker {
                 .insert(withUserId);
             
             if (error) {
-                console.warn('Failed to log detailed activities:', error);
+                if (window.DEBUG_MODE) console.warn('Failed to log detailed activities:', error);
                 if (this.detailedQueue.length < 100) {
                     this.detailedQueue.push(...activities);
                 }
+            } else {
+                this._recordNetworkSuccess();
             }
         } catch (error) {
-            console.warn('Detailed activity tracking error:', error);
+            this._recordNetworkFailure();
+            if (this.detailedQueue.length < 100) {
+                this.detailedQueue.push(...activities);
+            }
+            if (window.DEBUG_MODE) console.warn('Detailed activity tracking error:', error);
         }
     }
     

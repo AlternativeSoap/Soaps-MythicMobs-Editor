@@ -993,9 +993,7 @@ class SpawnerEditor {
             selector.querySelector('.mob-filter').focus();
         } else {
             // Show toast/notification that no pack is loaded
-            if (window.showToast) {
-                window.showToast('Load a pack first to browse available mobs', 'info');
-            }
+            this.editor.showToast('Load a pack first to browse available mobs', 'info');
         }
     }
     
@@ -1311,9 +1309,7 @@ class SpawnerEditor {
     async saveSpawner() {
         // Validate required fields
         if (!this.spawnerData.MobName) {
-            if (window.showToast) {
-                window.showToast('Please enter a Mob Name', 'error');
-            }
+            this.editor.showToast('Please enter a Mob Name', 'error');
             return;
         }
         
@@ -1333,9 +1329,7 @@ class SpawnerEditor {
             // Get the current spawner file name
             const fileName = this.editor?.state?.currentSpawnerFile;
             if (!fileName) {
-                if (window.showToast) {
-                    window.showToast('No spawner file is currently open', 'error');
-                }
+                this.editor.showToast('No spawner file is currently open', 'error');
                 return;
             }
             
@@ -1386,14 +1380,10 @@ class SpawnerEditor {
             // Update pack tree
             this.editor.packManager?.renderPackTree?.();
             
-            if (window.showToast) {
-                window.showToast(`Spawner "${this.spawnerData.SpawnerGroup || this.spawnerData.MobName || fileName}" saved`, 'success');
-            }
+            this.editor.showToast(`Spawner "${this.spawnerData.SpawnerGroup || this.spawnerData.MobName || fileName}" saved`, 'success');
         } catch (error) {
             console.error('Failed to save spawner:', error);
-            if (window.showToast) {
-                window.showToast('Failed to save spawner: ' + error.message, 'error');
-            }
+            this.editor.showToast('Failed to save spawner: ' + error.message, 'error');
         } finally {
             // Restore button state
             if (saveBtn && originalHTML) {
@@ -1421,8 +1411,8 @@ class SpawnerEditor {
             // Collect current form data
             this.collectFormData();
             
-            // Create a copy of the spawner data
-            const duplicatedData = { ...this.spawnerData };
+            // Create a deep copy of the spawner data to avoid shared references
+            const duplicatedData = structuredClone(this.spawnerData);
             duplicatedData.SpawnerGroup = newName.trim();
             
             // Create new file name
@@ -1449,14 +1439,10 @@ class SpawnerEditor {
             // Open the duplicated spawner
             this.editor.showSpawnerEditor?.(newFileName);
             
-            if (window.showToast) {
-                window.showToast(`Duplicated spawner as "${newName}"`, 'success');
-            }
+            this.editor.showToast(`Duplicated spawner as "${newName}"`, 'success');
         } catch (error) {
             console.error('Failed to duplicate spawner:', error);
-            if (window.showToast) {
-                window.showToast('Failed to duplicate spawner: ' + error.message, 'error');
-            }
+            this.editor.showToast('Failed to duplicate spawner: ' + error.message, 'error');
         }
     }
     
@@ -1512,14 +1498,10 @@ class SpawnerEditor {
             this.editor.state.currentSpawnerFile = null;
             this.editor.showDashboard?.();
             
-            if (window.showToast) {
-                window.showToast(`Spawner "${spawnerName}" deleted`, 'success');
-            }
+            this.editor.showToast(`Spawner "${spawnerName}" deleted`, 'success');
         } catch (error) {
             console.error('Failed to delete spawner:', error);
-            if (window.showToast) {
-                window.showToast('Failed to delete spawner: ' + error.message, 'error');
-            }
+            this.editor.showToast('Failed to delete spawner: ' + error.message, 'error');
         }
     }
     
@@ -1543,9 +1525,7 @@ class SpawnerEditor {
             // Check if file already exists
             if (this.editor.state.currentPack.spawnerFiles?.[newFileName] ||
                 window.globalSpawnerFiles?.[newFileName]) {
-                if (window.showToast) {
-                    window.showToast('A spawner with that name already exists', 'error');
-                }
+                this.editor.showToast('A spawner with that name already exists', 'error');
                 return;
             }
             
@@ -1577,14 +1557,10 @@ class SpawnerEditor {
             // Open the new spawner
             this.editor.showSpawnerEditor?.(newFileName);
             
-            if (window.showToast) {
-                window.showToast(`Spawner "${sanitizedName}" created`, 'success');
-            }
+            this.editor.showToast(`Spawner "${sanitizedName}" created`, 'success');
         } catch (error) {
             console.error('Failed to create spawner:', error);
-            if (window.showToast) {
-                window.showToast('Failed to create spawner: ' + error.message, 'error');
-            }
+            this.editor.showToast('Failed to create spawner: ' + error.message, 'error');
         }
     }
     
@@ -1660,11 +1636,11 @@ class SpawnerEditor {
         const breakableInput = document.getElementById('spawnerBreakable');
         if (breakableInput) this.spawnerData.Breakable = breakableInput.checked;
         
-        // Conditions
-        const conditionInputs = document.querySelectorAll('.condition-input');
-        this.spawnerData.Conditions = Array.from(conditionInputs)
-            .map(input => input.value.trim())
-            .filter(val => val !== '');
+        // Conditions - preserve existing conditions (managed by condition browser cards)
+        // Don't overwrite with empty array from non-existent .condition-input elements
+        if (!this.spawnerData.Conditions) {
+            this.spawnerData.Conditions = [];
+        }
     }
 
     /**

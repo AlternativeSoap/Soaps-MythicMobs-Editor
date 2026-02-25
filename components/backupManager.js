@@ -223,7 +223,12 @@ class BackupManager {
             if (Array.isArray(value)) {
                 yaml += `${spaces}${key}:\n`;
                 value.forEach(item => {
-                    yaml += `${spaces}  - ${item}\n`;
+                    if (typeof item === 'object' && item !== null) {
+                        yaml += `${spaces}  -\n`;
+                        yaml += this._objectToYAML(item, indent + 4);
+                    } else {
+                        yaml += `${spaces}  - ${item}\n`;
+                    }
                 });
             } else if (typeof value === 'object' && value !== null) {
                 yaml += `${spaces}${key}:\n`;

@@ -75,6 +75,9 @@ class ErrorLogger {
     }
 
     async sendErrorToServer(error) {
+        // Skip when offline to avoid compounding network errors
+        if (!navigator.onLine) return;
+        
         try {
             if (!window.supabaseClient) return;
             

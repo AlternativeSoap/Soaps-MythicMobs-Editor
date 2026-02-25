@@ -507,30 +507,6 @@ class DropTableEditor {
     }
     
     /**
-     * Find the parent file for the current droptable
-     */
-    findParentFile() {
-        const pack = this.editor.state.currentPack;
-        if (!pack || !pack.droptables) return null;
-        
-        const currentDroptable = this.editor.state.currentFile;
-        
-        // Check if _parentFile reference exists
-        if (currentDroptable._parentFile) {
-            return pack.droptables.find(f => f.id === currentDroptable._parentFile.id);
-        }
-        
-        // Search all files for this droptable
-        for (const file of pack.droptables) {
-            if (file.entries && file.entries.some(e => e.id === currentDroptable.id)) {
-                return file;
-            }
-        }
-        
-        return null;
-    }
-    
-    /**
      * Rename the current droptable
      */
     async renameDropTable(droptable) {

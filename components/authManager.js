@@ -15,8 +15,8 @@ class AuthManager {
                 this.notifyAuthChange(event, session);
             });
             
-            // Check initial auth state
-            this.checkInitialAuth();
+            // Check initial auth state (store promise so callers can await without re-calling)
+            this._initialAuthPromise = this.checkInitialAuth();
         }
     }
     

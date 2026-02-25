@@ -823,7 +823,11 @@ class RandomSpawnEditor {
     
     getTagValues(type) {
         const tags = document.querySelectorAll(`#${type}s-tags .tag`);
-        return Array.from(tags).map(tag => tag.textContent.trim());
+        return Array.from(tags).map(tag => {
+            // Use firstChild to avoid including FontAwesome icon unicode from child <i> element
+            const textNode = tag.firstChild;
+            return textNode ? textNode.textContent.trim() : tag.textContent.trim();
+        });
     }
     
     filterBiomes(search) {
@@ -1192,7 +1196,7 @@ class RandomSpawnEditor {
             PositionType: document.querySelector('input[name="position-type"]:checked')?.value || 'LAND',
             Cooldown: parseInt(document.getElementById('spawn-cooldown')?.value) || 0,
             Structures: this.getTagValues('structure'),
-            Conditions: this.conditionsEditor ? this.conditionsEditor.getConditions() : []
+            Conditions: this.editor.state.currentFile?.Conditions || []
         };
         
         // Handle Type vs Types
@@ -1300,30 +1304,6 @@ class RandomSpawnEditor {
         if (this.editor.packManager) {
             this.editor.packManager.updateFileContainer(parentFile.id, 'randomspawn');
         }
-    }
-    
-    /**
-     * Find the parent file for the current spawn
-     */
-    findParentFile() {
-        const pack = this.editor.state.currentPack;
-        if (!pack || !pack.randomspawns) return null;
-        
-        const currentSpawn = this.editor.state.currentFile;
-        
-        // Check if _parentFile reference exists
-        if (currentSpawn._parentFile) {
-            return pack.randomspawns.find(f => f.id === currentSpawn._parentFile.id);
-        }
-        
-        // Search all files for this spawn
-        for (const file of pack.randomspawns) {
-            if (file.entries && file.entries.some(e => e.id === currentSpawn.id)) {
-                return file;
-            }
-        }
-        
-        return null;
     }
     
     /**

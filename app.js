@@ -98,24 +98,30 @@ class MythicMobsEditor {
             // Initialize storage FIRST
             this.storage = new StorageManager();
             
-            // Wait for storage auth check to complete
-            if (this.storage.db && this.storage.db.checkAuth) {
-                await this.storage.db.checkAuth();
+            // Wait for storage auth check to complete (called in constructor, just await the result)
+            if (this.storage.db && this.storage.db._authReady) {
+                await this.storage.db._authReady;
             }
             
             // Initialize authentication
             this.authManager = new AuthManager(window.supabaseClient);
-            await this.authManager.checkInitialAuth();
+            // checkInitialAuth() is already called in the AuthManager constructor;
+            // just await the existing promise to avoid a duplicate getSession() call
+            if (this.authManager._initialAuthPromise) {
+                await this.authManager._initialAuthPromise;
+            }
             
             // Initialize authentication UI
             this.authUI = new AuthUI(this.authManager, this.storage);
             
-            // Load settings
-            this.loadSettings();
+            // Load settings (async — must await to read persisted values)
+            await this.loadSettings();
             
-            // Apply default mode from settings BEFORE loading files
-            this.state.currentMode = this.settings.defaultMode;
-            document.body.setAttribute('data-mode', this.state.currentMode);
+            // Mode is already applied by loadSettings() → applySettings()
+            // Ensure mode buttons reflect the persisted mode
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === this.state.currentMode);
+            });
             
             // ============================================
             // MOBILE SUPPORT INITIALIZATION
@@ -208,9 +214,9 @@ class MythicMobsEditor {
     /**
      * Load settings from storage
      */
-    loadSettings() {
-        const saved = this.storage.get('settings');
-        if (saved) {
+    async loadSettings() {
+        const saved = await this.storage.get('settings');
+        if (saved && typeof saved === 'object') {
             this.settings = { ...this.defaultSettings, ...saved };
         }
         
@@ -316,6 +322,7 @@ class MythicMobsEditor {
             let touchHandled = false;
             closeHistoryBtn.addEventListener('touchstart', (e) => {
                 touchHandled = true;
+                this.closeChangeHistory();
                 setTimeout(() => touchHandled = false, 500);
             }, { passive: false });
             closeHistoryBtn.addEventListener('click', () => {
@@ -400,8 +407,18 @@ class MythicMobsEditor {
         const saveSettingsBtn = document.getElementById('save-settings-btn');
         if (saveSettingsBtn) {
             let settingsTouchHandled = false;
+            let saveTouchMoved = false;
             saveSettingsBtn.addEventListener('touchstart', (e) => {
+                saveTouchMoved = false;
+            }, { passive: true });
+            saveSettingsBtn.addEventListener('touchmove', () => {
+                saveTouchMoved = true;
+            }, { passive: true });
+            saveSettingsBtn.addEventListener('touchend', (e) => {
+                if (saveTouchMoved) return;
+                e.preventDefault();
                 settingsTouchHandled = true;
+                this.saveSettingsFromModal();
                 setTimeout(() => settingsTouchHandled = false, 500);
             }, { passive: false });
             saveSettingsBtn.addEventListener('click', () => {
@@ -438,14 +455,25 @@ class MythicMobsEditor {
         // Settings tabs
         document.querySelectorAll('.settings-tab').forEach(tab => {
             let touchHandled = false;
-            tab.addEventListener('touchstart', (e) => {
+            let tabTouchMoved = false;
+            tab.addEventListener('touchstart', () => {
+                tabTouchMoved = false;
+            }, { passive: true });
+            tab.addEventListener('touchmove', () => {
+                tabTouchMoved = true;
+            }, { passive: true });
+            tab.addEventListener('touchend', (e) => {
+                if (tabTouchMoved) return;
+                e.preventDefault();
                 touchHandled = true;
+                const tabName = (e.target.closest('.settings-tab') || e.target).dataset.tab;
+                this.switchSettingsTab(tabName);
                 setTimeout(() => touchHandled = false, 500);
             }, { passive: false });
             
             tab.addEventListener('click', (e) => {
                 if (touchHandled) return;
-                const tabName = e.target.dataset.tab;
+                const tabName = (e.target.closest('.settings-tab') || e.target).dataset.tab;
                 this.switchSettingsTab(tabName);
             });
         });
@@ -572,8 +600,8 @@ class MythicMobsEditor {
                 this.createNewRandomSpawn();
             }
             
-            // New Spawner (Ctrl+Shift+S) - but not if it's save
-            if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+            // New Spawner (Ctrl+Shift+P)
+            if (e.ctrlKey && e.shiftKey && e.key === 'P') {
                 e.preventDefault();
                 this.createNewSpawner();
             }
@@ -623,7 +651,7 @@ class MythicMobsEditor {
             }
             
             // Redo (Ctrl+Y or Ctrl+Shift+Z)
-            if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z')) {
+            if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'z')) {
                 e.preventDefault();
                 this.history?.redo();
             }
@@ -939,11 +967,26 @@ class MythicMobsEditor {
     
     /**
      * Switch editor mode
+     * @param {string} mode - 'beginner', 'advanced', or 'guided'
+     * @param {Object} [options] - Optional settings
+     * @param {boolean} [options.showToast=true] - Whether to show a toast notification
+     * @param {boolean} [options.persist=true] - Whether to persist the mode choice to settings
      */
-    async switchMode(mode) {
-        const wasBeginnerMode = this.state.currentMode === 'beginner';
-        const wasGuidedMode = this.state.currentMode === 'guided';
+    async switchMode(mode, { showToast = true, persist = true } = {}) {
+        const previousMode = this.state.currentMode;
+        const wasBeginnerMode = previousMode === 'beginner';
+        const wasGuidedMode = previousMode === 'guided';
+        
+        // Skip if already in the requested mode
+        if (previousMode === mode) return;
+        
         this.state.currentMode = mode;
+        
+        // Persist the user's mode preference so it survives page refresh
+        if (persist) {
+            this.settings.defaultMode = mode;
+            this.saveSettings();
+        }
         
         // Set data-mode attribute on body for CSS mode-specific styling
         document.body.setAttribute('data-mode', mode);
@@ -965,7 +1008,7 @@ class MythicMobsEditor {
             this.state.justSwitchedToAdvanced = true;
         }
         
-        // Update UI
+        // Update UI - mode buttons
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.mode === mode);
         });
@@ -993,7 +1036,7 @@ class MythicMobsEditor {
             }
         }
         
-        // Re-render current editor
+        // Re-render current editor to reflect mode-specific sections
         if (this.state.currentFile) {
             this.openFile(this.state.currentFile, this.state.currentFileType);
         }
@@ -1003,9 +1046,11 @@ class MythicMobsEditor {
             this.packManager.renderPackTree();
         }
         
-        // Format mode name nicely
-        const modeNames = { beginner: 'Beginner', advanced: 'Advanced', guided: 'Guided' };
-        this.showToast(`Switched to ${modeNames[mode] || mode} mode`, 'info');
+        // Show toast notification
+        if (showToast) {
+            const modeNames = { beginner: 'Beginner', advanced: 'Advanced', guided: 'Guided' };
+            this.showToast(`Switched to ${modeNames[mode] || mode} mode`, 'info');
+        }
     }
     
     /**
@@ -3407,15 +3452,17 @@ class MythicMobsEditor {
         list.innerHTML = recentChanges.map(change => {
             const timeAgo = this.formatTimeAgo(change.timestamp);
             const icon = this.getFileTypeIcon(change.fileType);
+            const safeFileName = this.escapeHtml(change.fileName).replace(/'/g, "\\'");
+            const safeFileType = this.escapeHtml(change.fileType).replace(/'/g, "\\'");
             
             return `
-                <div class="change-entry" onclick="window.editor.openChangeFile('${change.fileName}', '${change.fileType}')">
+                <div class="change-entry" onclick="window.editor.openChangeFile('${safeFileName}', '${safeFileType}')">
                     <div class="change-entry-icon">
-                        <i class="fas ${icon}"></i>
+                        <i class="${icon}"></i>
                     </div>
                     <div class="change-entry-info">
                         <div class="change-entry-title">
-                            <span class="file-name">${change.fileName}</span>
+                            <span class="file-name">${this.escapeHtml(change.fileName)}</span>
                             <span class="change-badge ${change.changeType}">${change.changeType}</span>
                         </div>
                         <div class="change-entry-meta">${timeAgo}</div>
@@ -3469,7 +3516,7 @@ class MythicMobsEditor {
             return `
                 <div class="change-entry" onclick="window.editor.openChangeFile('${change.fileName}', '${change.fileType}')">
                     <div class="change-entry-icon">
-                        <i class="fas ${icon}"></i>
+                        <i class="${icon}"></i>
                     </div>
                     <div class="change-entry-info">
                         <div class="change-entry-title">
@@ -3527,7 +3574,7 @@ class MythicMobsEditor {
             return `
                 <div class="change-entry" onclick="window.editor.openChangeFile('${change.fileName}', '${change.fileType}')">
                     <div class="change-entry-icon">
-                        <i class="fas ${icon}"></i>
+                        <i class="${icon}"></i>
                     </div>
                     <div class="change-entry-info">
                         <div class="change-entry-title">
@@ -3557,20 +3604,6 @@ class MythicMobsEditor {
         } else {
             this.showToast('File not found', 'error');
         }
-    }
-    
-    /**
-     * Get icon for file type
-     */
-    getFileTypeIcon(type) {
-        const icons = {
-            mob: 'fa-skull',
-            skill: 'fa-magic',
-            item: 'fa-gem',
-            droptable: 'fa-table',
-            randomspawn: 'fa-map-marked-alt'
-        };
-        return icons[type] || 'fa-file';
     }
     
     /**
@@ -3640,6 +3673,9 @@ class MythicMobsEditor {
         // Cache preview element
         if (!this._previewElement) {
             this._previewElement = document.getElementById('yaml-preview-content');
+            
+            // Guard against null element - preview panel may not be in the DOM
+            if (!this._previewElement) return;
             
             // Initialize flags - start with _updatingPreview true to prevent initial content from being seen as user edit
             this._previewHasManualEdits = false;
@@ -3794,7 +3830,13 @@ class MythicMobsEditor {
             }
         } catch (error) {
             console.error('Failed to generate YAML preview:', error);
+            this._updatingPreview = true;
             preview.innerHTML = '<code># Error generating preview</code>';
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    this._updatingPreview = false;
+                });
+            });
         }
     }
     
@@ -3814,8 +3856,8 @@ class MythicMobsEditor {
         }
         
         const result = await this.showConfirmDialog(
-            'You have manual edits in the YAML preview panel. Would you like to apply them?',
             'Save YAML Preview Edits',
+            'You have manual edits in the YAML preview panel. Would you like to apply them?',
             [
                 { text: 'Apply Changes', value: 'apply', primary: true },
                 { text: 'Discard Changes', value: 'discard' },
@@ -4057,6 +4099,8 @@ class MythicMobsEditor {
     saveSettingsFromModal() {
         // Read values from form
         const oldAutoSave = this.settings.autoSave;
+        const previousMode = this.state.currentMode;
+        
         this.settings.autoSave = document.getElementById('setting-autosave').checked;
         this.settings.autoSaveInterval = parseInt(document.getElementById('setting-autosave-interval').value) * 1000;
         this.settings.animations = document.getElementById('setting-animations').checked;
@@ -4079,13 +4123,20 @@ class MythicMobsEditor {
         // Save to storage
         this.saveSettings();
         
-        // Apply settings
+        // Apply non-mode settings (animations, compact mode, etc.)
         this.applySettings();
         
         // Close modal
         this.closeSettings();
         
-        this.showToast('Settings saved successfully', 'success');
+        // If mode changed in settings, do a full mode switch (re-renders editors, updates buttons)
+        const newMode = this.settings.defaultMode;
+        if (newMode !== previousMode) {
+            this.switchMode(newMode, { showToast: false });
+            this.showToast(`Settings saved — switched to ${newMode.charAt(0).toUpperCase() + newMode.slice(1)} mode`, 'success');
+        } else {
+            this.showToast('Settings saved successfully', 'success');
+        }
     }
     
     /**
@@ -4098,10 +4149,16 @@ class MythicMobsEditor {
         );
         if (!confirmed) return;
         
+        const previousMode = this.state.currentMode;
         this.settings = { ...this.defaultSettings };
         this.saveSettings();
         this.showSettings(); // Reload form
         this.applySettings();
+        
+        // If mode changed due to reset, do a full mode switch
+        if (this.settings.defaultMode !== previousMode) {
+            this.switchMode(this.settings.defaultMode, { showToast: false });
+        }
         this.showToast('Settings reset to defaults', 'success');
     }
     
@@ -4123,11 +4180,9 @@ class MythicMobsEditor {
             document.body.classList.remove('compact-mode');
         }
         
-        // Apply default mode if no file is open
-        if (!this.state.currentFile) {
-            this.state.currentMode = this.settings.defaultMode;
-            document.body.setAttribute('data-mode', this.state.currentMode);
-        }
+        // Always apply saved mode from settings
+        this.state.currentMode = this.settings.defaultMode;
+        document.body.setAttribute('data-mode', this.state.currentMode);
         
         // Always update mode buttons to reflect current mode
         document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -5100,6 +5155,7 @@ class MythicMobsEditor {
      * Escape HTML
      */
     escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
@@ -5194,46 +5250,31 @@ class MythicMobsEditor {
     }
     
     /**
-     * Show help documentation
-     */
-    showHelp() {
-        // Open help modal or documentation
-        if (this.documentationHelper) {
-            this.documentationHelper.show();
-        } else {
-            // Fallback: open external docs
-            window.open('https://git.lumine.io/mythiccraft/MythicMobs/-/wikis/home', '_blank');
-        }
-    }
-    
-    /**
      * Show about dialog
      */
     showAbout() {
-        this.showModal({
-            title: 'About Soaps MythicMobs Editor',
-            content: `
-                <div style="text-align: center; padding: 20px;">
-                    <i class="fas fa-dragon" style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 16px;"></i>
-                    <h3 style="margin: 0 0 8px 0;">Soaps MythicMobs Editor</h3>
-                    <p style="color: var(--text-secondary); margin: 0 0 16px 0;">Version 2.0.0</p>
-                    <p style="color: var(--text-tertiary); font-size: 0.875rem; margin: 0;">
-                        A powerful visual editor for creating MythicMobs configurations.<br>
-                        Built with ❤️ for the Minecraft community.
-                    </p>
-                    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-primary);">
-                        <a href="https://github.com" target="_blank" style="color: var(--accent-primary); text-decoration: none; margin: 0 8px;">
-                            <i class="fab fa-github"></i> GitHub
-                        </a>
-                        <a href="https://discord.gg/mythicmobs" target="_blank" style="color: var(--accent-primary); text-decoration: none; margin: 0 8px;">
-                            <i class="fab fa-discord"></i> Discord
-                        </a>
-                    </div>
+        const content = `
+            <div style="text-align: center; padding: 20px;">
+                <i class="fas fa-dragon" style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 16px;"></i>
+                <h3 style="margin: 0 0 8px 0;">Soaps MythicMobs Editor</h3>
+                <p style="color: var(--text-secondary); margin: 0 0 16px 0;">Version 2.0.0</p>
+                <p style="color: var(--text-tertiary); font-size: 0.875rem; margin: 0;">
+                    A powerful visual editor for creating MythicMobs configurations.<br>
+                    Built with ❤️ for the Minecraft community.
+                </p>
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-primary);">
+                    <a href="https://github.com" target="_blank" style="color: var(--accent-primary); text-decoration: none; margin: 0 8px;">
+                        <i class="fab fa-github"></i> GitHub
+                    </a>
+                    <a href="https://discord.gg/mythicmobs" target="_blank" style="color: var(--accent-primary); text-decoration: none; margin: 0 8px;">
+                        <i class="fab fa-discord"></i> Discord
+                    </a>
                 </div>
-            `,
-            showCancel: false,
-            confirmText: 'Close'
-        });
+            </div>
+        `;
+        this.createModal('About Soaps MythicMobs Editor', content, [
+            { label: 'Close', class: 'btn-primary' }
+        ]);
     }
     
     /**
