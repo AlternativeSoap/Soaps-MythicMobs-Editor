@@ -1170,6 +1170,7 @@
     <script src="data/entityFieldMap.js"></script>
     <script src="data/minecraftBlocks.js"></script>
     <script src="data/minecraftItems.js"></script>
+    <script src="data/minecraftSounds.js"></script>
     <script src="data/damageTypes.js"></script>
     <script src="data/bossBarData.js"></script>
     <script src="data/equipmentData.js"></script>
@@ -1641,6 +1642,11 @@
                     return;
                 }
                 
+                // Deduplication: Supabase fires both INITIAL_SESSION and SIGNED_IN for the
+                // same user on page load. Track the last processed user ID so we only
+                // call initializeAdminSystem once per actual login.
+                let _lastAuthInitUserId = null;
+
                 window.editor.authManager.onAuthChange((event, session) => {
                     // Mask email for privacy in console (show only first 2 chars + domain)
                     const maskedEmail = session?.user?.email 
@@ -1650,6 +1656,14 @@
                     
                     // Initialize on any event that provides a valid session
                     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session?.user) {
+                        // Deduplicate SIGNED_IN that fires immediately after INITIAL_SESSION for the same user
+                        const userId = session.user.id;
+                        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && userId === _lastAuthInitUserId) {
+                            console.log(`🔐 Auth event deduplicated (already processed for this user): ${event}`);
+                            return;
+                        }
+                        _lastAuthInitUserId = userId;
+                        
                         // Use progressive delays: quick retry for INITIAL_SESSION, longer for others
                         const delay = event === 'INITIAL_SESSION' ? 200 : 100;
                         
@@ -1678,6 +1692,7 @@
                     
                     // Clean up admin UI when user signs out
                     if (event === 'SIGNED_OUT') {
+                        _lastAuthInitUserId = null;
                         window.cleanupAdminUI();
                     }
                 });

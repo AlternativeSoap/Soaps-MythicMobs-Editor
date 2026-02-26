@@ -563,6 +563,9 @@ class MechanicBrowser {
                 // If config section is visible (mechanic selected)
                 if (configSection && configSection.style.display === 'block') {
                     if (e.key === 'Enter' && !e.shiftKey) {
+                        // Don't intercept Enter if a notification modal is currently open
+                        // (prevents re-triggering confirmConfiguration while awaiting user response)
+                        if (window.notificationModal?.currentModal) return;
                         e.preventDefault();
                         this.confirmConfiguration();
                     } else if (e.key === 'Escape') {
@@ -1275,6 +1278,9 @@ class MechanicBrowser {
             // Setup material dropdowns
             this.setupMaterialDropdowns();
             
+            // Setup sound dropdowns
+            this.setupSoundDropdowns();
+            
             // If smart particles, setup dynamic field visibility
             if (this.currentMechanic.hasSmartParticles) {
                 this.setupSmartParticleFields(formContainer);
@@ -1495,16 +1501,19 @@ class MechanicBrowser {
             // Material selector dropdown (for block/item particles)
             inputHTML = this.renderMaterialSelector(attr);
         } else if (attr.type === 'number') {
-            // Number input with step detection (don't pre-fill, only placeholder)
+            // Number input with step detection
+            // Pre-fill required attributes with their default so they're always included
             const step = attr.default && attr.default.toString().includes('.') ? '0.01' : '1';
+            const numPreFill = attr.required && attr.default !== undefined && attr.default !== '';
             inputHTML = `
                 <input type="number" 
                        class="mechanic-attribute-input" 
                        data-attr="${attr.name}"
                        data-default="${attr.default !== undefined ? attr.default : ''}"
-                       data-modified="false"
+                       data-modified="${numPreFill ? 'true' : 'false'}"
                        step="${step}"
-                       placeholder="${attr.default !== undefined ? attr.default : ''}">
+                       placeholder="${attr.default !== undefined ? attr.default : ''}"
+                       ${numPreFill ? `value="${attr.default}"` : ''}>
             `;
         } else if (attr.type === 'skillref') {
             // Skill reference input with autocomplete and create button
@@ -1558,15 +1567,21 @@ class MechanicBrowser {
                     </button>
                 </div>
             `;
+        } else if (attr.type === 'soundSelect') {
+            // Sound selector dropdown (Minecraft 1.21.1+ sounds)
+            inputHTML = this.renderSoundSelector(attr);
         } else {
-            // Text input (could be string, list, etc.) - don't pre-fill, only placeholder
+            // Text input (could be string, list, etc.)
+            // Pre-fill required attributes with their default so they're always included
+            const txtPreFill = attr.required && attr.default !== undefined && attr.default !== '';
             inputHTML = `
                 <input type="text" 
                        class="mechanic-attribute-input" 
                        data-attr="${attr.name}"
                        data-default="${attr.default || ''}"
-                       data-modified="false"
-                       placeholder="${attr.default || ''}">
+                       data-modified="${txtPreFill ? 'true' : 'false'}"
+                       placeholder="${attr.default || ''}"
+                       ${txtPreFill ? `value="${attr.default}"` : ''}>
             `;
         }
 
@@ -1617,6 +1632,7 @@ class MechanicBrowser {
                         this.attachAttributeListeners(content);
                         this.setupEntityPickers(content);
                         this.setupMaterialDropdowns(content);
+                        this.setupSoundDropdowns(content);
                         this.setupSkillRefInputs(content);
                         
                         // Update preview
@@ -1685,6 +1701,7 @@ class MechanicBrowser {
                         this.attachAttributeListeners(content);
                         this.setupEntityPickers(content);
                         this.setupMaterialDropdowns(content);
+                        this.setupSoundDropdowns(content);
                         this.setupSkillRefInputs(content);
                     }
                 }
@@ -2956,6 +2973,30 @@ class MechanicBrowser {
     }
 
     /**
+     * Render sound selector dropdown (Minecraft 1.21.1+ in-game sounds)
+     */
+    renderSoundSelector(attr) {
+        const defaultValue = attr.default || '';
+        const randomId = 'sound-' + Math.random().toString(36).substr(2, 9);
+        const hasData = !!window.MINECRAFT_SOUNDS;
+
+        return `
+            <div class="sound-selector-wrapper" data-dropdown-id="${randomId}" data-has-data="${hasData}">
+                <input type="text"
+                       class="mechanic-attribute-input sound-text-input"
+                       data-attr="${attr.name}"
+                       data-default="${defaultValue}"
+                       data-modified="false"
+                       value="${defaultValue}"
+                       placeholder="${defaultValue || 'entity.zombie.ambient'}"
+                       id="${randomId}-input"
+                       autocomplete="off" spellcheck="false">
+                ${hasData ? `<button type="button" class="sound-browse-btn" id="${randomId}-btn" title="Browse sounds">🔊 ▼</button>` : ''}
+            </div>
+        `;
+    }
+
+    /**
      * Render inherited particle attributes as collapsible section
      */
     renderInheritedParticleAttributes() {
@@ -3009,6 +3050,8 @@ class MechanicBrowser {
                 inputHTML = this.renderParticleSelector(attr);
             } else if (attr.type === 'materialSelect') {
                 inputHTML = this.renderMaterialSelector(attr);
+            } else if (attr.type === 'soundSelect') {
+                inputHTML = this.renderSoundSelector(attr);
             } else if (attr.type === 'color') {
                 inputHTML = `
                     <div class="color-input-wrapper">
@@ -3228,6 +3271,141 @@ class MechanicBrowser {
                     document.addEventListener('click', closeDropdown);
                     window.addEventListener('scroll', scrollClose, { passive: true, capture: true });
                 }, 10);
+            });
+        });
+    }
+
+    /**
+     * Setup sound selector dropdowns (Minecraft 1.21.1+ sounds)
+     */
+    setupSoundDropdowns(container) {
+        if (!window.MINECRAFT_SOUNDS) return;
+
+        const scope = container || document;
+        scope.querySelectorAll('.sound-browse-btn').forEach(btn => {
+            // Prevent duplicate listeners
+            if (btn.dataset.soundInitialized) return;
+            btn.dataset.soundInitialized = 'true';
+
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Close any existing sound dropdowns
+                document.querySelectorAll('.sound-dropdown-menu').forEach(m => m.remove());
+
+                const wrapper = btn.closest('.sound-selector-wrapper');
+                const dropdownId = wrapper.dataset.dropdownId;
+                const textInput = document.getElementById(`${dropdownId}-input`);
+                const currentSound = textInput ? textInput.value.trim() : '';
+
+                // Build dropdown
+                const menu = document.createElement('div');
+                menu.className = 'sound-dropdown-menu';
+                menu.dataset.dropdownId = dropdownId;
+
+                let menuHTML = '<input type="text" class="sound-search-input" placeholder="Search sounds (e.g. zombie, block, music)...">';
+                menuHTML += '<div class="sound-options-container">';
+
+                for (const [, category] of Object.entries(window.MINECRAFT_SOUNDS)) {
+                    if (!category.sounds || category.sounds.length === 0) continue;
+
+                    menuHTML += `<div class="sound-category">`;
+                    menuHTML += `<div class="sound-category-name" style="--cat-color:${category.color}">${category.icon} ${category.label}</div>`;
+
+                    for (const sound of category.sounds) {
+                        const selected = sound === currentSound ? ' selected' : '';
+                        menuHTML += `<div class="sound-option${selected}" data-sound="${sound}"><span class="sound-option-name">${sound}</span></div>`;
+                    }
+
+                    menuHTML += '</div>';
+                }
+
+                menuHTML += '</div>';
+                menu.innerHTML = menuHTML;
+
+                // Position and show (append before getting rect so layout is stable)
+                menu.style.visibility = 'hidden';
+                document.body.appendChild(menu);
+                const rect = btn.closest('.sound-selector-wrapper').getBoundingClientRect();
+                const menuHeight = menu.getBoundingClientRect().height;
+                const spaceBelow = window.innerHeight - rect.bottom;
+                if (spaceBelow < menuHeight && rect.top > menuHeight) {
+                    menu.style.top = `${rect.top - menuHeight - 4}px`;
+                } else {
+                    menu.style.top = `${rect.bottom + 4}px`;
+                }
+                menu.style.left = `${Math.min(rect.left, window.innerWidth - 470)}px`;
+                menu.style.visibility = '';
+
+                // Pre-fill search with current typed value
+                const searchInput = menu.querySelector('.sound-search-input');
+                if (currentSound && !window.MINECRAFT_SOUNDS_FLAT?.includes(currentSound)) {
+                    // custom value typed, show it in search to help find similar
+                    searchInput.value = currentSound.split('.').slice(0, 2).join('.');
+                    // trigger filtering
+                    searchInput.dispatchEvent(new Event('input'));
+                }
+                // Focus and select-all in search
+                requestAnimationFrame(() => searchInput && searchInput.focus());
+
+                // Scroll to selected option
+                const selectedOption = menu.querySelector('.sound-option.selected');
+                if (selectedOption) {
+                    setTimeout(() => selectedOption.scrollIntoView({ block: 'nearest' }), 80);
+                }
+
+                // Search filtering
+                searchInput.addEventListener('input', () => {
+                    const q = searchInput.value.toLowerCase();
+                    menu.querySelectorAll('.sound-option').forEach(opt => {
+                        const match = opt.dataset.sound.toLowerCase().includes(q);
+                        opt.style.display = match ? '' : 'none';
+                    });
+                    menu.querySelectorAll('.sound-category').forEach(cat => {
+                        const hasVisible = [...cat.querySelectorAll('.sound-option')].some(o => o.style.display !== 'none');
+                        cat.style.display = hasVisible ? '' : 'none';
+                    });
+                });
+
+                // Prevent search input clicks from bubbling to close handler
+                searchInput.addEventListener('mousedown', ev => ev.stopPropagation());
+                searchInput.addEventListener('click', ev => ev.stopPropagation());
+
+                // Select option — use mousedown so it fires before blur/close
+                menu.querySelectorAll('.sound-option').forEach(option => {
+                    option.addEventListener('mousedown', (ev) => {
+                        ev.preventDefault(); // prevent focus loss from text input
+                        ev.stopPropagation();
+                    });
+                    option.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        const sound = option.dataset.sound;
+
+                        // Update the text input (which IS the mechanic-attribute-input)
+                        if (textInput) {
+                            textInput.value = sound;
+                            textInput.dataset.modified = 'true';
+                            textInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+
+                        this.updateSkillLinePreview();
+                        menu.remove();
+                        document.removeEventListener('mousedown', closeDropdown);
+                    });
+                });
+
+                // Close on outside mousedown (fires before click, no race with open-click)
+                const closeDropdown = (ev) => {
+                    if (!menu.contains(ev.target) && !wrapper.contains(ev.target)) {
+                        menu.remove();
+                        document.removeEventListener('mousedown', closeDropdown);
+                    }
+                };
+                // Use rAF to skip the current event that opened the menu
+                requestAnimationFrame(() => {
+                    document.addEventListener('mousedown', closeDropdown);
+                });
             });
         });
     }
@@ -3604,10 +3782,15 @@ class MechanicBrowser {
                         value = 'true';
                     }
                 } else {
-                    // For text/number: only include if modified and not empty
+                    // For text/number: only include if modified (or required) and not empty
                     value = input.value.trim();
-                    if (!isModified || !value) {
-                        return; // Skip unmodified or empty values
+                    const attrDef = this.currentMechanic.attributes.find(a => a.name === attrName);
+                    // For required attributes with an empty field, fall back to the stored default
+                    if (attrDef?.required && !value) {
+                        value = input.dataset.default || '';
+                    }
+                    if ((!isModified && !attrDef?.required) || !value) {
+                        return; // Skip unmodified or empty values (unless required)
                     }
                 }
                 
@@ -3646,6 +3829,12 @@ class MechanicBrowser {
 
         // Build the mechanic string (just the mechanic part, not complete skill line)
         const skillLine = this.buildSkillLine();
+
+        // Capture callback early to avoid async race conditions (onSelectCallback may be
+        // cleared during the await if close() is called by another code path)
+        const callback = this.onSelectCallback;
+        const lineToInsert = skillLine;
+
         const parsed = SkillLineParser.parse(skillLine);
         
         // Only validate the mechanic itself, not the complete skill line
@@ -3668,10 +3857,13 @@ class MechanicBrowser {
             if (!mechanicDef) {
                 result.warnings.push(`Unknown mechanic: ${parsed.mechanic}`);
             } else {
-                // Check for required attributes
+                // Check for required attributes that have no default value
+                // (attrs with defaults are optional in practice - MythicMobs uses the default)
                 const requiredAttrs = mechanicDef.attributes.filter(attr => attr.required);
                 for (const attr of requiredAttrs) {
-                    const aliases = [attr.name, ...(attr.aliases || [])];
+                    // Skip if the attribute has a valid default - it will be applied automatically
+                    if (attr.default !== undefined && attr.default !== '' && attr.default !== null) continue;
+                    const aliases = [attr.name, ...(Array.isArray(attr.alias) ? attr.alias : (attr.alias ? [attr.alias] : []))];
                     const hasAttr = aliases.some(alias => parsed.mechanicArgs.hasOwnProperty(alias));
                     if (!hasAttr) {
                         result.warnings.push(`Mechanic '${parsed.mechanic}' missing required attribute: ${attr.name}`);
@@ -3699,10 +3891,6 @@ class MechanicBrowser {
             );
             if (!proceed) return;
         }
-        
-        // Store callback and skill line for immediate execution
-        const callback = this.onSelectCallback;
-        const lineToInsert = skillLine;
         
         // Collect skill refs that need to be created
         const skillRefsToCreate = this.collectPendingSkillRefs();
