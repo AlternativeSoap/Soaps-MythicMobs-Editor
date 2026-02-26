@@ -1320,49 +1320,70 @@ body[data-device="mobile"] .form-select {
 body[data-device="mobile"] .dashboard-container {
     padding: var(--mobile-spacing-md);
     padding-bottom: calc(var(--mobile-nav-height) + var(--safe-area-bottom) + var(--mobile-spacing-xl));
+    gap: 1rem;
 }
 
-body[data-device="mobile"] .dashboard-hero {
-    padding: var(--mobile-spacing-xl) var(--mobile-spacing-md);
+body[data-device="mobile"] .dashboard-welcome {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+    gap: 0.75rem;
 }
 
-body[data-device="mobile"] .hero-title {
-    font-size: 1.5rem;
+body[data-device="mobile"] .welcome-right {
+    width: 100%;
 }
 
-body[data-device="mobile"] .hero-subtitle {
-    font-size: 0.875rem;
+body[data-device="mobile"] .dashboard-cmd-btn {
+    width: 100%;
+    justify-content: center;
 }
 
-body[data-device="mobile"] .quick-actions-grid {
+body[data-device="mobile"] .cmd-shortcut {
+    display: none;
+}
+
+body[data-device="mobile"] .welcome-text h1 {
+    font-size: 1.1rem;
+}
+
+body[data-device="mobile"] .create-primary-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: var(--mobile-spacing-md);
+    gap: 0.6rem;
 }
 
-body[data-device="mobile"] .action-card {
-    padding: var(--mobile-spacing-lg);
-    min-height: 100px;
+body[data-device="mobile"] .create-card {
+    padding: 1rem 0.75rem;
 }
 
-body[data-device="mobile"] .action-card h3 {
-    font-size: 0.9375rem;
+body[data-device="mobile"] .create-card-body p {
+    display: none;
 }
 
-body[data-device="mobile"] .action-card p {
-    font-size: 0.75rem;
-    display: none; /* Hide description on mobile */
+body[data-device="mobile"] .create-shortcut {
+    display: none;
 }
 
-body[data-device="mobile"] .action-shortcut {
-    display: none; /* Hide keyboard shortcuts on mobile */
+body[data-device="mobile"] .dashboard-stats-bar {
+    flex-wrap: wrap;
 }
 
-body[data-device="mobile"] .info-grid {
-    grid-template-columns: 1fr;
+body[data-device="mobile"] .dash-stat {
+    min-width: calc(50% - 0.5rem);
+    padding: 0.5rem 0.75rem;
 }
 
-body[data-device="mobile"] .info-panel {
-    padding: var(--mobile-spacing-lg);
+body[data-device="mobile"] .dashboard-secondary-grid {
+    gap: 0.4rem;
+}
+
+body[data-device="mobile"] .secondary-action kbd {
+    display: none;
+}
+
+body[data-device="mobile"] .recent-file-card {
+    flex: 0 0 170px;
+    min-width: 150px;
 }
 
 /* ============================================
@@ -4795,231 +4816,78 @@ body[data-device="mobile"] .dashboard-container {
     overflow-x: hidden;
 }
 
-/* Hide animated background orbs on mobile for performance */
-body[data-device="mobile"] .dashboard-bg-effects {
-    display: none;
-}
-
-/* Hero section - compact and centered */
-body[data-device="mobile"] .dashboard-hero {
-    padding: var(--mobile-spacing-xl) var(--mobile-spacing-lg);
-    text-align: center;
-    background: linear-gradient(180deg, rgba(139, 92, 246, 0.1) 0%, transparent 100%);
-}
-
-body[data-device="mobile"] .hero-icon-wrapper {
-    width: 72px;
-    height: 72px;
-    margin: 0 auto var(--mobile-spacing-md);
-}
-
-body[data-device="mobile"] .hero-icon {
-    font-size: 2rem !important;
-}
-
-body[data-device="mobile"] .hero-title {
-    font-size: 1.375rem !important;
-    margin-bottom: var(--mobile-spacing-xs);
-    line-height: 1.3;
-}
-
-body[data-device="mobile"] .hero-subtitle {
-    font-size: 0.8125rem !important;
-    opacity: 0.8;
-    line-height: 1.4;
-    max-width: 300px;
-    margin: 0 auto;
-}
-
-/* Dashboard sections */
-body[data-device="mobile"] .dashboard-section {
-    padding: var(--mobile-spacing-lg);
-}
-
-body[data-device="mobile"] .dashboard-section-header {
-    margin-bottom: var(--mobile-spacing-md);
-}
-
-body[data-device="mobile"] .dashboard-section-header h2 {
-    font-size: 1rem;
-}
-
-/* Quick Actions Grid - Optimized for touch */
-body[data-device="mobile"] .quick-actions-grid {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: var(--mobile-spacing-sm) !important;
-    padding: 0 var(--mobile-spacing-md);
-}
-
-body[data-device="mobile"] .action-card {
-    padding: var(--mobile-spacing-md) !important;
-    min-height: 90px !important;
-    border-radius: var(--mobile-radius) !important;
-    display: flex;
+/* Welcome bar */
+body[data-device="mobile"] .dashboard-welcome {
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    gap: var(--mobile-spacing-xs);
-    position: relative;
-    overflow: hidden;
-    background: var(--bg-tertiary, #252836);
-    border: 1px solid var(--border-color, #2a2d3e);
-    transition: transform 0.2s ease, border-color 0.2s ease;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 16px;
 }
 
-body[data-device="mobile"] .action-card:active {
-    transform: scale(0.96);
-    border-color: var(--accent-primary, #8b5cf6);
-}
-
-/* Hide glow effect on mobile */
-body[data-device="mobile"] .action-card-glow {
+body[data-device="mobile"] .dashboard-cmd-btn {
     display: none;
 }
 
-body[data-device="mobile"] .action-card-icon {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(139, 92, 246, 0.2);
-    margin: 0 auto var(--mobile-spacing-xs) auto;
-    flex-shrink: 0;
+/* Create cards */
+body[data-device="mobile"] .create-primary-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    padding: 0 12px;
 }
 
-body[data-device="mobile"] .action-card-icon i {
-    font-size: 1.25rem !important;
-    line-height: 1 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 100%;
-    height: 100%;
-    margin: 0 !important;
-    padding: 0 !important;
+body[data-device="mobile"] .create-card {
+    padding: 14px 10px !important;
+    min-height: 80px !important;
 }
 
-body[data-device="mobile"] .action-card-content {
-    text-align: center;
-    width: 100%;
-}
-
-body[data-device="mobile"] .action-card h3 {
+body[data-device="mobile"] .create-card h3 {
     font-size: 0.8125rem !important;
-    font-weight: 600;
-    margin: 0;
-    line-height: 1.2;
 }
 
-body[data-device="mobile"] .action-card p {
-    display: none !important; /* Hide descriptions on mobile */
+body[data-device="mobile"] .create-card p {
+    display: none !important;
 }
 
-body[data-device="mobile"] .action-shortcut {
-    display: none !important; /* Hide keyboard shortcuts on mobile */
+/* Stats bar */
+body[data-device="mobile"] .dashboard-stats-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
 }
 
-/* Color coding for action cards */
-body[data-device="mobile"] .action-card-mob .action-card-icon {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
+body[data-device="mobile"] .dash-stat {
+    flex: 1 1 calc(33% - 6px);
+    min-width: 80px;
+    padding: 6px 8px;
+    font-size: 0.75rem;
 }
 
-body[data-device="mobile"] .action-card-skill .action-card-icon {
-    background: rgba(139, 92, 246, 0.2);
-    color: #8b5cf6;
+/* Secondary actions */
+body[data-device="mobile"] .dashboard-secondary-grid {
+    gap: 6px;
+    padding: 0 12px;
 }
 
-body[data-device="mobile"] .action-card-item .action-card-icon {
-    background: rgba(6, 182, 212, 0.2);
-    color: #06b6d4;
+body[data-device="mobile"] .secondary-action {
+    padding: 8px 12px;
+    font-size: 0.75rem;
 }
 
-body[data-device="mobile"] .action-card-droptable .action-card-icon {
-    background: rgba(245, 158, 11, 0.2);
-    color: #f59e0b;
+/* Recent files */
+body[data-device="mobile"] .recent-files-row {
+    gap: 8px;
+    padding: 0 12px;
 }
 
-body[data-device="mobile"] .action-card-template .action-card-icon {
-    background: rgba(16, 185, 129, 0.2);
-    color: #10b981;
+body[data-device="mobile"] .recent-file-card {
+    min-width: 120px;
+    padding: 10px;
 }
 
-body[data-device="mobile"] .action-card-spawn .action-card-icon {
-    background: rgba(236, 72, 153, 0.2);
-    color: #ec4899;
-}
-
-body[data-device="mobile"] .action-card-spawner .action-card-icon {
-    background: rgba(251, 146, 60, 0.2);
-    color: #fb923c;
-}
-
-body[data-device="mobile"] .action-card-placeholder .action-card-icon {
-    background: rgba(34, 211, 238, 0.2);
-    color: #22d3ee;
-}
-
-body[data-device="mobile"] .action-card-stats .action-card-icon {
-    background: rgba(168, 85, 247, 0.2);
-    color: #a855f7;
-}
-
-body[data-device="mobile"] .action-card-import .action-card-icon {
-    background: rgba(74, 222, 128, 0.2);
-    color: #4ade80;
-}
-
-/* Ensure icons are properly centered in action cards */
-body[data-device="mobile"] .action-card-icon i {
-    font-size: 1.125rem !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    line-height: 1;
-}
-
-/* Info panels - stack vertically */
-body[data-device="mobile"] .info-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: var(--mobile-spacing-md) !important;
-    padding: 0 var(--mobile-spacing-md);
-}
-
-body[data-device="mobile"] .info-panel {
-    padding: var(--mobile-spacing-lg) !important;
-    border-radius: var(--mobile-radius);
-}
-
-body[data-device="mobile"] .info-panel h3 {
-    font-size: 0.9375rem;
-    margin-bottom: var(--mobile-spacing-sm);
-}
-
-body[data-device="mobile"] .info-panel p,
-body[data-device="mobile"] .info-panel li {
-    font-size: 0.8125rem;
-    line-height: 1.5;
-}
-
-/* Recent files list */
-body[data-device="mobile"] .recent-files-list {
-    gap: var(--mobile-spacing-xs);
-}
-
-body[data-device="mobile"] .recent-file-item {
-    padding: var(--mobile-spacing-md);
-    min-height: var(--mobile-touch-target);
-    border-radius: var(--mobile-radius);
+/* Quickstart */
+body[data-device="mobile"] .dashboard-quickstart {
+    margin: 12px;
+    padding: 14px;
 }
 
 /* ============================================
@@ -6389,30 +6257,14 @@ body[data-device="mobile"] .ai-tree-item .drag-handle {
 }
 
 /* --------------------------------------------
-   INFO PANELS - Touch Support
+   DASHBOARD QUICKSTART - Touch Support
    -------------------------------------------- */
-body[data-device="mobile"] .info-panel {
+body[data-device="mobile"] .dashboard-quickstart {
     touch-action: manipulation;
 }
 
-body[data-device="mobile"] .info-panel:active {
+body[data-device="mobile"] .dashboard-quickstart:active {
     transform: scale(0.98);
-}
-
-body[data-device="mobile"] .info-panel-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-body[data-device="mobile"] .info-panel-icon {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
 }
 
 /* --------------------------------------------

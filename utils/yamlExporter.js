@@ -1777,6 +1777,9 @@ class YAMLExporter {
             if (droptable.config.BonusLuckItems !== undefined && droptable.config.BonusLuckItems !== '') {
                 yaml += `  BonusLuckItems: ${droptable.config.BonusLuckItems}\n`;
             }
+            if (droptable.config.BiasStat !== undefined && droptable.config.BiasStat !== '') {
+                yaml += `  BiasStat: ${droptable.config.BiasStat}\n`;
+            }
         }
 
         // Conditions (dropper conditions)

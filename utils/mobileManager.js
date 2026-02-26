@@ -558,11 +558,18 @@ class MobileManager {
                     return;
                 }
                 
+                const isMobile = document.body.dataset.device === 'mobile' || document.body.classList.contains('mobile-mode');
+                
                 if (newBtn.classList.contains('active')) {
-                    this.toggleModeDropdown(newBtn);
+                    // Only show dropdown on mobile; on desktop clicking active button is a no-op
+                    if (isMobile) {
+                        this.toggleModeDropdown(newBtn);
+                    }
                 } else {
                     const mode = newBtn.dataset.mode;
                     if (mode && mode !== 'guided') {
+                        this.setEditorMode(mode);
+                    } else if (mode === 'guided' && !isMobile) {
                         this.setEditorMode(mode);
                     }
                 }
@@ -1761,9 +1768,10 @@ class MobileManager {
             btn.removeAttribute('data-mode-dropdown');
         });
 
-        // Ensure active pill has dropdown listener (attach once)
+        // Ensure active pill has dropdown listener on mobile only (attach once)
+        const isMobileDevice = document.body.classList.contains('mobile-mode') || document.body.dataset.device === 'mobile';
         const activeBtn = document.querySelector('.mode-switcher .mode-btn.active');
-        if (activeBtn && !activeBtn.dataset.dropdownAttached) {
+        if (isMobileDevice && activeBtn && !activeBtn.dataset.dropdownAttached) {
             // mark as dropdown trigger for global handler
             activeBtn.setAttribute('data-mode-dropdown', 'true');
 
@@ -1772,10 +1780,6 @@ class MobileManager {
                 this.toggleModeDropdown(e.currentTarget);
             });
             activeBtn.dataset.dropdownAttached = 'true';
-        }
-        // If mobile, also ensure active pill is marked as dropdown trigger (in case it was already attached earlier)
-        if (document.body.classList.contains('mobile-mode') || document.body.dataset.device === 'mobile') {
-            activeBtn?.setAttribute('data-mode-dropdown', 'true');
         }
     }
     

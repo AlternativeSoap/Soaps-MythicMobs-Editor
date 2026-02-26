@@ -416,7 +416,8 @@ const MECHANICS_DATA = {
                 { name: 'duration', alias: ['d'], type: 'number', default: 200, description: 'Duration in ticks' },
                 { name: 'stat', alias: ['s'], type: 'string', default: '', required: true, description: 'Stat to apply (e.g., CRITICAL_STRIKE_CHANCE)' },
                 { name: 'type', alias: ['t', 'modifier', 'mod', 'm'], type: 'string', default: 'ADDITIVE', description: 'Modifier type: ADDITIVE or COMPOUND_MULTIPLIER' },
-                { name: 'value', alias: ['val', 'v'], type: 'number', default: 0, description: 'Value for stat' }
+                { name: 'value', alias: ['val', 'v'], type: 'number', default: 0, description: 'Value for stat' },
+                { name: 'decaystackonexpire', alias: ['dsoe'], type: 'boolean', default: false, description: 'If aura has more than 1 stack and expires, loses a stack and restarts the timer instead of ending' }
             ],
             defaultTargeter: '@Self',
             examples: [
@@ -456,14 +457,22 @@ const MECHANICS_DATA = {
             name: 'sound',
             aliases: ['effect:sound', 'e:sound', 'e:s', 's'],
             category: 'effects',
-            description: 'Plays a sound from vanilla game or resource pack.',
+            description: 'Plays a sound from vanilla game or resource pack. Supports customizable emitter types and seed for sound variation.',
             attributes: [
                 { name: 'sound', alias: ['s'], type: 'string', default: 'entity.zombie.attack_iron_door', required: true, description: 'Sound to play' },
                 { name: 'volume', alias: ['v'], type: 'number', default: 1.0, description: 'Volume (above 1 increases range)' },
-                { name: 'pitch', alias: ['p'], type: 'number', default: 1.0, description: 'Pitch (0.01 to 2.0)' }
+                { name: 'pitch', alias: ['p'], type: 'number', default: 1.0, description: 'Pitch (0.01 to 2.0)' },
+                { name: 'emitter', alias: ['e'], type: 'string', default: 'target', description: 'Who hears/emits the sound: caster, target, both, audience' },
+                { name: 'seed', alias: [], type: 'number', default: '', description: 'Seed for sound variation (optional). Controls randomization of sound effects.' }
             ],
             defaultTargeter: '@Self',
-            examples: ['- sound{s=entity.enderman.scream} ', '- sound{s=entity.generic.explode;v=2;p=0.5} ']
+            examples: [
+                '- sound{s=entity.enderman.scream} ',
+                '- sound{s=entity.generic.explode;v=2;p=0.5} ',
+                '- sound{s=minecraft:entity.warden.heartbeat;emitter=caster}',
+                '- sound{s=minecraft:entity.blaze.ambient;emitter=both;v=1.5}',
+                '- sound{s=minecraft:entity.ender_dragon.growl;emitter=audience}'
+            ]
         },
         {
             id: 'potion',
@@ -627,7 +636,8 @@ const MECHANICS_DATA = {
                 { name: 'charges', alias: ['c'], type: 'number', default: 0, description: 'Charges before fade' },
                 { name: 'maxstacks', alias: ['ms'], type: 'number', default: 1, description: 'Max times aura stacks on same entity' },
                 { name: 'refreshduration', alias: ['rd'], type: 'boolean', default: true, description: 'Refresh duration when reapplied' },
-                { name: 'cancelondeath', alias: ['cod'], type: 'boolean', default: true, description: 'Cancel if entity dies' }
+                { name: 'cancelondeath', alias: ['cod'], type: 'boolean', default: true, description: 'Cancel if entity dies' },
+                { name: 'decaystackonexpire', alias: ['dsoe'], type: 'boolean', default: false, description: 'If aura has more than 1 stack and expires, loses a stack and restarts the timer instead of ending' }
             ],
             defaultTargeter: '@Target',
             examples: [
@@ -686,6 +696,7 @@ const MECHANICS_DATA = {
                 { name: 'cancelonchangeworld', alias: ['cocw'], type: 'boolean', default: false, description: 'Cancel if entity changes worlds' },
                 { name: 'cancelonskilluse', alias: ['cosu'], type: 'boolean', default: false, description: 'Cancel if entity uses skill' },
                 { name: 'cancelonquit', alias: ['coq'], type: 'boolean', default: true, description: 'Cancel if player logs out' },
+                { name: 'decaystackonexpire', alias: ['dsoe'], type: 'boolean', default: false, description: 'If aura has more than 1 stack and expires, loses a stack and restarts the timer instead of ending' },
                 { name: 'doendskillonterminate', alias: ['desot', 'alwaysrunendskill', 'ares'], type: 'boolean', default: true, description: 'Run onEnd when removed by auraremove' },
                 { name: 'attachmentmodel', alias: ['attachmodel', 'model'], type: 'string', default: '', description: 'ModelEngine model (if attachmentType=MODELENGINE)' },
                 { name: 'attachmentstate', alias: ['attachstate', 'state'], type: 'string', default: '', description: 'ModelEngine state' },
@@ -718,7 +729,8 @@ const MECHANICS_DATA = {
                 { name: 'damagemodifiers', alias: ['damagemods', 'damagemod'], type: 'string', default: '', description: 'Damage modifiers (e.g., "FIRE 0.5, MAGIC 0.3")' },
                 { name: 'deflectprojectiles', alias: ['deflect', 'reflect'], type: 'boolean', default: false, description: 'Deflect projectiles' },
                 { name: 'deflectconditions', alias: ['dconditions'], type: 'string', default: '', description: 'Conditions for projectile deflection' },
-                { name: 'moddamagetype', alias: ['damagetype'], type: 'string', default: '', description: 'Damage type filter' }
+                { name: 'moddamagetype', alias: ['damagetype'], type: 'string', default: '', description: 'Damage type filter' },
+                { name: 'decaystackonexpire', alias: ['dsoe'], type: 'boolean', default: false, description: 'If aura has more than 1 stack and expires, loses a stack and restarts the timer instead of ending' }
             ],
             defaultTargeter: '@Self',
             examples: [
@@ -737,7 +749,8 @@ const MECHANICS_DATA = {
                 { name: 'cancelevent', alias: ['ce', 'canceldamage', 'cd'], type: 'boolean', default: false, description: 'Cancel attack event' },
                 { name: 'damageadd', alias: ['add', 'a'], type: 'number', default: 0, description: 'Static increase to damage dealt' },
                 { name: 'damagemultiplier', alias: ['multiplier', 'm'], type: 'number', default: 1, description: 'Damage multiplier' },
-                { name: 'moddamagetype', alias: ['damagetype'], type: 'string', default: '', description: 'Damage type to inflict' }
+                { name: 'moddamagetype', alias: ['damagetype'], type: 'string', default: '', description: 'Damage type to inflict' },
+                { name: 'decaystackonexpire', alias: ['dsoe'], type: 'boolean', default: false, description: 'If aura has more than 1 stack and expires, loses a stack and restarts the timer instead of ending' }
             ],
             defaultTargeter: '@Self',
             examples: [

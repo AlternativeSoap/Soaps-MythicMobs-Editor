@@ -121,7 +121,8 @@ class StatsEditor {
             { id: 'static', name: 'Static Value', icon: '📊', type: 'STATIC' },
             { id: 'proc', name: 'Proc Effect', icon: '⚡', type: 'PROC', trig: 'ATTACK' },
             { id: 'crit_chance', name: 'Crit Chance', icon: '🎯', type: 'STATIC', formulaKey: 'CRIT' },
-            { id: 'lifesteal', name: 'Lifesteal', icon: '❤️', type: 'PROC', trig: 'ATTACK' }
+            { id: 'lifesteal', name: 'Lifesteal', icon: '❤️', type: 'PROC', trig: 'ATTACK' },
+            { id: 'loot_bias', name: 'Loot Bias', icon: '🎲', type: 'STATIC', desc: 'Increases rare drop chances of weighted DropTables. 100 = +100% rare drops.' }
         ];
 
         // Common formulas with practical examples
@@ -177,7 +178,8 @@ class StatsEditor {
             { name: 'SAFE_FALL_DISTANCE', desc: 'Safe fall distance', icon: '🪂' },
             { name: 'FALL_DAMAGE_MULTIPLIER', desc: 'Fall damage multiplier', icon: '💀' },
             { name: 'FOLLOW_RANGE', desc: 'Follow range', icon: '👁️' },
-            { name: 'FLYING_SPEED', desc: 'Flying speed', icon: '🦅' }
+            { name: 'FLYING_SPEED', desc: 'Flying speed', icon: '🦅' },
+            { name: 'LOOT_BIAS', desc: 'Increases rare drop chances of weighted DropTables. 100 = +100% rare drops', icon: '🎲' }
         ];
 
         // Stat modifiers reference - detailed from MythicMobs documentation

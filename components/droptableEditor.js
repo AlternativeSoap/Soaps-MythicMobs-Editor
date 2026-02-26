@@ -299,6 +299,37 @@ class DropTableEditor {
                     </div>
                 </div>
             </div>
+
+            <!-- Bias Stat  -->
+            <div class="droptable-config-section bias-section">
+                <div class="config-section-header">
+                    <div class="config-section-title">
+                        <i class="fas fa-dice"></i>
+                        Loot Bias
+                    </div>
+                    <span class="config-section-badge">NEW</span>
+                </div>
+                <div class="config-section-description">
+                    <i class="fas fa-info-circle"></i>
+                    Control which stat type influences rare drop chances for weighted tables.
+                    The <strong>LOOT_BIAS</strong> stat increases the rare drop chances of weighted DropTables.
+                    A value of 100 makes rare drops roughly twice as likely (+100% Rare Drops).
+                </div>
+                <div class="config-cards-grid">
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <i class="fas fa-chart-line"></i>
+                            <span class="config-card-label">BiasStat</span>
+                        </div>
+                        <input type="text" id="config-biasstat" value="${config.BiasStat || ''}" 
+                               placeholder="LOOT_BIAS (default)" class="config-card-input">
+                        <div class="config-card-hint">
+                            <i class="fas fa-cog"></i>
+                            Custom stat type to rig drop table chances. Defaults to LOOT_BIAS.
+                        </div>
+                    </div>
+                </div>
+            </div>
         `;
     }
     
@@ -324,7 +355,7 @@ class DropTableEditor {
         });
         
         // Configuration inputs
-        ['totalitems', 'minitems', 'maxitems', 'bonuslevelitems', 'bonusluckitems'].forEach(field => {
+        ['totalitems', 'minitems', 'maxitems', 'bonuslevelitems', 'bonusluckitems', 'biasstat'].forEach(field => {
             document.getElementById(`config-${field}`)?.addEventListener('input', () => {
                 this.syncToFile();
                 this.editor.markDirty();
@@ -598,12 +629,14 @@ class DropTableEditor {
         const maxItems = document.getElementById('config-maxitems')?.value;
         const bonusLevel = document.getElementById('config-bonuslevelitems')?.value;
         const bonusLuck = document.getElementById('config-bonusluckitems')?.value;
+        const biasStat = document.getElementById('config-biasstat')?.value;
         
         if (totalItems) config.TotalItems = parseInt(totalItems);
         if (minItems) config.MinItems = parseInt(minItems);
         if (maxItems) config.MaxItems = parseInt(maxItems);
         if (bonusLevel) config.BonusLevelItems = bonusLevel;
         if (bonusLuck) config.BonusLuckItems = bonusLuck;
+        if (biasStat) config.BiasStat = biasStat;
         
         return {
             name: document.getElementById('droptable-name')?.value || '',

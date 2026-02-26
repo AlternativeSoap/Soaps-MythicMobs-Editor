@@ -4,15 +4,15 @@
  * 
  * ═══════════════════════════════════════════════════════════════
  * Created by: AlternativeSoap
- * © 2025 AlternativeSoap - All Rights Reserved
+ * © 2025-2026 AlternativeSoap - All Rights Reserved
  * 
  * This editor is provided to the MythicMobs community.
  * Please respect the creator's work and give credit where due.
  * ═══════════════════════════════════════════════════════════════
  */
 
-// PERFORMANCE: Global debug mode flag (set to false for production)
-window.DEBUG_MODE = true;
+// DEBUG_MODE is managed by utils/logger.js (auto-detects via URL param or localStorage)
+// To enable: add ?debug=true to URL or run localStorage.setItem('debugMode', 'true')
 
 class MythicMobsEditor {
     constructor() {
@@ -20,10 +20,9 @@ class MythicMobsEditor {
         console.log('%c═══════════════════════════════════════════════════════════════', 'color: #9b59b6; font-weight: bold;');
         console.log('%c  🎮 Soaps MythicMobs Editor', 'color: #9b59b6; font-size: 16px; font-weight: bold;');
         console.log('%c  Created by: AlternativeSoap', 'color: #8e44ad; font-size: 14px;');
-        console.log('%c  © 2025 - Made with 💜 for the MythicMobs community', 'color: #8e44ad;');
+        console.log('%c  © 2025-2026 - Made with 💜 for the MythicMobs community', 'color: #8e44ad;');
         console.log('%c═══════════════════════════════════════════════════════════════', 'color: #9b59b6; font-weight: bold;');
         console.log('');
-                console.log('');
         // Core utilities
         this.storage = null;
         this.packManager = null;
@@ -88,6 +87,41 @@ class MythicMobsEditor {
         
         // Preview update timer
         this.previewTimer = null;
+    }
+
+    /**
+     * Utility: Attach a touch-safe click handler that works on both mobile and desktop.
+     * Prevents the common double-fire issue where both touchend and click trigger.
+     * @param {HTMLElement} el - Target element
+     * @param {Function} callback - Handler to invoke
+     * @param {Object} [options] - Options
+     * @param {boolean} [options.stopPropagation=false] - Call stopPropagation on click
+     */
+    _addTouchSafeClick(el, callback, { stopPropagation = false } = {}) {
+        if (!el) return;
+        let touchHandled = false;
+        let touchMoved = false;
+        let startY = 0;
+        el.addEventListener('touchstart', (e) => {
+            startY = e.touches[0]?.clientY || 0;
+            touchMoved = false;
+        }, { passive: true });
+        el.addEventListener('touchmove', (e) => {
+            if (Math.abs((e.touches[0]?.clientY || 0) - startY) > 10) touchMoved = true;
+        }, { passive: true });
+        el.addEventListener('touchend', (e) => {
+            if (touchMoved) return;
+            e.preventDefault();
+            e.stopPropagation();
+            touchHandled = true;
+            callback(e);
+            setTimeout(() => { touchHandled = false; }, 500);
+        }, { passive: false });
+        el.addEventListener('click', (e) => {
+            if (touchHandled) return;
+            if (stopPropagation) e.stopPropagation();
+            callback(e);
+        });
     }
     
     /**
@@ -290,6 +324,7 @@ class MythicMobsEditor {
         document.getElementById('quick-template-browser')?.addEventListener('click', () => this.openTemplateBrowser());
         document.getElementById('quick-stats-editor')?.addEventListener('click', () => this.showStatsEditor(false));
         document.getElementById('quick-import')?.addEventListener('click', () => this.showImportDialog());
+        document.getElementById('dashboard-cmd-palette')?.addEventListener('click', () => this.commandPalette?.show());
         
         // Pack actions
         document.getElementById('new-pack-btn')?.addEventListener('click', () => this.createNewPack());
@@ -317,19 +352,7 @@ class MythicMobsEditor {
         });
         document.getElementById('save-status')?.addEventListener('click', (e) => { e._saveStatusHandled = true; this.toggleRecentChanges(e); });
         document.getElementById('view-all-changes-btn')?.addEventListener('click', () => this.showChangeHistory());
-        const closeHistoryBtn = document.getElementById('close-history-modal');
-        if (closeHistoryBtn) {
-            let touchHandled = false;
-            closeHistoryBtn.addEventListener('touchstart', (e) => {
-                touchHandled = true;
-                this.closeChangeHistory();
-                setTimeout(() => touchHandled = false, 500);
-            }, { passive: false });
-            closeHistoryBtn.addEventListener('click', () => {
-                if (touchHandled) return;
-                this.closeChangeHistory();
-            });
-        }
+        this._addTouchSafeClick(document.getElementById('close-history-modal'), () => this.closeChangeHistory());
         document.getElementById('clear-history-btn')?.addEventListener('click', () => this.clearChangeHistory());
         document.getElementById('history-search')?.addEventListener('input', (e) => this.filterChangeHistory(e.target.value));
         
@@ -362,70 +385,8 @@ class MythicMobsEditor {
         
         // Settings
         document.getElementById('settings-btn')?.addEventListener('click', () => this.showSettings());
-        const closeSettingsBtn = document.getElementById('close-settings-modal');
-        if (closeSettingsBtn) {
-            let settingsTouchHandled = false;
-            let touchStartY = 0;
-            let touchMoved = false;
-            
-            closeSettingsBtn.addEventListener('touchstart', (e) => {
-                touchStartY = e.touches[0].clientY;
-                touchMoved = false;
-                settingsTouchHandled = false;
-            }, { passive: true });
-            
-            closeSettingsBtn.addEventListener('touchmove', (e) => {
-                const moveY = Math.abs(e.touches[0].clientY - touchStartY);
-                if (moveY > 10) {
-                    touchMoved = true;
-                }
-            }, { passive: true });
-            
-            closeSettingsBtn.addEventListener('touchend', (e) => {
-                if (touchMoved) {
-                    console.log('📱 Settings close touch moved, ignoring');
-                    return;
-                }
-                
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('📱 Settings close TOUCHED');
-                settingsTouchHandled = true;
-                this.closeSettings();
-                setTimeout(() => settingsTouchHandled = false, 500);
-            }, { passive: false });
-            
-            // Click handler for desktop (mouse clicks)
-            closeSettingsBtn.addEventListener('click', (e) => {
-                // Skip if already handled by touch
-                if (settingsTouchHandled) return;
-                e.stopPropagation();
-                this.closeSettings();
-            });
-        }
-        
-        const saveSettingsBtn = document.getElementById('save-settings-btn');
-        if (saveSettingsBtn) {
-            let settingsTouchHandled = false;
-            let saveTouchMoved = false;
-            saveSettingsBtn.addEventListener('touchstart', (e) => {
-                saveTouchMoved = false;
-            }, { passive: true });
-            saveSettingsBtn.addEventListener('touchmove', () => {
-                saveTouchMoved = true;
-            }, { passive: true });
-            saveSettingsBtn.addEventListener('touchend', (e) => {
-                if (saveTouchMoved) return;
-                e.preventDefault();
-                settingsTouchHandled = true;
-                this.saveSettingsFromModal();
-                setTimeout(() => settingsTouchHandled = false, 500);
-            }, { passive: false });
-            saveSettingsBtn.addEventListener('click', () => {
-                if (settingsTouchHandled) return;
-                this.saveSettingsFromModal();
-            });
-        }
+        this._addTouchSafeClick(document.getElementById('close-settings-modal'), () => this.closeSettings(), { stopPropagation: true });
+        this._addTouchSafeClick(document.getElementById('save-settings-btn'), () => this.saveSettingsFromModal());
         document.getElementById('reset-settings-btn')?.addEventListener('click', () => this.resetSettings());
         document.getElementById('help-btn')?.addEventListener('click', () => this.showHelp());
         
@@ -454,25 +415,7 @@ class MythicMobsEditor {
         
         // Settings tabs
         document.querySelectorAll('.settings-tab').forEach(tab => {
-            let touchHandled = false;
-            let tabTouchMoved = false;
-            tab.addEventListener('touchstart', () => {
-                tabTouchMoved = false;
-            }, { passive: true });
-            tab.addEventListener('touchmove', () => {
-                tabTouchMoved = true;
-            }, { passive: true });
-            tab.addEventListener('touchend', (e) => {
-                if (tabTouchMoved) return;
-                e.preventDefault();
-                touchHandled = true;
-                const tabName = (e.target.closest('.settings-tab') || e.target).dataset.tab;
-                this.switchSettingsTab(tabName);
-                setTimeout(() => touchHandled = false, 500);
-            }, { passive: false });
-            
-            tab.addEventListener('click', (e) => {
-                if (touchHandled) return;
+            this._addTouchSafeClick(tab, (e) => {
                 const tabName = (e.target.closest('.settings-tab') || e.target).dataset.tab;
                 this.switchSettingsTab(tabName);
             });
@@ -545,7 +488,7 @@ class MythicMobsEditor {
             }
             
             // Save (Ctrl+S)
-            if (e.ctrlKey && !e.shiftKey && e.key === 's') {
+            else if (e.ctrlKey && !e.shiftKey && e.key === 's') {
                 e.preventDefault();
                 try {
                     await this.save();
@@ -555,7 +498,7 @@ class MythicMobsEditor {
             }
             
             // Save All (Ctrl+Shift+S)
-            if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+            else if (e.ctrlKey && e.shiftKey && e.key === 'S') {
                 e.preventDefault();
                 try {
                     await this.saveAll();
@@ -565,37 +508,37 @@ class MythicMobsEditor {
             }
             
             // New Mob (Ctrl+N)
-            if (e.ctrlKey && !e.shiftKey && e.key === 'n') {
+            else if (e.ctrlKey && !e.shiftKey && e.key === 'n') {
                 e.preventDefault();
                 this.createNewMob();
             }
             
             // New Skill (Ctrl+Shift+M)
-            if (e.ctrlKey && e.shiftKey && e.key === 'M') {
+            else if (e.ctrlKey && e.shiftKey && e.key === 'M') {
                 e.preventDefault();
                 this.createNewSkill();
             }
             
             // New Item (Ctrl+Shift+I)
-            if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+            else if (e.ctrlKey && e.shiftKey && e.key === 'I') {
                 e.preventDefault();
                 this.createNewItem();
             }
             
             // New DropTable (Ctrl+Shift+T)
-            if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+            else if (e.ctrlKey && e.shiftKey && e.key === 'T') {
                 e.preventDefault();
                 this.createNewDropTable();
             }
             
             // Dependency Graph (Ctrl+Shift+D)
-            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+            else if (e.ctrlKey && e.shiftKey && e.key === 'D') {
                 e.preventDefault();
                 this.showDependencyGraph();
             }
             
             // New RandomSpawn (Ctrl+Shift+R)
-            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+            else if (e.ctrlKey && e.shiftKey && e.key === 'R') {
                 e.preventDefault();
                 this.createNewRandomSpawn();
             }
@@ -607,69 +550,63 @@ class MythicMobsEditor {
             }
             
             // Placeholder Browser (Ctrl+Shift+H)
-            if (e.ctrlKey && e.shiftKey && e.key === 'H') {
+            else if (e.ctrlKey && e.shiftKey && e.key === 'H') {
                 e.preventDefault();
                 this.openPlaceholderBrowser();
             }
             
             // Stats Editor (Ctrl+Shift+A) - Advanced mode only
-            if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+            else if (e.ctrlKey && e.shiftKey && e.key === 'A') {
                 e.preventDefault();
                 if (this.state.currentMode === 'advanced') {
                     this.showStatsEditor(true);
                 }
             }
             
-            // Template Browser (Ctrl+Shift+P)
-            if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+            // Template Browser (Ctrl+Shift+B)
+            else if (e.ctrlKey && e.shiftKey && e.key === 'B') {
                 e.preventDefault();
                 this.openTemplateBrowser();
             }
             
             // Import YAML (Ctrl+Shift+O)
-            if (e.ctrlKey && e.shiftKey && e.key === 'O') {
+            else if (e.ctrlKey && e.shiftKey && e.key === 'O') {
                 e.preventDefault();
                 this.showImportDialog();
             }
             
             // Export (Ctrl+E)
-            if (e.ctrlKey && e.key === 'e') {
+            else if (e.ctrlKey && e.key === 'e') {
                 e.preventDefault();
                 this.exportYAML();
             }
             
-            // Import (Ctrl+I)
-            if (e.ctrlKey && e.key === 'i') {
-                e.preventDefault();
-                this.showImportDialog();
-            }
-            
             // Undo (Ctrl+Z)
-            if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+            else if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
                 e.preventDefault();
                 this.history?.undo();
             }
             
             // Redo (Ctrl+Y or Ctrl+Shift+Z)
-            if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'z')) {
+            else if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'z')) {
                 e.preventDefault();
                 this.history?.redo();
             }
             
             // Toggle left sidebar (Ctrl+B)
-            if (e.ctrlKey && e.key === 'b') {
+            else if (e.ctrlKey && e.key === 'b') {
                 e.preventDefault();
                 this.toggleLeftSidebar();
             }
             
             // Duplicate current item (Ctrl+D)
-            if (e.ctrlKey && e.key === 'd') {
+            else if (e.ctrlKey && e.key === 'd') {
                 e.preventDefault();
                 this.duplicateCurrentItem();
             }
             
             // Return to dashboard (ESC)
-            if (e.key === 'Escape' && this.state.currentView !== 'dashboard') {
+            else if (e.key === 'Escape' && this.state.currentView !== 'dashboard') {
                 e.preventDefault();
                 this.goToDashboard();
             }
@@ -711,11 +648,7 @@ class MythicMobsEditor {
      * Return to dashboard view
      */
     goToDashboard() {
-        // Hide all editor views - reset both class and inline styles
-        document.querySelectorAll('.view-container').forEach(view => {
-            view.classList.remove('active');
-            view.style.display = ''; // Reset any inline display styles
-        });
+        this._hideAllViews();
         
         // Clear spawner state if we were viewing spawner
         if (this.state.currentView === 'spawner') {
@@ -755,16 +688,180 @@ class MythicMobsEditor {
         if (this.packManager) {
             this.packManager.renderPackTree();
         }
+
+        // Refresh dynamic dashboard content
+        this.renderDashboard();
     }
-    
+
+    /**
+     * Render dynamic dashboard content (stats, recent files, quick start)
+     */
+    renderDashboard() {
+        if (!this.packManager) return;
+        const packs = this.packManager.packs || [];
+
+        // --- Pack summary text ---
+        const totalMobs = packs.reduce((s, p) => s + (p.mobs?.length || 0), 0);
+        const totalSkills = packs.reduce((s, p) => s + (p.skills?.length || 0), 0);
+        const totalItems = packs.reduce((s, p) => s + (p.items?.length || 0), 0);
+        const totalDroptables = packs.reduce((s, p) => s + (p.droptables?.length || 0), 0);
+        const totalFiles = totalMobs + totalSkills + totalItems + totalDroptables;
+
+        const summaryEl = document.getElementById('dashboard-pack-summary');
+        if (summaryEl) {
+            if (packs.length === 0) {
+                summaryEl.textContent = 'No packs yet — create one to get started!';
+            } else {
+                summaryEl.textContent = `${packs.length} pack${packs.length !== 1 ? 's' : ''} · ${totalFiles} file${totalFiles !== 1 ? 's' : ''} across your workspace`;
+            }
+        }
+
+        // --- Stats bar ---
+        const setNum = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setNum('dash-stat-mobs', totalMobs);
+        setNum('dash-stat-skills', totalSkills);
+        setNum('dash-stat-items', totalItems);
+        setNum('dash-stat-droptables', totalDroptables);
+        setNum('dash-stat-packs', packs.length);
+
+        // --- Recent files ---
+        const recentSection = document.getElementById('dashboard-recent-section');
+        const recentContainer = document.getElementById('dashboard-recent-files');
+        const recentFiles = this.packManager.recentFiles || [];
+
+        if (recentSection && recentContainer) {
+            // Filter to files that still exist
+            const validRecent = recentFiles.filter(rf => {
+                for (const pack of packs) {
+                    const lists = { mob: 'mobs', skill: 'skills', item: 'items', droptable: 'droptables', randomspawn: 'randomspawns', spawner: 'spawners' };
+                    const listName = lists[rf.fileType];
+                    if (listName && pack[listName]?.some(f => f.id === rf.fileId)) return true;
+                }
+                return false;
+            }).slice(0, 5);
+
+            if (validRecent.length > 0) {
+                recentSection.classList.remove('hidden');
+                const typeIcons = {
+                    mob: 'fas fa-skull', skill: 'fas fa-magic', item: 'fas fa-gem',
+                    droptable: 'fas fa-dice', randomspawn: 'fas fa-map-marked-alt',
+                    spawner: 'fas fa-dungeon', packinfo: 'fas fa-info-circle'
+                };
+
+                recentContainer.innerHTML = validRecent.map(rf => {
+                    const ago = this._relativeTime(rf.timestamp);
+                    const icon = typeIcons[rf.fileType] || 'fas fa-file';
+                    return `<div class="recent-file-card" data-file-id="${rf.fileId}" data-file-type="${rf.fileType}">
+                        <div class="recent-file-icon type-${rf.fileType}"><i class="${icon}"></i></div>
+                        <div class="recent-file-info">
+                            <div class="recent-file-name">${rf.fileName}</div>
+                            <div class="recent-file-meta">${rf.packName} · ${ago}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                // Click handler
+                recentContainer.querySelectorAll('.recent-file-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        const fileId = card.dataset.fileId;
+                        const fileType = card.dataset.fileType;
+                        // Find the file in packs
+                        const lists = { mob: 'mobs', skill: 'skills', item: 'items', droptable: 'droptables', randomspawn: 'randomspawns', spawner: 'spawners' };
+                        const listName = lists[fileType];
+                        if (!listName) return;
+                        for (const pack of packs) {
+                            const file = pack[listName]?.find(f => f.id === fileId);
+                            if (file) {
+                                this.packManager.activePack = pack;
+                                this.openFile(file, fileType);
+                                return;
+                            }
+                        }
+                    });
+                });
+            } else {
+                recentSection.classList.add('hidden');
+            }
+        }
+
+        // --- Quick Start (contextual) ---
+        const quickstart = document.getElementById('dashboard-quickstart');
+        if (quickstart) {
+            if (packs.length === 0) {
+                quickstart.innerHTML = `
+                    <div class="quickstart-header"><i class="fas fa-rocket"></i> Getting Started</div>
+                    <div class="quickstart-tips">
+                        <div class="quickstart-tip"><i class="fas fa-chevron-right"></i> Click <strong>+ New Pack</strong> in the sidebar to create your first pack</div>
+                        <div class="quickstart-tip"><i class="fas fa-chevron-right"></i> Or <strong>Import Pack</strong> to load an existing MythicMobs configuration</div>
+                        <div class="quickstart-tip"><i class="fas fa-chevron-right"></i> Press <kbd>Ctrl</kbd><kbd>K</kbd> anytime for the command palette</div>
+                    </div>`;
+            } else if (totalFiles === 0) {
+                quickstart.innerHTML = `
+                    <div class="quickstart-header"><i class="fas fa-lightbulb"></i> Next Steps</div>
+                    <div class="quickstart-tips">
+                        <div class="quickstart-tip"><i class="fas fa-chevron-right"></i> Your pack is empty — start by creating a <strong>Mob</strong> or <strong>Skill</strong> above</div>
+                        <div class="quickstart-tip"><i class="fas fa-chevron-right"></i> Use <strong>From Template</strong> for pre-built skill configurations</div>
+                        <div class="quickstart-tip"><i class="fas fa-chevron-right"></i> The YAML preview on the right updates live as you edit</div>
+                    </div>`;
+            } else {
+                quickstart.innerHTML = `
+                    <div class="quickstart-header"><i class="fas fa-lightbulb"></i> Tips</div>
+                    <div class="quickstart-tips">
+                        <div class="quickstart-tip"><i class="fas fa-chevron-right"></i> Press <kbd>Ctrl</kbd><kbd>K</kbd> to search commands, files, and mechanics</div>
+                        <div class="quickstart-tip"><i class="fas fa-chevron-right"></i> <kbd>Ctrl</kbd><kbd>E</kbd> to export your pack as YAML files</div>
+                        <div class="quickstart-tip"><i class="fas fa-chevron-right"></i> Switch to <strong>Advanced</strong> mode for spawners, stats, and more tools</div>
+                    </div>`;
+            }
+        }
+    }
+
+    /**
+     * Hide all view containers (resets class and inline styles)
+     */
+    _hideAllViews() {
+        document.querySelectorAll('.view-container').forEach(view => {
+            view.classList.remove('active');
+            view.style.display = '';
+        });
+    }
+
+    /**
+     * Format a timestamp as relative time
+     * @param {number} timestamp - Unix timestamp in milliseconds
+     * @param {boolean} short - Use short format (2m ago) vs long (2 minutes ago)
+     */
+    _relativeTime(timestamp, short = true) {
+        if (!timestamp) return null;
+        const seconds = Math.floor((Date.now() - timestamp) / 1000);
+        if (short) {
+            if (seconds < 60) return 'just now';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}h ago`;
+            const days = Math.floor(hours / 24);
+            if (days < 7) return `${days}d ago`;
+            return new Date(timestamp).toLocaleDateString();
+        }
+        // Long format
+        if (seconds < 5) return 'just now';
+        if (seconds < 60) return `${seconds} seconds ago`;
+        const minutes = Math.floor(seconds / 60);
+        if (minutes === 1) return '1 minute ago';
+        if (minutes < 60) return `${minutes} minutes ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours === 1) return '1 hour ago';
+        if (hours < 24) return `${hours} hours ago`;
+        const days = Math.floor(hours / 24);
+        if (days === 1) return 'yesterday';
+        return `${days} days ago`;
+    }
+
     /**
      * Show guided mode dashboard
      */
     showGuidedDashboard() {
-        // Hide all views first
-        document.querySelectorAll('.view-container').forEach(view => {
-            view.classList.remove('active');
-        });
+        this._hideAllViews();
         
         // Show guided dashboard
         const guidedDashboard = document.getElementById('guided-mode-dashboard');
@@ -822,25 +919,25 @@ class MythicMobsEditor {
                     </div>
                 </div>
                 
-                <div class="guided-tips-section" style="margin-top: 2rem; padding: 1.5rem; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--border-primary);">
-                    <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; color: var(--accent-primary);">
+                <div class="guided-tips-section">
+                    <h3>
                         <i class="fas fa-lightbulb"></i> Getting Started
                     </h3>
-                    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem;">
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; color: var(--text-secondary);">
-                            <i class="fas fa-check-circle" style="color: var(--success); margin-top: 0.2rem;"></i>
+                    <ul class="guided-tips-list">
+                        <li>
+                            <i class="fas fa-check-circle"></i>
                             <span>Click <strong>"Create a Mob"</strong> to start the step-by-step wizard</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; color: var(--text-secondary);">
-                            <i class="fas fa-check-circle" style="color: var(--success); margin-top: 0.2rem;"></i>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
                             <span>Choose from pre-built templates or customize every option</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; color: var(--text-secondary);">
-                            <i class="fas fa-check-circle" style="color: var(--success); margin-top: 0.2rem;"></i>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
                             <span>Add powerful skills with just a few clicks</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; color: var(--text-secondary);">
-                            <i class="fas fa-check-circle" style="color: var(--success); margin-top: 0.2rem;"></i>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
                             <span>Switch to Beginner or Advanced mode anytime for more control</span>
                         </li>
                     </ul>
@@ -963,6 +1060,9 @@ class MythicMobsEditor {
         
         // Update YAML preview
         this.updateYAMLPreview();
+
+        // Render dynamic dashboard content
+        this.renderDashboard();
     }
     
     /**
@@ -996,10 +1096,10 @@ class MythicMobsEditor {
         if (saveStatus) {
             if (mode === 'advanced') {
                 saveStatus.setAttribute('title', 'Click to view recent changes');
-                saveStatus.style.cursor = 'pointer';
+                saveStatus.classList.add('clickable');
             } else {
                 saveStatus.setAttribute('title', 'All changes saved');
-                saveStatus.style.cursor = 'default';
+                saveStatus.classList.remove('clickable');
             }
         }
         
@@ -1200,37 +1300,28 @@ class MythicMobsEditor {
                             <small class="form-hint">Section name will be auto-generated (editable in the editor)</small>
                         </div>
                         
-                        <div class="creation-type-selector" style="margin: 1.5rem 0;">
-                            <label class="form-label" style="margin-bottom: 0.75rem; display: block;">Creation Type</label>
-                            <div class="creation-type-options" style="display: flex; gap: 0.5rem;">
-                                <button type="button" class="creation-type-btn active" data-type="standalone" style="
-                                    flex: 1; padding: 1rem; border: 2px solid var(--border-primary); border-radius: 0.5rem;
-                                    background: var(--bg-primary); cursor: pointer; text-align: center; transition: all 0.2s;
-                                ">
-                                    <i class="fas fa-cube" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+                        <div class="creation-type-selector">
+                            <label class="form-label">Creation Type</label>
+                            <div class="creation-type-options">
+                                <button type="button" class="creation-type-btn active" data-type="standalone">
+                                    <i class="fas fa-cube"></i>
                                     <strong>Standalone</strong>
-                                    <small style="display: block; color: var(--text-tertiary); margin-top: 0.25rem;">Regular mob</small>
+                                    <small>Regular mob</small>
                                 </button>
-                                <button type="button" class="creation-type-btn" data-type="template" style="
-                                    flex: 1; padding: 1rem; border: 2px solid var(--border-primary); border-radius: 0.5rem;
-                                    background: var(--bg-primary); cursor: pointer; text-align: center; transition: all 0.2s;
-                                ">
-                                    <i class="fas fa-layer-group" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+                                <button type="button" class="creation-type-btn" data-type="template">
+                                    <i class="fas fa-layer-group"></i>
                                     <strong>Template</strong>
-                                    <small style="display: block; color: var(--text-tertiary); margin-top: 0.25rem;">Base for other mobs</small>
+                                    <small>Base for other mobs</small>
                                 </button>
-                                <button type="button" class="creation-type-btn" data-type="child" style="
-                                    flex: 1; padding: 1rem; border: 2px solid var(--border-primary); border-radius: 0.5rem;
-                                    background: var(--bg-primary); cursor: pointer; text-align: center; transition: all 0.2s;
-                                ">
-                                    <i class="fas fa-sitemap" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+                                <button type="button" class="creation-type-btn" data-type="child">
+                                    <i class="fas fa-sitemap"></i>
                                     <strong>Child Mob</strong>
-                                    <small style="display: block; color: var(--text-tertiary); margin-top: 0.25rem;">Inherits from template</small>
+                                    <small>Inherits from template</small>
                                 </button>
                             </div>
                         </div>
                         
-                        <div id="template-selector-section" style="display: none; margin-top: 1rem;">
+                        <div id="template-selector-section" class="hidden" style="margin-top: 1rem;">
                             <label class="form-label">Parent Template <span class="required">*</span></label>
                             <select class="form-select" id="parent-template-select">
                                 <option value="">-- Select a template --</option>
@@ -1246,11 +1337,8 @@ class MythicMobsEditor {
                             <small class="form-hint">Select the mob to inherit properties from</small>
                         </div>
                         
-                        <div class="creation-info" style="
-                            margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); 
-                            border-radius: 0.5rem; border-left: 3px solid var(--accent-primary);
-                        ">
-                            <p id="creation-info-text" style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">
+                        <div class="creation-info">
+                            <p id="creation-info-text">
                                 <i class="fas fa-info-circle"></i> 
                                 Create a regular standalone mob with all properties defined.
                             </p>
@@ -1277,22 +1365,18 @@ class MythicMobsEditor {
                 btn.addEventListener('click', () => {
                     overlay.querySelectorAll('.creation-type-btn').forEach(b => {
                         b.classList.remove('active');
-                        b.style.borderColor = 'var(--border-primary)';
-                        b.style.background = 'var(--bg-primary)';
                     });
                     btn.classList.add('active');
-                    btn.style.borderColor = 'var(--accent-primary)';
-                    btn.style.background = 'var(--accent-primary-light)';
                     
                     selectedType = btn.dataset.type;
                     const templateSection = document.getElementById('template-selector-section');
                     const infoText = document.getElementById('creation-info-text');
                     
                     if (selectedType === 'child') {
-                        templateSection.style.display = 'block';
+                        templateSection.classList.remove('hidden');
                         infoText.innerHTML = '<i class="fas fa-sitemap"></i> This mob will inherit all properties from the selected template. You can override specific properties.';
                     } else {
-                        templateSection.style.display = 'none';
+                        templateSection.classList.add('hidden');
                         if (selectedType === 'template') {
                             infoText.innerHTML = '<i class="fas fa-layer-group"></i> This mob will serve as a base template. Other mobs can inherit from it.';
                         } else {
@@ -1301,13 +1385,6 @@ class MythicMobsEditor {
                     }
                 });
             });
-            
-            // Set initial active state styling
-            const activeBtn = overlay.querySelector('.creation-type-btn.active');
-            if (activeBtn) {
-                activeBtn.style.borderColor = 'var(--accent-primary)';
-                activeBtn.style.background = 'var(--accent-primary-light)';
-            }
             
             const cleanup = () => {
                 document.body.removeChild(overlay);
@@ -1621,11 +1698,7 @@ class MythicMobsEditor {
             detail: { view: 'spawner', type: 'spawner', file: fileName }
         }));
         
-        // Hide all views - use consistent approach with class toggle AND style reset
-        document.querySelectorAll('.view-container').forEach(v => {
-            v.classList.remove('active');
-            v.style.display = ''; // Reset any inline display styles
-        });
+        this._hideAllViews();
         
         // Show spawner view using the class system
         const spawnerView = document.getElementById('spawner-editor-view');
@@ -1713,11 +1786,7 @@ class MythicMobsEditor {
             detail: { view: 'stats', type: 'stats', file: pack.stats }
         }));
         
-        // Hide all views
-        document.querySelectorAll('.view-container').forEach(v => {
-            v.classList.remove('active');
-            v.style.display = '';
-        });
+        this._hideAllViews();
         
         // Show stats view
         const statsView = document.getElementById('stats-editor-view');
@@ -2044,11 +2113,7 @@ class MythicMobsEditor {
             this.state.currentSpawnerFile = null;
         }
         
-        // Hide all views - reset both class and inline styles
-        document.querySelectorAll('.view-container').forEach(view => {
-            view.classList.remove('active');
-            view.style.display = ''; // Reset any inline display styles
-        });
+        this._hideAllViews();
         
         // Show appropriate editor
         let editor;
@@ -2653,7 +2718,7 @@ class MythicMobsEditor {
         if (!dropdown || !contentEl) return;
         
         const modifiedFiles = this.getModifiedFilesList();
-        const lastSavedTime = this.getLastSavedRelativeTime();
+        const lastSavedTime = this._relativeTime(this.state.lastSavedTimestamp, false);
         
         // Update header with last saved info
         if (headerEl) {
@@ -3068,28 +3133,7 @@ class MythicMobsEditor {
         }
     }
     
-    /**
-     * Get relative time string for last saved timestamp
-     */
-    getLastSavedRelativeTime() {
-        if (!this.state.lastSavedTimestamp) return null;
-        
-        const now = new Date();
-        const diff = now - this.state.lastSavedTimestamp;
-        const seconds = Math.floor(diff / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-        const days = Math.floor(hours / 24);
-        
-        if (seconds < 5) return 'just now';
-        if (seconds < 60) return `${seconds} seconds ago`;
-        if (minutes === 1) return '1 minute ago';
-        if (minutes < 60) return `${minutes} minutes ago`;
-        if (hours === 1) return '1 hour ago';
-        if (hours < 24) return `${hours} hours ago`;
-        if (days === 1) return 'yesterday';
-        return `${days} days ago`;
-    }
+    // getLastSavedRelativeTime() consolidated into _relativeTime(timestamp, false)
     
     /**
      * Format timestamp for display
@@ -4194,10 +4238,10 @@ class MythicMobsEditor {
         if (saveStatus) {
             if (this.state.currentMode === 'advanced') {
                 saveStatus.setAttribute('title', 'Click to view recent changes');
-                saveStatus.style.cursor = 'pointer';
+                saveStatus.classList.add('clickable');
             } else {
                 saveStatus.setAttribute('title', 'All changes saved');
-                saveStatus.style.cursor = 'default';
+                saveStatus.classList.remove('clickable');
             }
         }
         
@@ -4319,75 +4363,27 @@ class MythicMobsEditor {
     showCelebrationMessage(message, duration = 3000) {
         // Create overlay
         const overlay = document.createElement('div');
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-            background: rgba(0, 0, 0, 0.3);
-        `;
+        overlay.className = 'celebration-overlay';
         
         // Create message container
         const messageBox = document.createElement('div');
-        messageBox.style.cssText = `
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem 3rem;
-            border-radius: 15px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: celebrationPop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            position: relative;
-        `;
+        messageBox.className = 'celebration-message';
         messageBox.textContent = message;
-        
-        // Add fireworks animation style if not exists
-        if (!document.getElementById('celebration-styles')) {
-            const style = document.createElement('style');
-            style.id = 'celebration-styles';
-            style.textContent = `
-                @keyframes celebrationPop {
-                    0% { transform: scale(0.5); opacity: 0; }
-                    50% { transform: scale(1.1); }
-                    100% { transform: scale(1); opacity: 1; }
-                }
-                @keyframes firework {
-                    0% { transform: translate(0, 0) scale(0); opacity: 1; }
-                    100% { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 0; }
-                }
-            `;
-            document.head.appendChild(style);
-        }
         
         // Create fireworks particles
         for (let i = 0; i < 30; i++) {
-            const firework = document.createElement('div');
+            const particle = document.createElement('div');
+            particle.className = 'celebration-particle';
             const angle = (Math.PI * 2 * i) / 30;
             const distance = 150 + Math.random() * 50;
             const tx = Math.cos(angle) * distance;
             const ty = Math.sin(angle) * distance;
             
-            firework.style.cssText = `
-                position: absolute;
-                width: 8px;
-                height: 8px;
-                background: ${['#ff0', '#f0f', '#0ff', '#ff0', '#0f0', '#f00'][Math.floor(Math.random() * 6)]};
-                border-radius: 50%;
-                top: 50%;
-                left: 50%;
-                animation: firework 1s ease-out forwards;
-                animation-delay: ${Math.random() * 0.2}s;
-                --tx: ${tx}px;
-                --ty: ${ty}px;
-            `;
-            messageBox.appendChild(firework);
+            particle.style.background = ['#ff0', '#f0f', '#0ff', '#ff0', '#0f0', '#f00'][Math.floor(Math.random() * 6)];
+            particle.style.animationDelay = `${Math.random() * 0.2}s`;
+            particle.style.setProperty('--tx', `${tx}px`);
+            particle.style.setProperty('--ty', `${ty}px`);
+            messageBox.appendChild(particle);
         }
         
         overlay.appendChild(messageBox);
@@ -4395,7 +4391,6 @@ class MythicMobsEditor {
         
         // Remove after duration
         setTimeout(() => {
-            overlay.style.transition = 'opacity 0.3s';
             overlay.style.opacity = '0';
             setTimeout(() => overlay.remove(), 300);
         }, duration);
@@ -4543,10 +4538,10 @@ class MythicMobsEditor {
         
         const modalHTML = `
             <div class="modal-overlay">
-                <div class="modal ${modalClass}">
+                <div class="modal ${modalClass}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
                     <div class="modal-header">
-                        <h3 class="modal-title">${title}</h3>
-                        <button class="icon-btn" id="close-modal">
+                        <h3 class="modal-title" id="modal-title">${title}</h3>
+                        <button class="icon-btn" id="close-modal" aria-label="Close dialog">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
@@ -4559,6 +4554,7 @@ class MythicMobsEditor {
         container.innerHTML = modalHTML;
         
         const overlay = container.querySelector('.modal-overlay');
+        const modalEl = container.querySelector('.modal');
         
         // Setup button actions
         buttons.forEach(btn => {
@@ -4588,6 +4584,37 @@ class MythicMobsEditor {
             const primaryBtn = container.querySelector('.btn-primary');
             const secondaryBtn = container.querySelector('.btn-secondary');
             
+            // Focus trap — keep Tab cycling within the modal
+            if (modalEl) {
+                const focusTrapHandler = (e) => {
+                    if (e.key !== 'Tab') return;
+                    const focusable = modalEl.querySelectorAll(
+                        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                    );
+                    if (focusable.length === 0) return;
+                    const first = focusable[0];
+                    const last = focusable[focusable.length - 1];
+                    if (e.shiftKey) {
+                        if (document.activeElement === first) {
+                            e.preventDefault();
+                            last.focus();
+                        }
+                    } else {
+                        if (document.activeElement === last) {
+                            e.preventDefault();
+                            first.focus();
+                        }
+                    }
+                };
+                document.addEventListener('keydown', focusTrapHandler);
+                if (!container._keyHandlers) container._keyHandlers = [];
+                container._keyHandlers.push(focusTrapHandler);
+                
+                // Auto-focus the first focusable element
+                const firstFocusable = modalEl.querySelector('button, [href], input, select, textarea');
+                if (firstFocusable) firstFocusable.focus();
+            }
+            
             if (primaryBtn && !modalClass.includes('modal-prompt')) { // prompt already has its own handler
                 const keyHandler = (e) => {
                     const modal = container.querySelector('.modal');
@@ -4603,9 +4630,6 @@ class MythicMobsEditor {
                 };
                 
                 document.addEventListener('keydown', keyHandler);
-                
-                // Store handler for cleanup
-                if (!container._keyHandlers) container._keyHandlers = [];
                 container._keyHandlers.push(keyHandler);
             }
         }, 50);
@@ -4667,8 +4691,8 @@ class MythicMobsEditor {
                     { keys: ['Ctrl', 'Shift', 'I'], desc: 'New Item' },
                     { keys: ['Ctrl', 'Shift', 'T'], desc: 'New DropTable' },
                     { keys: ['Ctrl', 'Shift', 'R'], desc: 'New RandomSpawn' },
-                    { keys: ['Ctrl', 'Shift', 'S'], desc: 'New Spawner' },
-                    { keys: ['Ctrl', 'Shift', 'P'], desc: 'Browse Templates' },
+                    { keys: ['Ctrl', 'Shift', 'P'], desc: 'New Spawner' },
+                    { keys: ['Ctrl', 'Shift', 'B'], desc: 'Browse Templates' },
                     { keys: ['Ctrl', 'Shift', 'H'], desc: 'Placeholder Browser' }
                 ]
             },
@@ -4908,14 +4932,14 @@ class MythicMobsEditor {
     showImportDialog() {
         this.createModal('Import', `
             <div class="import-options">
-                <p style="margin-bottom: 16px; color: #94a3b8;">Choose how you want to import:</p>
-                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                    <button class="action-card" id="import-yaml-file" style="flex: 1; min-width: 200px;">
+                <p>Choose how you want to import:</p>
+                <div class="import-options-grid">
+                    <button class="import-option-card" id="import-yaml-file">
                         <i class="fas fa-file-code"></i>
                         <h3>Import YAML File</h3>
                         <p>Import a single YAML file</p>
                     </button>
-                    <button class="action-card" id="import-pack-folder" style="flex: 1; min-width: 200px;">
+                    <button class="import-option-card" id="import-pack-folder">
                         <i class="fas fa-folder-open"></i>
                         <h3>Import Pack Folder</h3>
                         <p>Import entire MythicMobs packs with full analysis</p>
@@ -5152,16 +5176,6 @@ class MythicMobsEditor {
     }
     
     /**
-     * Escape HTML
-     */
-    escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    /**
      * Show dependency graph analysis
      */
     showDependencyGraph() {
@@ -5254,19 +5268,19 @@ class MythicMobsEditor {
      */
     showAbout() {
         const content = `
-            <div style="text-align: center; padding: 20px;">
-                <i class="fas fa-dragon" style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 16px;"></i>
-                <h3 style="margin: 0 0 8px 0;">Soaps MythicMobs Editor</h3>
-                <p style="color: var(--text-secondary); margin: 0 0 16px 0;">Version 2.0.0</p>
-                <p style="color: var(--text-tertiary); font-size: 0.875rem; margin: 0;">
+            <div class="about-dialog">
+                <i class="fas fa-dragon about-icon"></i>
+                <h3>Soaps MythicMobs Editor</h3>
+                <p class="about-version">Version 2.0.0</p>
+                <p class="about-description">
                     A powerful visual editor for creating MythicMobs configurations.<br>
                     Built with ❤️ for the Minecraft community.
                 </p>
-                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-primary);">
-                    <a href="https://github.com" target="_blank" style="color: var(--accent-primary); text-decoration: none; margin: 0 8px;">
+                <div class="about-links">
+                    <a href="https://github.com" target="_blank">
                         <i class="fab fa-github"></i> GitHub
                     </a>
-                    <a href="https://discord.gg/mythicmobs" target="_blank" style="color: var(--accent-primary); text-decoration: none; margin: 0 8px;">
+                    <a href="https://discord.gg/mythicmobs" target="_blank">
                         <i class="fab fa-discord"></i> Discord
                     </a>
                 </div>
@@ -5338,7 +5352,7 @@ class MythicMobsEditor {
     showModeComparison() {
         const modal = document.getElementById('mode-comparison-modal');
         if (modal) {
-            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
         }
     }
     
@@ -5348,7 +5362,7 @@ class MythicMobsEditor {
     closeModeComparison() {
         const modal = document.getElementById('mode-comparison-modal');
         if (modal) {
-            modal.style.display = 'none';
+            modal.classList.add('hidden');
         }
     }
 }

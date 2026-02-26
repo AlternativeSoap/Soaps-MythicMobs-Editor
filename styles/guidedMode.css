@@ -136,6 +136,44 @@ body[data-mode="guided"] .advanced-only {
     --card-accent: #10b981;
 }
 
+/* Guided Tips Section */
+.guided-tips-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border-primary);
+}
+
+.guided-tips-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    color: var(--accent-primary);
+}
+
+.guided-tips-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.guided-tips-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.guided-tips-list li i {
+    color: var(--success);
+    margin-top: 0.2rem;
+}
+
 /* ===========================================
    Wizard Overlay & Container
    =========================================== */

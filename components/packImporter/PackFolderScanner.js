@@ -8,6 +8,26 @@ class PackFolderScanner {
         this.MYTHICMOBS_FOLDERS = ['Mobs', 'Skills', 'Items', 'DropTables', 'RandomSpawns', 'Assets'];
         this.CONFIG_FILES = ['packinfo.yml', 'tooltips.yml'];
         this.YAML_EXTENSIONS = ['.yml', '.yaml'];
+        
+        // files/ directory: filename.type.yml naming convention
+        // Maps the type suffix to the target folder/category
+        this.FILES_DIR_TYPE_MAP = {
+            'mob': 'Mobs',
+            'skill': 'Skills',
+            'item': 'Items',
+            'droptable': 'DropTables',
+            'randomspawn': 'RandomSpawns',
+            'placeholder': 'Placeholders',
+            'spawner': 'Spawners',
+            'schematic': 'Schematics',
+            'lore': 'LoreTemplates',
+            'font': 'Fonts',
+            'worldgen': 'WorldGen',
+            'equipment': 'EquipmentSets',
+            'tooltip': 'Tooltips',
+            'augment': 'Augments',
+            'stat': 'Stats'
+        };
     }
 
     /**
@@ -291,6 +311,26 @@ class PackFolderScanner {
         // Scan the pack directory
         for await (const entry of dirHandle.values()) {
             if (entry.kind === 'directory') {
+                // Check for the new files/ directory
+                if (entry.name.toLowerCase() === 'files') {
+                    try {
+                        const filesDirHandle = await dirHandle.getDirectoryHandle(entry.name);
+                        const filesData = await this.scanFilesDirectory(filesDirHandle);
+                        pack.filesDirectory = filesData;
+                        
+                        // Update stats with files/ directory contents
+                        pack.stats.totalFiles += filesData.totalFiles;
+                        pack.stats.totalSize += filesData.totalSize;
+                        
+                        if (window.DEBUG_MODE) {
+                            console.log(`📁 files/ directory found with ${filesData.totalFiles} files:`, filesData.categorized);
+                        }
+                    } catch (e) {
+                        if (window.DEBUG_MODE) console.warn('Could not scan files/ directory:', e);
+                    }
+                    continue;
+                }
+                
                 // Case-insensitive folder matching
                 const matchedFolder = this.MYTHICMOBS_FOLDERS.find(
                     f => f.toLowerCase() === entry.name.toLowerCase()
@@ -469,6 +509,98 @@ class PackFolderScanner {
     }
 
     /**
+     * Parse a filename from the files/ directory to determine its type.
+     * Format: filename.type.yml (e.g., bossMob.mob.yml, healSkill.skill.yml)
+     * @param {string} filename - The file name
+     * @returns {Object|null} - { baseName, fileType, category } or null if not parseable
+     */
+    parseFilesDirectoryName(filename) {
+        // Match pattern: name.type.yml or name.type.yaml
+        const match = filename.match(/^(.+)\.([a-zA-Z]+)\.(yml|yaml)$/i);
+        if (!match) return null;
+        
+        const baseName = match[1];
+        const typeSuffix = match[2].toLowerCase();
+        const category = this.FILES_DIR_TYPE_MAP[typeSuffix];
+        
+        if (!category) return null;
+        
+        return {
+            baseName,
+            fileType: typeSuffix,
+            category
+        };
+    }
+
+    /**
+     * Scan the files/ directory recursively.
+     * Files in this directory are parsed based on their name regardless of location.
+     * @param {FileSystemDirectoryHandle} dirHandle 
+     * @returns {Promise<Object>} Categorized files
+     */
+    async scanFilesDirectory(dirHandle) {
+        const result = {
+            files: [],
+            categorized: {},  // category -> [files]
+            totalFiles: 0,
+            totalSize: 0
+        };
+
+        // Initialize categories
+        Object.values(this.FILES_DIR_TYPE_MAP).forEach(cat => {
+            result.categorized[cat] = [];
+        });
+
+        const scanRecursive = async (handle, relativePath) => {
+            for await (const entry of handle.values()) {
+                if (entry.kind === 'file') {
+                    const ext = this.getFileExtension(entry.name);
+                    if (this.YAML_EXTENSIONS.includes(ext)) {
+                        try {
+                            const fileHandle = await handle.getFileHandle(entry.name);
+                            const file = await fileHandle.getFile();
+                            const parsed = this.parseFilesDirectoryName(entry.name);
+                            
+                            const fileInfo = {
+                                name: entry.name,
+                                handle: fileHandle,
+                                size: file.size,
+                                sizeFormatted: this.formatFileSize(file.size),
+                                relativePath: relativePath ? `${relativePath}/${entry.name}` : entry.name,
+                                parsedType: parsed
+                            };
+                            
+                            result.files.push(fileInfo);
+                            result.totalFiles++;
+                            result.totalSize += file.size;
+                            
+                            if (parsed) {
+                                if (!result.categorized[parsed.category]) {
+                                    result.categorized[parsed.category] = [];
+                                }
+                                result.categorized[parsed.category].push(fileInfo);
+                            }
+                        } catch (e) {
+                            if (window.DEBUG_MODE) console.warn(`Could not read file in files/: ${entry.name}`, e);
+                        }
+                    }
+                } else if (entry.kind === 'directory') {
+                    try {
+                        const subDirHandle = await handle.getDirectoryHandle(entry.name);
+                        const subPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+                        await scanRecursive(subDirHandle, subPath);
+                    } catch (e) {
+                        if (window.DEBUG_MODE) console.warn(`Could not access subfolder in files/: ${entry.name}`, e);
+                    }
+                }
+            }
+        };
+
+        await scanRecursive(dirHandle, '');
+        return result;
+    }
+
+    /**
      * Get all files from all folders in a pack
      */
     getAllPackFiles(pack) {
@@ -492,6 +624,17 @@ class PackFolderScanner {
                 ...pack.configFiles.tooltips,
                 relativePath: pack.configFiles.tooltips.name,
                 folderType: 'config'
+            });
+        }
+
+        // Add files from files/ directory
+        if (pack.filesDirectory && pack.filesDirectory.files) {
+            pack.filesDirectory.files.forEach(file => {
+                allFiles.push({
+                    ...file,
+                    relativePath: `files/${file.relativePath}`,
+                    folderType: file.parsedType ? file.parsedType.fileType : 'unknown'
+                });
             });
         }
 

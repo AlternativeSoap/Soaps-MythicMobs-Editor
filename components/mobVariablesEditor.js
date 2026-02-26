@@ -70,11 +70,19 @@ const MobVariablesEditor = {
                         <div class="help-content">
                             <p>Variables can have type prefixes for non-string values:</p>
                             <ul>
-                                <li><code>int/value</code> - Integer numbers</li>
-                                <li><code>float/value</code> - Decimal numbers</li>
-                                <li><code>string/value</code> - Text (default)</li>
+                                <li><code>int/value</code> - Integer numbers (default: 0)</li>
+                                <li><code>float/value</code> - Decimal numbers (default: 0)</li>
+                                <li><code>long/value</code> - Large whole numbers (default: 0)</li>
+                                <li><code>double/value</code> - Large decimals (default: 0)</li>
+                                <li><code>string/value</code> - Text (default: empty)</li>
+                                <li><code>boolean/value</code> - True/False (default: false)</li>
+                                <li><code>vector/x,y,z</code> - 3D vector (default: 0,0,0)</li>
+                                <li><code>list/value</code> - Ordered list (default: empty)</li>
+                                <li><code>set/value</code> - Unique set (default: empty)</li>
+                                <li><code>map/value</code> - Key-value pairs (default: empty)</li>
                             </ul>
                             <p>Access mob variables with: <code>&lt;caster.var.name&gt;</code></p>
+                            <p><em>Tip: When setting Lists or Sets with an empty string (""), the variable will be truly empty instead of containing one empty element.</em></p>
                         </div>
                     </details>
                 </div>
@@ -164,25 +172,30 @@ const MobVariablesEditor = {
         const strValue = String(value);
         
         // Check for type prefixes
-        if (strValue.startsWith('int/')) {
-            return {
-                type: 'INTEGER',
-                displayValue: strValue.substring(4)
-            };
-        }
-        
-        if (strValue.startsWith('float/')) {
-            return {
-                type: 'FLOAT',
-                displayValue: strValue.substring(6)
-            };
-        }
-        
-        if (strValue.startsWith('string/')) {
-            return {
-                type: 'STRING',
-                displayValue: strValue.substring(7)
-            };
+        const typePrefixes = {
+            'int/': 'INTEGER',
+            'float/': 'FLOAT',
+            'long/': 'LONG',
+            'double/': 'DOUBLE',
+            'string/': 'STRING',
+            'boolean/': 'BOOLEAN',
+            'set/': 'SET',
+            'list/': 'LIST',
+            'map/': 'MAP',
+            'location/': 'LOCATION',
+            'vector/': 'VECTOR',
+            'time/': 'TIME',
+            'skill/': 'METASKILL',
+            'item/': 'ITEM'
+        };
+
+        for (const [prefix, type] of Object.entries(typePrefixes)) {
+            if (strValue.startsWith(prefix)) {
+                return {
+                    type: type,
+                    displayValue: strValue.substring(prefix.length)
+                };
+            }
         }
         
         // Check for location format (world,x,y,z)
@@ -193,6 +206,14 @@ const MobVariablesEditor = {
             };
         }
         
+        // Check for vector format (x,y,z - 3 numbers separated by commas)
+        if (/^-?\d+\.?\d*,-?\d+\.?\d*,-?\d+\.?\d*$/.test(strValue)) {
+            return {
+                type: 'VECTOR',
+                displayValue: strValue
+            };
+        }
+
         // Default to string
         return {
             type: 'STRING',
@@ -204,13 +225,50 @@ const MobVariablesEditor = {
      * Get type info for display
      * @param {string} type - Type ID
      */
+    /**
+     * Default values for each variable type.
+     * When setting a new variable without a value, these defaults are used.
+     * - All numeric types default to 0
+     * - Strings, Lists, Sets and Maps default to empty
+     * - Booleans default to "false"
+     * - Vectors default to "0,0,0"
+     */
+    getDefaultValue(type) {
+        const defaults = {
+            'INTEGER': 0,
+            'FLOAT': 0.0,
+            'LONG': 0,
+            'DOUBLE': 0.0,
+            'STRING': '',
+            'BOOLEAN': false,
+            'VECTOR': '0,0,0',
+            'LIST': '',
+            'SET': '',
+            'MAP': '',
+            'LOCATION': '',
+            'TIME': '',
+            'METASKILL': '[]',
+            'ITEM': 'AIR'
+        };
+        return defaults[type] !== undefined ? defaults[type] : '';
+    },
+
     getTypeInfo(type) {
         const typeMap = {
             'INTEGER': { name: 'Integer', icon: 'fa-hashtag', color: '#3b82f6' },
             'FLOAT': { name: 'Float', icon: 'fa-percentage', color: '#8b5cf6' },
+            'LONG': { name: 'Long', icon: 'fa-clock', color: '#06b6d4' },
+            'DOUBLE': { name: 'Double', icon: 'fa-calculator', color: '#14b8a6' },
             'STRING': { name: 'String', icon: 'fa-font', color: '#22c55e' },
-            'BOOLEAN': { name: 'Boolean', icon: 'fa-toggle-on', color: '#f59e0b' },
-            'LOCATION': { name: 'Location', icon: 'fa-map-marker-alt', color: '#06b6d4' }
+            'BOOLEAN': { name: 'Boolean', icon: 'fa-toggle-on', color: '#10b981' },
+            'SET': { name: 'Set', icon: 'fa-tags', color: '#ec4899' },
+            'LIST': { name: 'List', icon: 'fa-list', color: '#f97316' },
+            'MAP': { name: 'Map', icon: 'fa-database', color: '#a855f7' },
+            'LOCATION': { name: 'Location', icon: 'fa-map-marker-alt', color: '#ef4444' },
+            'VECTOR': { name: 'Vector', icon: 'fa-arrows-alt', color: '#6366f1' },
+            'TIME': { name: 'Time', icon: 'fa-hourglass-half', color: '#84cc16' },
+            'METASKILL': { name: 'MetaSkill', icon: 'fa-bolt', color: '#9333ea' },
+            'ITEM': { name: 'Item', icon: 'fa-cube', color: '#78716c' }
         };
         
         return typeMap[type] || typeMap['STRING'];
@@ -281,10 +339,19 @@ const MobVariablesEditor = {
                     <div class="form-group">
                         <label>Type</label>
                         <select id="new-var-type">
-                            <option value="string">String</option>
                             <option value="int">Integer</option>
                             <option value="float">Float</option>
+                            <option value="long">Long</option>
+                            <option value="double">Double</option>
+                            <option value="string" selected>String</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="vector">Vector</option>
+                            <option value="list">List</option>
+                            <option value="set">Set</option>
+                            <option value="map">Map</option>
+                            <option value="location">Location</option>
                         </select>
+                        <span class="help-text" id="new-var-type-hint">Default: empty string</span>
                     </div>
                     <div class="form-group">
                         <label>Initial Value</label>
@@ -299,6 +366,24 @@ const MobVariablesEditor = {
         `;
         
         document.body.appendChild(dialog);
+        
+        // Default value hints per type
+        const typeDefaults = {
+            'int': '0', 'float': '0.0', 'long': '0', 'double': '0.0',
+            'string': 'empty string', 'boolean': 'false', 'vector': '0,0,0',
+            'list': 'empty', 'set': 'empty', 'map': 'empty', 'location': 'empty'
+        };
+        
+        // Update hint and placeholder when type changes
+        const typeSelect = dialog.querySelector('#new-var-type');
+        const hintEl = dialog.querySelector('#new-var-type-hint');
+        const valueInput = dialog.querySelector('#new-var-value');
+        
+        typeSelect.addEventListener('change', () => {
+            const t = typeSelect.value;
+            hintEl.textContent = `Default: ${typeDefaults[t] || 'empty'}`;
+            valueInput.placeholder = typeDefaults[t] || '';
+        });
         
         // Focus name input
         setTimeout(() => {
@@ -386,9 +471,17 @@ const MobVariablesEditor = {
                     <div class="form-group">
                         <label>Type</label>
                         <select id="edit-var-type">
-                            <option value="string" ${type === 'STRING' ? 'selected' : ''}>String</option>
                             <option value="int" ${type === 'INTEGER' ? 'selected' : ''}>Integer</option>
                             <option value="float" ${type === 'FLOAT' ? 'selected' : ''}>Float</option>
+                            <option value="long" ${type === 'LONG' ? 'selected' : ''}>Long</option>
+                            <option value="double" ${type === 'DOUBLE' ? 'selected' : ''}>Double</option>
+                            <option value="string" ${type === 'STRING' ? 'selected' : ''}>String</option>
+                            <option value="boolean" ${type === 'BOOLEAN' ? 'selected' : ''}>Boolean</option>
+                            <option value="vector" ${type === 'VECTOR' ? 'selected' : ''}>Vector</option>
+                            <option value="list" ${type === 'LIST' ? 'selected' : ''}>List</option>
+                            <option value="set" ${type === 'SET' ? 'selected' : ''}>Set</option>
+                            <option value="map" ${type === 'MAP' ? 'selected' : ''}>Map</option>
+                            <option value="location" ${type === 'LOCATION' ? 'selected' : ''}>Location</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -455,37 +548,83 @@ const MobVariablesEditor = {
     addVariable(name, value, type) {
         if (!name) return;
         
-        // Format value with type prefix if needed
-        let formattedValue = value;
+        // Apply default value if no value provided
+        // When setting a new variable without a value, use the type's default
+        const effectiveValue = (value === undefined || value === null || value === '') 
+            ? this.getDefaultValue(type) 
+            : value;
+        
+        // Handle Lists/Sets: empty string "" means truly empty (not a single empty element)
+        let formattedValue = effectiveValue;
         
         switch (type) {
             case 'INTEGER':
             case 'INT':
-                // Only add prefix if value is not a pure number
-                if (!/^-?\d+$/.test(value)) {
-                    formattedValue = `int/${value}`;
+                if (!/^-?\d+$/.test(effectiveValue)) {
+                    formattedValue = `int/${effectiveValue}`;
                 } else {
-                    formattedValue = parseInt(value) || 0;
+                    formattedValue = parseInt(effectiveValue) || 0;
                 }
                 break;
                 
             case 'FLOAT':
-            case 'DOUBLE':
-                // Only add prefix if value is not a pure number
-                if (!/^-?\d+\.?\d*$/.test(value)) {
-                    formattedValue = `float/${value}`;
+                if (!/^-?\d+\.?\d*$/.test(effectiveValue)) {
+                    formattedValue = `float/${effectiveValue}`;
                 } else {
-                    formattedValue = parseFloat(value) || 0.0;
+                    formattedValue = parseFloat(effectiveValue) || 0.0;
+                }
+                break;
+
+            case 'LONG':
+                if (!/^-?\d+$/.test(effectiveValue)) {
+                    formattedValue = `long/${effectiveValue}`;
+                } else {
+                    formattedValue = `long/${parseInt(effectiveValue) || 0}`;
+                }
+                break;
+
+            case 'DOUBLE':
+                if (!/^-?\d+\.?\d*$/.test(effectiveValue)) {
+                    formattedValue = `double/${effectiveValue}`;
+                } else {
+                    formattedValue = `double/${parseFloat(effectiveValue) || 0.0}`;
                 }
                 break;
                 
             case 'BOOLEAN':
-                formattedValue = value === 'true' || value === true;
+                // Default to false per MythicMobs update
+                formattedValue = (effectiveValue === 'true' || effectiveValue === true);
+                break;
+
+            case 'VECTOR':
+                // Default to 0,0,0 per MythicMobs update
+                formattedValue = effectiveValue || '0,0,0';
+                if (!formattedValue.match(/^-?\d/)) {
+                    formattedValue = `vector/${formattedValue}`;
+                }
+                break;
+
+            case 'LIST':
+                // Empty string means truly empty list (not single empty element)
+                formattedValue = (effectiveValue === '' || effectiveValue === '""') ? '' : `list/${effectiveValue}`;
+                break;
+
+            case 'SET':
+                // Empty string means truly empty set (not single empty element)
+                formattedValue = (effectiveValue === '' || effectiveValue === '""') ? '' : `set/${effectiveValue}`;
+                break;
+
+            case 'MAP':
+                formattedValue = effectiveValue ? `map/${effectiveValue}` : '';
+                break;
+
+            case 'LOCATION':
+                formattedValue = effectiveValue ? effectiveValue : '';
                 break;
                 
             default:
-                // String - keep as is
-                formattedValue = value;
+                // String - keep as is, defaults to empty
+                formattedValue = effectiveValue;
         }
         
         // Update mob data

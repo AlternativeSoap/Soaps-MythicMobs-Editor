@@ -333,6 +333,7 @@ class PackManager {
             assets: [],
             packinfo: this.createDefaultPackInfo(name),
             tooltips: [],
+            filesDirectory: { files: [], categorized: {} }, // files/ directory for name-based config loading
             isNew: true,  // Mark as new for Save All tracking
             modified: true // Mark as modified
         };
@@ -750,6 +751,9 @@ class PackManager {
             
             <!-- Stats.yml - Inside Pack (MythicMobs supports stats in Pack folders) -->
             ${this.renderStatsFile(pack)}
+            
+            <!-- files/ Directory (Advanced Mode Only) -->
+            ${this.renderFilesDirectory(pack)}
         `;
     }
     
@@ -863,6 +867,129 @@ class PackManager {
     renderStatsRootFile() {
         // Redirect to new method for backwards compatibility
         return this.renderStatsFile(this.activePack);
+    }
+
+    /**
+     * files/ directory type icons and labels
+     */
+    getFilesDirectoryTypeInfo(fileType) {
+        const typeMap = {
+            'mob': { icon: 'fa-skull', color: '#ef4444', label: 'Mob' },
+            'skill': { icon: 'fa-magic', color: '#8b5cf6', label: 'Skill' },
+            'item': { icon: 'fa-gem', color: '#f59e0b', label: 'Item' },
+            'droptable': { icon: 'fa-table', color: '#10b981', label: 'DropTable' },
+            'randomspawn': { icon: 'fa-random', color: '#06b6d4', label: 'RandomSpawn' },
+            'placeholder': { icon: 'fa-code', color: '#3b82f6', label: 'Placeholder' },
+            'spawner': { icon: 'fa-dungeon', color: '#a855f7', label: 'Spawner' },
+            'schematic': { icon: 'fa-drafting-compass', color: '#78716c', label: 'Schematic' },
+            'lore': { icon: 'fa-scroll', color: '#ec4899', label: 'Lore Template' },
+            'font': { icon: 'fa-font', color: '#14b8a6', label: 'Font' },
+            'worldgen': { icon: 'fa-globe', color: '#22c55e', label: 'WorldGen' },
+            'equipment': { icon: 'fa-shield-alt', color: '#f97316', label: 'Equipment Set' },
+            'tooltip': { icon: 'fa-comment-alt', color: '#6366f1', label: 'Tooltip' },
+            'augment': { icon: 'fa-puzzle-piece', color: '#84cc16', label: 'Augment' },
+            'stat': { icon: 'fa-chart-line', color: '#9333ea', label: 'Stat' }
+        };
+        return typeMap[fileType] || { icon: 'fa-file', color: '#6b7280', label: fileType || 'Unknown' };
+    }
+
+    /**
+     * Render the files/ directory in the pack tree.
+     * The files/ directory allows configs to be parsed by filename pattern (e.g., boss.mob.yml)
+     * Only visible in Advanced Mode.
+     */
+    renderFilesDirectory(pack) {
+        if (!pack) return '';
+        
+        const isAdvancedMode = this.editor?.state?.currentMode === 'advanced';
+        if (!isAdvancedMode) return '';
+        
+        const filesDir = pack.filesDirectory || { files: [], categorized: {} };
+        const totalFiles = filesDir.files?.length || 0;
+        const folderStates = this.getFolderStates();
+        const isExpanded = folderStates['files_directory'] !== false;
+        
+        // Group files by type for display
+        const categorized = filesDir.categorized || {};
+        const typeGroups = [];
+        
+        // Collect types that have files
+        for (const [category, files] of Object.entries(categorized)) {
+            if (files && files.length > 0) {
+                typeGroups.push({ category, files });
+            }
+        }
+        
+        // Also include uncategorized files
+        const uncategorized = (filesDir.files || []).filter(f => !f.parsedType);
+        
+        return `
+            <div class="folder-item files-directory-folder advanced-only" data-folder-name="files_directory">
+                <div class="folder-header collapsible" data-folder="files_directory">
+                    <i class="fas ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} folder-chevron"></i>
+                    <i class="fas fa-folder-open folder-icon" style="color: #f59e0b;"></i>
+                    <span>files/</span>
+                    <span class="badge">${totalFiles}</span>
+                    <span class="badge" style="background: var(--accent-primary); color: white; font-size: 0.6rem; padding: 1px 4px; margin-left: 2px;">NEW</span>
+                </div>
+                <div class="folder-files ${isExpanded ? '' : 'collapsed'}">
+                    <div class="files-dir-info" style="padding: 6px 12px; font-size: 0.75rem; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); margin-bottom: 4px;">
+                        <i class="fas fa-info-circle"></i>
+                        Files are parsed by name: <code>name.type.yml</code>
+                        <br>e.g., <code>boss.mob.yml</code>, <code>heal.skill.yml</code>
+                    </div>
+                    ${typeGroups.map(group => {
+                        const reverseMap = Object.entries({
+                            'Mobs': 'mob', 'Skills': 'skill', 'Items': 'item', 'DropTables': 'droptable',
+                            'RandomSpawns': 'randomspawn', 'Placeholders': 'placeholder', 'Spawners': 'spawner',
+                            'Schematics': 'schematic', 'LoreTemplates': 'lore', 'Fonts': 'font',
+                            'WorldGen': 'worldgen', 'EquipmentSets': 'equipment', 'Tooltips': 'tooltip',
+                            'Augments': 'augment', 'Stats': 'stat'
+                        }).find(([cat]) => cat === group.category);
+                        const ft = reverseMap ? reverseMap[1] : 'unknown';
+                        const info = this.getFilesDirectoryTypeInfo(ft);
+                        
+                        return `
+                            <div class="files-dir-type-group" style="margin-bottom: 2px;">
+                                <div style="padding: 3px 12px; font-size: 0.7rem; color: ${info.color}; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                                    <i class="fas ${info.icon}" style="width: 14px; text-align: center;"></i> ${info.label} (${group.files.length})
+                                </div>
+                                ${group.files.map(file => `
+                                    <div class="file-item files-dir-file" 
+                                         data-file-name="${this.esc(file.name)}"
+                                         data-file-type="${ft}"
+                                         data-files-dir="true"
+                                         style="padding-left: 24px;">
+                                        <i class="fas ${info.icon} file-icon" style="color: ${info.color}; font-size: 0.75rem;"></i>
+                                        <span style="font-size: 0.8rem;">${this.esc(file.name)}</span>
+                                        <span style="font-size: 0.65rem; color: var(--text-tertiary); margin-left: auto;">${file.sizeFormatted || ''}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    }).join('')}
+                    ${uncategorized.length > 0 ? `
+                        <div class="files-dir-type-group">
+                            <div style="padding: 3px 12px; font-size: 0.7rem; color: var(--text-secondary); font-weight: 600;">
+                                <i class="fas fa-question-circle" style="width: 14px; text-align: center;"></i> Unrecognized (${uncategorized.length})
+                            </div>
+                            ${uncategorized.map(file => `
+                                <div class="file-item files-dir-file" style="padding-left: 24px; opacity: 0.6;">
+                                    <i class="fas fa-file file-icon"></i>
+                                    <span style="font-size: 0.8rem;">${this.esc(file.name)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    ${totalFiles === 0 ? `
+                        <div class="empty-entries-hint" style="padding: 8px 12px;">
+                            <i class="fas fa-info-circle"></i>
+                            <span>No files yet. Add files with naming pattern: <code>name.type.yml</code></span>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
     }
 
     /**
