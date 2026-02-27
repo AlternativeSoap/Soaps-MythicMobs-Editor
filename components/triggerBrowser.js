@@ -26,6 +26,14 @@ class TriggerBrowser {
         }
         this.triggersData = TRIGGERS_DATA; // Default to built-in
         
+        // Recently used & favorites (matches mechanic/targeter browser pattern)
+        this.recentTriggers = this.loadRecentTriggers();
+        if (typeof SmartFavoritesManager !== 'undefined') {
+            this.favoritesManager = new SmartFavoritesManager('triggerBrowser', 'triggers');
+        } else {
+            this.favoritesManager = new FavoritesManager('triggerBrowser_favorites');
+        }
+        
         this.createModal();
         this.attachEventListeners();
     }
@@ -42,6 +50,62 @@ class TriggerBrowser {
                 this.triggersData = TRIGGERS_DATA; // Fallback
             }
         }
+    }
+
+    /**
+     * Load recent triggers from localStorage
+     */
+    loadRecentTriggers() {
+        try {
+            const stored = localStorage.getItem('triggerBrowser_recent');
+            return stored ? JSON.parse(stored) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    /**
+     * Save a trigger as recently used
+     */
+    saveRecentTrigger(triggerName) {
+        try {
+            let recent = this.loadRecentTriggers();
+            recent = recent.filter(n => n !== triggerName);
+            recent.unshift(triggerName);
+            recent = recent.slice(0, 10);
+            localStorage.setItem('triggerBrowser_recent', JSON.stringify(recent));
+            this.recentTriggers = recent;
+        } catch (e) {}
+    }
+
+    /**
+     * Toggle favorite trigger
+     */
+    toggleFavorite(triggerName) {
+        this.favoritesManager.toggle(triggerName);
+        if (this.favoritesManager instanceof SmartFavoritesManager) {
+            this.favoritesManager.trackUsage(triggerName);
+        }
+        const button = document.querySelector(`.btn-favorite-trigger[data-trigger-name="${triggerName}"]`);
+        if (button) {
+            const icon = button.querySelector('i');
+            const isFav = this.isFavorite(triggerName);
+            if (icon) {
+                icon.className = isFav ? 'fas fa-star' : 'far fa-star';
+                icon.style.color = isFav ? '#ffc107' : '#666';
+            }
+            button.title = isFav ? 'Remove from favorites' : 'Add to favorites';
+        }
+        // Invalidate count cache
+        this._categoryCountsCache = null;
+        this.updateCategoryCounts();
+    }
+
+    /**
+     * Check if trigger is favorited
+     */
+    isFavorite(triggerName) {
+        return this.favoritesManager?.has(triggerName) || false;
     }
 
     /**
@@ -74,6 +138,8 @@ class TriggerBrowser {
                         
                         <!-- Category Tabs -->
                         <div class="category-tabs" id="triggerCategories">
+                            <button class="category-tab" data-category="recent"><i class="fas fa-clock"></i> Recently Used (0)</button>
+                            <button class="category-tab" data-category="favorites"><i class="fas fa-star"></i> Favorites (0)</button>
                             <button class="category-tab active" data-category="all">All (0)</button>
                             <button class="category-tab" data-category="combat">⚔️ Combat (0)</button>
                             <button class="category-tab" data-category="lifecycle">🌱 Lifecycle (0)</button>
@@ -352,19 +418,21 @@ class TriggerBrowser {
             this._categoryCountsCacheKey = triggers.length;
         }
         
-        const counts = this._categoryCountsCache;
+        const counts = { ...this._categoryCountsCache };
+        // Dynamic counts that change independently of triggers data
+        counts.recent = this.recentTriggers.length;
+        counts.favorites = this.favoritesManager?.getCount() || 0;
         
         categoryTabs.forEach(tab => {
             const category = tab.dataset.category;
             const count = counts[category] || 0;
             
-            // Extract the label text (icon + name)
-            const textContent = tab.textContent.trim();
-            const labelMatch = textContent.match(/^(.+?)(\s*\(\d+\))?$/);
-            const label = labelMatch ? labelMatch[1].trim() : textContent;
-            
-            // Update with count
-            tab.textContent = `${label} (${count})`;
+            // Use innerHTML split to preserve icon HTML
+            const parts = tab.innerHTML.split('(');
+            if (parts.length > 0) {
+                const originalText = parts[0].trim();
+                tab.innerHTML = `${originalText} (${count})`;
+            }
         });
     }
 
@@ -385,25 +453,41 @@ class TriggerBrowser {
         // Get filtered triggers
         let triggers = this.triggersData.triggers;
 
-        // Filter by category
-        if (this.currentCategory !== 'all') {
-            triggers = triggers.filter(t => t.category === this.currentCategory);
-        }
-
-        // Filter by search query
-        if (this.searchQuery) {
-            triggers = this.triggersData.searchTriggers(this.searchQuery);
+        // Handle special categories: recent & favorites
+        if (this.currentCategory === 'recent') {
+            triggers = triggers.filter(t => this.recentTriggers.includes(t.name));
+            if (this.searchQuery) {
+                const q = this.searchQuery.toLowerCase();
+                triggers = triggers.filter(t => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q));
+            }
+            triggers = [...triggers].sort((a, b) => this.recentTriggers.indexOf(a.name) - this.recentTriggers.indexOf(b.name));
+        } else if (this.currentCategory === 'favorites') {
+            triggers = this.favoritesManager.filterFavorites(triggers, 'name');
+            if (this.searchQuery) {
+                const q = this.searchQuery.toLowerCase();
+                triggers = triggers.filter(t => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q));
+            }
+        } else {
+            // Filter by category
             if (this.currentCategory !== 'all') {
                 triggers = triggers.filter(t => t.category === this.currentCategory);
             }
-        }
 
-        // Filter by mob type compatibility
-        if (this.currentMobType) {
-            triggers = triggers.filter(t => 
-                t.mobTypeRestrictions.length === 0 || 
-                t.mobTypeRestrictions.includes(this.currentMobType.toUpperCase())
-            );
+            // Filter by search query
+            if (this.searchQuery) {
+                triggers = this.triggersData.searchTriggers(this.searchQuery);
+                if (this.currentCategory !== 'all') {
+                    triggers = triggers.filter(t => t.category === this.currentCategory);
+                }
+            }
+
+            // Filter by mob type compatibility
+            if (this.currentMobType) {
+                triggers = triggers.filter(t => 
+                    t.mobTypeRestrictions.length === 0 || 
+                    t.mobTypeRestrictions.includes(this.currentMobType.toUpperCase())
+                );
+            }
         }
 
         // Render triggers
@@ -420,9 +504,12 @@ class TriggerBrowser {
                 // Show parameter syntax like ~onTimer:<ticks>
                 displayName = `~${t.name}:&lt;${t.parameters.name}&gt;`;
             }
-            
+            const isFav = this.isFavorite(t.name);
             return `<div class="mechanic-list-item" data-trigger="${t.name}" tabindex="0">
     <div class="mechanic-item-main">
+        <button class="btn-icon-inline btn-favorite-trigger" data-trigger-name="${t.name}" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
+            <i class="${isFav ? 'fas' : 'far'} fa-star" style="color: ${isFav ? '#ffc107' : '#666'}; font-size: 12px;"></i>
+        </button>
         <span class="mechanic-name" title="${displayName.replace(/&lt;/g, '<').replace(/&gt;/g, '>')}">${displayName}</span>
         <span class="mechanic-desc" title="${t.description}">${t.description}</span>
     </div>
@@ -442,6 +529,14 @@ class TriggerBrowser {
                     const card = btn.closest('.mechanic-list-item');
                     const triggerName = card.dataset.trigger;
                     this.handleTriggerSelection(triggerName);
+                    return;
+                }
+                
+                const favoriteBtn = e.target.closest('.btn-favorite-trigger');
+                if (favoriteBtn) {
+                    e.stopPropagation();
+                    const triggerName = favoriteBtn.dataset.triggerName;
+                    this.toggleFavorite(triggerName);
                     return;
                 }
                 
@@ -638,6 +733,8 @@ class TriggerBrowser {
      * Select trigger and notify callback
      */
     selectTrigger(trigger, parameter = null, autoEnableRequirements = null) {
+        this.saveRecentTrigger(trigger.name);
+        
         // Store callback before closing (close() clears it)
         const callback = this.onSelectCallback;
 

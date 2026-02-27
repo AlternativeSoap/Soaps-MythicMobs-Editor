@@ -34,6 +34,14 @@ class TargeterBrowser {
         }
         this.targetersData = TARGETERS_DATA; // Default to built-in
         
+        // Recently used & favorites (matches mechanic/condition browser pattern)
+        this.recentTargeters = this.loadRecentTargeters();
+        if (typeof SmartFavoritesManager !== 'undefined') {
+            this.favoritesManager = new SmartFavoritesManager('targeterBrowser', 'targeters');
+        } else {
+            this.favoritesManager = new FavoritesManager('targeterBrowser_favorites');
+        }
+        
         this.createModal();
         this.attachEventListeners();
     }
@@ -50,6 +58,62 @@ class TargeterBrowser {
                 this.targetersData = TARGETERS_DATA; // Fallback
             }
         }
+    }
+
+    /**
+     * Load recent targeters from localStorage
+     */
+    loadRecentTargeters() {
+        try {
+            const stored = localStorage.getItem('targeterBrowser_recent');
+            return stored ? JSON.parse(stored) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    /**
+     * Save a targeter as recently used
+     */
+    saveRecentTargeter(targeterId) {
+        try {
+            let recent = this.loadRecentTargeters();
+            recent = recent.filter(id => id !== targeterId);
+            recent.unshift(targeterId);
+            recent = recent.slice(0, 10);
+            localStorage.setItem('targeterBrowser_recent', JSON.stringify(recent));
+            this.recentTargeters = recent;
+        } catch (e) {}
+    }
+
+    /**
+     * Toggle favorite targeter
+     */
+    toggleFavorite(targeterId) {
+        this.favoritesManager.toggle(targeterId);
+        if (this.favoritesManager instanceof SmartFavoritesManager) {
+            this.favoritesManager.trackUsage(targeterId);
+        }
+        const button = document.querySelector(`.btn-favorite-targeter[data-targeter-id="${targeterId}"]`);
+        if (button) {
+            const icon = button.querySelector('i');
+            const isFav = this.isFavorite(targeterId);
+            if (icon) {
+                icon.className = isFav ? 'fas fa-star' : 'far fa-star';
+                icon.style.color = isFav ? '#ffc107' : '#666';
+            }
+            button.title = isFav ? 'Remove from favorites' : 'Add to favorites';
+        }
+        // Invalidate count cache so favorites count updates correctly
+        this._categoryCountsCache = null;
+        this.updateCategoryCounts();
+    }
+
+    /**
+     * Check if targeter is favorited
+     */
+    isFavorite(targeterId) {
+        return this.favoritesManager?.has(targeterId) || false;
     }
 
     /**
@@ -84,6 +148,8 @@ class TargeterBrowser {
                             
                             <!-- Category Tabs -->
                             <div class="category-tabs" id="targeterCategories">
+                                <button class="category-tab" data-category="recent"><i class="fas fa-clock"></i> Recently Used (0)</button>
+                                <button class="category-tab" data-category="favorites"><i class="fas fa-star"></i> Favorites (0)</button>
                                 <button class="category-tab active" data-category="all">All (0)</button>
                                 <button class="category-tab" data-category="single_entity">👤 Single Entity (0)</button>
                                 <button class="category-tab" data-category="multi_entity">👥 Multi Entity (0)</button>
@@ -423,19 +489,21 @@ class TargeterBrowser {
             this._categoryCountsCacheKey = targeters.length;
         }
         
-        const counts = this._categoryCountsCache;
+        const counts = { ...this._categoryCountsCache };
+        // Dynamic counts that change independently of targeters data
+        counts.recent = this.recentTargeters.length;
+        counts.favorites = this.favoritesManager?.getCount() || 0;
         
         categoryTabs.forEach(tab => {
             const category = tab.dataset.category;
             const count = counts[category] || 0;
             
-            // Extract the label text (icon + name)
-            const textContent = tab.textContent.trim();
-            const labelMatch = textContent.match(/^(.+?)(\s*\(\d+\))?$/);
-            const label = labelMatch ? labelMatch[1].trim() : textContent;
-            
-            // Update with count
-            tab.textContent = `${label} (${count})`;
+            // Use innerHTML split to preserve icon HTML (e.g. <i class="fas fa-clock">)
+            const parts = tab.innerHTML.split('(');
+            if (parts.length > 0) {
+                const originalText = parts[0].trim();
+                tab.innerHTML = `${originalText} (${count})`;
+            }
         });
     }
 
@@ -462,16 +530,32 @@ class TargeterBrowser {
         // Get filtered targeters
         let targeters = this.targetersData.targeters;
 
-        // Filter by category
-        if (this.currentCategory !== 'all') {
-            targeters = targeters.filter(t => t.category === this.currentCategory);
-        }
-
-        // Filter by search query
-        if (this.searchQuery) {
-            targeters = this.targetersData.searchTargeters(this.searchQuery);
+        // Handle special categories: recent & favorites
+        if (this.currentCategory === 'recent') {
+            targeters = targeters.filter(t => this.recentTargeters.includes(t.id));
+            if (this.searchQuery) {
+                const q = this.searchQuery.toLowerCase();
+                targeters = targeters.filter(t => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q));
+            }
+            targeters = [...targeters].sort((a, b) => this.recentTargeters.indexOf(a.id) - this.recentTargeters.indexOf(b.id));
+        } else if (this.currentCategory === 'favorites') {
+            targeters = this.favoritesManager.filterFavorites(targeters, 'id');
+            if (this.searchQuery) {
+                const q = this.searchQuery.toLowerCase();
+                targeters = targeters.filter(t => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q));
+            }
+        } else {
+            // Filter by category
             if (this.currentCategory !== 'all') {
                 targeters = targeters.filter(t => t.category === this.currentCategory);
+            }
+
+            // Filter by search query
+            if (this.searchQuery) {
+                targeters = this.targetersData.searchTargeters(this.searchQuery);
+                if (this.currentCategory !== 'all') {
+                    targeters = targeters.filter(t => t.category === this.currentCategory);
+                }
             }
         }
 
@@ -482,8 +566,13 @@ class TargeterBrowser {
         }
 
         // Helper to render a single targeter card
-        const renderCard = (t) => `<div class="mechanic-list-item" data-targeter="${t.id}" tabindex="0">
+        const renderCard = (t) => {
+            const isFav = this.isFavorite(t.id);
+            return `<div class="mechanic-list-item" data-targeter="${t.id}" tabindex="0">
     <div class="mechanic-item-main">
+        <button class="btn-icon-inline btn-favorite-targeter" data-targeter-id="${t.id}" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
+            <i class="${isFav ? 'fas' : 'far'} fa-star" style="color: ${isFav ? '#ffc107' : '#666'}; font-size: 12px;"></i>
+        </button>
         <span class="mechanic-name" title="@${t.name}">@${t.name}</span>
         <span class="mechanic-desc" title="${t.description}">${t.description}</span>
     </div>
@@ -492,6 +581,7 @@ class TargeterBrowser {
         <button class="btn btn-xs btn-select-targeter">Select</button>
     </div>
 </div>`;
+        };
 
         // Event delegation handler (shared)
         const setupClickHandler = () => {
@@ -518,6 +608,13 @@ class TargeterBrowser {
                     const card = btn.closest('.mechanic-list-item');
                     const targeterId = card.dataset.targeter;
                     this.handleTargeterSelection(targeterId);
+                }
+
+                const favoriteBtn = e.target.closest('.btn-favorite-targeter');
+                if (favoriteBtn) {
+                    e.stopPropagation();
+                    const targeterId = favoriteBtn.dataset.targeterId;
+                    this.toggleFavorite(targeterId);
                 }
             };
         };
@@ -785,6 +882,7 @@ class TargeterBrowser {
         }
 
         this.closeAttributeModal();
+        this.saveRecentTargeter(this.currentTargeter.id);
         
         // Store callback before closing (close() sets it to null)
         const callback = this.onSelectCallback;
@@ -807,6 +905,7 @@ class TargeterBrowser {
      */
     selectTargeter(targeter) {
         const targeterString = `@${targeter.name}`;
+        this.saveRecentTargeter(targeter.id);
         
         // Store callback before closing (close() sets it to null)
         const callback = this.onSelectCallback;

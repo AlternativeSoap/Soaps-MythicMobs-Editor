@@ -1470,6 +1470,11 @@
     border-top: none;
 }
 
+/* Also remove border-top when category is the first one being shown (inline style applied by JS) */
+.sound-category-name[style*="border-top: none"] {
+    border-top: none !important;
+}
+
 .sound-option {
     display: flex;
     align-items: center;

@@ -34,6 +34,8 @@ class ConditionBrowser {
             // Fallback to basic FavoritesManager if SmartFavoritesManager not available
             this.favoritesManager = new FavoritesManager('conditionBrowserFavorites');
         }
+        // Recently used conditions
+        this.recentConditions = this.loadRecentConditions();
         this.searchCache = new LRUCache(10);
         this.virtualScroller = null;
         this.usageMode = 'yaml';  // 'inline' or 'yaml'
@@ -61,6 +63,32 @@ class ConditionBrowser {
                 this.conditionsData = window.ALL_CONDITIONS || []; // Fallback to flat array
             }
         }
+    }
+
+    /**
+     * Load recent conditions from localStorage
+     */
+    loadRecentConditions() {
+        try {
+            const stored = localStorage.getItem('conditionBrowser_recent');
+            return stored ? JSON.parse(stored) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    /**
+     * Save a condition as recently used
+     */
+    saveRecentCondition(conditionName) {
+        try {
+            let recent = this.loadRecentConditions();
+            recent = recent.filter(n => n !== conditionName);
+            recent.unshift(conditionName);
+            recent = recent.slice(0, 10);
+            localStorage.setItem('conditionBrowser_recent', JSON.stringify(recent));
+            this.recentConditions = recent;
+        } catch (e) {}
     }
 
     /**
@@ -151,6 +179,9 @@ class ConditionBrowser {
                         
                         <!-- Category Tabs -->
                         <div class="category-tabs" id="conditionCategories">
+                            <button class="category-tab" data-category="recent">
+                                <i class="fas fa-clock"></i> Recently Used (0)
+                            </button>
                             <button class="category-tab" data-category="favorites">
                                 <i class="fas fa-star"></i> Favorites (0)
                             </button>
@@ -510,6 +541,7 @@ class ConditionBrowser {
         // Update favorites count (this changes frequently, don't cache)
         const counts = { ...this._categoryCountsCache };
         counts.favorites = this.favoritesManager.getCount();
+        counts.recent = this.recentConditions.length;
 
         // Update tab labels
         categoryTabs.forEach(tab => {
@@ -553,7 +585,15 @@ class ConditionBrowser {
         if (!filteredConditions) {
             if (useOptimizer) {
                 // Use DataOptimizer for filtering (O(1) category access)
-                if (this.currentCategory === 'favorites') {
+                if (this.currentCategory === 'recent') {
+                    const allConditions = dataOptimizer.getAllItems('conditions');
+                    filteredConditions = allConditions.filter(c => this.recentConditions.includes(c.name || c.id));
+                    filteredConditions = [...filteredConditions].sort((a, b) => {
+                        const keyA = a.name || a.id;
+                        const keyB = b.name || b.id;
+                        return this.recentConditions.indexOf(keyA) - this.recentConditions.indexOf(keyB);
+                    });
+                } else if (this.currentCategory === 'favorites') {
                     const allConditions = dataOptimizer.getAllItems('conditions');
                     filteredConditions = this.favoritesManager.filterFavorites(allConditions, 'name');
                 } else if (this.searchQuery) {
@@ -575,7 +615,10 @@ class ConditionBrowser {
                 filteredConditions = allConditions;
                 
                 // Filter by category
-                if (this.currentCategory === 'favorites') {
+                if (this.currentCategory === 'recent') {
+                    filteredConditions = allConditions.filter(c => this.recentConditions.includes(c.name));
+                    filteredConditions = [...filteredConditions].sort((a, b) => this.recentConditions.indexOf(a.name) - this.recentConditions.indexOf(b.name));
+                } else if (this.currentCategory === 'favorites') {
                     filteredConditions = allConditions.filter(c => this.favoritesManager.has(c.name));
                 } else if (this.currentCategory && this.currentCategory !== 'all') {
                     filteredConditions = allConditions.filter(c => c.category === this.currentCategory);
@@ -925,6 +968,7 @@ class ConditionBrowser {
                     condition: this.currentCondition
                 };
                 
+                this.saveRecentCondition(this.currentCondition.name || this.currentCondition.id);
                 this.callbackInvoked = true;  // Mark as invoked
                 this.onSelectCallback(result);
             } else {
@@ -936,6 +980,7 @@ class ConditionBrowser {
                     ? actionParamInput.value.trim() 
                     : '';
                 
+                this.saveRecentCondition(this.currentCondition.name || this.currentCondition.id);
                 this.callbackInvoked = true;  // Mark as invoked
                 this.onSelectCallback({
                     conditionString: conditionString,

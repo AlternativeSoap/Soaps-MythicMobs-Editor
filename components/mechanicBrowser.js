@@ -3362,9 +3362,18 @@ class MechanicBrowser {
                         const match = opt.dataset.sound.toLowerCase().includes(q);
                         opt.style.display = match ? '' : 'none';
                     });
+                    let firstVisible = true;
                     menu.querySelectorAll('.sound-category').forEach(cat => {
                         const hasVisible = [...cat.querySelectorAll('.sound-option')].some(o => o.style.display !== 'none');
                         cat.style.display = hasVisible ? '' : 'none';
+                        if (hasVisible) {
+                            const catName = cat.querySelector('.sound-category-name');
+                            if (catName) {
+                                // Remove top border from first visible category to close the gap with the search bar
+                                catName.style.borderTop = firstVisible ? 'none' : '';
+                            }
+                            firstVisible = false;
+                        }
                     });
                 });
 
