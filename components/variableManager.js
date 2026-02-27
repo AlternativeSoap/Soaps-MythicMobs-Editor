@@ -31,7 +31,7 @@ class VariableManager {
         document.addEventListener('skill-saved', () => this.debouncedScan());
         document.addEventListener('mob-saved', () => this.debouncedScan());
         
-        console.log('[VariableManager] Initialized');
+        if (window.DEBUG_MODE) console.log('[VariableManager] Initialized');
     }
     
     /**
@@ -54,13 +54,13 @@ class VariableManager {
         // Get current pack from storage
         const packName = window.storageManager?.getCurrentPackName?.();
         if (!packName) {
-            console.log('[VariableManager] No pack loaded');
+            if (window.DEBUG_MODE) console.log('[VariableManager] No pack loaded');
             return;
         }
         
         const pack = window.storageManager?.loadPack?.(packName);
         if (!pack) {
-            console.log('[VariableManager] Pack not found:', packName);
+            if (window.DEBUG_MODE) console.log('[VariableManager] Pack not found:', packName);
             return;
         }
         
@@ -80,7 +80,7 @@ class VariableManager {
             }
         }
         
-        console.log(`[VariableManager] Scanned pack "${packName}": ${this.variables.size} variables, ${this.usages.size} usage locations`);
+        if (window.DEBUG_MODE) console.log(`[VariableManager] Scanned pack "${packName}": ${this.variables.size} variables, ${this.usages.size} usage locations`);
         
         // Emit event for UI updates
         document.dispatchEvent(new CustomEvent('variables-updated', {

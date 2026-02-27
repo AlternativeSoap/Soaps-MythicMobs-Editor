@@ -274,10 +274,10 @@ class ConditionBrowser {
             }, 300);
         }, { signal });
 
-        // Category tabs with 50ms debounce for snappy feel
+        // Category tabs with 50ms debounce — scoped to conditionCategories only
         document.getElementById('conditionCategories').addEventListener('click', (e) => {
             if (e.target.classList.contains('category-tab')) {
-                document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('#conditionCategories .category-tab').forEach(t => t.classList.remove('active'));
                 e.target.classList.add('active');
                 this.currentCategory = e.target.dataset.category;
                 
@@ -337,7 +337,7 @@ class ConditionBrowser {
             });
         }
 
-        // Enhanced keyboard navigation
+        // Enhanced keyboard navigation — { signal } ensures removal on cleanup()
         document.addEventListener('keydown', (e) => {
             const attributeOverlay = document.getElementById('conditionAttributeOverlay');
             const browserOverlay = document.getElementById('conditionBrowserOverlay');
@@ -382,7 +382,7 @@ class ConditionBrowser {
                 const conditionId = focusedCard.dataset.condition;
                 this.handleConditionSelection(conditionId);
             }
-        });
+        }, { signal });
     }
 
     /**
@@ -416,9 +416,9 @@ class ConditionBrowser {
         const searchInput = document.getElementById('conditionSearchInput');
         if (searchInput) searchInput.value = this.searchQuery;
         
-        // Reset category tabs
-        document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-        const activeTab = document.querySelector('[data-category="all"]');
+        // Reset category tabs — SCOPED to condition browser only
+        document.querySelectorAll('#conditionCategories .category-tab').forEach(t => t.classList.remove('active'));
+        const activeTab = document.querySelector('#conditionCategories [data-category="all"]');
         if (activeTab) activeTab.classList.add('active');
         
         // Update modal title to show mode

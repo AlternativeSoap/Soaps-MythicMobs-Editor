@@ -151,10 +151,10 @@ class TriggerBrowser {
             }, 150);
         }, { signal });
 
-        // Category tabs with delegation
+        // Category tabs with delegation — scoped to triggerCategories only
         document.getElementById('triggerCategories').addEventListener('click', (e) => {
             if (e.target.classList.contains('category-tab')) {
-                document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('#triggerCategories .category-tab').forEach(t => t.classList.remove('active'));
                 e.target.classList.add('active');
                 this.currentCategory = e.target.dataset.category;
                 
@@ -257,26 +257,34 @@ class TriggerBrowser {
         // Remove all event listeners automatically
         this.abortController.abort();
         this.abortController = new AbortController(); // Reset for next open
-        
+
+        // Re-attach static event listeners with the fresh signal so the browser
+        // remains fully interactive on subsequent opens (mirrors targeterBrowser).
+        this.attachEventListeners();
+
         // Clear debounce timers
         clearTimeout(this.searchDebounce);
         clearTimeout(this.categoryDebounce);
-        
+
         // Clear search cache
         if (this.searchCache) {
             this.searchCache.clear();
         }
-        
+
         if (window.DEBUG_MODE) console.log('TriggerBrowser cleanup complete');
     }
 
     /**
-     * Open the trigger browser
+     * Open the trigger browser (synchronous — no async data loading on open)
      */
-    async open(options = {}) {
-        // Load merged data if available
-        await this.loadMergedData();
-        
+    open(options = {}) {
+        // Use pre-cached data if available; fire-and-forget merge in background
+        if (window.__CACHED_TRIGGERS_DATA__) {
+            this.triggersData = window.__CACHED_TRIGGERS_DATA__;
+        } else {
+            this.loadMergedData(); // background load, no await
+        }
+
         this.currentMobType = options.mobType || null;
         this.currentModules = options.modules || null;
         this.onSelectCallback = options.onSelect || null;
@@ -284,10 +292,11 @@ class TriggerBrowser {
         this.currentCategory = 'all';
         this.searchQuery = '';
         document.getElementById('triggerSearchInput').value = '';
-        
-        // Reset category tabs
-        document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-        document.querySelector('[data-category="all"]').classList.add('active');
+
+        // Reset category tabs — SCOPED to trigger browser only
+        document.querySelectorAll('#triggerCategories .category-tab').forEach(t => t.classList.remove('active'));
+        const allTab = document.querySelector('#triggerCategories [data-category="all"]');
+        if (allTab) allTab.classList.add('active');
 
         this.renderTriggers();
         this.updateCategoryCounts();
@@ -309,13 +318,17 @@ class TriggerBrowser {
         if (overlay) {
             overlay.style.display = 'none';
         }
-        
+
         // Notify parent that browser was closed without selection
+        // (onSelectCallback is already null if selectTrigger ran first)
         if (this.onSelectCallback) {
             this.onSelectCallback(null);
         }
-        
+
         this.onSelectCallback = null;
+
+        // Re-attach event listeners for next open (mirrors targeterBrowser pattern)
+        this.cleanup();
     }
 
     /**
@@ -625,16 +638,10 @@ class TriggerBrowser {
      * Select trigger and notify callback
      */
     selectTrigger(trigger, parameter = null, autoEnableRequirements = null) {
-        // Store callback before closing (close() sets it to null)
+        // Store callback before closing (close() clears it)
         const callback = this.onSelectCallback;
-        
-        // Close the overlay
-        const overlay = document.getElementById('triggerBrowserOverlay');
-        if (overlay) {
-            overlay.style.display = 'none';
-        }
-        
-        // Clear callback reference
+
+        // Clear callback BEFORE calling close() so close() won't send a null
         this.onSelectCallback = null;
 
         // Call the stored callback with the result
@@ -645,6 +652,9 @@ class TriggerBrowser {
                 autoEnableRequirements: autoEnableRequirements
             });
         }
+
+        // Call close() to hide overlay and run cleanup/re-attach (mirrors targeterBrowser)
+        this.close();
     }
 }
 

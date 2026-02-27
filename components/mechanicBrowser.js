@@ -3311,7 +3311,7 @@ class MechanicBrowser {
                     if (!category.sounds || category.sounds.length === 0) continue;
 
                     menuHTML += `<div class="sound-category">`;
-                    menuHTML += `<div class="sound-category-name" style="--cat-color:${category.color}">${category.icon} ${category.label}</div>`;
+                    menuHTML += `<div class="sound-category-name" style="--cat-color:${category.color}">${category.label}</div>`;
 
                     for (const sound of category.sounds) {
                         const selected = sound === currentSound ? ' selected' : '';

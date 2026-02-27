@@ -24,12 +24,12 @@ class CreationModeSelector {
         // Check if modal already exists
         this.modal = document.getElementById('creationModeSelectorOverlay');
         if (this.modal) {
-            console.log('✅ CreationModeSelector: Reusing existing modal');
+            if (window.DEBUG_MODE) console.log('✅ CreationModeSelector: Reusing existing modal');
             return;
         }
         
         // Create new modal
-        console.log('🆕 CreationModeSelector: Creating modal');
+        if (window.DEBUG_MODE) console.log('🆕 CreationModeSelector: Creating modal');
         this.createModal();
         this.modal = document.getElementById('creationModeSelectorOverlay');
     }
@@ -107,7 +107,7 @@ class CreationModeSelector {
         
         // Check if already attached
         if (modal.dataset.listenersAttached) {
-            console.log('✅ CreationModeSelector: Listeners already attached');
+            if (window.DEBUG_MODE) console.log('✅ CreationModeSelector: Listeners already attached');
             return;
         }
         modal.dataset.listenersAttached = 'true';
@@ -152,7 +152,7 @@ class CreationModeSelector {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const mode = e.target.dataset.mode;
-                console.log('🎯 Mode button clicked:', mode);
+                if (window.DEBUG_MODE) console.log('🎯 Mode button clicked:', mode);
                 this.selectModeGlobal(mode);
             });
         });
@@ -163,24 +163,24 @@ class CreationModeSelector {
                 // Don't trigger if clicking the button directly
                 if (!e.target.classList.contains('mode-select-btn')) {
                     const mode = card.dataset.mode;
-                    console.log('🎯 Card clicked:', mode);
+                    if (window.DEBUG_MODE) console.log('🎯 Card clicked:', mode);
                     this.selectModeGlobal(mode);
                 }
             });
         });
         
-        console.log('✅ CreationModeSelector: Listeners attached');
+        if (window.DEBUG_MODE) console.log('✅ CreationModeSelector: Listeners attached');
     }
 
     /**
      * Select mode using the GLOBAL callback (handles multiple instances)
      */
     selectModeGlobal(mode) {
-        console.log('📤 selectModeGlobal called with mode:', mode);
+        if (window.DEBUG_MODE) console.log('📤 selectModeGlobal called with mode:', mode);
         
         const callback = window._creationModeSelectorActiveCallback;
         if (callback) {
-            console.log('✅ Executing global callback');
+            if (window.DEBUG_MODE) console.log('✅ Executing global callback');
             callback(mode);
         } else {
             console.warn('⚠️ No active callback registered for mode selection');
@@ -201,7 +201,7 @@ class CreationModeSelector {
         
         // Store callback GLOBALLY so any instance can access it
         window._creationModeSelectorActiveCallback = options.onSelect || null;
-        console.log('📂 CreationModeSelector: Callback registered:', !!options.onSelect);
+        if (window.DEBUG_MODE) console.log('📂 CreationModeSelector: Callback registered:', !!options.onSelect);
         
         // Get modal reference
         const modal = this.modal || document.getElementById('creationModeSelectorOverlay');
@@ -220,7 +220,7 @@ class CreationModeSelector {
         }
 
         modal.classList.add('active');
-        console.log('📂 CreationModeSelector opened');
+        if (window.DEBUG_MODE) console.log('📂 CreationModeSelector opened');
     }
 
     /**
@@ -233,7 +233,7 @@ class CreationModeSelector {
         }
         // Clear global callback on close
         window._creationModeSelectorActiveCallback = null;
-        console.log('📕 CreationModeSelector closed');
+        if (window.DEBUG_MODE) console.log('📕 CreationModeSelector closed');
     }
 
     /**

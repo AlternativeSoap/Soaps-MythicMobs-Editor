@@ -580,19 +580,19 @@ class TemplateYAMLImporter {
 
     extractSkills(parsed, fileType) {
         const skills = [];
-        console.log('[YAML Importer] Extracting skills from parsed YAML, fileType:', fileType);
-        console.log('[YAML Importer] Top-level keys:', Object.keys(parsed).slice(0, 20));
+        if (window.DEBUG_MODE) console.log('[YAML Importer] Extracting skills from parsed YAML, fileType:', fileType);
+        if (window.DEBUG_MODE) console.log('[YAML Importer] Top-level keys:', Object.keys(parsed).slice(0, 20));
         
         for (const [name, data] of Object.entries(parsed)) {
             // Skip null/undefined entries
             if (data === null || data === undefined) {
-                console.log(`[YAML Importer] Skipping "${name}" - null or undefined`);
+                if (window.DEBUG_MODE) console.log(`[YAML Importer] Skipping "${name}" - null or undefined`);
                 continue;
             }
             
             // Handle case where data is not an object (could be a direct value)
             if (typeof data !== 'object') {
-                console.log(`[YAML Importer] Skipping "${name}" - not an object (type: ${typeof data})`);
+                if (window.DEBUG_MODE) console.log(`[YAML Importer] Skipping "${name}" - not an object (type: ${typeof data})`);
                 continue;
             }
             
@@ -630,7 +630,7 @@ class TemplateYAMLImporter {
                         rawData: data,
                         mobConfig // Full mob configuration
                     });
-                    console.log(`[YAML Importer] Added mob: ${name} with ${skillsArray?.length || 0} skill lines`);
+                    if (window.DEBUG_MODE) console.log(`[YAML Importer] Added mob: ${name} with ${skillsArray?.length || 0} skill lines`);
                 }
             } else {
                 // For skill files, be more lenient
@@ -645,15 +645,15 @@ class TemplateYAMLImporter {
                         OnCooldownSkill: data.OnCooldownSkill || data.oncooldownskill
                     };
                     skills.push({ name, data: normalizedData, sourceType: 'skill-file', rawData: data });
-                    console.log(`[YAML Importer] Added skill: ${name} with ${skillsArray.length} lines`);
+                    if (window.DEBUG_MODE) console.log(`[YAML Importer] Added skill: ${name} with ${skillsArray.length} lines`);
                 } else if (isLikelySkill && !skillsArray) {
                     // Skill definition without Skills array - might just have Conditions
-                    console.log(`[YAML Importer] Found skill-like entry without Skills array: ${name}`);
+                    if (window.DEBUG_MODE) console.log(`[YAML Importer] Found skill-like entry without Skills array: ${name}`);
                 }
             }
         }
         
-        console.log(`[YAML Importer] Total skills extracted: ${skills.length}`);
+        if (window.DEBUG_MODE) console.log(`[YAML Importer] Total skills extracted: ${skills.length}`);
         return skills;
     }
 
@@ -944,7 +944,7 @@ class TemplateYAMLImporter {
             }
         }
         
-        console.log('[YAML Importer] Detected naming patterns:', patterns.length);
+        if (window.DEBUG_MODE) console.log('[YAML Importer] Detected naming patterns:', patterns.length);
         return patterns;
     }
 
@@ -977,7 +977,7 @@ class TemplateYAMLImporter {
         const groups = [];
         const assigned = new Set();
         
-        console.log('[YAML Importer] generateGroupingSuggestions called with', analyzedSkills.length, 'skills');
+        if (window.DEBUG_MODE) console.log('[YAML Importer] generateGroupingSuggestions called with', analyzedSkills.length, 'skills');
         
         // Check if this is a mob file - use different grouping logic
         const isMobFile = analyzedSkills.some(s => s.sourceType === 'mob');
@@ -990,12 +990,12 @@ class TemplateYAMLImporter {
             for (const group of dummyGroups) {
                 groups.push(group);
                 group.skills.forEach(s => assigned.add(s.name));
-                console.log('[YAML Importer] Created DUMMY mob group:', group.suggestedName, 'with', group.skills.length, 'mobs');
+                if (window.DEBUG_MODE) console.log('[YAML Importer] Created DUMMY mob group:', group.suggestedName, 'with', group.skills.length, 'mobs');
             }
             
             // All other mobs are standalone (no grouping by prefix)
             const standalone = analyzedSkills.filter(s => !assigned.has(s.name));
-            console.log('[YAML Importer] Mob file grouping result: groups=', groups.length, 'standalone=', standalone.length);
+            if (window.DEBUG_MODE) console.log('[YAML Importer] Mob file grouping result: groups=', groups.length, 'standalone=', standalone.length);
             return { groups, standalone, totalGroups: groups.length, totalStandalone: standalone.length };
         }
         
@@ -1006,7 +1006,7 @@ class TemplateYAMLImporter {
             if (auraGroup.skills.length >= 2) {
                 groups.push(auraGroup);
                 auraGroup.skills.forEach(s => assigned.add(s.name));
-                console.log('[YAML Importer] Created aura group:', auraGroup.suggestedName, 'with', auraGroup.skills.length, 'skills');
+                if (window.DEBUG_MODE) console.log('[YAML Importer] Created aura group:', auraGroup.suggestedName, 'with', auraGroup.skills.length, 'skills');
             }
         }
         
@@ -1016,10 +1016,10 @@ class TemplateYAMLImporter {
         if (unassignedSkills.length >= 2 && groups.length === 0) {
             const allNames = unassignedSkills.map(s => s.name);
             const commonPrefix = this.findLongestCommonPrefix(allNames);
-            console.log('[YAML Importer] Common prefix check - names:', allNames, 'prefix:', commonPrefix);
+            if (window.DEBUG_MODE) console.log('[YAML Importer] Common prefix check - names:', allNames, 'prefix:', commonPrefix);
             
             if (commonPrefix && commonPrefix.length >= 3) {
-                console.log('[YAML Importer] All skills share common prefix:', commonPrefix);
+                if (window.DEBUG_MODE) console.log('[YAML Importer] All skills share common prefix:', commonPrefix);
                 const group = {
                     type: 'common-prefix-all',
                     reason: `All skills share prefix "${commonPrefix}"`,
@@ -1029,7 +1029,7 @@ class TemplateYAMLImporter {
                 };
                 groups.push(group);
                 unassignedSkills.forEach(s => assigned.add(s.name));
-                console.log('[YAML Importer] Created group with', group.skills.length, 'skills, suggestedName:', group.suggestedName);
+                if (window.DEBUG_MODE) console.log('[YAML Importer] Created group with', group.skills.length, 'skills, suggestedName:', group.suggestedName);
             }
         }
         
@@ -1076,7 +1076,7 @@ class TemplateYAMLImporter {
         
         const standalone = analyzedSkills.filter(s => !assigned.has(s.name));
         
-        console.log('[YAML Importer] Final grouping result: groups=', groups.length, 'standalone=', standalone.length);
+        if (window.DEBUG_MODE) console.log('[YAML Importer] Final grouping result: groups=', groups.length, 'standalone=', standalone.length);
         groups.forEach((g, i) => console.log(`[YAML Importer] Group ${i}: "${g.suggestedName}" with ${g.skills.length} skills`));
         
         return { groups, standalone, totalGroups: groups.length, totalStandalone: standalone.length };
@@ -1103,7 +1103,7 @@ class TemplateYAMLImporter {
         // Don't use prefix if it's too short (likely a namespace like CR, MOB, SKILL)
         // or if it's a common short pattern
         if (prefix.length <= 4) {
-            console.log('[YAML Importer] Prefix too short for full grouping:', prefix);
+            if (window.DEBUG_MODE) console.log('[YAML Importer] Prefix too short for full grouping:', prefix);
             return '';
         }
         
@@ -1111,7 +1111,7 @@ class TemplateYAMLImporter {
         // This prevents grouping ALL "CR_*" skills together
         const namespacePattern = /^[A-Z]{2,4}$/;
         if (namespacePattern.test(prefix)) {
-            console.log('[YAML Importer] Prefix looks like namespace, skipping full grouping:', prefix);
+            if (window.DEBUG_MODE) console.log('[YAML Importer] Prefix looks like namespace, skipping full grouping:', prefix);
             return '';
         }
         
@@ -1127,7 +1127,7 @@ class TemplateYAMLImporter {
         const skillMap = new Map(analyzedSkills.map(s => [s.name, s]));
         const processed = new Set();
         
-        console.log('[YAML Importer] findAuraSkillSystems - checking', analyzedSkills.length, 'skills');
+        if (window.DEBUG_MODE) console.log('[YAML Importer] findAuraSkillSystems - checking', analyzedSkills.length, 'skills');
         
         for (const skill of analyzedSkills) {
             if (processed.has(skill.name)) continue;
@@ -1137,7 +1137,7 @@ class TemplateYAMLImporter {
                 ['onstart', 'ontick', 'onend', 'onstartskill', 'ontickskill', 'onendskill'].includes(call.context.toLowerCase())
             );
             
-            console.log('[YAML Importer] Skill:', skill.name, '- aura callbacks:', auraCallbacks.length, auraCallbacks.map(c => c.context));
+            if (window.DEBUG_MODE) console.log('[YAML Importer] Skill:', skill.name, '- aura callbacks:', auraCallbacks.length, auraCallbacks.map(c => c.context));
             
             if (auraCallbacks.length > 0) {
                 const groupSkills = [skill];
@@ -1146,7 +1146,7 @@ class TemplateYAMLImporter {
                 // Find all referenced callback skills
                 for (const callback of auraCallbacks) {
                     const callbackSkill = skillMap.get(callback.skillName);
-                    console.log('[YAML Importer] Looking for callback skill:', callback.skillName, '- found:', !!callbackSkill);
+                    if (window.DEBUG_MODE) console.log('[YAML Importer] Looking for callback skill:', callback.skillName, '- found:', !!callbackSkill);
                     if (callbackSkill && !processed.has(callback.skillName)) {
                         groupSkills.push(callbackSkill);
                         processed.add(callback.skillName);
@@ -1228,7 +1228,7 @@ class TemplateYAMLImporter {
         const processed = new Set();
         const mobMap = new Map(analyzedSkills.map(s => [s.name, s]));
         
-        console.log('[YAML Importer] findDummyMobGroups - checking', analyzedSkills.length, 'mobs');
+        if (window.DEBUG_MODE) console.log('[YAML Importer] findDummyMobGroups - checking', analyzedSkills.length, 'mobs');
         
         // Find all DUMMY mobs and group them with their parent
         for (const mob of analyzedSkills) {
@@ -1271,7 +1271,7 @@ class TemplateYAMLImporter {
                         confidence: 0.95
                     });
                     
-                    console.log('[YAML Importer] Created DUMMY group:', parentName, 'with', groupSkills.length, 'mobs');
+                    if (window.DEBUG_MODE) console.log('[YAML Importer] Created DUMMY group:', parentName, 'with', groupSkills.length, 'mobs');
                 }
             }
         }
@@ -1311,7 +1311,7 @@ class TemplateYAMLImporter {
                     confidence: 0.95
                 });
                 
-                console.log('[YAML Importer] Created DUMMY group for:', mob.name, 'with', groupSkills.length, 'mobs');
+                if (window.DEBUG_MODE) console.log('[YAML Importer] Created DUMMY group for:', mob.name, 'with', groupSkills.length, 'mobs');
             }
         }
         
@@ -1563,7 +1563,7 @@ class TemplateYAMLImporter {
                 // Skip if we already imported a template with this name in this batch
                 const normalizedName = config.name.toLowerCase().trim();
                 if (importedNames.has(normalizedName)) {
-                    console.log(`[YAML Importer] Skipping duplicate template: ${config.name}`);
+                    if (window.DEBUG_MODE) console.log(`[YAML Importer] Skipping duplicate template: ${config.name}`);
                     results.failed.push({ name: config.name, error: 'Duplicate template name in batch' });
                     continue;
                 }

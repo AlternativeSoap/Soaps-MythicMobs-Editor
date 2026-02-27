@@ -1409,7 +1409,7 @@
 
 .sound-search-input {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.65rem 0.75rem;
     border: none;
     border-bottom: 2px solid var(--border-color);
     background: var(--bg-secondary);
@@ -1426,7 +1426,7 @@
 .sound-options-container {
     overflow-y: auto;
     max-height: 360px;
-    padding: 0.25rem 0;
+    padding: 0;
 }
 
 .sound-options-container::-webkit-scrollbar {
@@ -1447,26 +1447,33 @@
 }
 
 .sound-category {
-    margin-bottom: 0.1rem;
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 .sound-category-name {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 700;
     color: var(--cat-color, var(--text-muted));
-    padding: 0.35rem 1rem;
+    padding: 0.45rem 1rem 0.38rem 0.8rem;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.8px;
     background: var(--bg-secondary);
+    border-left: 3px solid var(--cat-color, var(--text-muted));
+    border-top: 1px solid var(--border-color);
     position: sticky;
     top: 0;
     z-index: 1;
 }
 
+.sound-category:first-child .sound-category-name {
+    border-top: none;
+}
+
 .sound-option {
     display: flex;
     align-items: center;
-    padding: 0.32rem 1rem;
+    padding: 0.33rem 1rem 0.33rem 1.1rem;
     cursor: pointer;
     transition: background 0.1s ease;
 }

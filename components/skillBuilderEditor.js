@@ -279,7 +279,7 @@ class SkillBuilderEditor {
     setContext(context) {
         this.context = context;
         
-        console.log('[SkillBuilderEditor] setContext called:', {
+        if (window.DEBUG_MODE) console.log('[SkillBuilderEditor] setContext called:', {
             context,
             currentSkill: this.currentSkill,
             skillsKeys: Object.keys(this.skills),
@@ -340,7 +340,7 @@ class SkillBuilderEditor {
         // Detect groups and analyze patterns before rendering (context-aware)
         const linesToAnalyze = this.context === 'mob' ? this.skillLines : this.getSkillLines();
         
-        console.log('[SkillBuilderEditor] render():', {
+        if (window.DEBUG_MODE) console.log('[SkillBuilderEditor] render():', {
             context: this.context,
             currentSkill: this.currentSkill,
             linesToAnalyze,
@@ -941,7 +941,7 @@ class SkillBuilderEditor {
      * Setup drag and drop for reordering skill lines
      */
     setupDragAndDrop() {
-        const cards = this.container.querySelectorAll('.skill-line-card');
+        const cards = this.container.querySelectorAll('.skill-line-item');
         let draggedIndex = null;
         
         cards.forEach((card, index) => {
@@ -992,7 +992,7 @@ class SkillBuilderEditor {
      * Get element after which to insert dragged element
      */
     getDragAfterElement(container, y) {
-        const draggableElements = [...container.querySelectorAll('.skill-line-card:not(.dragging)')];
+        const draggableElements = [...container.querySelectorAll('.skill-line-item:not(.dragging)')];
         
         return draggableElements.reduce((closest, child) => {
             const box = child.getBoundingClientRect();
@@ -1014,7 +1014,7 @@ class SkillBuilderEditor {
             // Delete key on focused card
             if (e.key === 'Delete') {
                 const focused = document.activeElement;
-                if (focused && focused.classList.contains('skill-line-card')) {
+                if (focused && focused.classList.contains('skill-line-item')) {
                     const index = parseInt(focused.dataset.index);
                     this.editor.showConfirmDialog('Delete Skill Line', 'Delete this skill line?', 'Delete', 'Cancel').then(confirmed => {
                         if (confirmed) {
@@ -1034,7 +1034,7 @@ class SkillBuilderEditor {
             if (e.ctrlKey && e.key === 'd') {
                 e.preventDefault();
                 const focused = document.activeElement;
-                if (focused && focused.classList.contains('skill-line-card')) {
+                if (focused && focused.classList.contains('skill-line-item')) {
                     const index = parseInt(focused.dataset.index);
                     this.duplicateSkillLine(index);
                 }
@@ -2207,7 +2207,7 @@ class SkillBuilderEditor {
      * Jump to and highlight a specific line
      */
     jumpToLine(lineIndex) {
-        const card = this.container.querySelector(`.skill-line-card[data-index="${lineIndex}"]`);
+        const card = this.container.querySelector(`.skill-line-item[data-index="${lineIndex}"]`);
         if (card) {
             // Scroll into view
             card.scrollIntoView({ behavior: 'smooth', block: 'center' });

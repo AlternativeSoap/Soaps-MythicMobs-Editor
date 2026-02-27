@@ -1279,10 +1279,10 @@
     <script src="components/vanillaOverridesEditor.js"></script>
     <script src="components/powerSystemEditor.js"></script>
     
-    <script src="components/conditionBrowser.js?v=3.7"></script>
+    <script src="components/conditionBrowser.js?v=3.9"></script>
     <script src="components/inlineConditionBuilder.js"></script>
-    <script src="components/triggerBrowser.js"></script>
-    <script src="components/targeterBrowser.js?v=3.8"></script>
+    <script src="components/triggerBrowser.js?v=1.1"></script>
+    <script src="components/targeterBrowser.js?v=4.0"></script>
     <script src="components/mechanicBrowser.js"></script>
     <script src="components/skillBrowser.js"></script>
     <script src="data/placeholders.js"></script>
@@ -1294,7 +1294,7 @@
     <script src="components/placeholderBrowser.js"></script>
     <script src="components/spawnerEditor.js"></script>
     <script src="components/statsEditor.js"></script>
-    <script src="components/creationModeSelector.js"></script>
+    <script src="components/creationModeSelector.js?v=1.1"></script>
     <script src="components/notificationModal.js"></script>
     <script src="components/templateManager.js?v=20260102"></script>
     <script src="components/templateImportExport.js"></script>
@@ -1439,7 +1439,7 @@
     <script src="components/templateSelector.js"></script>
     <script src="components/templateYAMLImporter.js"></script>
     <script src="components/templateImportWizard.js"></script>
-    <script src="components/skillLineBuilder.js?v=3.9"></script>
+    <script src="components/skillLineBuilder.js?v=4.2"></script>
     <script src="components/mechanicReference.js"></script>
     <script src="components/skillLineAutocomplete.js"></script>
     <script src="components/skillLineGroupDetector.js"></script>
@@ -1587,7 +1587,7 @@
                             
                             // Insert before login button
                             userDropdown.insertBefore(adminBtn, loginBtn);
-                            console.log('✅ Admin Panel button added to dropdown');
+                            if (window.DEBUG_MODE) console.log('✅ Admin Panel button added to dropdown');
                         }
                     }
                     

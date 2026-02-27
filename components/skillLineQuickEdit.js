@@ -12,56 +12,87 @@ class SkillLineQuickEdit {
         this.onSaveCallback = null;
         this.parsed = null;
         
-        // Common attribute definitions with metadata
+        // Common attribute definitions with metadata (all keys must be unique)
+        // Use getAttributeDefForMechanic() for context-sensitive overrides (e.g. 'i' = ignoreArmor vs interval)
         this.attributeDefinitions = {
-            // Damage
-            'a': { label: 'Amount', type: 'number', category: 'damage', description: 'Damage amount' },
-            'amount': { label: 'Amount', type: 'number', category: 'damage', description: 'Damage amount' },
-            'i': { label: 'Ignore Armor', type: 'boolean', category: 'damage', description: 'Ignore armor' },
-            
+            // Damage / General
+            'a': { label: 'Amount', type: 'number', category: 'damage', description: 'Damage/effect amount' },
+            'amount': { label: 'Amount', type: 'number', category: 'general', description: 'Amount/quantity value' },
+
+            // Dual-use: 'i' means Ignore Armor (bool) for damage, Interval (number) for projectiles
+            // getAttributeDefForMechanic() returns the correct definition based on mechanic context
+            'i': { label: 'Ignore Armor / Interval', type: 'text', category: 'general', description: 'Damage: ignore armor (true/false) — Projectile: tick interval (number)' },
+
             // Projectile
             'v': { label: 'Velocity', type: 'number', category: 'projectile', description: 'Projectile speed' },
             'velocity': { label: 'Velocity', type: 'number', category: 'projectile', description: 'Projectile speed' },
-            'i': { label: 'Interval', type: 'number', category: 'projectile', description: 'Tick interval' },
-            'interval': { label: 'Interval', type: 'number', category: 'projectile', description: 'Tick interval' },
+            'interval': { label: 'Interval', type: 'number', category: 'projectile', description: 'Tick interval between updates' },
             'hR': { label: 'Hit Radius', type: 'number', category: 'projectile', description: 'Hit detection radius' },
             'vR': { label: 'Vertical Radius', type: 'number', category: 'projectile', description: 'Vertical hit radius' },
-            'd': { label: 'Duration', type: 'number', category: 'projectile', description: 'Max duration in ticks' },
-            'duration': { label: 'Duration', type: 'number', category: 'projectile', description: 'Max duration in ticks' },
+            'd': { label: 'Duration', type: 'number', category: 'projectile', description: 'Max ticks before expiry' },
             'hnp': { label: 'Hit Non-Players', type: 'boolean', category: 'projectile', description: 'Hit non-player entities' },
             'hp': { label: 'Hit Players', type: 'boolean', category: 'projectile', description: 'Hit player entities' },
-            
-            // Effects
-            'p': { label: 'Particle', type: 'text', category: 'effect', description: 'Particle type' },
-            'particle': { label: 'Particle', type: 'text', category: 'effect', description: 'Particle type' },
-            'amount': { label: 'Amount', type: 'number', category: 'effect', description: 'Particle amount' },
-            'speed': { label: 'Speed', type: 'number', category: 'effect', description: 'Particle speed' },
+
+            // Effects / Particles
+            'p': { label: 'Particle', type: 'text', category: 'effect', description: 'Particle type name' },
+            'particle': { label: 'Particle', type: 'text', category: 'effect', description: 'Particle type name' },
+            'speed': { label: 'Speed', type: 'number', category: 'effect', description: 'Particle/animation speed' },
             'hS': { label: 'H Spread', type: 'number', category: 'effect', description: 'Horizontal spread' },
             'vS': { label: 'V Spread', type: 'number', category: 'effect', description: 'Vertical spread' },
-            
+
+            // Shared duration (works for projectile, potion, aura — all numeric)
+            'duration': { label: 'Duration', type: 'number', category: 'general', description: 'Duration in ticks (or seconds for some mechanics)' },
+
             // Potion
-            'type': { label: 'Type', type: 'text', category: 'potion', description: 'Potion effect type' },
-            'duration': { label: 'Duration', type: 'number', category: 'potion', description: 'Effect duration in ticks' },
-            'lvl': { label: 'Level', type: 'number', category: 'potion', description: 'Effect level (0-based)' },
-            'level': { label: 'Level', type: 'number', category: 'potion', description: 'Effect level (0-based)' },
-            
+            'type': { label: 'Type', type: 'text', category: 'potion', description: 'Potion effect type (e.g. SPEED)' },
+            'lvl': { label: 'Level', type: 'number', category: 'potion', description: 'Effect level (0-based, 0 = level I)' },
+            'level': { label: 'Level', type: 'number', category: 'potion', description: 'Effect level (0-based, 0 = level I)' },
+
             // Aura
-            'charges': { label: 'Charges', type: 'number', category: 'aura', description: 'Number of charges' },
-            'auraName': { label: 'Aura Name', type: 'text', category: 'aura', description: 'Unique aura name' },
-            
+            'charges': { label: 'Charges', type: 'number', category: 'aura', description: 'Number of trigger charges' },
+            'auraName': { label: 'Aura Name', type: 'text', category: 'aura', description: 'Unique identifier for the aura' },
+
             // Sound
-            's': { label: 'Sound', type: 'text', category: 'sound', description: 'Sound effect' },
-            'sound': { label: 'Sound', type: 'text', category: 'sound', description: 'Sound effect' },
-            'volume': { label: 'Volume', type: 'number', category: 'sound', description: 'Sound volume' },
-            'pitch': { label: 'Pitch', type: 'number', category: 'sound', description: 'Sound pitch' },
-            
-            // Callbacks
-            'onTick': { label: 'On Tick', type: 'text', category: 'callback', description: 'Skill to run on tick' },
+            's': { label: 'Sound', type: 'text', category: 'sound', description: 'Sound effect name' },
+            'sound': { label: 'Sound', type: 'text', category: 'sound', description: 'Sound effect name' },
+            'volume': { label: 'Volume', type: 'number', category: 'sound', description: 'Sound volume (0.0–1.0+)' },
+            'pitch': { label: 'Pitch', type: 'number', category: 'sound', description: 'Sound pitch (0.5–2.0)' },
+
+            // Skill / Callbacks
+            'skill': { label: 'Skill', type: 'text', category: 'callback', description: 'Metaskill name to cast' },
+            'onTick': { label: 'On Tick', type: 'text', category: 'callback', description: 'Skill to run each tick' },
             'onHit': { label: 'On Hit', type: 'text', category: 'callback', description: 'Skill to run on hit' },
             'onEnd': { label: 'On End', type: 'text', category: 'callback', description: 'Skill to run on end' },
             'onStart': { label: 'On Start', type: 'text', category: 'callback', description: 'Skill to run on start' },
             'onBounce': { label: 'On Bounce', type: 'text', category: 'callback', description: 'Skill to run on bounce' }
         };
+
+        // Context-aware overrides — mechanic-specific definitions for ambiguous keys
+        this.mechanicAttributeOverrides = {
+            damage:     { i: { label: 'Ignore Armor',  type: 'boolean', category: 'damage',     description: 'Bypass the target\'s armor (true/false)' } },
+            ignite:     { i: { label: 'Ignore Armor',  type: 'boolean', category: 'damage',     description: 'Bypass the target\'s armor (true/false)' } },
+            projectile: { i: { label: 'Interval',      type: 'number',  category: 'projectile', description: 'Tick interval between position updates' },
+                          amount: { label: 'Projectile Count', type: 'number', category: 'projectile', description: 'Number of projectiles to fire' } },
+            missile:    { i: { label: 'Interval',      type: 'number',  category: 'projectile', description: 'Tick interval between position updates' } },
+            particles:  { amount: { label: 'Particle Count', type: 'number', category: 'effect', description: 'Number of particles to spawn' } }
+        };
+    }
+
+    /**
+     * Get the attribute definition for a key, with mechanic-context awareness
+     * @param {string} key - Attribute key (e.g. 'i', 'amount')
+     * @param {string} mechanic - Mechanic name in lowercase
+     * @returns {Object|null} Attribute definition
+     */
+    getAttributeDefForMechanic(key, mechanic) {
+        const mechanicLower = (mechanic || '').toLowerCase();
+        // Check mechanic-specific overrides first
+        const override = this.mechanicAttributeOverrides[mechanicLower];
+        if (override && override[key]) {
+            return override[key];
+        }
+        // Fall back to generic definition
+        return this.attributeDefinitions[key] || null;
     }
 
     /**
@@ -160,13 +191,11 @@ class SkillLineQuickEdit {
         const mechanicLower = mechanic.toLowerCase();
         const attributes = [];
         
-        // Get attributes that exist in current args
+        // Get attributes that exist in current args, using mechanic-context-aware lookup
         Object.keys(currentArgs).forEach(key => {
-            if (this.attributeDefinitions[key]) {
-                attributes.push({
-                    key,
-                    ...this.attributeDefinitions[key]
-                });
+            const def = this.getAttributeDefForMechanic(key, mechanicLower);
+            if (def) {
+                attributes.push({ key, ...def });
             }
         });
         
@@ -184,12 +213,9 @@ class SkillLineQuickEdit {
         
         const common = commonByMechanic[mechanicLower] || [];
         common.forEach(key => {
-            if (!attributes.find(a => a.key === key) && this.attributeDefinitions[key]) {
-                attributes.push({
-                    key,
-                    ...this.attributeDefinitions[key],
-                    isOptional: true
-                });
+            const def = this.getAttributeDefForMechanic(key, mechanicLower);
+            if (!attributes.find(a => a.key === key) && def) {
+                attributes.push({ key, ...def, isOptional: true });
             }
         });
         

@@ -3,7 +3,7 @@
  * Provides offline support, caching, and PWA functionality
  */
 
-const CACHE_NAME = 'mythicmobs-editor-v2.5.0';
+const CACHE_NAME = 'mythicmobs-editor-v2.8.0';
 const OFFLINE_URL = '404.html';
 
 // Assets to cache immediately on install
