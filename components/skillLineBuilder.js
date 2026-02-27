@@ -42,7 +42,7 @@ class SkillLineBuilder {
             
             currentLine: {
                 mechanic: null,
-                targeter: '@Self',
+                targeter: null,
                 trigger: null,
                 conditions: [],
                 chance: null,
@@ -124,8 +124,10 @@ class SkillLineBuilder {
         const newState = typeof update === 'function' 
             ? { ...this.state, ...update(this.state) }  // Merge functional update with existing state
             : { ...this.state, ...update };
-        
-        if (JSON.stringify(oldState) === JSON.stringify(newState)) return;
+
+        if (JSON.stringify(oldState) === JSON.stringify(newState)) {
+            return;
+        }
         
         // Track context changes in debug mode
         if (window.DEBUG_MODE && oldState.context !== newState.context) {
@@ -133,14 +135,6 @@ class SkillLineBuilder {
         }
         
         this.state = newState;
-        
-        // console.log('🔄 setState called:', {
-        //     mechanic: this.state.currentLine?.mechanic,
-        //     trigger: this.state.currentLine?.trigger,
-        //     targeter: this.state.currentLine?.targeter,
-        //     conditions: this.state.currentLine?.conditions?.length || 0
-        // });
-        
         this.debouncedSaveState();
         this.notifyStateChange(oldState, newState);
         this.scheduleRender();
@@ -429,6 +423,7 @@ class SkillLineBuilder {
                     <div class="component-icon">🎯</div>
                     <div class="component-info">
                         <h4>Targeter</h4>
+                        <span id="targeterSelectedValue" style="font-size: 11px; font-family: 'Fira Code', monospace; color: var(--text-muted, #888); display: inline-block; margin-top: 2px;">@Self (default)</span>
                         <span class="component-badge optional">Optional</span>
                     </div>
                     <div class="component-status filled" id="targeterStatus">
@@ -1016,7 +1011,7 @@ class SkillLineBuilder {
             activeBrowser: null,
             currentLine: {
                 mechanic: null,
-                targeter: '@Self',
+                targeter: null,
                 trigger: null,
                 conditions: [],
                 chance: null,
@@ -1245,12 +1240,22 @@ class SkillLineBuilder {
         }
         
         // Targeter
-        if (currentLine.targeter && currentLine.targeter !== '@Self') {
+        if (currentLine.targeter) {
             this.dom.targeterCard.classList.add('filled');
             document.getElementById('btnClearTargeter').style.display = 'block';
+            const targeterValueEl = document.getElementById('targeterSelectedValue');
+            if (targeterValueEl) {
+                targeterValueEl.textContent = currentLine.targeter;
+                targeterValueEl.style.color = 'var(--accent-color, #4db6e0)';
+            }
         } else {
             this.dom.targeterCard.classList.remove('filled');
             document.getElementById('btnClearTargeter').style.display = 'none';
+            const targeterValueEl = document.getElementById('targeterSelectedValue');
+            if (targeterValueEl) {
+                targeterValueEl.textContent = '@Self (default)';
+                targeterValueEl.style.color = 'var(--text-muted, #888)';
+            }
         }
         
         // Trigger
@@ -1353,32 +1358,29 @@ class SkillLineBuilder {
         }
     }
     updatePreview() {
-        // RAF throttling for smooth 60fps performance
-        if (this.raf) cancelAnimationFrame(this.raf);
-        this.raf = requestAnimationFrame(() => {
-            const line = this.generateSkillLine();
+        const line = this.generateSkillLine();
+        
+        if (line) {
+            // Synchronously update content so it always reflects the latest state
+            this.dom.preview.innerHTML = `<code>- ${this.escapeHtml(line)}</code>`;
             
-            if (line) {
-                // Show skill line - the CSS adds the bullet emoji via ::before
-                this.dom.preview.innerHTML = `<code>- ${this.escapeHtml(line)}</code>`;
-                
-                // Context-aware button state validation
-                const hasMechanic = this.state.currentLine.mechanic !== null;
-                const hasTrigger = this.state.currentLine.trigger !== null;
-                const canAddToQueue = this.state.context === 'skill' 
-                    ? hasMechanic 
-                    : (hasMechanic && hasTrigger);
-                
-                this.dom.btnAddToQueue.disabled = !canAddToQueue;
-                this.dom.btnCopyPreview.disabled = false;
-                
-                // Add highlight animation for new content (on the preview-code element itself)
-                this.dom.preview.classList.add('new-content');
-                setTimeout(() => {
-                    this.dom.preview.classList.remove('new-content');
-                }, 500);
-            } else {
-                this.dom.preview.innerHTML = `
+            // Context-aware button state validation
+            const hasMechanic = this.state.currentLine.mechanic !== null;
+            const hasTrigger = this.state.currentLine.trigger !== null;
+            const canAddToQueue = this.state.context === 'skill' 
+                ? hasMechanic 
+                : (hasMechanic && hasTrigger);
+            
+            this.dom.btnAddToQueue.disabled = !canAddToQueue;
+            this.dom.btnCopyPreview.disabled = false;
+            
+            // Add highlight animation for new content (on the preview-code element itself)
+            this.dom.preview.classList.add('new-content');
+            setTimeout(() => {
+                this.dom.preview.classList.remove('new-content');
+            }, 500);
+        } else {
+            this.dom.preview.innerHTML = `
                     <span class="preview-placeholder">
                         <i class="fas fa-hammer"></i>
                         <p>Your skill line will appear here</p>
@@ -1393,10 +1395,9 @@ class SkillLineBuilder {
                         </div>
                     </span>
                 `;
-                this.dom.btnAddToQueue.disabled = true;
-                this.dom.btnCopyPreview.disabled = true;
-            }
-        });
+            this.dom.btnAddToQueue.disabled = true;
+            this.dom.btnCopyPreview.disabled = true;
+        }
     }
     
     showLoadingState() {
@@ -1508,13 +1509,19 @@ class SkillLineBuilder {
         `;
         
         // Setup scroll listener for continuous virtual scrolling
+        // NOTE: Cannot use this.throttle() here — it takes (key, fn, delay) and returns nothing.
+        // Use a self-contained closure-based throttle instead.
         if (!this.virtualScrollListener) {
-            this.virtualScrollListener = this.throttle(() => {
-                if (this.state.queue.length > 50) {
-                    this.renderVirtualQueue();
-                }
-            }, 100);
-            
+            let _scrollThrottle = null;
+            this.virtualScrollListener = () => {
+                if (_scrollThrottle) return;
+                _scrollThrottle = setTimeout(() => {
+                    if (this.state.queue.length > 20) {
+                        this.renderVirtualQueue();
+                    }
+                    _scrollThrottle = null;
+                }, 100);
+            };
             this.dom.queueList.addEventListener('scroll', this.virtualScrollListener, { passive: true });
         }
     }
@@ -1683,7 +1690,7 @@ class SkillLineBuilder {
         // Don't include the "- " prefix - the YAML renderer will add it
         let line = `${currentLine.mechanic.fullString || currentLine.mechanic.name}`;
         
-        // Include targeter if present (including @Self if explicitly selected)
+        // Include targeter only when one is explicitly selected (null = implicit @Self default)
         if (currentLine.targeter) {
             line += ` ${currentLine.targeter}`;
         }
@@ -1822,7 +1829,7 @@ class SkillLineBuilder {
         
         // Extract targeter (after @, before ~, ?, chance, or health)
         const targeterMatch = skillLine.match(/@([^\s~?]+)/);
-        const targeter = targeterMatch ? `@${targeterMatch[1]}` : '@Self';
+        const targeter = targeterMatch ? `@${targeterMatch[1]}` : null;
         
         // Extract trigger (after ~, before ?)
         const triggerMatch = skillLine.match(/~([^\s?]+)/);
@@ -1901,13 +1908,9 @@ class SkillLineBuilder {
         this.browsers.targeter.open({
             parentZIndex: (this.currentZIndex || 10000) + 10,
             onSelect: (result) => {
-                
                 // If cancelled (null), just restore state and return
                 if (result === null) {
-                    this.setState({ 
-                        activeBrowser: null,
-                        isLoading: false 
-                    });
+                    this.setState({ activeBrowser: null, isLoading: false });
                     return;
                 }
                 
@@ -1915,7 +1918,6 @@ class SkillLineBuilder {
                 // Priority: targeterString (from attribute config) > string result > extract from object
                 let targeterString = '';
                 if (result.targeterString) {
-                    // Browser configured targeter with attributes
                     targeterString = result.targeterString;
                 } else if (typeof result === 'string') {
                     targeterString = result;
@@ -1928,12 +1930,11 @@ class SkillLineBuilder {
                 // CRITICAL: Batch ALL state updates together to prevent intermediate renders
                 // MUST spread existing state to preserve context and other properties!
                 this.setState(s => ({
-                    ...s,  // Preserve ALL state including context
+                    ...s,
                     activeBrowser: null,
                     isLoading: false,
                     currentLine: { ...s.currentLine, targeter: targeterString }
                 }));
-                
                 this.render();
             }
         });
@@ -1944,7 +1945,7 @@ class SkillLineBuilder {
      */
     clearTargeter() {
         this.setState(s => ({
-            currentLine: { ...s.currentLine, targeter: '@Self' }
+            currentLine: { ...s.currentLine, targeter: null }
         }));
     }
     
@@ -2060,9 +2061,9 @@ class SkillLineBuilder {
      */
     openConditionEditor() {
         
-        // Prevent opening multiple browsers at once
+        // Force-reset any stuck browser state (mirrors openTargeterBrowser behaviour)
         if (this.state.activeBrowser) {
-            return;
+            this.setState({ activeBrowser: null, isLoading: false });
         }
         
         // Check if ConditionBrowser class exists
@@ -2081,11 +2082,18 @@ class SkillLineBuilder {
             console.error('BrowserManager not available - condition browser may not work correctly');
             return;
         }
+
+        // Validate we got a real browser instance before committing activeBrowser
+        if (!window.conditionBrowser) {
+            console.error('ConditionBrowser instance could not be created');
+            return;
+        }
         
         // Track active browser
         this.setState({ activeBrowser: 'condition' });
         
-        // Open condition browser with callback
+        // Open condition browser with callback (wrapped so activeBrowser is reset on failure)
+        try {
         window.conditionBrowser.open({
             usageMode: 'inline',  // KEY: Use inline mode for skill line builder
             conditionType: 'caster',  // Default to caster conditions
@@ -2131,6 +2139,10 @@ class SkillLineBuilder {
                 }
             }
         });
+        } catch (err) {
+            console.error('Error opening condition browser:', err);
+            this.setState({ activeBrowser: null, isLoading: false });
+        }
     }
     
     /**
@@ -2573,7 +2585,7 @@ class SkillLineBuilder {
         this.setState({
             currentLine: {
                 mechanic: null,
-                targeter: '@Self',
+                targeter: null,
                 trigger: null,
                 conditions: [],
                 chance: null,
@@ -2630,7 +2642,7 @@ class SkillLineBuilder {
                 queue: [...(s.queue || []), line],
                 currentLine: {
                     mechanic: null,
-                    targeter: '@Self',
+                    targeter: null,
                     trigger: null,
                     conditions: [],
                     chance: null,

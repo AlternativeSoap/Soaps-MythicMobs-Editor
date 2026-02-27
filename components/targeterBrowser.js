@@ -8,10 +8,10 @@ class TargeterBrowser {
         this.editor = editor;
         this.currentCategory = 'all';
         this.searchQuery = '';
-        this.onSelectCallback = null;
         this.currentTargeter = null;
         this.searchCache = new LRUCache(10);
         this.callbackInvoked = false; // Prevent double callback
+        this.onSelectCallback = null;
         
         // Phase 1 Critical: Event listener cleanup
         this.abortController = new AbortController();
@@ -193,7 +193,8 @@ class TargeterBrowser {
         // Category tabs with 50ms debounce for snappy feel
         document.getElementById('targeterCategories').addEventListener('click', (e) => {
             if (e.target.classList.contains('category-tab')) {
-                document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+                // Scoped to targeter browser only — never touch mechanic/condition browser tabs
+                document.querySelectorAll('#targeterCategories .category-tab').forEach(t => t.classList.remove('active'));
                 e.target.classList.add('active');
                 this.currentCategory = e.target.dataset.category;
                 
@@ -276,7 +277,7 @@ class TargeterBrowser {
                 const targeterId = focusedCard.dataset.targeter;
                 this.handleTargeterSelection(targeterId);
             }
-        });
+        }, { signal });
     }
 
     /**
@@ -287,9 +288,10 @@ class TargeterBrowser {
         if (window.__CACHED_TARGETERS_DATA__) {
             this.targetersData = window.__CACHED_TARGETERS_DATA__;
         }
-        
+
         this.currentValue = options.currentValue || '@Self';
         this.onSelectCallback = options.onSelect || null;
+        this.callbackInvoked = false; // Always reset on open to prevent stale true value
 
         // Don't reset if user had a category selected (preserve state)
         if (!this.currentCategory) {
@@ -303,12 +305,13 @@ class TargeterBrowser {
             if (searchInput) searchInput.value = '';
         }
         
-        // Cache DOM queries
+        // Cache DOM queries — scoped to targeter browser to avoid contaminating
+        // mechanic/condition browser tabs that share the same CSS class.
         if (!this._cachedTabs) {
-            this._cachedTabs = document.querySelectorAll('.category-tab');
+            this._cachedTabs = document.querySelectorAll('#targeterCategories .category-tab');
         }
         if (!this._cachedAllTab) {
-            this._cachedAllTab = document.querySelector('[data-category="all"]');
+            this._cachedAllTab = document.querySelector('#targeterCategories [data-category="all"]');
         }
         
         // Reset category tabs only if needed
@@ -335,6 +338,7 @@ class TargeterBrowser {
      */
     close() {
         const overlay = document.getElementById('targeterBrowserOverlay');
+
         if (overlay) {
             overlay.style.display = 'none';
         }
@@ -359,6 +363,10 @@ class TargeterBrowser {
         // Phase 1 Critical: Remove all event listeners automatically
         this.abortController.abort();
         this.abortController = new AbortController(); // Reset for next open
+
+        // Re-attach static event listeners with the fresh signal so the browser
+        // remains fully interactive on subsequent opens (Confirm / Cancel / Back / Close).
+        this.attachEventListeners();
         
         // Phase 1 Critical: Clear all debounce timers
         clearTimeout(this.categoryDebounce);
@@ -437,6 +445,12 @@ class TargeterBrowser {
     renderTargeters() {
         const listContainer = document.getElementById('targeterList');
         if (!listContainer) return;
+        
+        // Guard against missing data (e.g. if targeters.js failed to load)
+        if (!this.targetersData || !this.targetersData.targeters) {
+            listContainer.innerHTML = '<div class="empty-state">Targeter data unavailable. Please refresh the page.</div>';
+            return;
+        }
         
         // Add CSS optimization for smooth scrolling
         if (!listContainer.style.willChange) {
@@ -530,10 +544,7 @@ class TargeterBrowser {
      */
     handleTargeterSelection(targeterId) {
         const targeter = this.targetersData.getTargeter(targeterId);
-        if (!targeter) {
-            console.error('Targeter not found:', targeterId);
-            return;
-        }
+        if (!targeter) return;
 
         // Check if targeter has attributes
         if (targeter.attributes && targeter.attributes.length > 0) {
@@ -541,7 +552,6 @@ class TargeterBrowser {
             return;
         }
 
-        // No attributes, directly select (including @Self)
         this.selectTargeter(targeter);
     }
 
@@ -722,10 +732,11 @@ class TargeterBrowser {
         document.getElementById('targeterSelectionStep').classList.add('active');
         document.getElementById('targeterConfigurationStep').classList.remove('active');
         
-        // Reset search and category
+        // Reset search and category — scoped to targeter browser only
         document.getElementById('targeterSearchInput').value = '';
-        document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-        document.querySelector('[data-category="all"]').classList.add('active');
+        document.querySelectorAll('#targeterCategories .category-tab').forEach(t => t.classList.remove('active'));
+        const allTab = document.querySelector('#targeterCategories [data-category="all"]');
+        if (allTab) allTab.classList.add('active');
         this.currentCategory = 'all';
         this.searchQuery = '';
         
@@ -797,8 +808,6 @@ class TargeterBrowser {
     selectTargeter(targeter) {
         const targeterString = `@${targeter.name}`;
         
-        // console.log('✅ Targeter selected (no attributes):', targeterString);
-        
         // Store callback before closing (close() sets it to null)
         const callback = this.onSelectCallback;
         
@@ -806,11 +815,7 @@ class TargeterBrowser {
         this.callbackInvoked = true;
         
         if (callback) {
-            // console.log('📞 Calling onSelect callback with:', { targeter, targeterString });
-            callback({
-                targeter: targeter,
-                targeterString: targeterString
-            });
+            callback({ targeter: targeter, targeterString: targeterString });
         }
         
         this.close();

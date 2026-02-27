@@ -19,7 +19,7 @@ class SkillEditor {
         this.currentSkill = skill;
         
         // Debug log the skill being rendered
-        console.log('[SkillEditor] Rendering skill:', {
+        if (window.DEBUG_MODE) console.log('[SkillEditor] Rendering skill:', {
             name: skill.name,
             hasSkills: !!skill.skills,
             skillsKeys: skill.skills ? Object.keys(skill.skills) : [],
@@ -115,7 +115,7 @@ class SkillEditor {
                     <div class="card-header collapsible-header">
                         <h3 class="card-title">
                             <i class="fas fa-magic"></i> Skills
-                            <span class="count-badge">${skill.Skills ? skill.Skills.length : 0}</span>
+                            <span class="count-badge">${skill.skills ? Object.values(skill.skills).reduce((sum, s) => sum + (s?.lines?.length || 0), 0) : (skill.Skills ? skill.Skills.length : 0)}</span>
                             <i class="fas fa-chevron-down collapse-icon"></i>
                         </h3>
                     </div>
@@ -527,7 +527,6 @@ class SkillEditor {
         
         // Save as Template button
         const saveTemplateBtn = document.getElementById('skill-save-as-template');
-        console.log('[SkillEditor] Save as Template button found:', !!saveTemplateBtn, saveTemplateBtn);
         if (saveTemplateBtn) {
             // Remove any existing listeners first
             saveTemplateBtn.replaceWith(saveTemplateBtn.cloneNode(true));
@@ -535,10 +534,8 @@ class SkillEditor {
             freshBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[SkillEditor] Save as Template button clicked!');
                 this.openSaveAsTemplateModal();
             });
-            console.log('[SkillEditor] Click listener attached to Save as Template button');
         }
         
         // New section button (add new skill to current file)
@@ -963,28 +960,6 @@ class SkillEditor {
     }
     
     /**
-     * Find the parent file for the current skill
-     */
-    findParentFile() {
-        const pack = this.editor.state.currentPack;
-        if (!pack || !pack.skills) return null;
-        
-        // Check if _parentFile reference exists
-        if (this.currentSkill._parentFile) {
-            return pack.skills.find(f => f.id === this.currentSkill._parentFile.id);
-        }
-        
-        // Search all files for this skill
-        for (const file of pack.skills) {
-            if (file.entries && file.entries.some(e => e.id === this.currentSkill.id)) {
-                return file;
-            }
-        }
-        
-        return null;
-    }
-    
-    /**
      * Rename the current skill
      */
     async renameSkill() {
@@ -1016,7 +991,7 @@ class SkillEditor {
         if (parentFile) {
             parentFile.modified = true;
             parentFile.lastModified = new Date().toISOString();
-            console.log(`✅ Marked parent file ${parentFile.fileName || parentFile.id} as modified after rename`);
+            if (window.DEBUG_MODE) console.log(`✅ Marked parent file ${parentFile.fileName || parentFile.id} as modified after rename`);
         }
         
         // Update the UI
@@ -1073,24 +1048,17 @@ class SkillEditor {
     
     initializeSkillBuilder() {
         // Initialize browser components if not already created
-        if (!this.targeterBrowser) {
-            this.targeterBrowser = new TargeterBrowser();
-        }
+        // Use singleton browsers — creating new instances overwrites shared DOM onclick handlers
+        this.targeterBrowser = window.browserManager.getTargeterBrowser();
         
         // No longer need to initialize condition editor - using global V2 browser
         
-        if (!this.mechanicBrowser) {
-            this.mechanicBrowser = new MechanicBrowser(
-                this.targeterBrowser,
-                null, // No trigger browser for skill files
-                null  // Using global conditionBrowserV2 instead
-            );
-        }
+        this.mechanicBrowser = window.browserManager.getMechanicBrowser();
         
         // Initialize Skill Builder Editor
         const skillLinesContainer = document.getElementById('skill-lines-editor');
         if (skillLinesContainer) {
-            console.log('[SkillEditor] initializeSkillBuilder - before processing:', {
+            if (window.DEBUG_MODE) console.log('[SkillEditor] initializeSkillBuilder - before processing:', {
                 hasSkillsObj: !!this.currentSkill.skills,
                 skillsKeys: this.currentSkill.skills ? Object.keys(this.currentSkill.skills) : [],
                 hasSkillsArray: !!this.currentSkill.Skills,
@@ -1107,7 +1075,7 @@ class SkillEditor {
                     this.currentSkill.skills[this.currentSkill.name || 'DefaultSkill'] = {
                         lines: this.currentSkill.Skills
                     };
-                    console.log('[SkillEditor] Migrated Skills array to skills object');
+                    if (window.DEBUG_MODE) console.log('[SkillEditor] Migrated Skills array to skills object');
                 }
             }
             
@@ -1278,11 +1246,11 @@ class SkillEditor {
      * Open modal to save current skill as a template
      */
     openSaveAsTemplateModal() {
-        console.log('[SkillEditor] openSaveAsTemplateModal called');
+        if (window.DEBUG_MODE) console.log('[SkillEditor] openSaveAsTemplateModal called');
         
         // Check if user is authenticated
         if (!window.authManager?.isAuthenticated()) {
-            console.log('[SkillEditor] User not authenticated, showing login prompt');
+            if (window.DEBUG_MODE) console.log('[SkillEditor] User not authenticated, showing login prompt');
             this.editor.showToast('Please log in to save templates to your account', 'warning');
             // Show login modal
             if (window.authUI) {
@@ -1292,15 +1260,15 @@ class SkillEditor {
         }
 
         if (!this.currentSkill) {
-            console.log('[SkillEditor] No current skill selected');
+            if (window.DEBUG_MODE) console.log('[SkillEditor] No current skill selected');
             this.editor.showToast('No skill selected', 'error');
             return;
         }
 
-        console.log('[SkillEditor] Getting skill data for template...');
+        if (window.DEBUG_MODE) console.log('[SkillEditor] Getting skill data for template...');
         // Get skill data for template
         const skillData = this.getSkillDataForTemplate();
-        console.log('[SkillEditor] Skill data:', skillData);
+        if (window.DEBUG_MODE) console.log('[SkillEditor] Skill data:', skillData);
         
         // Inject enhanced styles
         this.injectTemplateModalStyles();

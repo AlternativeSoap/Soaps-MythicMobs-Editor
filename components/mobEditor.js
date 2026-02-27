@@ -6330,26 +6330,13 @@ class MobEditor {
         const mob = this.currentMob;
         if (!mob) return;
         
-        // Initialize Trigger Browser
-        if (!this.triggerBrowser) {
-            this.triggerBrowser = new TriggerBrowser(this.editor);
-        }
-        
-        // Initialize Targeter Browser
-        if (!this.targeterBrowser) {
-            this.targeterBrowser = new TargeterBrowser();
-        }
+        // Use singleton browsers — creating new instances overwrites shared DOM onclick handlers
+        this.triggerBrowser = window.browserManager.getTriggerBrowser();
+        this.targeterBrowser = window.browserManager.getTargeterBrowser();
         
         // No longer need to initialize condition editor - using global V2 browser
         
-        // Initialize Mechanic Browser
-        if (!this.mechanicBrowser) {
-            this.mechanicBrowser = new MechanicBrowser(
-                this.targeterBrowser,
-                this.triggerBrowser,
-                null  // Using global conditionBrowserV2 instead
-            );
-        }
+        this.mechanicBrowser = window.browserManager.getMechanicBrowser();
         
         // Initialize Skills Editor
         const skillsContainer = document.getElementById('mob-skills-editor');

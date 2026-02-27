@@ -77,30 +77,13 @@ class TemplateWizard {
      * Called lazily when opening builder to ensure browser classes are loaded
      */
     initializeBrowsers() {
-        
-        // Always create new instances (force refresh)
-        if (window.TargeterBrowser) {
-            this.targeterBrowser = new TargeterBrowser();
+        // Use singleton browsers — creating new instances overwrites shared DOM onclick handlers
+        if (window.browserManager) {
+            this.targeterBrowser = window.browserManager.getTargeterBrowser();
+            this.triggerBrowser = window.browserManager.getTriggerBrowser();
+            this.mechanicBrowser = window.browserManager.getMechanicBrowser();
         } else {
-            console.error('window.TargeterBrowser class not found!');
-        }
-        
-        // Initialize Trigger Browser
-        if (window.TriggerBrowser) {
-            this.triggerBrowser = new TriggerBrowser(window.editor);
-        } else {
-            console.error('window.TriggerBrowser class not found!');
-        }
-        
-        // Initialize Mechanic Browser (needs targeter and trigger browsers)
-        if (window.MechanicBrowser) {
-            this.mechanicBrowser = new MechanicBrowser(
-                this.targeterBrowser,
-                this.triggerBrowser,
-                null  // Using global conditionBrowser instead
-            );
-        } else {
-            console.error('window.MechanicBrowser class not found!');
+            console.error('[TemplateWizard] window.browserManager not available');
         }
     }
 
