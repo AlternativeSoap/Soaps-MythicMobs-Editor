@@ -377,6 +377,33 @@ class OnboardingTour {
         if (skipBtn) {
             skipBtn.addEventListener('click', () => this.skip());
         }
+
+        // ── Keyboard navigation ──────────────────────────────────────────
+        // Remove any previous keydown handler to avoid stacking listeners
+        // across step transitions.
+        if (this._keydownHandler) {
+            document.removeEventListener('keydown', this._keydownHandler, true);
+        }
+
+        this._keydownHandler = (e) => {
+            if (!this.isActive) return;
+            // Skip when user is typing in an input control
+            const tag = document.activeElement?.tagName?.toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                e.stopPropagation();
+                this.next();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                e.stopPropagation();
+                this.previous();
+            }
+            // ESC → skip is handled globally by modalKeyboardNav.js
+        };
+
+        document.addEventListener('keydown', this._keydownHandler, true);
     }
     
     /**
@@ -436,6 +463,12 @@ class OnboardingTour {
      */
     end() {
         this.isActive = false;
+
+        // Remove keyboard navigation handler
+        if (this._keydownHandler) {
+            document.removeEventListener('keydown', this._keydownHandler, true);
+            this._keydownHandler = null;
+        }
         
         // Remove overlay and tooltip with animation
         if (this.overlay) {

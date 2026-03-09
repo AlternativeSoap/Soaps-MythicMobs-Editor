@@ -557,11 +557,11 @@ class MechanicBrowser {
         // Keyboard support
         document.addEventListener('keydown', (e) => {
             const overlay = document.getElementById('mechanicBrowserOverlay');
-            const configSection = document.getElementById('mechanicConfigSection');
+            const configStep = document.getElementById('mechanicConfigurationStep');
             
             if (overlay && overlay.style.display === 'flex') {
                 // If config section is visible (mechanic selected)
-                if (configSection && configSection.style.display === 'block') {
+                if (configStep && configStep.classList.contains('active')) {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         // Don't intercept Enter if a notification modal is currently open
                         // (prevents re-triggering confirmConfiguration while awaiting user response)
@@ -4154,6 +4154,7 @@ class MechanicBrowser {
         const chipsContainer = container.querySelector('.entity-chips');
         const chipsWrapper = container.querySelector('.entity-chips-container');
         const clearBtn = container.querySelector('.btn-clear-entities');
+        const { signal } = this.abortController;
 
         // Track selected entities
         let selectedEntities = [];
@@ -4173,7 +4174,7 @@ class MechanicBrowser {
                 this.toggleEntity(entity, selectedEntities, input, chipsContainer, chipsWrapper);
                 this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
             }
-        });
+        }, { signal });
 
         // Clear all button
         clearBtn.addEventListener('click', () => {
@@ -4181,7 +4182,7 @@ class MechanicBrowser {
             input.value = '';
             this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
             this.updateSkillLinePreview();
-        });
+        }, { signal });
 
         // Enter key to add custom entity
         searchInput.addEventListener('keydown', (e) => {
@@ -4200,7 +4201,7 @@ class MechanicBrowser {
                     this.updateSkillLinePreview();
                 }
             }
-        });
+        }, { signal });
 
         // Search functionality with debouncing
         searchInput.addEventListener('input', (e) => {
@@ -4233,14 +4234,14 @@ class MechanicBrowser {
                 category.style.display = visibleCount > 0 ? '' : 'none';
             });
             }, this.performanceSettings.debounceSearch);
-        });
+        }, { signal });
 
         // Sync input changes back to chips
         input.addEventListener('input', () => {
             const value = input.value.trim();
             selectedEntities = value ? value.split(',').map(e => e.trim()).filter(e => e) : [];
             this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
-        });
+        }, { signal });
     }
 
     /**

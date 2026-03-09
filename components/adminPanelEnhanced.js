@@ -35,7 +35,7 @@ class AdminPanelEnhanced {
         errorTab.innerHTML = `
             <i class="fas fa-exclamation-triangle"></i>
             <span>Error Console</span>
-            <span class="error-count-badge" id="errorCountBadge" style="display: none;"></span>
+            <span class="admin-tab-badge badge-error" id="errorCountBadge"></span>
         `;
         tabContainer.appendChild(errorTab);
 
@@ -82,64 +82,61 @@ class AdminPanelEnhanced {
     getErrorConsoleHTML() {
         return `
             <div class="admin-tab-content" data-tab-content="errors">
-                <div class="admin-section-header">
-                    <div>
+                <div class="ap-tab-top">
+                    <div class="ap-tab-top-left">
                         <h3>Error Console</h3>
                         <p>Real-time error monitoring and debugging</p>
                     </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-secondary" id="btnClearErrors">
+                    <div class="ap-tab-top-right">
+                        <button class="btn btn-secondary btn-sm" id="btnClearErrors">
                             <i class="fas fa-trash"></i> Clear All
                         </button>
-                        <button class="btn btn-primary" id="btnExportErrors">
+                        <button class="btn btn-primary btn-sm" id="btnExportErrors">
                             <i class="fas fa-download"></i> Export
                         </button>
                     </div>
                 </div>
 
-                <!-- Error Filters -->
-                <div class="error-console-filters" style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <input type="text" id="errorSearchInput" class="form-input" placeholder="Search errors..." style="flex: 1;">
-                    <select id="errorTypeFilter" class="form-select" style="width: 200px;">
+                <div class="ap-mini-stats">
+                    <div class="ap-mini-stat c-red">
+                        <div class="ap-mini-stat-icon"><i class="fas fa-exclamation-circle"></i></div>
+                        <div><div class="ap-mini-stat-val" id="totalErrorsCount">0</div><div class="ap-mini-stat-lbl">Total</div></div>
+                    </div>
+                    <div class="ap-mini-stat c-amber">
+                        <div class="ap-mini-stat-icon"><i class="fas fa-bug"></i></div>
+                        <div><div class="ap-mini-stat-val" id="runtimeErrorsCount">0</div><div class="ap-mini-stat-lbl">Runtime</div></div>
+                    </div>
+                    <div class="ap-mini-stat c-blue">
+                        <div class="ap-mini-stat-icon"><i class="fas fa-hourglass-half"></i></div>
+                        <div><div class="ap-mini-stat-val" id="promiseErrorsCount">0</div><div class="ap-mini-stat-lbl">Promises</div></div>
+                    </div>
+                    <div class="ap-mini-stat c-purple">
+                        <div class="ap-mini-stat-icon"><i class="fas fa-terminal"></i></div>
+                        <div><div class="ap-mini-stat-val" id="consoleErrorsCount">0</div><div class="ap-mini-stat-lbl">Console</div></div>
+                    </div>
+                </div>
+
+                <div class="ap-filter-row">
+                    <input type="text" id="errorSearchInput" class="form-input" placeholder="Search errors...">
+                    <select id="errorTypeFilter" class="form-select">
                         <option value="all">All Types</option>
-                        <option value="runtime">Runtime Errors</option>
-                        <option value="promise">Promise Rejections</option>
-                        <option value="console">Console Errors</option>
+                        <option value="runtime">Runtime</option>
+                        <option value="promise">Promise</option>
+                        <option value="console">Console</option>
                     </select>
-                    <select id="errorTimeFilter" class="form-select" style="width: 200px;">
+                    <select id="errorTimeFilter" class="form-select">
                         <option value="all">All Time</option>
                         <option value="1h">Last Hour</option>
-                        <option value="24h">Last 24 Hours</option>
+                        <option value="24h">Last 24h</option>
                         <option value="7d">Last 7 Days</option>
                     </select>
                 </div>
 
-                <!-- Error Stats -->
-                <div class="error-stats" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
-                    <div class="stat-card">
-                        <div class="stat-value" id="totalErrorsCount">0</div>
-                        <div class="stat-label">Total Errors</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="runtimeErrorsCount">0</div>
-                        <div class="stat-label">Runtime</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="promiseErrorsCount">0</div>
-                        <div class="stat-label">Promises</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="consoleErrorsCount">0</div>
-                        <div class="stat-label">Console</div>
-                    </div>
-                </div>
-
-                <!-- Error List -->
-                <div class="error-console-list" id="errorConsoleList" style="max-height: 500px; overflow-y: auto;">
-                    <div class="empty-state" style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
-                        <i class="fas fa-check-circle" style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;"></i>
-                        <p style="font-size: 18px; margin-bottom: 5px;">No Errors Detected</p>
-                        <p style="font-size: 14px;">All systems running smoothly!</p>
+                <div class="error-console-list" id="errorConsoleList">
+                    <div class="ap-empty-state">
+                        <i class="fas fa-check-circle"></i>
+                        <p>No Errors Detected</p>
+                        <small>All systems running smoothly!</small>
                     </div>
                 </div>
             </div>
@@ -152,38 +149,37 @@ class AdminPanelEnhanced {
 
         return `
             <div class="admin-tab-content" data-tab-content="permissions">
-                <div class="admin-section-header">
-                    <div>
-                        <h3>Role Permissions</h3>
-                        <p>Manage permissions for each role</p>
+                <div class="ap-tab-top">
+                    <div class="ap-tab-top-left">
+                        <h3>Permissions</h3>
+                        <p>Manage role-based access control</p>
                     </div>
-                    <button class="btn btn-primary" id="btnSavePermissions">
-                        <i class="fas fa-save"></i> Save Changes
-                    </button>
+                    <div class="ap-tab-top-right">
+                        <button class="btn btn-primary btn-sm" id="btnSavePermissions">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
                 </div>
 
-                <div class="permissions-editor" style="display: flex; gap: 20px;">
-                    <!-- Role Selector -->
-                    <div class="role-list" style="width: 250px;">
-                        <h4 style="margin-bottom: 15px;">Roles</h4>
+                <div class="ap-permissions-layout">
+                    <div class="ap-role-list">
                         ${roles.map(role => `
-                            <div class="role-item ${role === 'super_admin' ? 'active' : ''}" data-role="${role}">
+                            <div class="ap-role-item ${role === 'super_admin' ? 'active' : ''}" data-role="${role}">
                                 <i class="fas fa-${role === 'super_admin' ? 'crown' : role === 'template_admin' ? 'layer-group' : role === 'moderator' ? 'shield-alt' : 'user'}"></i>
-                                <span>${role.replace('_', ' ').toUpperCase()}</span>
+                                <span>${role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
                             </div>
                         `).join('')}
                     </div>
 
-                    <!-- Permission Checkboxes -->
-                    <div class="permission-list" style="flex: 1;">
-                        <h4 style="margin-bottom: 15px;">Permissions for <span id="currentRoleLabel">Super Admin</span></h4>
-                        <div class="permission-groups">
+                    <div class="ap-permission-panel">
+                        <p style="font-size: 12px; color: rgba(255,255,255,0.35); margin: 0 0 12px;">Permissions for <strong id="currentRoleLabel" style="color: #4a9eff;">Super Admin</strong></p>
+                        <div class="ap-permission-groups">
                             ${Object.entries(this.groupPermissions()).map(([group, perms]) => `
-                                <div class="permission-group" style="margin-bottom: 20px;">
-                                    <h5 style="margin-bottom: 10px; color: var(--accent-primary); text-transform: capitalize;">${group}</h5>
-                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                                <div class="ap-permission-group">
+                                    <h5>${group}</h5>
+                                    <div class="ap-perm-grid">
                                         ${perms.map(([key, label]) => `
-                                            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+                                            <label class="ap-perm-label">
                                                 <input type="checkbox" class="permission-checkbox" data-permission="${key}" value="${key}">
                                                 <span>${label}</span>
                                             </label>
@@ -211,294 +207,149 @@ class AdminPanelEnhanced {
     getAnalyticsHTML() {
         return `
             <div class="admin-tab-content" data-tab-content="analytics">
-                <div class="admin-section-header">
-                    <div>
-                        <h3><i class="fas fa-chart-line"></i> Analytics Dashboard</h3>
-                        <p>Real-time usage statistics and user tracking</p>
+                <div class="ap-tab-top">
+                    <div class="ap-tab-top-left">
+                        <h3>Analytics</h3>
+                        <p>Usage statistics and activity tracking</p>
                     </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-danger" id="btnResetAnalytics" title="Reset all analytics data">
-                            <i class="fas fa-trash-alt"></i> Reset Data
+                    <div class="ap-tab-top-right">
+                        <button class="btn btn-danger btn-sm" id="btnResetAnalytics" title="Reset all analytics data">
+                            <i class="fas fa-trash-alt"></i> Reset
                         </button>
-                        <button class="btn btn-primary" id="btnRefreshAnalytics">
+                        <button class="btn btn-secondary btn-sm" id="btnRefreshAnalytics">
                             <i class="fas fa-sync"></i> Refresh
                         </button>
                     </div>
                 </div>
 
-                <!-- Live Stats Banner -->
-                <div class="live-stats-banner" style="background: linear-gradient(135deg, #1e1e2e 0%, #2d1f3d 100%); border-radius: 12px; padding: 20px; margin-bottom: 25px; border: 1px solid rgba(139, 92, 246, 0.3);">
-                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div class="pulse-dot" style="width: 12px; height: 12px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite;"></div>
-                            <span style="font-size: 16px; font-weight: 600; color: white;">Live Tracking Active</span>
+                <!-- Live banner -->
+                <div class="ap-live-banner">
+                    <div class="ap-live-indicator">
+                        <div class="ap-live-dot"></div>
+                        <span>Live Tracking</span>
+                    </div>
+                    <div class="ap-live-nums">
+                        <div class="ap-live-num">
+                            <div class="ap-live-num-val" id="liveOnlineCount" style="color: #34d399;">-</div>
+                            <div class="ap-live-num-lbl">Online Now</div>
                         </div>
-                        <div style="display: flex; gap: 30px; flex-wrap: wrap;">
-                            <div style="text-align: center;">
-                                <div style="font-size: 28px; font-weight: bold; color: #10b981;" id="liveOnlineCount">-</div>
-                                <div style="font-size: 12px; color: rgba(255,255,255,0.7);">Online Now</div>
-                            </div>
-                            <div style="text-align: center;">
-                                <div style="font-size: 28px; font-weight: bold; color: #8b5cf6;" id="liveTodayViews">-</div>
-                                <div style="font-size: 12px; color: rgba(255,255,255,0.7);">Today's Views</div>
-                            </div>
-                            <div style="text-align: center;">
-                                <div style="font-size: 28px; font-weight: bold; color: #f59e0b;" id="liveTodayActions">-</div>
-                                <div style="font-size: 12px; color: rgba(255,255,255,0.7);">Actions Today</div>
-                            </div>
+                        <div class="ap-live-num">
+                            <div class="ap-live-num-val" id="liveTodayViews" style="color: #a78bfa;">-</div>
+                            <div class="ap-live-num-lbl">Today's Views</div>
+                        </div>
+                        <div class="ap-live-num">
+                            <div class="ap-live-num-val" id="liveTodayActions" style="color: #fbbf24;">-</div>
+                            <div class="ap-live-num-lbl">Actions Today</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Time Period Tracker Section -->
-                <div class="time-period-tracker" style="margin-bottom: 25px;">
-                    <div class="section-header" style="margin-bottom: 15px;">
-                        <h4><i class="fas fa-calendar-alt" style="color: #8b5cf6;"></i> Activity Tracker</h4>
+                <!-- Key metrics -->
+                <div class="ap-mini-stats">
+                    <div class="ap-mini-stat c-purple">
+                        <div class="ap-mini-stat-icon"><i class="fas fa-users"></i></div>
+                        <div><div class="ap-mini-stat-val" id="totalUsersMetric">-</div><div class="ap-mini-stat-lbl">Total Users</div></div>
                     </div>
-                    
-                    <!-- Time Period Cards -->
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px;">
-                        <!-- Daily Card -->
-                        <div class="time-period-card" style="background: linear-gradient(135deg, #1e3a5f 0%, #0d2137 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(59, 130, 246, 0.3);">
-                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
-                                <div style="width: 45px; height: 45px; background: rgba(59, 130, 246, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-sun" style="font-size: 20px; color: #3b82f6;"></i>
-                                </div>
-                                <div>
-                                    <div style="font-size: 12px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px;">Today</div>
-                                    <div style="font-size: 24px; font-weight: bold; color: #3b82f6;" id="dailyActivityCount">-</div>
-                                </div>
-                            </div>
-                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;">
-                                    <div style="font-size: 18px; font-weight: bold; color: white;" id="dailyUsers">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">Users</div>
-                                </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;">
-                                    <div style="font-size: 18px; font-weight: bold; color: white;" id="dailyPageViews">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">Page Views</div>
-                                </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;" title="Cannot be reset - actual user registrations">
-                                    <div style="font-size: 18px; font-weight: bold; color: white;" id="dailyNewUsers">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);"><i class="fas fa-lock" style="font-size: 8px; margin-right: 3px;"></i>New Users</div>
-                                </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;" title="Cannot be reset - actual template records">
-                                    <div style="font-size: 18px; font-weight: bold; color: white;" id="dailyTemplates">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);"><i class="fas fa-lock" style="font-size: 8px; margin-right: 3px;"></i>Templates</div>
-                                </div>
-                            </div>
+                    <div class="ap-mini-stat c-blue">
+                        <div class="ap-mini-stat-icon"><i class="fas fa-layer-group"></i></div>
+                        <div><div class="ap-mini-stat-val" id="totalTemplatesMetric">-</div><div class="ap-mini-stat-lbl">Templates</div></div>
+                    </div>
+                    <div class="ap-mini-stat c-green">
+                        <div class="ap-mini-stat-icon"><i class="fas fa-user-plus"></i></div>
+                        <div><div class="ap-mini-stat-val" id="newRegistrationsMetric">-</div><div class="ap-mini-stat-lbl">New (7d)</div></div>
+                    </div>
+                    <div class="ap-mini-stat c-amber">
+                        <div class="ap-mini-stat-icon"><i class="fas fa-clock"></i></div>
+                        <div><div class="ap-mini-stat-val" id="activeUsersMetric">-</div><div class="ap-mini-stat-lbl">Active Today</div></div>
+                    </div>
+                    <div class="ap-mini-stat c-red">
+                        <div class="ap-mini-stat-icon"><i class="fas fa-download"></i></div>
+                        <div><div class="ap-mini-stat-val" id="totalDownloadsMetric">-</div><div class="ap-mini-stat-lbl">Activity Logs</div></div>
+                    </div>
+                </div>
+
+                <!-- Period cards -->
+                <div class="ap-period-cards">
+                    <div class="ap-period-card p-blue">
+                        <div class="ap-period-card-head">
+                            <div class="ap-period-card-icon"><i class="fas fa-sun"></i></div>
+                            <div><div class="ap-period-card-title">Today</div><div class="ap-period-card-val" id="dailyActivityCount">-</div></div>
                         </div>
-                        
-                        <!-- Monthly Card -->
-                        <div class="time-period-card" style="background: linear-gradient(135deg, #3d1f5c 0%, #1f1035 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(139, 92, 246, 0.3);">
-                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
-                                <div style="width: 45px; height: 45px; background: rgba(139, 92, 246, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-calendar-week" style="font-size: 20px; color: #8b5cf6;"></i>
-                                </div>
-                                <div>
-                                    <div style="font-size: 12px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px;">This Month</div>
-                                    <div style="font-size: 24px; font-weight: bold; color: #8b5cf6;" id="monthlyActivityCount">-</div>
-                                </div>
-                            </div>
-                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;">
-                                    <div style="font-size: 18px; font-weight: bold; color: white;" id="monthlyUsers">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">Active Users</div>
-                                </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;">
-                                    <div style="font-size: 18px; font-weight: bold; color: white;" id="monthlyPageViews">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">Page Views</div>
-                                </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;" title="Cannot be reset - actual user registrations">
-                                    <div style="font-size: 18px; font-weight: bold; color: white;" id="monthlyNewUsers">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);"><i class="fas fa-lock" style="font-size: 8px; margin-right: 3px;"></i>New Users</div>
-                                </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;" title="Cannot be reset - actual template records">
-                                    <div style="font-size: 18px; font-weight: bold; color: white;" id="monthlyTemplates">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);"><i class="fas fa-lock" style="font-size: 8px; margin-right: 3px;"></i>Templates</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Yearly Card -->
-                        <div class="time-period-card" style="background: linear-gradient(135deg, #5c3d1f 0%, #352010 100%); border-radius: 12px; padding: 20px; border: 1px solid rgba(245, 158, 11, 0.3);">
-                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
-                                <div style="width: 45px; height: 45px; background: rgba(245, 158, 11, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-calendar" style="font-size: 20px; color: #f59e0b;"></i>
-                                </div>
-                                <div>
-                                    <div style="font-size: 12px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px;">This Year</div>
-                                    <div style="font-size: 24px; font-weight: bold; color: #f59e0b;" id="yearlyActivityCount">-</div>
-                                </div>
-                            </div>
-                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;">
-                                    <div style="font-size: 18px; font-weight: bold; color: white;" id="yearlyUsers">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">Total Users</div>
-                                </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;">
-                                    <div style="font-size: 18px; font-weight: bold; color: white;" id="yearlyPageViews">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);">Page Views</div>
-                                </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;" title="Cannot be reset - actual user registrations">
-                                    <div style="font-size: 18px; font-weight: bold; color: white;" id="yearlyNewUsers">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);"><i class="fas fa-lock" style="font-size: 8px; margin-right: 3px;"></i>New Users</div>
-                                </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; text-align: center;" title="Cannot be reset - actual template records">
-                                    <div style="font-size: 18px; font-weight: bold; color: white;" id="yearlyTemplates">-</div>
-                                    <div style="font-size: 10px; color: rgba(255,255,255,0.6);"><i class="fas fa-lock" style="font-size: 8px; margin-right: 3px;"></i>Templates</div>
-                                </div>
-                            </div>
+                        <div class="ap-period-subgrid">
+                            <div class="ap-period-sub"><div class="ap-period-sub-val" id="dailyUsers">-</div><div class="ap-period-sub-lbl">Users</div></div>
+                            <div class="ap-period-sub"><div class="ap-period-sub-val" id="dailyPageViews">-</div><div class="ap-period-sub-lbl">Views</div></div>
+                            <div class="ap-period-sub"><div class="ap-period-sub-val" id="dailyNewUsers">-</div><div class="ap-period-sub-lbl"><i class="fas fa-lock"></i> New Users</div></div>
+                            <div class="ap-period-sub"><div class="ap-period-sub-val" id="dailyTemplates">-</div><div class="ap-period-sub-lbl"><i class="fas fa-lock"></i> Templates</div></div>
                         </div>
                     </div>
-                    
-                    <!-- Activity Trend Graph -->
-                    <div class="chart-container" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h4 style="margin: 0;"><i class="fas fa-chart-area" style="color: #10b981;"></i> Activity Trend</h4>
-                            <div style="display: flex; gap: 8px;">
-                                <button class="btn btn-sm chart-period-btn active" data-period="daily" style="padding: 5px 12px; font-size: 12px;">Daily</button>
-                                <button class="btn btn-sm chart-period-btn" data-period="monthly" style="padding: 5px 12px; font-size: 12px;">Monthly</button>
-                                <button class="btn btn-sm chart-period-btn" data-period="yearly" style="padding: 5px 12px; font-size: 12px;">Yearly</button>
-                            </div>
+                    <div class="ap-period-card p-purple">
+                        <div class="ap-period-card-head">
+                            <div class="ap-period-card-icon"><i class="fas fa-calendar-week"></i></div>
+                            <div><div class="ap-period-card-title">This Month</div><div class="ap-period-card-val" id="monthlyActivityCount">-</div></div>
                         </div>
-                        <div id="activityTrendChart" style="height: 250px; position: relative;">
-                            <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary);">
-                                <i class="fas fa-spinner fa-spin"></i> Loading chart...
-                            </div>
+                        <div class="ap-period-subgrid">
+                            <div class="ap-period-sub"><div class="ap-period-sub-val" id="monthlyUsers">-</div><div class="ap-period-sub-lbl">Active Users</div></div>
+                            <div class="ap-period-sub"><div class="ap-period-sub-val" id="monthlyPageViews">-</div><div class="ap-period-sub-lbl">Views</div></div>
+                            <div class="ap-period-sub"><div class="ap-period-sub-val" id="monthlyNewUsers">-</div><div class="ap-period-sub-lbl"><i class="fas fa-lock"></i> New Users</div></div>
+                            <div class="ap-period-sub"><div class="ap-period-sub-val" id="monthlyTemplates">-</div><div class="ap-period-sub-lbl"><i class="fas fa-lock"></i> Templates</div></div>
                         </div>
                     </div>
-                    
-                    <!-- Comparison Charts Row -->
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
-                        <div class="chart-container" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px;">
-                            <h4 style="margin: 0 0 15px 0;"><i class="fas fa-users" style="color: #3b82f6;"></i> User Growth</h4>
-                            <div id="userGrowthChart" style="height: 200px; position: relative;">
-                                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary);">
-                                    Loading...
-                                </div>
-                            </div>
+                    <div class="ap-period-card p-amber">
+                        <div class="ap-period-card-head">
+                            <div class="ap-period-card-icon"><i class="fas fa-calendar"></i></div>
+                            <div><div class="ap-period-card-title">This Year</div><div class="ap-period-card-val" id="yearlyActivityCount">-</div></div>
                         </div>
-                        <div class="chart-container" style="background: var(--bg-secondary); border-radius: 12px; padding: 20px;">
-                            <h4 style="margin: 0 0 15px 0;"><i class="fas fa-eye" style="color: #8b5cf6;"></i> Page Views Distribution</h4>
-                            <div id="pageViewsDistChart" style="height: 200px; position: relative;">
-                                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary);">
-                                    Loading...
-                                </div>
-                            </div>
+                        <div class="ap-period-subgrid">
+                            <div class="ap-period-sub"><div class="ap-period-sub-val" id="yearlyUsers">-</div><div class="ap-period-sub-lbl">Total Users</div></div>
+                            <div class="ap-period-sub"><div class="ap-period-sub-val" id="yearlyPageViews">-</div><div class="ap-period-sub-lbl">Views</div></div>
+                            <div class="ap-period-sub"><div class="ap-period-sub-val" id="yearlyNewUsers">-</div><div class="ap-period-sub-lbl"><i class="fas fa-lock"></i> New Users</div></div>
+                            <div class="ap-period-sub"><div class="ap-period-sub-val" id="yearlyTemplates">-</div><div class="ap-period-sub-lbl"><i class="fas fa-lock"></i> Templates</div></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Key Metrics Grid -->
-                <div class="analytics-metrics" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 25px;">
-                    <div class="metric-card metric-users">
-                        <div class="metric-icon"><i class="fas fa-users"></i></div>
-                        <div class="metric-value" id="totalUsersMetric">-</div>
-                        <div class="metric-label">Total Users</div>
-                        <div class="metric-change" id="usersChange">-</div>
-                        <button class="btn-metric-reset" onclick="window.adminPanelEnhanced?.resetMetric('users')" title="This count is live from database">
-                            <i class="fas fa-info-circle"></i>
-                        </button>
-                    </div>
-                    <div class="metric-card metric-templates">
-                        <div class="metric-icon"><i class="fas fa-layer-group"></i></div>
-                        <div class="metric-value" id="totalTemplatesMetric">-</div>
-                        <div class="metric-label">Templates</div>
-                        <div class="metric-change" id="templatesChange">-</div>
-                        <button class="btn-metric-reset" onclick="window.adminPanelEnhanced?.resetMetric('templates')" title="This count is live from database">
-                            <i class="fas fa-info-circle"></i>
-                        </button>
-                    </div>
-                    <div class="metric-card metric-downloads">
-                        <div class="metric-icon"><i class="fas fa-download"></i></div>
-                        <div class="metric-value" id="totalDownloadsMetric">-</div>
-                        <div class="metric-label">Activity Count</div>
-                        <div class="metric-change" id="downloadsChange">-</div>
-                        <button class="btn-metric-reset" onclick="window.adminPanelEnhanced?.confirmResetMetric('downloads')" title="Reset activity logs">
-                            <i class="fas fa-redo"></i>
-                        </button>
-                    </div>
-                    <div class="metric-card metric-active">
-                        <div class="metric-icon"><i class="fas fa-clock"></i></div>
-                        <div class="metric-value" id="activeUsersMetric">-</div>
-                        <div class="metric-label">Active Today</div>
-                        <div class="metric-change" id="activeChange">-</div>
-                        <button class="btn-metric-reset" onclick="window.adminPanelEnhanced?.confirmResetMetric('active')" title="Reset daily activity">
-                            <i class="fas fa-redo"></i>
-                        </button>
-                    </div>
+                <!-- Online Users -->
+                <div class="ap-tab-top" style="margin: 14px 0 8px;">
+                    <div class="ap-tab-top-left"><h3 style="font-size: 13px;">Online Users</h3></div>
+                    <button class="btn btn-sm btn-secondary" id="btnRefreshOnlineUsers"><i class="fas fa-sync-alt"></i> Refresh</button>
+                </div>
+                <div id="onlineUsersList" class="online-users-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; max-height: 280px; overflow-y: auto; padding: 14px; background: var(--bg-secondary); border-radius: 10px;">
+                    <div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
                 </div>
 
-                <!-- Secondary Metrics Row -->
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px;">
-                    <div class="metric-card online-users-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                        <div class="metric-icon" style="color: rgba(255,255,255,0.9);"><i class="fas fa-circle" style="color: #4ade80; animation: pulse 2s infinite;"></i></div>
-                        <div class="metric-value" id="onlineUsersMetric" style="color: white;">-</div>
-                        <div class="metric-label" style="color: rgba(255,255,255,0.9);">Online Now</div>
-                        <div class="metric-change" id="onlineUsersChange" style="color: rgba(255,255,255,0.7);">Real-time</div>
-                        <button class="btn-metric-reset" onclick="window.adminPanelEnhanced?.confirmResetMetric('sessions')" title="Clear all sessions" style="color: white;">
-                            <i class="fas fa-redo"></i>
-                        </button>
+                <!-- All Users Activity -->
+                <div class="ap-tab-top" style="margin: 14px 0 8px;">
+                    <div class="ap-tab-top-left"><h3 style="font-size: 13px;">All Users Activity</h3></div>
+                    <div class="ap-tab-top-right">
+                        <input type="text" id="userActivitySearch" class="form-input" placeholder="Search users..." style="width: 150px;">
+                        <select id="userActivityFilter" class="form-select">
+                            <option value="all">All Users</option>
+                            <option value="active">Active Today</option>
+                            <option value="new">New (7 days)</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
                     </div>
-                    <div class="metric-card metric-registrations">
-                        <div class="metric-icon"><i class="fas fa-user-plus"></i></div>
-                        <div class="metric-value" id="newRegistrationsMetric">-</div>
-                        <div class="metric-label">New Registrations</div>
-                        <div class="metric-change" id="registrationsChange">Last 7 days</div>
-                    </div>
-                    <div class="metric-card metric-pageviews">
-                        <div class="metric-icon"><i class="fas fa-eye"></i></div>
-                        <div class="metric-value" id="pageViewsMetric">-</div>
-                        <div class="metric-label">Page Views</div>
-                        <div class="metric-change" id="pageViewsChange">Last 7 days</div>
-                        <button class="btn-metric-reset" onclick="window.adminPanelEnhanced?.confirmResetMetric('pageviews')" title="Reset page views">
-                            <i class="fas fa-redo"></i>
-                        </button>
-                    </div>
+                </div>
+                <div id="allUsersList" class="all-users-list" style="max-height: 380px; overflow-y: auto; border-radius: 10px;">
+                    <div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading users...</div>
                 </div>
 
-                <!-- Online Users Section -->
-                <div class="analytics-section online-users-section" style="margin-bottom: 25px;">
-                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h4><i class="fas fa-wifi" style="color: #10b981;"></i> Currently Online Users</h4>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-sm btn-secondary" id="btnRefreshOnlineUsers">
-                                <i class="fas fa-sync-alt"></i> Refresh
-                            </button>
-                        </div>
-                    </div>
-                    <div id="onlineUsersList" class="online-users-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; max-height: 350px; overflow-y: auto; padding: 15px; background: var(--bg-secondary); border-radius: 10px;">
-                        <div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading online users...</div>
-                    </div>
+                <!-- Popular Templates -->
+                <div class="ap-tab-top" style="margin: 14px 0 8px;">
+                    <div class="ap-tab-top-left"><h3 style="font-size: 13px;"><i class="fas fa-trophy" style="color: #fbbf24; margin-right: 5px;"></i>Popular Templates</h3></div>
                 </div>
+                <div id="popularTemplatesList" style="background: var(--bg-secondary); border-radius: 10px; padding: 14px;"></div>
 
-                <!-- All Users Activity Section -->
-                <div class="analytics-section user-activity-section" style="margin-bottom: 25px;">
-                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-                        <h4><i class="fas fa-users-cog" style="color: #8b5cf6;"></i> All Users Activity</h4>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <input type="text" id="userActivitySearch" class="form-input" placeholder="Search users..." style="width: 200px;">
-                            <select id="userActivityFilter" class="form-select" style="width: 150px;">
-                                <option value="all">All Users</option>
-                                <option value="active">Active Today</option>
-                                <option value="new">New (7 days)</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div id="allUsersList" class="all-users-list" style="max-height: 450px; overflow-y: auto; border-radius: 10px;">
-                        <div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading users...</div>
-                    </div>
-                </div>
-
-                <!-- Popular Templates Section -->
-                <div class="analytics-section popular-templates" style="margin-top: 25px;">
-                    <div class="section-header" style="margin-bottom: 15px;">
-                        <h4><i class="fas fa-trophy" style="color: #f59e0b;"></i> Most Popular Templates</h4>
-                    </div>
-                    <div id="popularTemplatesList" style="background: var(--bg-secondary); border-radius: 10px; padding: 15px;"></div>
-                </div>
+                <!-- Hidden compat spans for JS metric setters -->
+                <span id="onlineUsersMetric" style="display:none"></span>
+                <span id="pageViewsMetric" style="display:none"></span>
+                <span id="usersChange" style="display:none"></span>
+                <span id="templatesChange" style="display:none"></span>
+                <span id="downloadsChange" style="display:none"></span>
+                <span id="activeChange" style="display:none"></span>
+                <span id="onlineUsersChange" style="display:none"></span>
+                <span id="registrationsChange" style="display:none"></span>
+                <span id="pageViewsChange" style="display:none"></span>
             </div>
         `;
     }
@@ -506,97 +357,75 @@ class AdminPanelEnhanced {
     getSettingsHTML() {
         return `
             <div class="admin-tab-content" data-tab-content="settings">
-                <div class="admin-section-header">
-                    <div>
+                <div class="ap-tab-top">
+                    <div class="ap-tab-top-left">
                         <h3>System Settings</h3>
-                        <p>Configure system-wide settings</p>
+                        <p>Feature flags, rate limits and storage quotas</p>
                     </div>
-                    <button class="btn btn-primary" id="btnSaveSettings">
-                        <i class="fas fa-save"></i> Save Settings
-                    </button>
+                    <div class="ap-tab-top-right">
+                        <button class="btn btn-primary btn-sm" id="btnSaveSettings">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                    </div>
                 </div>
 
-                <div class="settings-sections">
-                    <!-- Feature Flags -->
-                    <div class="settings-section">
+                <div class="ap-settings-grid">
+                    <div class="ap-settings-section">
                         <h4><i class="fas fa-flag"></i> Feature Flags</h4>
-                        <div class="setting-item">
-                            <label class="toggle-label">
-                                <input type="checkbox" id="featureTemplates" checked>
-                                <span>Enable Template System</span>
-                            </label>
-                            <small>Allow users to create and share templates</small>
+                        <div class="ap-setting-item">
+                            <div><div class="ap-setting-label">Template System</div><div class="ap-setting-desc">Allow users to create and share templates</div></div>
+                            <label class="ap-toggle"><input type="checkbox" id="featureTemplates" checked><span class="ap-toggle-slider"></span></label>
                         </div>
-                        <div class="setting-item">
-                            <label class="toggle-label">
-                                <input type="checkbox" id="featureSocialSharing" checked>
-                                <span>Enable Social Sharing</span>
-                            </label>
-                            <small>Allow users to share packs publicly</small>
+                        <div class="ap-setting-item">
+                            <div><div class="ap-setting-label">Social Sharing</div><div class="ap-setting-desc">Allow users to share packs publicly</div></div>
+                            <label class="ap-toggle"><input type="checkbox" id="featureSocialSharing" checked><span class="ap-toggle-slider"></span></label>
                         </div>
-                        <div class="setting-item">
-                            <label class="toggle-label">
-                                <input type="checkbox" id="featureAnalytics" checked>
-                                <span>Enable Analytics</span>
-                            </label>
-                            <small>Track usage statistics</small>
+                        <div class="ap-setting-item">
+                            <div><div class="ap-setting-label">Analytics</div><div class="ap-setting-desc">Track usage statistics</div></div>
+                            <label class="ap-toggle"><input type="checkbox" id="featureAnalytics" checked><span class="ap-toggle-slider"></span></label>
                         </div>
                     </div>
 
-                    <!-- Maintenance Mode -->
-                    <div class="settings-section">
-                        <h4><i class="fas fa-tools"></i> Maintenance Mode</h4>
-                        <div class="setting-item">
-                            <label class="toggle-label">
-                                <input type="checkbox" id="maintenanceMode">
-                                <span>Enable Maintenance Mode</span>
-                            </label>
-                            <small>Restrict access to admins only</small>
+                    <div class="ap-settings-section">
+                        <h4><i class="fas fa-tools"></i> Maintenance</h4>
+                        <div class="ap-setting-item">
+                            <div><div class="ap-setting-label">Maintenance Mode</div><div class="ap-setting-desc">Restrict access to admins only</div></div>
+                            <label class="ap-toggle"><input type="checkbox" id="maintenanceMode"><span class="ap-toggle-slider"></span></label>
                         </div>
-                        <div class="form-group">
-                            <label>Maintenance Message</label>
-                            <textarea id="maintenanceMessage" class="form-input" rows="3" placeholder="System maintenance in progress..."></textarea>
+                        <div style="margin-top: 10px;">
+                            <textarea id="maintenanceMessage" class="form-input" rows="3" placeholder="Maintenance message shown to users..."></textarea>
                         </div>
                     </div>
 
-                    <!-- Rate Limiting -->
-                    <div class="settings-section">
+                    <div class="ap-settings-section">
                         <h4><i class="fas fa-tachometer-alt"></i> Rate Limiting</h4>
-                        <div class="form-group">
-                            <label>API Requests per Minute</label>
-                            <input type="number" id="apiRateLimit" class="form-input" value="60" min="10" max="1000">
+                        <div class="ap-setting-item">
+                            <div class="ap-setting-label">API Requests / min</div>
+                            <input type="number" id="apiRateLimit" class="form-input" value="60" min="10" max="1000" style="width: 76px; text-align: center;">
                         </div>
-                        <div class="form-group">
-                            <label>Template Submissions per Hour</label>
-                            <input type="number" id="templateRateLimit" class="form-input" value="10" min="1" max="100">
-                        </div>
-                    </div>
-
-                    <!-- Storage Limits -->
-                    <div class="settings-section">
-                        <h4><i class="fas fa-database"></i> Storage Limits</h4>
-                        <div class="form-group">
-                            <label>Max Pack Size (MB)</label>
-                            <input type="number" id="maxPackSize" class="form-input" value="50" min="1" max="500">
-                        </div>
-                        <div class="form-group">
-                            <label>Max Packs per User</label>
-                            <input type="number" id="maxPacksPerUser" class="form-input" value="100" min="1" max="1000">
+                        <div class="ap-setting-item">
+                            <div class="ap-setting-label">Templates / hour</div>
+                            <input type="number" id="templateRateLimit" class="form-input" value="10" min="1" max="100" style="width: 76px; text-align: center;">
                         </div>
                     </div>
 
-                    <!-- Template Limits -->
-                    <div class="settings-section">
-                        <h4><i class="fas fa-layer-group"></i> Template Limits</h4>
-                        <div class="form-group">
-                            <label>Max Templates per User</label>
-                            <input type="number" id="maxTemplatesPerUser" class="form-input" value="10" min="1" max="100">
-                            <small style="color: var(--text-secondary); display: block; margin-top: 5px;">Maximum number of templates a single user can create (does not apply to admins)</small>
+                    <div class="ap-settings-section">
+                        <h4><i class="fas fa-database"></i> Quotas</h4>
+                        <div class="ap-setting-item">
+                            <div class="ap-setting-label">Max Pack Size (MB)</div>
+                            <input type="number" id="maxPackSize" class="form-input" value="50" min="1" max="500" style="width: 76px; text-align: center;">
                         </div>
-                        <div class="form-group">
-                            <label>Max Pending Templates per User</label>
-                            <input type="number" id="maxPendingTemplatesPerUser" class="form-input" value="3" min="1" max="20">
-                            <small style="color: var(--text-secondary); display: block; margin-top: 5px;">Maximum templates waiting for approval per user</small>
+                        <div class="ap-setting-item">
+                            <div class="ap-setting-label">Packs per User</div>
+                            <input type="number" id="maxPacksPerUser" class="form-input" value="100" min="1" max="1000" style="width: 76px; text-align: center;">
+                        </div>
+                        <div class="ap-setting-item">
+                            <div class="ap-setting-label">Templates per User</div>
+                            <input type="number" id="maxTemplatesPerUser" class="form-input" value="10" min="1" max="100" style="width: 76px; text-align: center;">
+                        </div>
+                        <div class="ap-setting-item">
+                            <div class="ap-setting-label">Pending Templates</div>
+                            <input type="number" id="maxPendingTemplatesPerUser" class="form-input" value="3" min="1" max="20" style="width: 76px; text-align: center;">
                         </div>
                     </div>
                 </div>
@@ -702,9 +531,9 @@ class AdminPanelEnhanced {
         const count = this.errorLogger.errors.length;
         if (count > 0) {
             badge.textContent = count > 99 ? '99+' : count;
-            badge.style.display = 'inline-block';
+            badge.classList.add('show');
         } else {
-            badge.style.display = 'none';
+            badge.classList.remove('show');
         }
     }
 
@@ -789,11 +618,11 @@ class AdminPanelEnhanced {
     setupPermissionsEditor() {
         // Role selection
         document.addEventListener('click', (e) => {
-            const roleItem = e.target.closest('.role-item');
+            const roleItem = e.target.closest('.ap-role-item');
             if (!roleItem) return;
 
             // Update active state
-            document.querySelectorAll('.role-item').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.ap-role-item').forEach(item => item.classList.remove('active'));
             roleItem.classList.add('active');
 
             // Load permissions for this role
@@ -813,7 +642,7 @@ class AdminPanelEnhanced {
     }
 
     loadRolePermissions(role) {
-        document.getElementById('currentRoleLabel').textContent = role.replace('_', ' ').toUpperCase();
+        document.getElementById('currentRoleLabel').textContent = role.replace(/_/g, ' ').toUpperCase();
         
         const permissions = this.permissionSystem.getRolePermissions(role);
         
@@ -825,7 +654,7 @@ class AdminPanelEnhanced {
     }
 
     savePermissions() {
-        const activeRole = document.querySelector('.role-item.active')?.dataset.role;
+        const activeRole = document.querySelector('.ap-role-item.active')?.dataset.role;
         if (!activeRole) return;
 
         const permissions = Array.from(document.querySelectorAll('.permission-checkbox:checked'))

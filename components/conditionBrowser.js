@@ -1083,6 +1083,7 @@ class ConditionBrowser {
         const chipsContainer = container.querySelector('.entity-chips');
         const chipsWrapper = container.querySelector('.entity-chips-container');
         const clearBtn = container.querySelector('.btn-clear-entities');
+        const { signal } = this.abortController;
 
         // Track selected entities
         let selectedEntities = [];
@@ -1102,7 +1103,7 @@ class ConditionBrowser {
                 this.toggleEntity(entity, selectedEntities, input, chipsContainer, chipsWrapper);
                 this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
             }
-        });
+        }, { signal });
 
         // Clear all button
         clearBtn.addEventListener('click', () => {
@@ -1110,7 +1111,7 @@ class ConditionBrowser {
             input.value = '';
             this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
             this.updateConditionPreview();
-        });
+        }, { signal });
 
         // Enter key to add custom entity
         searchInput.addEventListener('keydown', (e) => {
@@ -1129,7 +1130,7 @@ class ConditionBrowser {
                     this.updateConditionPreview();
                 }
             }
-        });
+        }, { signal });
 
         // Search functionality
         searchInput.addEventListener('input', (e) => {
@@ -1153,14 +1154,14 @@ class ConditionBrowser {
                 // Hide category if no visible items
                 category.style.display = visibleCount > 0 ? '' : 'none';
             });
-        });
+        }, { signal });
 
         // Sync input changes back to chips
         input.addEventListener('input', () => {
             const value = input.value.trim();
             selectedEntities = value ? value.split(',').map(e => e.trim()).filter(e => e) : [];
             this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
-        });
+        }, { signal });
     }
 
     /**

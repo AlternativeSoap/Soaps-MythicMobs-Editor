@@ -605,8 +605,13 @@ class MythicMobsEditor {
                 this.duplicateCurrentItem();
             }
             
-            // Return to dashboard (ESC)
+            // Return to dashboard (ESC) — only when no modal/overlay is open
             else if (e.key === 'Escape' && this.state.currentView !== 'dashboard') {
+                // modalKeyboardNav.js handles ESC for open modals (capture phase).
+                // As a belt-and-suspenders guard we also check here so that if the
+                // capture handler somehow didn't stop propagation we still don't
+                // accidentally navigate away while a modal is visible.
+                if (window.isAnyModalOpen && window.isAnyModalOpen()) return;
                 e.preventDefault();
                 this.goToDashboard();
             }

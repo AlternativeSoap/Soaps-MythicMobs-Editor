@@ -102,290 +102,328 @@ class AdminPanel {
 
         const modalHTML = `
             <div id="adminPanelOverlay" class="modal-overlay" style="display: none; z-index: 10000;">
-                <div class="modal-content admin-panel-modal" style="max-width: 1400px; height: 90vh; max-height: 1000px;">
-                    <!-- Header -->
-                    <div class="modal-header">
-                        <h2>
+                <div class="modal-content admin-panel-modal" style="max-width: 1200px; height: 90vh; max-height: 960px;">
+
+                    <!-- Slim header bar -->
+                    <div class="ap-header">
+                        <div class="ap-header-brand">
                             <i class="fas fa-shield-alt"></i>
-                            Admin Panel
+                            <span>Admin Panel</span>
                             <span id="adminPanelRoleBadge"></span>
-                        </h2>
+                        </div>
                         <button class="btn-close" id="adminPanelClose">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
-                    
-                    <!-- Tabs -->
-                    <div class="admin-panel-tabs">
-                        <button class="admin-tab active" data-tab="templates">
-                            <i class="fas fa-layer-group"></i>
-                            <span>Official Templates</span>
-                        </button>
-                        <button class="admin-tab" data-tab="browsers" id="adminTabBrowsers">
-                            <i class="fas fa-database"></i>
-                            <span>Browser Management</span>
-                        </button>
-                        <button class="admin-tab" data-tab="users" id="adminTabUsers">
-                            <i class="fas fa-users"></i>
-                            <span>Users</span>
-                        </button>
-                        <button class="admin-tab" data-tab="activity">
-                            <i class="fas fa-history"></i>
-                            <span>Activity Log</span>
-                        </button>
-                    </div>
-                    
-                    <!-- Tab Contents -->
-                    <div class="admin-panel-body">
-                        <!-- Templates Tab -->
-                        <div class="admin-tab-content active" data-tab-content="templates">
-                            <div class="admin-section-header">
-                                <div>
-                                    <h3>Official Templates</h3>
-                                    <p>Create and manage official skill templates</p>
-                                </div>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <button class="btn btn-secondary" id="btnImportYAML" title="Import multiple templates from YAML files">
-                                        <i class="fas fa-file-import"></i> Import from YAML
-                                    </button>
-                                    <button class="btn btn-primary" id="btnCreateOfficialTemplate">
-                                        <i class="fas fa-plus"></i> Create Official Template
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="admin-templates-filters">
-                                <input type="text" id="adminTemplateSearch" class="form-input" placeholder="Search templates...">
-                                <select id="adminTemplateSourceFilter" class="form-select">
-                                    <option value="all">All Templates</option>
-                                    <option value="official">Official Only</option>
-                                    <option value="user">User-Made Only</option>
-                                </select>
-                                <select id="adminTemplateTypeFilter" class="form-select">
-                                    <option value="all">All Types</option>
-                                    <option value="skill">Skill</option>
-                                    <option value="mob">Mob</option>
-                                </select>
-                                <select id="adminTemplateStructureFilter" class="form-select">
-                                    <option value="all">All Structures</option>
-                                    <option value="single">Single</option>
-                                    <option value="pack">Pack</option>
-                                </select>
-                                <select id="adminTemplateApprovalFilter" class="form-select">
-                                    <option value="all">All Status</option>
-                                    <option value="pending">⏳ Pending Approval</option>
-                                    <option value="approved">✅ Approved</option>
-                                    <option value="rejected">❌ Rejected</option>
-                                </select>
-                            </div>
-                            
-                            <!-- Bulk Action Bar -->
-                            <div id="adminBulkActionBar" class="admin-bulk-action-bar" style="display: none;">
-                                <div class="bulk-action-info">
-                                    <label class="checkbox-wrapper">
-                                        <input type="checkbox" id="adminSelectAllTemplates">
-                                        <span class="checkmark"></span>
-                                    </label>
-                                    <span id="adminSelectedCount">0 selected</span>
-                                </div>
-                                <div class="bulk-actions">
-                                    <button class="btn btn-sm btn-secondary" id="btnSelectAllVisible">
-                                        <i class="fas fa-check-double"></i> Select All Visible
-                                    </button>
-                                    <button class="btn btn-sm btn-secondary" id="btnDeselectAll">
-                                        <i class="fas fa-times"></i> Deselect All
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" id="btnDeleteSelected">
-                                        <i class="fas fa-trash"></i> Delete Selected
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div id="adminTemplatesList" class="admin-templates-grid"></div>
-                        </div>
-                        
-                        <!-- Browser Management Tab -->
-                        <div class="admin-tab-content" data-tab-content="browsers">
-                            <div class="admin-section-header">
-                                <div>
-                                    <h3>Browser Management</h3>
-                                    <p>Manage custom mechanics, conditions, triggers, and targeters</p>
-                                </div>
-                                <div class="browser-type-selector">
-                                    <select id="browserTypeSelect" class="form-select browser-type-selector">
-                                        <option value="mechanics">⚙️ Mechanics (180+)</option>
-                                        <option value="conditions">🔍 Conditions (100+)</option>
-                                        <option value="triggers">⚡ Triggers (32)</option>
-                                        <option value="targeters">🎯 Targeters (50+)</option>
-                                    </select>
-                                </div>
+
+                    <!-- Workspace: sidebar + content -->
+                    <div class="ap-workspace">
+
+                        <!-- Sidebar -->
+                        <aside class="ap-sidebar">
+                            <!-- Nav label + core tabs -->
+                            <div class="admin-panel-tabs">
+                                <div class="ap-nav-label">Manage</div>
+                                <button class="admin-tab active" data-tab="templates">
+                                    <i class="fas fa-layer-group"></i>
+                                    <span>Templates</span>
+                                    <span class="admin-tab-badge" id="pendingTemplateBadge"></span>
+                                </button>
+                                <button class="admin-tab" data-tab="browsers" id="adminTabBrowsers">
+                                    <i class="fas fa-database"></i>
+                                    <span>Browsers</span>
+                                </button>
+                                <button class="admin-tab" data-tab="users" id="adminTabUsers">
+                                    <i class="fas fa-users"></i>
+                                    <span>Users</span>
+                                </button>
+                                <button class="admin-tab" data-tab="activity">
+                                    <i class="fas fa-history"></i>
+                                    <span>Activity Log</span>
+                                </button>
+                                <!-- Divider before enhanced system tabs -->
+                                <div class="ap-nav-divider"></div>
+                                <div class="ap-nav-label">System</div>
+                                <!-- Error Console, Permissions, Analytics, Settings
+                                     are appended here by adminPanelEnhanced.js -->
                             </div>
 
-                            <div class="browser-management-container">
-                                <!-- Custom Items Section -->
-                                <div class="browser-section">
-                                    <div class="section-header">
-                                        <h4>Custom Items</h4>
-                                        <button class="btn btn-primary btn-sm" id="btnAddCustomItem">
-                                            <i class="fas fa-plus"></i> <span id="btnAddCustomItemText">Add Custom</span>
+                            <!-- Live stats footer -->
+                            <div class="ap-sidebar-footer" id="adminQuickStats">
+                                <div class="ap-stat-row">
+                                    <div class="ap-stat-icon purple"><i class="fas fa-users"></i></div>
+                                    <div class="ap-stat-info">
+                                        <span class="ap-stat-val" id="qsUsers">—</span>
+                                        <span class="ap-stat-lbl">Total Users</span>
+                                    </div>
+                                </div>
+                                <div class="ap-stat-row">
+                                    <div class="ap-stat-icon green"><i class="fas fa-layer-group"></i></div>
+                                    <div class="ap-stat-info">
+                                        <span class="ap-stat-val" id="qsTemplates">—</span>
+                                        <span class="ap-stat-lbl">Templates</span>
+                                    </div>
+                                </div>
+                                <div class="ap-stat-row ap-stat-pending">
+                                    <div class="ap-stat-icon amber"><i class="fas fa-hourglass-half"></i></div>
+                                    <div class="ap-stat-info">
+                                        <span class="ap-stat-val" id="qsPending">—</span>
+                                        <span class="ap-stat-lbl">Pending</span>
+                                    </div>
+                                </div>
+                                <div class="ap-stat-row">
+                                    <div class="ap-stat-icon blue"><i class="fas fa-wifi"></i></div>
+                                    <div class="ap-stat-info">
+                                        <span class="ap-stat-val" id="qsOnline">—</span>
+                                        <span class="ap-stat-lbl">Online Now</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </aside>
+
+                        <!-- Content area -->
+                        <div class="admin-panel-body">
+                            <!-- Templates Tab -->
+                            <div class="admin-tab-content active" data-tab-content="templates">
+                                <div class="ap-tab-top">
+                                    <div class="ap-tab-top-left">
+                                        <h3>Templates</h3>
+                                        <p>Review, approve and manage official skill templates</p>
+                                    </div>
+                                    <div class="ap-tab-top-right">
+                                        <button class="btn btn-secondary btn-sm" id="btnImportYAML">
+                                            <i class="fas fa-file-import"></i> Import YAML
+                                        </button>
+                                        <button class="btn btn-primary btn-sm" id="btnCreateOfficialTemplate">
+                                            <i class="fas fa-plus"></i> New
                                         </button>
                                     </div>
-                                    <div class="browser-filters">
-                                        <input type="text" id="customItemSearch" class="form-input" placeholder="Search custom items...">
-                                    </div>
-                                    <div id="customItemsList" class="browser-items-list"></div>
                                 </div>
 
-                                <!-- Built-in Items Section -->
-                                <div class="browser-section" id="builtInSection">
-                                    <div class="section-header">
-                                        <h4>Built-in Items</h4>
-                                        <span class="badge" id="hiddenCountBadge">0 hidden</span>
-                                    </div>
-                                    <div class="browser-filters">
-                                        <input type="text" id="builtInSearch" class="form-input" placeholder="Search built-in items...">
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" id="showHiddenOnly">
-                                            <span>Show hidden only</span>
-                                        </label>
-                                    </div>
-                                    <div id="builtInItemsList" class="browser-items-list"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Users Tab (Super Admin Only) -->
-                        <div class="admin-tab-content" data-tab-content="users">
-                            <div class="admin-section-header">
-                                <div>
-                                    <h3><i class="fas fa-users"></i> Users</h3>
-                                    <p>View all users and manage admin roles</p>
-                                </div>
-                                <div style="display: flex; gap: 10px; align-items: center;">
-                                    <select id="usersViewFilter" class="form-select" style="width: 180px;">
-                                        <option value="all">👥 All Users</option>
-                                        <option value="admins">👑 Admin Users</option>
-                                        <option value="unverified">📧 Unverified Email</option>
+                                <div class="ap-filter-row">
+                                    <input type="text" id="adminTemplateSearch" class="form-input" placeholder="Search templates...">
+                                    <select id="adminTemplateSourceFilter" class="form-select">
+                                        <option value="all">All Sources</option>
+                                        <option value="official">Official</option>
+                                        <option value="user">User-Made</option>
                                     </select>
-                                    <button class="btn btn-secondary" id="btnSyncProfiles" title="Sync missing user profiles from auth system">
-                                        <i class="fas fa-sync-alt"></i> Sync Profiles
-                                    </button>
-                                    <button class="btn btn-primary" id="btnGrantRole">
-                                        <i class="fas fa-user-plus"></i> Grant Admin Role
-                                    </button>
+                                    <select id="adminTemplateTypeFilter" class="form-select">
+                                        <option value="all">All Types</option>
+                                        <option value="skill">Skill</option>
+                                        <option value="mob">Mob</option>
+                                    </select>
+                                    <select id="adminTemplateStructureFilter" class="form-select">
+                                        <option value="all">All Structures</option>
+                                        <option value="single">Single</option>
+                                        <option value="pack">Pack</option>
+                                    </select>
+                                    <select id="adminTemplateApprovalFilter" class="form-select">
+                                        <option value="all">All Status</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="rejected">Rejected</option>
+                                    </select>
                                 </div>
+
+                                <div id="adminResultsCount" class="admin-results-count"></div>
+
+                                <div id="adminBulkActionBar" class="admin-bulk-action-bar" style="display: none;">
+                                    <div class="bulk-action-info">
+                                        <label class="checkbox-wrapper">
+                                            <input type="checkbox" id="adminSelectAllTemplates">
+                                            <span class="checkmark"></span>
+                                        </label>
+                                        <span id="adminSelectedCount">0 selected</span>
+                                    </div>
+                                    <div class="bulk-actions">
+                                        <button class="btn btn-sm btn-secondary" id="btnSelectAllVisible">
+                                            <i class="fas fa-check-double"></i> All Visible
+                                        </button>
+                                        <button class="btn btn-sm btn-secondary" id="btnDeselectAll">
+                                            <i class="fas fa-times"></i> Deselect
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" id="btnDeleteSelected">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div id="adminTemplatesList" class="admin-templates-grid"></div>
                             </div>
-                            
-                            <!-- Sync Warning Banner (hidden by default) -->
-                            <div id="usersSyncWarning" class="admin-warning-banner" style="display: none; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; display: none;">
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <i class="fas fa-exclamation-triangle" style="color: #f59e0b; font-size: 18px;"></i>
-                                    <div style="flex: 1;">
-                                        <strong style="color: #f59e0b;">Some users may be missing</strong>
-                                        <p style="margin: 4px 0 0; font-size: 12px; color: var(--text-secondary);">
-                                            Users who signed up before profile auto-creation was enabled won't appear here until they log in again.
-                                            Click "Sync Profiles" to create missing profiles (requires database RPC function).
-                                        </p>
+
+                            <!-- Browser Management Tab -->
+                            <div class="admin-tab-content" data-tab-content="browsers">
+                                <div class="ap-tab-top">
+                                    <div class="ap-tab-top-left">
+                                        <h3>Browser Management</h3>
+                                        <p>Custom and built-in mechanics, conditions, triggers &amp; targeters</p>
+                                    </div>
+                                    <div class="ap-tab-top-right">
+                                        <select id="browserTypeSelect" class="form-select">
+                                            <option value="mechanics">⚙️ Mechanics</option>
+                                            <option value="conditions">🔍 Conditions</option>
+                                            <option value="triggers">⚡ Triggers</option>
+                                            <option value="targeters">🎯 Targeters</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="browser-management-container">
+                                    <div class="browser-section">
+                                        <div class="section-header">
+                                            <h4>Custom <span id="btnAddCustomItemText">Items</span></h4>
+                                            <button class="btn btn-primary btn-sm" id="btnAddCustomItem">
+                                                <i class="fas fa-plus"></i> Add
+                                            </button>
+                                        </div>
+                                        <div class="browser-filters">
+                                            <input type="text" id="customItemSearch" class="form-input" placeholder="Search custom items...">
+                                        </div>
+                                        <div id="customItemsList" class="browser-items-list"></div>
+                                    </div>
+
+                                    <div class="browser-section" id="builtInSection">
+                                        <div class="section-header">
+                                            <h4>Built-in <span class="badge" id="hiddenCountBadge">0 hidden</span></h4>
+                                            <label class="checkbox-label">
+                                                <input type="checkbox" id="showHiddenOnly">
+                                                <span>Hidden only</span>
+                                            </label>
+                                        </div>
+                                        <div class="browser-filters">
+                                            <input type="text" id="builtInSearch" class="form-input" placeholder="Search built-in items...">
+                                        </div>
+                                        <div id="builtInItemsList" class="browser-items-list"></div>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Users Stats Row -->
-                            <div class="users-stats-row" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 20px;">
-                                <div class="users-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
-                                    <div style="font-size: 24px; font-weight: bold; color: #8b5cf6;" id="statTotalUsers">-</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">Total Users</div>
+
+                            <!-- Users Tab -->
+                            <div class="admin-tab-content" data-tab-content="users">
+                                <div class="ap-tab-top">
+                                    <div class="ap-tab-top-left">
+                                        <h3>Users</h3>
+                                        <p>Manage user accounts and admin roles</p>
+                                    </div>
+                                    <div class="ap-tab-top-right">
+                                        <select id="usersViewFilter" class="form-select">
+                                            <option value="all">All Users</option>
+                                            <option value="admins">Admins Only</option>
+                                            <option value="unverified">Unverified</option>
+                                        </select>
+                                        <button class="btn btn-secondary btn-sm" id="btnSyncProfiles" title="Sync missing user profiles">
+                                            <i class="fas fa-sync-alt"></i> Sync
+                                        </button>
+                                        <button class="btn btn-primary btn-sm" id="btnGrantRole">
+                                            <i class="fas fa-user-plus"></i> Grant Role
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="users-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
-                                    <div style="font-size: 24px; font-weight: bold; color: #f59e0b;" id="statAdminUsers">-</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">Admin Users</div>
+
+                                <div id="usersSyncWarning" class="ap-warning-banner" style="display: none;">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <div>
+                                        <strong>Some users may be missing</strong>
+                                        <p>Users who signed up before profile auto-creation was enabled won’t appear here until they log in again. Click “Sync” to fix this.</p>
+                                    </div>
                                 </div>
-                                <div class="users-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
-                                    <div style="font-size: 24px; font-weight: bold; color: #10b981;" id="statNewUsers">-</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">New (7 days)</div>
+
+                                <div class="ap-mini-stats">
+                                    <div class="ap-mini-stat c-purple">
+                                        <div class="ap-mini-stat-icon"><i class="fas fa-users"></i></div>
+                                        <div><div class="ap-mini-stat-val" id="statTotalUsers">-</div><div class="ap-mini-stat-lbl">Total</div></div>
+                                    </div>
+                                    <div class="ap-mini-stat c-amber">
+                                        <div class="ap-mini-stat-icon"><i class="fas fa-crown"></i></div>
+                                        <div><div class="ap-mini-stat-val" id="statAdminUsers">-</div><div class="ap-mini-stat-lbl">Admins</div></div>
+                                    </div>
+                                    <div class="ap-mini-stat c-green">
+                                        <div class="ap-mini-stat-icon"><i class="fas fa-user-plus"></i></div>
+                                        <div><div class="ap-mini-stat-val" id="statNewUsers">-</div><div class="ap-mini-stat-lbl">New (7d)</div></div>
+                                    </div>
+                                    <div class="ap-mini-stat c-blue">
+                                        <div class="ap-mini-stat-icon"><i class="fas fa-clock"></i></div>
+                                        <div><div class="ap-mini-stat-val" id="statActiveUsers">-</div><div class="ap-mini-stat-lbl">Active Today</div></div>
+                                    </div>
+                                    <div class="ap-mini-stat c-red">
+                                        <div class="ap-mini-stat-icon"><i class="fas fa-envelope-open"></i></div>
+                                        <div><div class="ap-mini-stat-val" id="statUnverifiedUsers">-</div><div class="ap-mini-stat-lbl">Unverified</div></div>
+                                    </div>
                                 </div>
-                                <div class="users-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
-                                    <div style="font-size: 24px; font-weight: bold; color: #3b82f6;" id="statActiveUsers">-</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">Active Today</div>
+
+                                <div class="ap-filter-row">
+                                    <input type="text" id="usersSearchInput" class="form-input" placeholder="Search users by email or username...">
                                 </div>
-                                <div class="users-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
-                                    <div style="font-size: 24px; font-weight: bold; color: #ef4444;" id="statUnverifiedUsers">-</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">Unverified</div>
-                                </div>
+
+                                <div id="adminUsersList" class="admin-users-list"></div>
                             </div>
-                            
-                            <!-- Search Bar -->
-                            <div style="margin-bottom: 15px;">
-                                <input type="text" id="usersSearchInput" class="form-input" placeholder="Search users by email or username..." style="width: 100%;">
+
+                            <!-- Activity Tab -->
+                            <div class="admin-tab-content" data-tab-content="activity">
+                                <div class="ap-tab-top">
+                                    <div class="ap-tab-top-left">
+                                        <h3>Activity Log</h3>
+                                        <p>Real-time tracking of user and admin actions</p>
+                                    </div>
+                                    <div class="ap-tab-top-right">
+                                        <button class="btn btn-danger btn-sm" id="btnClearActivityLog">
+                                            <i class="fas fa-trash-alt"></i> Clear
+                                        </button>
+                                        <button class="btn btn-secondary btn-sm" id="btnRefreshActivity">
+                                            <i class="fas fa-sync-alt"></i> Refresh
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="ap-mini-stats">
+                                    <div class="ap-mini-stat c-green">
+                                        <div class="ap-mini-stat-icon"><i class="fas fa-calendar-day"></i></div>
+                                        <div><div class="ap-mini-stat-val" id="activityTodayCount">-</div><div class="ap-mini-stat-lbl">Today</div></div>
+                                    </div>
+                                    <div class="ap-mini-stat c-purple">
+                                        <div class="ap-mini-stat-icon"><i class="fas fa-calendar-week"></i></div>
+                                        <div><div class="ap-mini-stat-val" id="activityWeekCount">-</div><div class="ap-mini-stat-lbl">This Week</div></div>
+                                    </div>
+                                    <div class="ap-mini-stat c-amber">
+                                        <div class="ap-mini-stat-icon"><i class="fas fa-user-check"></i></div>
+                                        <div><div class="ap-mini-stat-val" id="activityUniqueUsers">-</div><div class="ap-mini-stat-lbl">Active Users</div></div>
+                                    </div>
+                                    <div class="ap-mini-stat c-blue">
+                                        <div class="ap-mini-stat-icon"><i class="fas fa-list"></i></div>
+                                        <div><div class="ap-mini-stat-val" id="activityTotalCount">-</div><div class="ap-mini-stat-lbl">Total Logs</div></div>
+                                    </div>
+                                </div>
+
+                                <div class="ap-filter-row">
+                                    <input type="text" id="activitySearchInput" class="form-input" placeholder="Search activities...">
+                                    <select id="activityTypeFilter" class="form-select">
+                                        <option value="all">All Types</option>
+                                        <option value="login">Logins</option>
+                                        <option value="template">Templates</option>
+                                        <option value="pack">Packs</option>
+                                        <option value="mob">Mobs</option>
+                                        <option value="skill">Skills</option>
+                                        <option value="export">Exports</option>
+                                        <option value="admin">Admin Actions</option>
+                                    </select>
+                                    <select id="activityTimeFilter" class="form-select">
+                                        <option value="all">All Time</option>
+                                        <option value="1h">Last Hour</option>
+                                        <option value="24h">Last 24h</option>
+                                        <option value="7d">Last 7 Days</option>
+                                        <option value="30d">Last 30 Days</option>
+                                    </select>
+                                </div>
+
+                                <div id="adminActivityList" class="admin-activity-list"></div>
                             </div>
-                            
-                            <div id="adminUsersList" class="admin-users-list"></div>
-                        </div>
-                        
-                        <!-- Activity Tab -->
-                        <div class="admin-tab-content" data-tab-content="activity">
-                            <div class="admin-section-header">
-                                <div>
-                                    <h3><i class="fas fa-stream"></i> Activity Log</h3>
-                                    <p>Real-time tracking of user and admin actions</p>
-                                </div>
-                                <div style="display: flex; gap: 10px;">
-                                    <button class="btn btn-danger btn-sm" id="btnClearActivityLog" title="Clear all activity logs">
-                                        <i class="fas fa-trash-alt"></i> Clear Logs
-                                    </button>
-                                    <button class="btn btn-secondary" id="btnRefreshActivity">
-                                        <i class="fas fa-sync-alt"></i> Refresh
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <!-- Activity Stats Summary -->
-                            <div class="activity-stats-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
-                                <div class="activity-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
-                                    <div style="font-size: 24px; font-weight: bold; color: #10b981;" id="activityTodayCount">-</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">Today</div>
-                                </div>
-                                <div class="activity-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
-                                    <div style="font-size: 24px; font-weight: bold; color: #8b5cf6;" id="activityWeekCount">-</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">This Week</div>
-                                </div>
-                                <div class="activity-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
-                                    <div style="font-size: 24px; font-weight: bold; color: #f59e0b;" id="activityUniqueUsers">-</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">Active Users</div>
-                                </div>
-                                <div class="activity-stat-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; text-align: center;">
-                                    <div style="font-size: 24px; font-weight: bold; color: #3b82f6;" id="activityTotalCount">-</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">Total Logs</div>
-                                </div>
-                            </div>
-                            
-                            <!-- Activity Filters -->
-                            <div class="activity-filters" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-                                <input type="text" id="activitySearchInput" class="form-input" placeholder="Search activities..." style="flex: 1; min-width: 200px;">
-                                <select id="activityTypeFilter" class="form-select" style="width: 180px;">
-                                    <option value="all">All Activity Types</option>
-                                    <option value="login">🔐 Logins</option>
-                                    <option value="template">📝 Templates</option>
-                                    <option value="pack">📦 Packs</option>
-                                    <option value="mob">💀 Mobs</option>
-                                    <option value="skill">✨ Skills</option>
-                                    <option value="export">📤 Exports</option>
-                                    <option value="admin">👑 Admin Actions</option>
-                                </select>
-                                <select id="activityTimeFilter" class="form-select" style="width: 150px;">
-                                    <option value="all">All Time</option>
-                                    <option value="1h">Last Hour</option>
-                                    <option value="24h">Last 24 Hours</option>
-                                    <option value="7d">Last 7 Days</option>
-                                    <option value="30d">Last 30 Days</option>
-                                </select>
-                            </div>
-                            
-                            <div id="adminActivityList" class="admin-activity-list" style="max-height: 500px; overflow-y: auto;"></div>
-                        </div>
+                        <!-- /admin-panel-body -->
                     </div>
+                    <!-- /ap-workspace -->
                 </div>
+                <!-- /modal-content -->
             </div>
+            <!-- /adminPanelOverlay -->
         `;
 
         document.body.insertAdjacentHTML('beforeend', modalHTML);
@@ -437,7 +475,25 @@ class AdminPanel {
         document.getElementById('adminPanelOverlay')?.addEventListener('click', (e) => {
             if (e.target.id === 'adminPanelOverlay') this.close();
         });
-        
+
+        // Arrow key navigation between sidebar nav items (Up/Down when not focused on input)
+        document.getElementById('adminPanelOverlay')?.addEventListener('keydown', (e) => {
+            if (!['ArrowUp', 'ArrowDown'].includes(e.key)) return;
+            const tag = document.activeElement?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+            const tabs = [...document.querySelectorAll('.admin-panel-tabs .admin-tab')]
+                .filter(t => t.style.display !== 'none');
+            if (!tabs.length) return;
+            const currentIdx = tabs.findIndex(t => t.classList.contains('active'));
+            if (currentIdx === -1) return;
+            const newIdx = e.key === 'ArrowDown'
+                ? (currentIdx + 1) % tabs.length
+                : (currentIdx - 1 + tabs.length) % tabs.length;
+            e.preventDefault();
+            this.switchTab(tabs[newIdx].dataset.tab);
+            tabs[newIdx].focus();
+        });
+
         // Tab switching
         document.querySelectorAll('.admin-tab').forEach(tab => {
             let tabTouchHandled = false;
@@ -655,6 +711,7 @@ class AdminPanel {
         
         // Load initial data
         await this.loadTemplates();
+        this.loadQuickStats(); // non-blocking
     }
 
     /**
@@ -662,6 +719,53 @@ class AdminPanel {
      */
     close() {
         document.getElementById('adminPanelOverlay').style.display = 'none';
+    }
+
+    /**
+     * Load quick stats bar — fires non-blocking after panel opens
+     */
+    async loadQuickStats() {
+        const set = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        };
+
+        try {
+            // Fetch counts from Supabase in parallel
+            const supabase = window.supabaseClient || window._supabase;
+            if (!supabase) return;
+
+            const [usersRes, templatesRes, pendingRes, onlineRes] = await Promise.all([
+                supabase.from('profiles').select('id', { count: 'exact', head: true }),
+                supabase.from('skill_templates').select('id', { count: 'exact', head: true }),
+                supabase.from('skill_templates').select('id', { count: 'exact', head: true }).eq('approval_status', 'pending'),
+                supabase.from('profiles').select('id', { count: 'exact', head: true })
+                    .gte('last_seen_at', new Date(Date.now() - 15 * 60 * 1000).toISOString())
+            ]);
+
+            const totalUsers    = usersRes.count    ?? '?';
+            const totalTemplates = templatesRes.count ?? '?';
+            const pendingCount  = pendingRes.count   ?? 0;
+            const onlineCount   = onlineRes.count    ?? '?';
+
+            set('qsUsers',     totalUsers);
+            set('qsTemplates', totalTemplates);
+            set('qsPending',   pendingCount);
+            set('qsOnline',    onlineCount);
+
+            // Show/update pending template badge
+            const badge = document.getElementById('pendingTemplateBadge');
+            if (badge) {
+                if (pendingCount > 0) {
+                    badge.textContent = pendingCount > 99 ? '99+' : pendingCount;
+                    badge.classList.add('show');
+                } else {
+                    badge.classList.remove('show');
+                }
+            }
+        } catch (err) {
+            console.warn('[AdminPanel] loadQuickStats failed:', err);
+        }
     }
 
     /**
@@ -698,6 +802,7 @@ class AdminPanel {
     async loadTemplates() {
         try {
             const sourceFilter = document.getElementById('adminTemplateSourceFilter')?.value || 'all';
+            this._showSkeletonLoader(6);
             const templates = await this.adminManager.getAllTemplates(sourceFilter);
             this.allTemplates = templates;
             this.renderTemplates(templates);
@@ -725,11 +830,57 @@ class AdminPanel {
     }
 
     /**
+     * Show skeleton placeholder cards while templates load
+     */
+    _showSkeletonLoader(n = 6) {
+        const container = this._getElement('adminTemplatesList');
+        if (!container) return;
+        let html = '';
+        for (let i = 0; i < n; i++) {
+            html += `
+                <div class="admin-skeleton-card">
+                    <div class="admin-skeleton-line wide"></div>
+                    <div class="admin-skeleton-line medium"></div>
+                    <div class="admin-skeleton-line short"></div>
+                    <div class="admin-skeleton-actions">
+                        <div class="admin-skeleton-btn"></div>
+                        <div class="admin-skeleton-btn"></div>
+                        <div class="admin-skeleton-btn"></div>
+                    </div>
+                </div>`;
+        }
+        container.innerHTML = html;
+        const countEl = document.getElementById('adminResultsCount');
+        if (countEl) countEl.textContent = 'Loading…';
+    }
+
+    /**
+     * Update the results count bar above the template grid
+     */
+    _updateResultsCount(shown, total) {
+        const countEl = document.getElementById('adminResultsCount');
+        if (!countEl) return;
+        if (shown === total) {
+            countEl.innerHTML = `Showing <strong>${total}</strong> template${total !== 1 ? 's' : ''}`;
+        } else {
+            countEl.innerHTML = `Showing <strong>${shown}</strong> of <strong>${total}</strong> templates`;
+        }
+    }
+
+    /**
      * Render templates grid - OPTIMIZED with document fragments and virtual rendering
      */
     renderTemplates(templates) {
         const container = this._getElement('adminTemplatesList');
         if (!container) return;
+
+        // Sort: pending first, then rejected, then approved
+        const statusOrder = { pending: 0, rejected: 1, approved: 2 };
+        templates = [...templates].sort((a, b) => {
+            const sa = statusOrder[a.approval_status ?? 'approved'] ?? 2;
+            const sb = statusOrder[b.approval_status ?? 'approved'] ?? 2;
+            return sa - sb;
+        });
 
         // Clear selection state when re-rendering templates
         this._selectedTemplates.clear();
@@ -739,12 +890,14 @@ class AdminPanel {
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
-                    <p>No official templates yet</p>
-                    <button class="btn btn-primary" onclick="window.adminPanel.createOfficialTemplate()">
-                        <i class="fas fa-plus"></i> Create First Template
-                    </button>
+                    <p>${this.allTemplates && this.allTemplates.length > 0 ? 'No templates match your filters' : 'No official templates yet'}</p>
+                    ${(!this.allTemplates || this.allTemplates.length === 0) ? `
+                        <button class="btn btn-primary" onclick="window.adminPanel.createOfficialTemplate()">
+                            <i class="fas fa-plus"></i> Create First Template
+                        </button>` : ''}
                 </div>
             `;
+            this._updateResultsCount(0, this.allTemplates?.length ?? 0);
             return;
         }
 
@@ -758,6 +911,7 @@ class AdminPanel {
         // PERFORMANCE: Build HTML in chunks for large lists
         const CHUNK_SIZE = 50;
         const totalTemplates = templates.length;
+        const allCount = this.allTemplates?.length ?? totalTemplates;
         
         // For lists under 100, render all at once
         if (totalTemplates <= 100) {
@@ -767,6 +921,7 @@ class AdminPanel {
             }
             container.innerHTML = '';
             container.appendChild(fragment);
+            this._updateResultsCount(totalTemplates, allCount);
         } else {
             // PERFORMANCE: Virtual rendering for large lists - show first 50, lazy load rest
             const initialTemplates = templates.slice(0, CHUNK_SIZE);
@@ -776,6 +931,7 @@ class AdminPanel {
             }
             container.innerHTML = '';
             container.appendChild(fragment);
+            this._updateResultsCount(totalTemplates, allCount);
             
             // Add "Load More" button if there are more templates
             if (totalTemplates > CHUNK_SIZE) {
@@ -871,7 +1027,7 @@ class AdminPanel {
                         <span class="badge badge-${template.type || 'skill'}">${(template.type || 'skill').toUpperCase()}</span>
                         <span class="badge">${template.structure_type || 'single'}</span>
                         ${template.category ? `<span class="badge">${template.category}</span>` : ''}
-                        <span class="badge ${statusInfo.class}" style="background: ${statusInfo.color};">${statusInfo.icon} ${statusInfo.label}</span>
+                        <span class="badge ${statusInfo.class}">${statusInfo.icon} ${statusInfo.label}</span>
                     </div>
                 </div>
                 <div class="template-actions">
@@ -912,11 +1068,15 @@ class AdminPanel {
                     </div>
                 </div>
                 ${template.rejection_reason ? `
-                    <div class="rejection-reason" style="margin-top: 10px; padding: 8px; background: rgba(239, 68, 68, 0.1); border-radius: 4px; border-left: 3px solid #ef4444;">
-                        <small style="color: #ef4444;"><i class="fas fa-exclamation-circle"></i> Rejection reason:</small>
-                        <p style="margin: 5px 0 0 0; font-size: 13px;">${template.rejection_reason}</p>
+                    <div class="rejection-reason-box">
+                        <span class="rejection-label"><i class="fas fa-exclamation-circle"></i> Rejection reason:</span>
+                        <p class="rejection-text">${template.rejection_reason}</p>
                     </div>
                 ` : ''}
+            </div>
+            <div class="template-card-footer">
+                <span><i class="fas fa-calendar-alt"></i> Created: ${this.formatDate(template.created_at) || 'Unknown'}</span>
+                <span style="opacity:0.5; font-size:10px; font-family:monospace;">#${String(template.id).slice(0, 8)}</span>
             </div>
         </div>
     `;
@@ -1034,8 +1194,9 @@ class AdminPanel {
             // Log activity
             await this.adminManager.logActivity('approve_template', { templateId, templateName });
 
-            // Refresh templates list
+            // Refresh templates list and quick stats
             await this.loadTemplates();
+            this.loadQuickStats();
         } catch (error) {
             console.error('Error approving template:', error);
             window.notificationModal?.alert(
@@ -1110,8 +1271,9 @@ class AdminPanel {
             // Log activity
             await this.adminManager.logActivity('reject_template', { templateId, templateName, reason });
 
-            // Refresh templates list
+            // Refresh templates list and quick stats
             await this.loadTemplates();
+            this.loadQuickStats();
         } catch (error) {
             console.error('Error rejecting template:', error);
             window.notificationModal?.alert(

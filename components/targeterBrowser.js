@@ -284,32 +284,25 @@ class TargeterBrowser {
             this.confirmAttributeConfiguration();
         }, { signal });
         
-        // Add keyboard support for attribute modal
-        document.addEventListener('keydown', (e) => {
-            const attrOverlay = document.getElementById('targeterAttributeOverlay');
-            if (attrOverlay && attrOverlay.classList.contains('active')) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.confirmAttributeConfiguration();
-                } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    this.showTargeterSelection();
-                }
-            }
-        }, { signal });
-
         // Enhanced keyboard navigation
         document.addEventListener('keydown', (e) => {
-            const attrOverlay = document.getElementById('targeterAttributeOverlay');
+            const configStep = document.getElementById('targeterConfigurationStep');
             const browserOverlay = document.getElementById('targeterBrowserOverlay');
             
             // Escape key handling
             if (e.key === 'Escape') {
-                if (attrOverlay && attrOverlay.classList.contains('active')) {
+                if (configStep && configStep.classList.contains('active')) {
                     this.closeAttributeModal();
                 } else if (browserOverlay && browserOverlay.style.display === 'flex') {
                     this.close();
                 }
+                return;
+            }
+
+            // Enter key in attribute configuration
+            if (e.key === 'Enter' && !e.shiftKey && configStep && configStep.classList.contains('active')) {
+                e.preventDefault();
+                this.confirmAttributeConfiguration();
                 return;
             }
             
@@ -881,18 +874,20 @@ class TargeterBrowser {
             targeterString += `{${attributes.join(';')}}`;
         }
 
-        this.closeAttributeModal();
         this.saveRecentTargeter(this.currentTargeter.id);
         
-        // Store callback before closing (close() sets it to null)
+        // Store references before closing (closeAttributeModal/close set them to null)
         const callback = this.onSelectCallback;
+        const targeter = this.currentTargeter;
         
         // Set flag BEFORE calling callback to prevent double callback
         this.callbackInvoked = true;
 
+        this.closeAttributeModal();
+
         if (callback) {
             callback({
-                targeter: this.currentTargeter,
+                targeter: targeter,
                 targeterString: targeterString
             });
         }
@@ -1031,6 +1026,7 @@ class TargeterBrowser {
         const chipsContainer = container.querySelector('.entity-chips');
         const chipsWrapper = container.querySelector('.entity-chips-container');
         const clearBtn = container.querySelector('.btn-clear-entities');
+        const { signal } = this.abortController;
 
         // Track selected entities
         let selectedEntities = [];
@@ -1050,7 +1046,7 @@ class TargeterBrowser {
                 this.toggleEntity(entity, selectedEntities, input, chipsContainer, chipsWrapper);
                 this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
             }
-        });
+        }, { signal });
 
         // Clear all button
         clearBtn.addEventListener('click', () => {
@@ -1058,7 +1054,7 @@ class TargeterBrowser {
             input.value = '';
             this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
             this.updateTargeterPreview();
-        });
+        }, { signal });
 
         // Enter key to add custom entity
         searchInput.addEventListener('keydown', (e) => {
@@ -1077,7 +1073,7 @@ class TargeterBrowser {
                     this.updateTargeterPreview();
                 }
             }
-        });
+        }, { signal });
 
         // Search functionality
         searchInput.addEventListener('input', (e) => {
@@ -1101,14 +1097,14 @@ class TargeterBrowser {
                 // Hide category if no visible items
                 category.style.display = visibleCount > 0 ? '' : 'none';
             });
-        });
+        }, { signal });
 
         // Sync input changes back to chips
         input.addEventListener('input', () => {
             const value = input.value.trim();
             selectedEntities = value ? value.split(',').map(e => e.trim()).filter(e => e) : [];
             this.updateEntityChips(chipsContainer, chipsWrapper, selectedEntities, input);
-        });
+        }, { signal });
     }
 
     /**

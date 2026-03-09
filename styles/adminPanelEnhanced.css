@@ -21,8 +21,8 @@
     background: var(--bg-tertiary);
     border-left: 3px solid var(--status-error);
     border-radius: 6px;
-    padding: 15px;
-    margin-bottom: 10px;
+    padding: 11px 14px;
+    margin-bottom: 8px;
 }
 
 .error-header {
@@ -258,13 +258,6 @@
 .btn-metric-reset:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
-}
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
 }
 
 .metric-icon {
@@ -699,18 +692,7 @@
     }
 }
 
-/* Button Danger Style */
-.btn-danger {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    color: white;
-    border: none;
-}
-
-.btn-danger:hover {
-    background: linear-gradient(135deg, #dc2626, #b91c1c);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-}
+/* btn-danger is defined in adminPanel.css — no override needed */
 
 /* Chart Period Buttons */
 .chart-period-btn {

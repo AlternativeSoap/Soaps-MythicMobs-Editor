@@ -300,7 +300,7 @@ class SkillLineBuilder {
                                 <i class="fas fa-save" style="margin-right: 6px;"></i>
                                 Save as Template
                             </button>
-                            <button class="btn btn-primary" id="btnAdd" disabled style="min-width: 140px; padding: 10px 24px; font-size: 14px;">
+                            <button class="btn btn-primary" id="btnAdd" disabled style="min-width: 140px; padding: 10px 24px; font-size: 14px;" title="Add skill line (Enter)">
                                 <i class="fas fa-plus" style="margin-right: 6px;"></i>
                                 <span id="btnAddText">Add Skill Line</span>
                             </button>
@@ -366,7 +366,7 @@ class SkillLineBuilder {
                                             • Start by selecting a&nbsp;<strong>Mechanic</strong><br>
                                             • Use <kbd>Alt+M</kbd> for mechanics<br>
                                             • Use <kbd>Alt+T</kbd> for targeters<br>
-                                            • Press <kbd>Ctrl+Enter</kbd> to add
+                                            • Press <kbd>Enter</kbd> to add, <kbd>Shift+Enter</kbd> to queue
                                         </div>
                                     </div>
                                 </span>
@@ -379,8 +379,8 @@ class SkillLineBuilder {
                             <button class="btn btn-secondary" id="btnReset" title="Reset current line">
                                 <i class="fas fa-undo"></i> Reset
                             </button>
-                            <button class="btn btn-primary" id="btnAddToQueue" disabled title="Add to queue (Ctrl+Enter)">
-                                <i class="fas fa-plus"></i> Add to Queue <span class="kbd-hint">Ctrl+⏎</span>
+                            <button class="btn btn-primary" id="btnAddToQueue" disabled title="Add to queue (Shift+Enter)">
+                                <i class="fas fa-plus"></i> Add to Queue <span class="kbd-hint">Shift+⏎</span>
                             </button>
                         </div>
                     </div>
@@ -742,6 +742,7 @@ class SkillLineBuilder {
         // Close on Escape
         if (e.key === 'Escape') {
             e.preventDefault();
+            e.stopPropagation();
             this.close();
             return;
         }
@@ -758,13 +759,25 @@ class SkillLineBuilder {
             return;
         }
         
-        // Quick Add to Queue (Ctrl+Enter)
-        if (e.ctrlKey && e.key === 'Enter') {
+        // Add to Queue (Ctrl+Enter or Shift+Enter)
+        if ((e.ctrlKey || e.shiftKey) && e.key === 'Enter') {
             e.preventDefault();
+            e.stopPropagation();
             if (!this.dom.btnAddToQueue.disabled) this.addCurrentLineToQueue();
             return;
         }
-        
+
+        // Add Skill Line (Enter) — only when not typing in an input field
+        if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+            const tag = document.activeElement?.tagName?.toLowerCase();
+            if (tag !== 'input' && tag !== 'textarea' && tag !== 'select') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!this.dom.btnAdd.disabled) this.processQueue();
+                return;
+            }
+        }
+
         // Tab Navigation (Ctrl+Tab / Ctrl+Shift+Tab)
         if (e.ctrlKey && e.key === 'Tab') {
             e.preventDefault();
@@ -838,7 +851,8 @@ class SkillLineBuilder {
             { keys: 'Esc', description: 'Close modal' },
             { keys: 'Ctrl+Z', description: 'Undo' },
             { keys: 'Ctrl+Y / Ctrl+Shift+Z', description: 'Redo' },
-            { keys: 'Ctrl+Enter', description: 'Add line to queue' },
+            { keys: 'Enter', description: 'Add skill line (when not typing)' },
+            { keys: 'Shift+Enter / Ctrl+Enter', description: 'Add line to queue' },
             { keys: 'Ctrl+Tab', description: 'Next tab' },
             { keys: 'Ctrl+Shift+Tab', description: 'Previous tab' },
             { keys: 'Alt+M', description: 'Open mechanic browser' },
