@@ -109,6 +109,11 @@ class MobEditor {
         }
         
         this.attachEventListeners();
+        
+        // Apply vanilla stats for the initial mob type if stats are at defaults
+        if (mob.type && (!mob.health || mob.health === 0) && (!mob.damage || mob.damage === 0)) {
+            this.applyVanillaStatsIfAvailable(mob.type);
+        }
     }
 
     syncToFile() {
@@ -1336,24 +1341,24 @@ class MobEditor {
                         <div class="form-group" data-mob-field="Health">
                             <label class="form-label">Health</label>
                             <input type="number" class="form-input" id="mob-health" value="${mob.health || 0}" min="0" step="0.5">
-                            <small class="form-hint">Maximum health points</small>
+                            <small class="form-hint">Sets exact health (0 = literally 0)</small>
                         </div>
                         <div class="form-group" data-mob-field="Damage">
                             <label class="form-label">Damage</label>
                             <input type="text" class="form-input" id="mob-damage" value="${mob.damage || ''}" placeholder="e.g. 5 or 2.5-3.5">
-                            <small class="form-hint">Attack damage (single value or range)</small>
+                            <small class="form-hint">Sets exact damage (0 = literally 0)</small>
                         </div>
                         <div class="form-group" data-mob-field="Armor">
                             <label class="form-label">Armor</label>
                             <input type="number" class="form-input" id="mob-armor" value="${mob.armor || 0}" min="0">
-                            <small class="form-hint">Armor points</small>
+                            <small class="form-hint">0 = uses mob type default armor</small>
                         </div>
                     </div>
                     <div class="grid-${isAdvanced ? '3' : '2'}">
                         <div class="form-group" data-mob-field="MovementSpeed">
                             <label class="form-label">Movement Speed</label>
                             <input type="number" class="form-input" id="mob-movementspeed" value="${mob.movementSpeed || 0.25}" step="0.01">
-                            <small class="form-hint">Default: 0.2 - 0.25</small>
+                            <small class="form-hint">0 = literally 0 speed (default: 0.2 - 0.25)</small>
                         </div>
                         ${isAdvanced ? `
                         <div class="form-group" data-mob-field="FollowRange">

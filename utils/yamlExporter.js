@@ -162,13 +162,13 @@ class YAMLExporter {
         }
         
         // Core stats - only if explicitly set (not inherited defaults)
-        // We check if the value exists and isn't empty/default
         if (mob.health !== undefined && mob.health !== '' && mob.health !== null) {
             yaml += `  Health: ${mob.health}\n`;
         }
         if (mob.damage !== undefined && mob.damage !== '' && mob.damage !== null) {
             yaml += `  Damage: ${mob.damage}\n`;
         }
+        // Armor: 0 = mob type default, so skip it
         if (mob.armor !== undefined && mob.armor !== '' && mob.armor !== null && mob.armor !== 0 && mob.armor !== '0') {
             yaml += `  Armor: ${mob.armor}\n`;
         }
@@ -343,13 +343,14 @@ class YAMLExporter {
             yaml += `  Display: '${mob.display}'\n`;
         }
         
-        // Core stats only
+        // Core stats
         if (shouldExport('Health', mob.health)) {
             yaml += `  Health: ${mob.health}\n`;
         }
         if (shouldExport('Damage', mob.damage)) {
             yaml += `  Damage: ${mob.damage}\n`;
         }
+        // Armor: 0 = mob type default, so skip it
         if (shouldExport('Armor', mob.armor) && mob.armor !== 0 && mob.armor !== '0') {
             yaml += `  Armor: ${mob.armor}\n`;
         }
